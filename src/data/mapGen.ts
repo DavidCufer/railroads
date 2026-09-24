@@ -39,12 +39,25 @@ export const ROUGHNESS_PARAMS: Record<
 
 export const MOISTURE_NOISE = { octaves: 4, persistence: 0.5, scaleFactor: 0.16 };
 
-/** Rivers source from tiles at or above this elevation. */
+/** Rivers source from tiles at or above this elevation (hills/mountains). */
 export const RIVER_SOURCE_MIN_ELEVATION = 6;
 export const RIVER_SOURCE_COUNT_MIN = 4;
 export const RIVER_SOURCE_COUNT_MAX = 12;
-/** Consecutive steps without a strictly-lower neighbor before a river is turned into a lake. */
-export const RIVER_STUCK_LIMIT = 6;
+/** Minimum tile-distance between two accepted river sources. */
+export const RIVER_SOURCE_MIN_SPACING = 10;
+/** A traced river shorter than this (land tiles, source to water/merge) is discarded. */
+export const RIVER_MIN_LENGTH = 12;
+
+/**
+ * Priority-flood (Barnes et al. 2014, "Priority-Flood + epsilon") depression filling, run on the
+ * continuous pre-quantization elevation field so every land tile has a strictly-downhill path to
+ * water for river routing — no local minima, no random walks.
+ */
+export const FLOOD_EPSILON = 1e-5;
+/** A filled depression shallower than this (in raw elevation units) is not considered a lake. */
+export const LAKE_FILL_THRESHOLD = 0.02;
+/** A filled depression smaller than this many tiles is left as land, not turned into a lake. */
+export const LAKE_MIN_AREA = 4;
 
 /** Terrain classification thresholds (elevation is 0–9; moisture is [-1, 1]). */
 export const TERRAIN_THRESHOLDS = {

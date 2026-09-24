@@ -14,13 +14,25 @@ import {
 import { buildPermutation, clamp, clamp01, fractalNoise2D, smoothstep } from "./noise";
 import { tileIndex } from "./grid";
 import { terrainId, type Terrain } from "./terrain";
-import { carveRivers } from "./rivers";
+import { priorityFloodFill, type FloodFillResult } from "./flood";
+import { fillLakes, removeTinyWaterBodies } from "./lakes";
+import { carveRivers, type RiverInfo } from "./rivers";
 import type { GameMap } from "./types";
 
 export interface MapGenOptions {
   size: MapSizeName;
   waterLevel: WaterLevel;
   roughness: Roughness;
+}
+
+export interface GenerateMapResult {
+  map: GameMap;
+  rivers: RiverInfo[];
+  /**
+   * The priority-flood result computed (and used for routing) before lake conversion — exposed
+   * mainly so tests can verify river monotonicity against the exact field routing used.
+   */
+  flood: FloodFillResult;
 }
 
 function classifyTerrain(elevation: number, moisture: number): Terrain {
@@ -38,14 +50,16 @@ function classifyTerrain(elevation: number, moisture: number): Terrain {
   return "plain";
 }
 
-export function generateMap(rng: RngState, options: MapGenOptions): GameMap {
+export function generateMap(rng: RngState, options: MapGenOptions): GenerateMapResult {
   const { width, height } = MAP_SIZES[options.size];
   const map: GameMap = {
     width,
     height,
     terrain: new Uint8Array(width * height),
     elevation: new Uint8Array(width * height),
+    elevationRaw: new Float32Array(width * height),
     riverFlow: new Uint16Array(width * height),
+    riverNext: new Int32Array(width * height).fill(-1),
   };
 
   const elevationPerm = buildPermutation(rng);
@@ -59,7 +73,6 @@ export function generateMap(rng: RngState, options: MapGenOptions): GameMap {
   const maxDist = Math.hypot(centerX, centerY);
   const falloffStrength = WATER_LEVEL_FALLOFF[options.waterLevel];
 
-  const rawElevation = new Float64Array(width * height);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const idx = tileIndex(map, x, y);
@@ -78,12 +91,12 @@ export function generateMap(rng: RngState, options: MapGenOptions): GameMap {
       }
       const dist = maxDist > 0 ? Math.hypot(x - centerX, y - centerY) / maxDist : 0;
       const falloff = smoothstep(clamp01(dist)) * falloffStrength;
-      rawElevation[idx] = n - falloff;
+      map.elevationRaw[idx] = n - falloff;
     }
   }
 
   const landFraction = WATER_LEVEL_LAND_FRACTION[options.waterLevel];
-  const sorted = Array.from(rawElevation).sort((a, b) => a - b);
+  const sorted = Array.from(map.elevationRaw).sort((a, b) => a - b);
   const thresholdIndex = clamp(
     Math.floor((1 - landFraction) * sorted.length),
     0,
@@ -92,8 +105,8 @@ export function generateMap(rng: RngState, options: MapGenOptions): GameMap {
   const threshold = sorted[thresholdIndex] as number;
   const maxVal = sorted[sorted.length - 1] as number;
 
-  for (let i = 0; i < rawElevation.length; i++) {
-    const v = rawElevation[i] as number;
+  for (let i = 0; i < map.elevationRaw.length; i++) {
+    const v = map.elevationRaw[i] as number;
     if (v <= threshold) {
       map.elevation[i] = 0;
     } else {
@@ -124,7 +137,12 @@ export function generateMap(rng: RngState, options: MapGenOptions): GameMap {
     }
   }
 
-  carveRivers(map, rng);
+  // Priority-flood the continuous elevation field once: fillLakes uses it to find real depression
+  // basins, and carveRivers uses its parent pointers to route rivers downhill with no random walk.
+  const flood = priorityFloodFill(map);
+  fillLakes(map, flood);
+  removeTinyWaterBodies(map);
+  const rivers = carveRivers(map, rng, flood.parent);
 
-  return map;
+  return { map, rivers, flood };
 }

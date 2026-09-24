@@ -5,7 +5,12 @@ import { TerrainRenderer } from "./render/terrain";
 import { CameraInput } from "./ui/cameraInput";
 import { createDebugControls } from "./ui/debugControls";
 import { createGameState, type GameState, type NewGameOptions } from "./sim/state";
+import { terrainId } from "./sim/map/terrain";
+import { TILE_SIZE } from "./render/camera";
 import type { MapSizeName, Roughness, WaterLevel } from "./data/mapGen";
+
+const RIVER_ID = terrainId("river");
+const WATER_ID = terrainId("water");
 
 const DEBUG = new URLSearchParams(window.location.search).has("debug");
 
@@ -47,6 +52,23 @@ function main(): void {
     state = createGameState(options);
     camera.setMapSize(state.map.width, state.map.height);
     terrainRenderer.setMap(state.map);
+  }
+
+  /** World-px point roughly at a river mouth (midway between the last river tile and the water
+   * it flows into) — used by e2e tests to frame a closeup screenshot without guessing coordinates. */
+  function findRiverMouth(): { x: number; y: number } | null {
+    const map = state.map;
+    for (let idx = 0; idx < map.terrain.length; idx++) {
+      if ((map.terrain[idx] as number) !== RIVER_ID) continue;
+      const next = map.riverNext[idx] as number;
+      if (next < 0 || (map.terrain[next] as number) !== WATER_ID) continue;
+      const x = idx % map.width;
+      const y = Math.floor(idx / map.width);
+      const nx = next % map.width;
+      const ny = Math.floor(next / map.width);
+      return { x: ((x + nx) / 2 + 0.5) * TILE_SIZE, y: ((y + ny) / 2 + 0.5) * TILE_SIZE };
+    }
+    return null;
   }
 
   const fps = new FpsCounter();
@@ -98,6 +120,7 @@ function main(): void {
           getTicks: () => number;
           getAvgFrameMs: () => number;
           getAvgRenderMs: () => number;
+          findRiverMouth: () => { x: number; y: number } | null;
           regenerate: (options: {
             seed: number;
             size?: MapSizeName;
@@ -118,6 +141,7 @@ function main(): void {
       getTicks: () => elapsedTicks,
       getAvgFrameMs: () => fps.avgFrameMs,
       getAvgRenderMs: () => fps.avgRenderMs,
+      findRiverMouth,
       regenerate: (options) => regenerate({ ...currentOptions, ...options }),
       camera: {
         getZoom: () => camera.zoom,

@@ -3,7 +3,9 @@ import type { Terrain } from "../sim/map/terrain";
 
 export const TERRAIN_COLORS: Record<Terrain, string> = {
   plain: "#9DBA6A",
-  forest: "#5E8A4A",
+  // Lighter "clearing" ground tone — the darker canopy reads as discrete trees on top, not a
+  // flat dark tile (see FOREST_CANOPY_COLOR / FOREST_SHADOW_COLOR below).
+  forest: "#7FA85C",
   hills: "#A9A46A",
   mountain: "#8C8272",
   desert: "#D8C48A",
@@ -13,6 +15,9 @@ export const TERRAIN_COLORS: Record<Terrain, string> = {
   // the blue river line is drawn on top.
   river: "#96B569",
 };
+
+export const FOREST_CANOPY_COLOR = "#4C7A3E";
+export const FOREST_SHADOW_COLOR = "rgba(20, 40, 20, 0.35)";
 
 export const SNOWCAP_COLOR = "#EDEDE8";
 export const WATER_DEEP_COLOR = "#2E5E8C";

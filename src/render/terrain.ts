@@ -5,8 +5,10 @@
  */
 import { Camera, OVERVIEW_ZOOM_THRESHOLD, TILE_SIZE } from "./camera";
 import { shadeColor, withAlpha } from "./color";
-import { hillshadeFactor } from "./hillshade";
+import { hillshadeFactorAt } from "./hillshade";
 import {
+  FOREST_CANOPY_COLOR,
+  FOREST_SHADOW_COLOR,
   RIVER_LINE_COLOR,
   SNOWCAP_COLOR,
   SNOWCAP_MIN_ELEVATION,
@@ -15,11 +17,17 @@ import {
   WATER_SHALLOW_COLOR,
 } from "./palette";
 import { DIRS8, inBounds, tileIndex } from "../sim/map/grid";
-import { terrainName, type Terrain } from "../sim/map/terrain";
+import { terrainId, terrainName, type Terrain } from "../sim/map/terrain";
 import type { GameMap } from "../sim/map/types";
 
 const CHUNK_TILES = 16;
 type ZoomBucket = 1 | 0.5 | 0.25;
+
+const WATER_ID = terrainId("water");
+const RIVER_ID = terrainId("river");
+
+/** Sub-tile shading resolution: a 4x4 grid of bilinearly-sampled hillshade cells per tile. */
+const SHADE_SUBCELLS = 4;
 
 function pickBucket(zoom: number): ZoomBucket {
   if (zoom >= 0.75) return 1;
@@ -29,9 +37,15 @@ function pickBucket(zoom: number): ZoomBucket {
 
 function terrainColorFor(map: GameMap, idx: number): string {
   const terrain = terrainName(map.terrain[idx] as number);
-  const elevation = map.elevation[idx] as number;
-  if (terrain === "mountain" && elevation >= SNOWCAP_MIN_ELEVATION) return SNOWCAP_COLOR;
   return TERRAIN_COLORS[terrain];
+}
+
+function renderColorFor(map: GameMap, x: number, y: number): string {
+  const idx = tileIndex(map, x, y);
+  if ((map.terrain[idx] as number) === WATER_ID) {
+    return isShallowWater(map, x, y) ? WATER_SHALLOW_COLOR : WATER_DEEP_COLOR;
+  }
+  return terrainColorFor(map, idx);
 }
 
 function chunkCacheKey(cx: number, cy: number, bucket: ZoomBucket, overview: boolean): string {
@@ -43,7 +57,7 @@ function isShallowWater(map: GameMap, x: number, y: number): boolean {
     const nx = x + dx;
     const ny = y + dy;
     if (!inBounds(map, nx, ny)) return true; // map edge reads as shallow/coastal
-    if (terrainName(map.terrain[tileIndex(map, nx, ny)] as number) !== "water") return true;
+    if ((map.terrain[tileIndex(map, nx, ny)] as number) !== WATER_ID) return true;
   }
   return false;
 }
@@ -93,9 +107,9 @@ export class TerrainRenderer {
 
     // Cap how many never-before-seen chunks get rasterized in a single frame, so panning into
     // fresh territory can't stall the frame — the rest fill in over the next couple of frames.
-    // Overview chunks are cheap (flat fill, no hillshading/blend/texture) so they're never budgeted.
+    // Overview chunks are cheap (flat fill, no hillshading/blend/decoration) so they're never budgeted.
     let chunksRenderedThisFrame = 0;
-    const CHUNK_RENDER_BUDGET = overview ? Infinity : 8;
+    const CHUNK_RENDER_BUDGET = overview ? Infinity : 4;
 
     for (let cy = chunkMinY; cy <= chunkMaxY; cy++) {
       for (let cx = chunkMinX; cx <= chunkMaxX; cx++) {
@@ -173,25 +187,50 @@ export class TerrainRenderer {
   ): void {
     const idx = tileIndex(this.map, mapX, mapY);
     const terrain = terrainName(this.map.terrain[idx] as number);
-    let color = terrainColorFor(this.map, idx);
-    if (terrain === "water") {
-      color = isShallowWater(this.map, mapX, mapY) ? WATER_SHALLOW_COLOR : WATER_DEEP_COLOR;
-    }
+    const baseColor = renderColorFor(this.map, mapX, mapY);
 
     if (overview) {
-      ctx.fillStyle = color;
+      ctx.fillStyle = baseColor;
       ctx.fillRect(px, py, size, size);
       return;
     }
 
-    const shade = terrain === "water" ? 1 : hillshadeFactor(this.map, mapX, mapY);
-    ctx.fillStyle = shadeColor(color, shade);
-    ctx.fillRect(px, py, size, size);
+    if (terrain === "water") {
+      ctx.fillStyle = baseColor;
+      ctx.fillRect(px, py, size, size);
+    } else {
+      this.drawShadedTile(ctx, mapX, mapY, px, py, size, baseColor);
+    }
 
     this.drawEdgeBlend(ctx, mapX, mapY, px, py, size);
-    this.drawTexture(ctx, terrain, px, py, size);
+    this.drawCornerBlend(ctx, mapX, mapY, px, py, size);
+    this.drawDecoration(ctx, mapX, mapY, terrain, px, py, size);
   }
 
+  /** Fills the tile as a small grid of bilinearly-shaded subcells — smoother, stronger hillshading. */
+  private drawShadedTile(
+    ctx: CanvasRenderingContext2D,
+    mapX: number,
+    mapY: number,
+    px: number,
+    py: number,
+    size: number,
+    baseColor: string,
+  ): void {
+    const sub = size / SHADE_SUBCELLS;
+    const pad = 0.75; // avoid faint seams between adjacent subcell rects
+    for (let sy = 0; sy < SHADE_SUBCELLS; sy++) {
+      for (let sx = 0; sx < SHADE_SUBCELLS; sx++) {
+        const fx = mapX - 0.5 + (sx + 0.5) / SHADE_SUBCELLS;
+        const fy = mapY - 0.5 + (sy + 0.5) / SHADE_SUBCELLS;
+        const shade = hillshadeFactorAt(this.map, fx, fy);
+        ctx.fillStyle = shadeColor(baseColor, shade);
+        ctx.fillRect(px + sx * sub - pad / 2, py + sy * sub - pad / 2, sub + pad, sub + pad);
+      }
+    }
+  }
+
+  /** Feathers this tile's edge toward a differing neighbor with a few jittered, blob-shaped washes. */
   private drawEdgeBlend(
     ctx: CanvasRenderingContext2D,
     mapX: number,
@@ -202,13 +241,13 @@ export class TerrainRenderer {
   ): void {
     const idx = tileIndex(this.map, mapX, mapY);
     const terrain = terrainName(this.map.terrain[idx] as number);
-    const blend = size * 0.4;
-    const edges: Array<{ dx: number; dy: number; side: "top" | "bottom" | "left" | "right" }> = [
-      { dx: 0, dy: -1, side: "top" },
-      { dx: 0, dy: 1, side: "bottom" },
-      { dx: -1, dy: 0, side: "left" },
-      { dx: 1, dy: 0, side: "right" },
+    const edges: Array<{ dx: number; dy: number; axis: "h" | "v"; side: 0 | 1 }> = [
+      { dx: 0, dy: -1, axis: "h", side: 0 },
+      { dx: 0, dy: 1, axis: "h", side: 1 },
+      { dx: -1, dy: 0, axis: "v", side: 0 },
+      { dx: 1, dy: 0, axis: "v", side: 1 },
     ];
+    const blobCount = 4;
 
     for (const edge of edges) {
       const nx = mapX + edge.dx;
@@ -217,52 +256,208 @@ export class TerrainRenderer {
       const nIdx = tileIndex(this.map, nx, ny);
       const nTerrain = terrainName(this.map.terrain[nIdx] as number);
       if (nTerrain === terrain) continue;
-      const nColor = terrainColorFor(this.map, nIdx);
+      const nColor = renderColorFor(this.map, nx, ny);
 
-      let gradient: CanvasGradient;
-      if (edge.side === "top") {
-        gradient = ctx.createLinearGradient(0, py, 0, py + blend);
-        gradient.addColorStop(0, withAlpha(nColor, 0.35));
+      for (let i = 0; i < blobCount; i++) {
+        const t = (i + 0.5) / blobCount + (Math.random() - 0.5) * 0.18;
+        const bx = edge.axis === "h" ? px + t * size : px + edge.side * size;
+        const by = edge.axis === "v" ? py + t * size : py + edge.side * size;
+        const r = size * (0.18 + Math.random() * 0.12);
+        const gradient = ctx.createRadialGradient(bx, by, 0, bx, by, r);
+        gradient.addColorStop(0, withAlpha(nColor, 0.4));
         gradient.addColorStop(1, withAlpha(nColor, 0));
         ctx.fillStyle = gradient;
-        ctx.fillRect(px, py, size, blend);
-      } else if (edge.side === "bottom") {
-        gradient = ctx.createLinearGradient(0, py + size - blend, 0, py + size);
-        gradient.addColorStop(0, withAlpha(nColor, 0));
-        gradient.addColorStop(1, withAlpha(nColor, 0.35));
-        ctx.fillStyle = gradient;
-        ctx.fillRect(px, py + size - blend, size, blend);
-      } else if (edge.side === "left") {
-        gradient = ctx.createLinearGradient(px, 0, px + blend, 0);
-        gradient.addColorStop(0, withAlpha(nColor, 0.35));
-        gradient.addColorStop(1, withAlpha(nColor, 0));
-        ctx.fillStyle = gradient;
-        ctx.fillRect(px, py, blend, size);
-      } else {
-        gradient = ctx.createLinearGradient(px + size - blend, 0, px + size, 0);
-        gradient.addColorStop(0, withAlpha(nColor, 0));
-        gradient.addColorStop(1, withAlpha(nColor, 0.35));
-        ctx.fillStyle = gradient;
-        ctx.fillRect(px + size - blend, py, blend, size);
+        ctx.beginPath();
+        ctx.arc(bx, by, r, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
   }
 
-  private drawTexture(
+  /**
+   * Softens a diagonal-only coastline corner (this tile and its diagonal neighbor disagree about
+   * being water, but both orthogonal neighbors agree with the diagonal) — the case the cardinal
+   * edge blend above can't reach, otherwise the pixel-grid corner shows through.
+   */
+  private drawCornerBlend(
+    ctx: CanvasRenderingContext2D,
+    mapX: number,
+    mapY: number,
+    px: number,
+    py: number,
+    size: number,
+  ): void {
+    const idx = tileIndex(this.map, mapX, mapY);
+    const isWater = (this.map.terrain[idx] as number) === WATER_ID;
+    const corners: Array<{ dx: number; dy: number; cx: number; cy: number }> = [
+      { dx: -1, dy: -1, cx: 0, cy: 0 },
+      { dx: 1, dy: -1, cx: size, cy: 0 },
+      { dx: -1, dy: 1, cx: 0, cy: size },
+      { dx: 1, dy: 1, cx: size, cy: size },
+    ];
+
+    for (const corner of corners) {
+      const dnx = mapX + corner.dx;
+      const dny = mapY + corner.dy;
+      const onx = mapX + corner.dx;
+      const ony = mapY;
+      const omx = mapX;
+      const omy = mapY + corner.dy;
+      if (
+        !inBounds(this.map, dnx, dny) ||
+        !inBounds(this.map, onx, ony) ||
+        !inBounds(this.map, omx, omy)
+      ) {
+        continue;
+      }
+      const diagIsWater = (this.map.terrain[tileIndex(this.map, dnx, dny)] as number) === WATER_ID;
+      if (diagIsWater === isWater) continue;
+      const o1Water = (this.map.terrain[tileIndex(this.map, onx, ony)] as number) === WATER_ID;
+      const o2Water = (this.map.terrain[tileIndex(this.map, omx, omy)] as number) === WATER_ID;
+      if (o1Water !== diagIsWater || o2Water !== diagIsWater) continue; // a full edge, not a bare corner
+
+      const color = diagIsWater ? WATER_SHALLOW_COLOR : renderColorFor(this.map, mapX, mapY);
+      const r = size * 0.34;
+      const gradient = ctx.createRadialGradient(corner.cx, corner.cy, 0, corner.cx, corner.cy, r);
+      gradient.addColorStop(0, withAlpha(color, 0.32));
+      gradient.addColorStop(1, withAlpha(color, 0));
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(corner.cx, corner.cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  private drawDecoration(
+    ctx: CanvasRenderingContext2D,
+    mapX: number,
+    mapY: number,
+    terrain: Terrain,
+    px: number,
+    py: number,
+    size: number,
+  ): void {
+    switch (terrain) {
+      case "forest":
+        this.drawForestClusters(ctx, px, py, size);
+        break;
+      case "hills":
+        this.drawHillBumps(ctx, px, py, size);
+        break;
+      case "mountain":
+        this.drawMountainPeaks(ctx, mapX, mapY, px, py, size);
+        break;
+      case "plain":
+      case "desert":
+      case "swamp":
+      case "river":
+        this.drawSpeckle(ctx, terrain, px, py, size);
+        break;
+      default:
+        break;
+    }
+  }
+
+  /** 2–4 small tree canopies (with a darker shadow) instead of one flat dark tile. */
+  private drawForestClusters(
+    ctx: CanvasRenderingContext2D,
+    px: number,
+    py: number,
+    size: number,
+  ): void {
+    const count = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < count; i++) {
+      const cx = px + size * (0.15 + Math.random() * 0.7);
+      const cy = py + size * (0.15 + Math.random() * 0.7);
+      const r = size * (0.12 + Math.random() * 0.08);
+
+      ctx.fillStyle = FOREST_SHADOW_COLOR;
+      ctx.beginPath();
+      ctx.arc(cx + r * 0.35, cy + r * 0.35, r * 0.9, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = FOREST_CANOPY_COLOR;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  /** 2–3 soft bump highlights (light NW, dark SE) to read as gentle mounds. */
+  private drawHillBumps(ctx: CanvasRenderingContext2D, px: number, py: number, size: number): void {
+    const count = 2 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < count; i++) {
+      const cx = px + size * (0.2 + Math.random() * 0.6);
+      const cy = py + size * (0.2 + Math.random() * 0.6);
+      const r = size * (0.18 + Math.random() * 0.1);
+      const gradient = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, 0, cx, cy, r);
+      gradient.addColorStop(0, "rgba(255, 255, 255, 0.2)");
+      gradient.addColorStop(0.55, "rgba(255, 255, 255, 0.04)");
+      gradient.addColorStop(1, "rgba(50, 35, 15, 0.14)");
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, r, r * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  /** 1–2 small peak triangles: lighter NW-facing side, darker SE-facing side, snowcap only at elevation 9. */
+  private drawMountainPeaks(
+    ctx: CanvasRenderingContext2D,
+    mapX: number,
+    mapY: number,
+    px: number,
+    py: number,
+    size: number,
+  ): void {
+    const elevation = this.map.elevation[tileIndex(this.map, mapX, mapY)] as number;
+    const count = Math.random() < 0.5 ? 1 : 2;
+    for (let i = 0; i < count; i++) {
+      const baseX = px + size * (0.25 + Math.random() * 0.5);
+      const baseY = py + size * (0.7 + Math.random() * 0.15);
+      const peakH = size * (0.35 + Math.random() * 0.15);
+      const halfW = size * 0.22;
+      const apexX = baseX;
+      const apexY = baseY - peakH;
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+      ctx.beginPath();
+      ctx.moveTo(apexX, apexY);
+      ctx.lineTo(baseX - halfW, baseY);
+      ctx.lineTo(baseX, baseY);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = "rgba(30, 25, 20, 0.28)";
+      ctx.beginPath();
+      ctx.moveTo(apexX, apexY);
+      ctx.lineTo(baseX, baseY);
+      ctx.lineTo(baseX + halfW, baseY);
+      ctx.closePath();
+      ctx.fill();
+
+      if (elevation >= SNOWCAP_MIN_ELEVATION) {
+        const capH = peakH * 0.32;
+        const capHalfW = halfW * 0.42;
+        ctx.fillStyle = SNOWCAP_COLOR;
+        ctx.beginPath();
+        ctx.moveTo(apexX, apexY);
+        ctx.lineTo(apexX - capHalfW, apexY + capH);
+        ctx.lineTo(apexX + capHalfW, apexY + capH);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
+
+  private drawSpeckle(
     ctx: CanvasRenderingContext2D,
     terrain: Terrain,
     px: number,
     py: number,
     size: number,
   ): void {
-    const counts: Partial<Record<Terrain, number>> = {
-      forest: 6,
-      hills: 3,
-      mountain: 3,
-      plain: 4,
-      desert: 4,
-      swamp: 4,
-    };
+    const counts: Partial<Record<Terrain, number>> = { plain: 4, desert: 4, swamp: 4, river: 2 };
     const count = counts[terrain] ?? 0;
     if (count === 0) return;
 
@@ -277,6 +472,29 @@ export class TerrainRenderer {
     }
   }
 
+  private indexToXY(idx: number): [number, number] {
+    return [idx % this.map.width, Math.floor(idx / this.map.width)];
+  }
+
+  private findRiverPrevs(mapX: number, mapY: number, idx: number): Array<[number, number]> {
+    const prevs: Array<[number, number]> = [];
+    for (const [dx, dy] of DIRS8) {
+      const nx = mapX + dx;
+      const ny = mapY + dy;
+      if (!inBounds(this.map, nx, ny)) continue;
+      const nIdx = tileIndex(this.map, nx, ny);
+      if (
+        (this.map.terrain[nIdx] as number) === RIVER_ID &&
+        (this.map.riverNext[nIdx] as number) === idx
+      ) {
+        prevs.push([nx, ny]);
+      }
+    }
+    return prevs;
+  }
+
+  /** Draws each river as one smoothed polyline (quadratic curves through tile centers, via
+   * midpoints) following `riverNext`, instead of a mesh of straight segments between neighbors. */
   private drawRivers(
     ctx: CanvasRenderingContext2D,
     originX: number,
@@ -287,35 +505,46 @@ export class TerrainRenderer {
   ): void {
     ctx.strokeStyle = RIVER_LINE_COLOR;
     ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    const localCenter = (mapX: number, mapY: number): [number, number] => [
+      (mapX - originX + 0.5) * px,
+      (mapY - originY + 0.5) * px,
+    ];
 
     for (let ty = 0; ty < tilesY; ty++) {
       for (let tx = 0; tx < tilesX; tx++) {
         const mapX = originX + tx;
         const mapY = originY + ty;
         const idx = tileIndex(this.map, mapX, mapY);
-        if (terrainName(this.map.terrain[idx] as number) !== "river") continue;
+        if ((this.map.terrain[idx] as number) !== RIVER_ID) continue;
+
+        const next = this.map.riverNext[idx] as number;
+        if (next < 0) continue;
         const flow = this.map.riverFlow[idx] as number;
-        const cx = tx * px + px / 2;
-        const cy = ty * px + px / 2;
+        const width = Math.max(2, Math.min(6, 2 + flow * 0.5)) * (px / TILE_SIZE);
+        ctx.lineWidth = width;
 
-        for (const [dx, dy] of DIRS8) {
-          const nx = mapX + dx;
-          const ny = mapY + dy;
-          if (!inBounds(this.map, nx, ny)) continue;
-          const nIdx = tileIndex(this.map, nx, ny);
-          if (nIdx <= idx) continue; // dedupe: draw each shared edge once
-          const nTerrain = terrainName(this.map.terrain[nIdx] as number);
-          if (nTerrain !== "river" && nTerrain !== "water") continue;
+        const [tcx, tcy] = localCenter(mapX, mapY);
+        const [nx, ny] = this.indexToXY(next);
+        const [ncx, ncy] = localCenter(nx, ny);
+        const nextMidX = (tcx + ncx) / 2;
+        const nextMidY = (tcy + ncy) / 2;
 
-          const ncx = (tx + dx) * px + px / 2;
-          const ncy = (ty + dy) * px + px / 2;
-          const nFlow = this.map.riverFlow[nIdx] as number;
-          const width =
-            Math.max(1, Math.min(5, 1 + Math.max(flow, nFlow) * 0.4)) * px * (1 / TILE_SIZE);
-          ctx.lineWidth = width;
+        const prevs = this.findRiverPrevs(mapX, mapY, idx);
+        if (prevs.length === 0) {
           ctx.beginPath();
-          ctx.moveTo(cx, cy);
-          ctx.lineTo(ncx, ncy);
+          ctx.moveTo(tcx, tcy);
+          ctx.lineTo(nextMidX, nextMidY);
+          ctx.stroke();
+          continue;
+        }
+        for (const [px2, py2] of prevs) {
+          const [pcx, pcy] = localCenter(px2, py2);
+          const prevMidX = (pcx + tcx) / 2;
+          const prevMidY = (pcy + tcy) / 2;
+          ctx.beginPath();
+          ctx.moveTo(prevMidX, prevMidY);
+          ctx.quadraticCurveTo(tcx, tcy, nextMidX, nextMidY);
           ctx.stroke();
         }
       }
@@ -370,7 +599,7 @@ export class TerrainRenderer {
       const x = minX + Math.floor(Math.random() * (maxX - minX + 1));
       const y = minY + Math.floor(Math.random() * (maxY - minY + 1));
       const idx = tileIndex(this.map, x, y);
-      if (terrainName(this.map.terrain[idx] as number) !== "water") continue;
+      if ((this.map.terrain[idx] as number) !== WATER_ID) continue;
       dots.push({
         x: x * TILE_SIZE + Math.random() * TILE_SIZE,
         y: y * TILE_SIZE + Math.random() * TILE_SIZE,

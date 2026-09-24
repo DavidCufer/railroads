@@ -6,6 +6,7 @@ declare global {
       getAvgFrameMs: () => number;
       getAvgRenderMs: () => number;
       getMap: () => { width: number; height: number };
+      findRiverMouth: () => { x: number; y: number } | null;
       regenerate: (options: {
         seed: number;
         size?: string;
@@ -51,6 +52,29 @@ test.describe("Phase 1 — map rendering", () => {
     }
 
     expect(consoleErrors).toEqual([]);
+  });
+
+  test("closeup on a river mouth at zoom 2 (Phase 1.1 review)", async ({ page }) => {
+    await page.goto("/?debug=1");
+    await page.waitForFunction(() => window.__game !== undefined);
+
+    await page.evaluate(() => {
+      window.__game?.regenerate({
+        seed: 12345,
+        size: "medium",
+        waterLevel: "normal",
+        roughness: "normal",
+      });
+    });
+
+    const mouth = await page.evaluate(() => window.__game?.findRiverMouth() ?? null);
+    expect(mouth).not.toBeNull();
+    if (!mouth) throw new Error("unreachable");
+
+    await page.evaluate((m) => window.__game?.camera.setCenter(m.x, m.y), mouth);
+    await page.evaluate(() => window.__game?.camera.setZoom(2));
+    await page.waitForTimeout(350);
+    await page.screenshot({ path: "docs/screenshots/phase-1.1-closeup-zoom2.png" });
   });
 
   test("60 fps pan/zoom target on a Large map in desktop Chromium", async ({ page }) => {

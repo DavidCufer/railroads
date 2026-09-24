@@ -101,3 +101,90 @@ Append one entry per phase/session: date, phase, what was built, key files, know
   terrain look. Root causes and fixes are written up as **Phase 1.1** in PLAN.md.
 - CLAUDE.md: sessions must push to `main`, look at their screenshots, and not commit incidental screenshot churn.
 - Next: **Phase 1.1 — Fix rivers and terrain visuals**, then Phase 2.
+
+## 2026-09-24 — Phase 1.1: Fix rivers and terrain visuals
+- **River routing rewrite** (`src/sim/map/flood.ts`, new): priority-flood depression filling
+  (Barnes et al. 2014, "Priority-Flood + ε") over the continuous pre-quantization elevation field
+  (`GameMap.elevationRaw: Float32Array`, new — kept alongside the existing quantized `elevation`).
+  A binary min-heap floods outward from every water tile; each newly-reached land tile is raised to
+  at least `parent + ε` and records which neighbor it was reached from (`parent: Int32Array`).
+  Walking a tile's parent chain is now *always* strictly downhill and *always* reaches water within
+  a bounded number of steps — no local minima, so `src/sim/map/rivers.ts` no longer needs (or has)
+  any random-walk/stuck-escape logic. Each river just follows `floodParent` from a hills/mountains
+  source until it hits water or an existing river tile (a confluence); paths shorter than 12 tiles
+  are discarded, sources must be ≥ 10 tiles apart, tributary flow is added downstream through the
+  river it joins. The explicit downstream pointer (`GameMap.riverNext: Int32Array`, new) plus
+  `riverFlow` (kept) are exactly what the renderer needs to draw one smooth line per river instead
+  of a mesh.
+- **Lakes** (`src/sim/map/lakes.ts`, new): `fillLakes` finds depression regions the flood raised by
+  more than a small noise threshold and turns regions ≥ 4 tiles into real lakes (never 1–3 tile
+  puddles). A second pass, `removeTinyWaterBodies`, connected-components *all* water (including
+  ordinary sea-level-threshold noise, independent of the depression logic) and reclaims any
+  non-largest component smaller than 4 tiles back to land — needed because tiny water flecks can
+  also come directly from the original elevation-threshold classification, not just from filled
+  depressions.
+- `generateMap` now returns `{ map, rivers, flood }` instead of a bare `GameMap` (`state.ts` just
+  destructures `{ map }`); `rivers: RiverInfo[]` and `flood` (the exact `FloodFillResult` used for
+  routing) exist mainly so tests can verify real generator output rather than reimplementing the
+  algorithm.
+- **Renderer rewrite** (`src/render/terrain.ts`, `hillshade.ts`, `palette.ts`):
+  - Hillshading now samples the continuous `elevationRaw` field bilinearly
+    (`hillshadeFactorAt`/`bilinearElevation`) at a 4×4 sub-tile grid per land tile instead of one
+    flat shade from the quantized field, with shading strength raised ~4.5× (0.12 → 0.55) — visibly
+    stronger, continuous-looking shading instead of a near-flat tint.
+  - Terrain-edge blending replaced straight linear-gradient strips with 4 jittered, randomly-sized
+    radial "blob" washes per differing edge, plus a new diagonal-corner blend for the
+    checkerboard-corner case cardinal-edge blending can't reach (a coastline poking in/out only at
+    a corner) — reads as organic, mottled borders instead of stair-steps.
+  - Forest: lighter "clearing" base color (`TERRAIN_COLORS.forest` lightened) with 2–4 explicit
+    tree-canopy circles (dark green + an offset darker shadow) instead of one flat dark tile.
+  - Hills: 2–3 soft radial-gradient "bump" highlights (light NW, dark SE-ish falloff).
+  - Mountains: 1–2 small peak triangles per tile with a lighter NW-facing side and darker SE-facing
+    side; the old "solid white tile at elevation 9" snowcap is gone — snow is now a small triangular
+    cap only at the very top of a peak, only at elevation 9.
+  - Rivers: `drawRivers` now walks `riverNext` (downstream) and a per-tile reverse lookup for
+    `riverPrev` (any neighbor whose `riverNext` points here — confluences can have more than one),
+    drawing one quadratic curve per incoming edge (`moveTo(midpoint(prev, tile))` →
+    `quadraticCurveTo(tile center, midpoint(tile, next))`), instead of a straight segment to every
+    river/water neighbor. Line width scales with `riverFlow` (2–6px at zoom 1). Since the curve
+    always ends at the *midpoint* between a river tile and its downstream water neighbor, a river
+    mouth naturally lands right on the coastline instead of running into open water.
+- **Perf**: raised the sub-tile shading and extra draw calls per tile cost cold-chunk rasterization
+  noticeably more, so the chunk-render-per-frame budget (`src/render/terrain.ts`) was lowered from
+  8 to 4 new full-detail chunks/frame to keep any single frame's spike bounded. Re-ran the Large-map
+  pan/zoom e2e perf test (mixes cold-chunk creation via camera jumps with steady-state panning)
+  repeatedly: average render time landed consistently at 5.5–8.5ms, comfortably under the 16ms
+  budget (previously ~2–4ms with the old cheaper renderer, so there's real headroom left).
+- **Tests** (`tests/sim/map/flood.test.ts` new, `rivers.test.ts` rewritten, `generate.test.ts`
+  updated for the new `{map, rivers, flood}` return shape): flood-fill correctness on a small
+  hand-built "enclosed pit" grid (pit gets raised above its rim, parent chains reach water with no
+  cycles, filled elevation strictly decreases toward the parent); across 15 seeds — every river
+  tile's `riverNext` chain reaches water with no cycles within `width+height` steps; the *exact*
+  `flood.filled` field used for routing is non-increasing along every river chain; non-river tiles
+  have `riverNext === -1`; no water body smaller than 4 tiles other than the sea; every generated
+  map places ≥ 4 rivers, each ≥ 12 tiles long. All 18 unit tests pass (was 12 before this phase).
+- **Screenshots — actually looked at them** (per the updated CLAUDE.md workflow rule):
+  regenerated `docs/screenshots/phase-1-zoom-{1,0.5,0.25}.png` (seed 12345, same as Phase 1) and
+  added `docs/screenshots/phase-1.1-closeup-zoom2.png` (new e2e test using a new debug helper,
+  `window.__game.findRiverMouth()`, which scans the map for a river tile whose `riverNext` is a
+  water tile and returns the world-space midpoint between them, so the closeup test doesn't have to
+  guess coordinates). What they show:
+  - The closeup: a single smooth blue curve running through light-green ground dotted with
+    individual dark-green tree-canopy circles, bending once, and ending cleanly at a soft-edged
+    coastline — no triangles, no stray stubs, no mesh. This is the headline fix.
+  - zoom 1/0.5: forests read as clusters of distinct trees, not a flat dark blob; visible soft
+    mottling at forest/plain and plain/desert borders instead of hard squares; a river bends
+    naturally along the terrain into a small lake.
+  - A separate manual check on a `mountainous`-roughness map (not committed, reviewed and discarded)
+    confirmed mountain tiles show grey/tan peak triangles with a lighter NW face, small white
+    snowcap triangles only at elevation 9 (not full white tiles), and hills show soft directional
+    bump shading.
+  - Overview style (zoom 0.25) is unchanged from Phase 1 (flat-filled, no rivers drawn) — out of
+    scope for this fix, called out already as correct-for-now in the Phase 1 entry.
+- Known issues / carry-over: hillshading is visibly stronger and continuous now, but on mostly-flat
+  `normal`/`flat` roughness maps the effect is subtle simply because there isn't much slope to shade
+  — this reads as correct, not a bug. The coastline "marching squares" ask was implemented as a
+  simplified per-corner radial blend (handles the common diagonal-corner case) rather than a full
+  marching-squares contour; revisit if coastlines still look too blocky once cities/track are on
+  screen and there's more to compare against. Overview-zoom rivers still not drawn (see above).
+- Next: **Phase 2 — Android shell & APK pipeline**.

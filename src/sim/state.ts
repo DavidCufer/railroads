@@ -19,6 +19,6 @@ export interface NewGameOptions extends MapGenOptions {
  */
 export function createGameState(options: NewGameOptions): GameState {
   const rng = createRng(options.seed);
-  const map = generateMap(rng, options);
+  const { map } = generateMap(rng, options);
   return { seed: options.seed, rng, map };
 }
