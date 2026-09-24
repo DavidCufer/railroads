@@ -36,3 +36,62 @@ Append one entry per phase/session: date, phase, what was built, key files, know
   (not exploitable in the built app, 0 vulnerabilities in production deps); left as-is for now, worth revisiting
   with a version bump in a later phase.
 - Next: **Phase 1 — Map model, random generator, terrain rendering, camera**.
+
+## 2026-09-24 — Phase 1: Map model, random generator, terrain rendering, camera
+- `src/sim/state.ts`: `GameState { seed, rng, map }` factory (`createGameState`). Map generation
+  consumes from the *same* `RngState` stored on the returned state, so later phases (city naming,
+  industry dynamics, breakdowns, ...) continue the one seeded stream deterministically instead of
+  spinning up a second RNG.
+- `src/sim/map/`: `types.ts` (`GameMap` — `terrain`/`elevation` as `Uint8Array`, `riverFlow` as
+  `Uint16Array`), `grid.ts` (index/bounds/8-direction helpers), `terrain.ts` (the 8 terrain kinds +
+  id<->name), `noise.ts` (seeded fractal value noise — permutation table built from the game's RNG,
+  never `Math.random`), `rivers.ts` (steepest-descent carving, stuck→lake), `generate.ts` (elevation
+  → sea-level threshold by target land fraction → terrain classification → rivers), per SPEC §4.2
+  steps 1–3. Balance numbers (map sizes, land-fraction targets, noise octaves/persistence per
+  roughness, river source count/stuck limit, terrain classification thresholds) live in
+  `src/data/mapGen.ts`, not in the generator logic.
+- Tests (`tests/sim/map/*.test.ts`, 7 new): generator determinism (same seed → identical
+  terrain/elevation/riverFlow arrays), land fraction within ±5% of target for all three water
+  levels, no NaN/out-of-range elevations, only valid terrain ids, and — across 15 seeds — every
+  8-connected river component touches a water tile (flood-fill check, independent of the carving
+  algorithm's own bookkeeping).
+- `src/render/`: `camera.ts` (world-px camera with `pan`/`zoomAt`/screen↔world conversion, clamped
+  to map bounds, zoom 0.25–2×), `terrain.ts` (`TerrainRenderer`: chunk cache keyed by
+  `zoom-bucket|overview|cx|cy`, 16×16-tile chunks, buckets 1×/0.5×/0.25×; full-detail chunks get
+  hillshading from a NW light + elevation deltas, soft edge-blend gradients toward differing
+  neighbor terrain, procedural speckle texture, and river lines with width from a per-tile
+  `riverFlow` accumulator; the 0.25× bucket uses the simplified "overview" flat-fill style per SPEC
+  §4.1; water shimmer highlight dots are redrawn every ~400ms directly on the main canvas, not
+  cached), `hillshade.ts`, `palette.ts`, `color.ts`.
+- Chunk rasterization is budgeted per frame (8 new full-detail chunks/frame; overview chunks are
+  unbudgeted since they're just flat fills) so panning into unrendered territory can't stall a
+  frame — new chunks fill in over the next couple of frames instead of blocking.
+- Camera input (`src/ui/cameraInput.ts`): pointer-events-based one-finger/mouse drag pan, two-finger
+  pinch zoom, wheel zoom (all focal-point-preserving), and simple exponential-decay pan inertia on
+  release.
+- `window.__game` (debug hook, `?debug=1`): `getState`/`getMap`/`getTicks`, `getAvgFrameMs` (full
+  rAF interval) and `getAvgRenderMs` (CPU time inside the draw call only), `regenerate(options)`,
+  and `camera.{getZoom,setZoom,pan,setCenter}`. Temporary dev-only controls
+  (`src/ui/debugControls.ts`): map-size dropdown + "New seed" button, top-right, strings from
+  `src/ui/strings.ts`.
+- **Deviation** (noted in SPEC.md too): the "typed arrays for terrain/elevation/flags" wording in
+  PLAN.md's checkbox is satisfied by `terrain`/`elevation`/`riverFlow`; there's no separate generic
+  "flags" array yet since nothing needs one until Phase 3 (`cityId`/`industryId` will be added then).
+- **E2E** (`e2e/map.spec.ts`): screenshots at zoom 1, 0.5, 0.25 for seed 12345, medium map →
+  `docs/screenshots/phase-1-zoom-{1,0.5,0.25}.png`; a pan/zoom stress test on a Large
+  (192×128) map that mixes cold chunk rasterization (camera jumps to unexplored areas) with
+  cached-chunk panning/zooming for 1.8s and asserts the average render-call time stays under 16ms.
+  Typical results in this container: ~2–4ms average (way under budget).
+  - Found during this work: headless Chromium's `requestAnimationFrame` is vsync-capped at exactly
+    16.667ms (1000/60) *even when completely idle* in this environment, so "average time between
+    frames" can never usefully show < 16ms regardless of render cost — it was passing/failing on
+    vsync noise, not on the renderer. Fixed by adding `FpsCounter.avgRenderMs`, which times only the
+    `TerrainRenderer.draw()` call itself (`performance.now()` before/after in `main.ts`), and having
+    the e2e test assert on that instead. `avgFrameMs` (full rAF interval) is kept for the on-screen
+    debug overlay since it's still the right number for *displayed* fps.
+- Known issues / carry-over: rivers render as fairly thin/angular polylines (steepest-descent path
+  between tile centers) rather than a smoothed curve — acceptable per SPEC wording ("blue lines with
+  width by flow") but could be prettied up later. No cities/industries yet (Phase 3). Overview style
+  (zoom < 0.5×) currently still draws terrain (flat-filled) rather than switching to "cities as dots,
+  track as lines" — correct per SPEC §4.1, since those features don't exist until later phases.
+- Next: **Phase 2 — Android shell & APK pipeline**.

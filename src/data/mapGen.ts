@@ -1,0 +1,57 @@
+/**
+ * Random map generator parameters (SPEC §4.2). Balance numbers only — logic lives in src/sim/map.
+ */
+
+export type MapSizeName = "small" | "medium" | "large";
+
+export const MAP_SIZES: Record<MapSizeName, { width: number; height: number }> = {
+  small: { width: 96, height: 64 },
+  medium: { width: 128, height: 96 },
+  large: { width: 192, height: 128 },
+};
+
+export type WaterLevel = "low" | "normal" | "high";
+
+/** Target fraction of tiles that end up as land, by water level. */
+export const WATER_LEVEL_LAND_FRACTION: Record<WaterLevel, number> = {
+  low: 0.85,
+  normal: 0.7,
+  high: 0.55,
+};
+
+/** Strength of the continental edge falloff (0 = disabled) — pushes edges toward water. */
+export const WATER_LEVEL_FALLOFF: Record<WaterLevel, number> = {
+  low: 0,
+  normal: 0.35,
+  high: 0.55,
+};
+
+export type Roughness = "flat" | "normal" | "mountainous";
+
+export const ROUGHNESS_PARAMS: Record<
+  Roughness,
+  { octaves: number; persistence: number; scaleFactor: number }
+> = {
+  flat: { octaves: 4, persistence: 0.4, scaleFactor: 0.28 },
+  normal: { octaves: 5, persistence: 0.5, scaleFactor: 0.2 },
+  mountainous: { octaves: 5, persistence: 0.6, scaleFactor: 0.14 },
+};
+
+export const MOISTURE_NOISE = { octaves: 4, persistence: 0.5, scaleFactor: 0.16 };
+
+/** Rivers source from tiles at or above this elevation. */
+export const RIVER_SOURCE_MIN_ELEVATION = 6;
+export const RIVER_SOURCE_COUNT_MIN = 4;
+export const RIVER_SOURCE_COUNT_MAX = 12;
+/** Consecutive steps without a strictly-lower neighbor before a river is turned into a lake. */
+export const RIVER_STUCK_LIMIT = 6;
+
+/** Terrain classification thresholds (elevation is 0–9; moisture is [-1, 1]). */
+export const TERRAIN_THRESHOLDS = {
+  mountainElevation: 8,
+  hillsElevation: 6,
+  swampMaxElevation: 1,
+  swampMinMoisture: 0.55,
+  forestMinMoisture: 0.25,
+  desertMaxMoisture: -0.55,
+};

@@ -40,13 +40,13 @@ SPEC: §1
 ## Phase 1 — Map model, random generator, terrain rendering, camera
 SPEC: §4.1, §4.2 (terrain, rivers only — no cities/industries yet), §10.3, §10.4
 
-- [ ] `GameState` with the map (typed arrays for terrain/elevation/flags), and `rng` state.
-- [ ] Random map generator: elevation noise, sea level by land fraction, terrain, rivers, lakes. Deterministic by seed.
-- [ ] Terrain renderer with chunk caching, hillshading, soft terrain blending, rivers, water shimmer (SPEC §10.3 palette).
-- [ ] Camera: pan (one-finger drag / mouse drag), pinch zoom and wheel zoom around the focal point, clamped to the map; inertia on pan release is nice-to-have.
-- [ ] Low-zoom overview style (< 0.5×).
-- [ ] Debug hook: `window.__game` exposes state + helpers when `?debug=1` (used by e2e tests).
-- [ ] Temporary debug controls (dev only): regenerate with a new seed, map size.
+- [x] `GameState` with the map (typed arrays for terrain/elevation/flags), and `rng` state.
+- [x] Random map generator: elevation noise, sea level by land fraction, terrain, rivers, lakes. Deterministic by seed.
+- [x] Terrain renderer with chunk caching, hillshading, soft terrain blending, rivers, water shimmer (SPEC §10.3 palette).
+- [x] Camera: pan (one-finger drag / mouse drag), pinch zoom and wheel zoom around the focal point, clamped to the map; inertia on pan release is nice-to-have.
+- [x] Low-zoom overview style (< 0.5×).
+- [x] Debug hook: `window.__game` exposes state + helpers when `?debug=1` (used by e2e tests).
+- [x] Temporary debug controls (dev only): regenerate with a new seed, map size.
 
 **Tests:** generator determinism (same seed → identical arrays), land fraction within ±5% of target, every river ends in water or a lake, no NaN elevations.
 **E2E:** screenshots at zoom 1, 0.5 and 0.25 for seed 12345 → `docs/screenshots/phase-1-*.png`.

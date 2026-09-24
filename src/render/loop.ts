@@ -17,6 +17,8 @@ export class GameLoop {
   private lastTime: number | null = null;
   private rafId: number | null = null;
   private readonly handlers: GameLoopHandlers;
+  /** Wall-clock ms elapsed in the most recent frame (clamped), for animation/input use. */
+  lastFrameDeltaMs = 0;
 
   constructor(handlers: GameLoopHandlers) {
     this.handlers = handlers;
@@ -41,6 +43,7 @@ export class GameLoop {
     }
     const frameDelta = Math.min(time - this.lastTime, 250); // clamp huge gaps (tab backgrounded)
     this.lastTime = time;
+    this.lastFrameDeltaMs = frameDelta;
     this.accumulator += frameDelta;
 
     let ticks = 0;

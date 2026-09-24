@@ -619,3 +619,7 @@ localization (English only, but keep strings in one `strings.ts` file for later)
 ## Deviations
 
 (Implementers: append `- [Phase N] what changed — why` here.)
+
+- [Phase 1] `GameMap` stores `terrain`/`elevation`/`riverFlow` typed arrays; no separate generic
+  "flags" array — nothing needs per-tile boolean flags yet. `cityId`/`industryId` will be added in
+  Phase 3 when cities/industries exist.
