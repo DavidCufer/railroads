@@ -10,6 +10,7 @@
  */
 import { DIFFICULTY } from "../data/finance";
 import { BULLDOZE_REFUND_FRACTION, type BridgeType } from "../data/track";
+import { STATION_UPGRADE_ORDER, type StationType } from "../data/stations";
 import { calendarFromTicks } from "./time";
 import type { GameState } from "./state";
 import { directionIndex } from "./track/graph";
@@ -21,9 +22,22 @@ import {
   type PathStep,
 } from "./track/cost";
 import type { TrackEdge } from "./track/types";
+import { canPlaceStationAt, stationAtTile } from "./stations/placement";
+import { stationCost, stationUpgradeCost } from "./stations/cost";
+import { defaultStationName } from "./stations/naming";
+import { computeStationEconomies } from "./stations/economy";
+import type { Station } from "./stations/types";
 
 export type CommandReasonCode =
-  "no-path" | "blocked" | "cant-afford" | "no-track-to-upgrade" | "nothing-to-bulldoze";
+  | "no-path"
+  | "blocked"
+  | "cant-afford"
+  | "no-track-to-upgrade"
+  | "nothing-to-bulldoze"
+  | "station-no-track"
+  | "station-occupied"
+  | "invalid-station-upgrade"
+  | "invalid-station-name";
 
 export type CommandResult = { ok: true; cost: number } | { ok: false; reason: CommandReasonCode };
 
@@ -171,4 +185,119 @@ export function bulldoze(state: GameState, path: readonly number[]): CommandResu
   for (const edge of plan.edges) state.trackGraph.removeEdge(edge.a, edge.b);
   state.cash += plan.refund;
   return { ok: true, cost: -plan.refund };
+}
+
+// --- Stations (SPEC §6.1, §6.3) --------------------------------------------------------------
+
+/** Recomputes every station's cached supply/acceptance (SPEC §6.3) — call after any command that
+ * changes `state.stations` (a new station or overlapping catchment changes what each one draws). */
+export function refreshStationEconomy(state: GameState): void {
+  const year = calendarFromTicks(state.startYear, state.ticks).year;
+  state.stationEconomy = computeStationEconomies(
+    state.map,
+    state.cities,
+    state.industries,
+    state.stations,
+    year,
+  );
+}
+
+export interface StationBuildPlan {
+  cost: number;
+  /** False if the tile can't take a station at all (wrong track shape or already occupied) —
+   * distinct from affordability, which the UI checks separately against `cost`. */
+  valid: boolean;
+}
+
+/** Prices building a `type` station at `tile`, without mutating state. */
+export function computeStationBuildPlan(
+  state: GameState,
+  tile: number,
+  type: StationType,
+): StationBuildPlan {
+  const valid =
+    canPlaceStationAt(state.map, state.trackGraph, tile) && !stationAtTile(state.stations, tile);
+  return { cost: stationCost(type, costContext(state)), valid };
+}
+
+/** Builds a `type` station at `tile` (SPEC §6.1: on a straight/diagonal through-track tile or a
+ * dead-end, one per tile). Name defaults per SPEC §6.1; the first station built ever gets a free
+ * Engine Shed (SPEC §6.2, flag only — Phase 6 reads it to gate where trains can be bought). */
+export function buildStation(state: GameState, tile: number, type: StationType): CommandResult {
+  if (stationAtTile(state.stations, tile)) return { ok: false, reason: "station-occupied" };
+  if (!canPlaceStationAt(state.map, state.trackGraph, tile)) {
+    return { ok: false, reason: "station-no-track" };
+  }
+  const cost = stationCost(type, costContext(state));
+  if (cost > state.cash) return { ok: false, reason: "cant-afford" };
+
+  const existingNames = new Set(state.stations.map((s) => s.name));
+  const name = defaultStationName(
+    state.map,
+    state.trackGraph,
+    state.cities,
+    state.industries,
+    tile,
+    type,
+    existingNames,
+  );
+  const station: Station = {
+    id: state.nextStationId++,
+    tile,
+    type,
+    name,
+    hasEngineShed: state.stations.length === 0,
+  };
+  state.stations.push(station);
+  state.cash -= cost;
+  refreshStationEconomy(state);
+  return { ok: true, cost };
+}
+
+export interface StationUpgradePlan {
+  cost: number;
+  valid: boolean;
+}
+
+/** Prices upgrading `stationId` to `type` (must be strictly above its current type in
+ * Depot→Station→Terminal order), without mutating state. */
+export function computeStationUpgradePlan(
+  state: GameState,
+  stationId: number,
+  type: StationType,
+): StationUpgradePlan {
+  const station = state.stations.find((s) => s.id === stationId);
+  if (!station) return { cost: 0, valid: false };
+  if (STATION_UPGRADE_ORDER.indexOf(type) <= STATION_UPGRADE_ORDER.indexOf(station.type)) {
+    return { cost: 0, valid: false };
+  }
+  return { cost: stationUpgradeCost(station.type, type, costContext(state)), valid: true };
+}
+
+/** Upgrades `stationId` in place to `type`, paying the difference (SPEC §6.1). */
+export function upgradeStation(
+  state: GameState,
+  stationId: number,
+  type: StationType,
+): CommandResult {
+  const plan = computeStationUpgradePlan(state, stationId, type);
+  if (!plan.valid) return { ok: false, reason: "invalid-station-upgrade" };
+  if (plan.cost > state.cash) return { ok: false, reason: "cant-afford" };
+
+  const station = state.stations.find((s) => s.id === stationId) as Station;
+  station.type = type;
+  state.cash -= plan.cost;
+  refreshStationEconomy(state);
+  return { ok: true, cost: plan.cost };
+}
+
+/** Renames a station (SPEC §6.1's default name is just that — a default). Free, always succeeds
+ * unless the trimmed name is empty. */
+export function renameStation(state: GameState, stationId: number, name: string): CommandResult {
+  const trimmed = name.trim();
+  if (!trimmed) return { ok: false, reason: "invalid-station-name" };
+  const station = state.stations.find((s) => s.id === stationId);
+  if (!station) return { ok: false, reason: "invalid-station-name" };
+  station.name = trimmed;
+  return { ok: true, cost: 0 };
 }

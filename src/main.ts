@@ -5,11 +5,15 @@ import { TerrainRenderer } from "./render/terrain";
 import { TrackRenderer } from "./render/track";
 import { drawBuildPreview, type BuildMode, type GhostPreview } from "./render/buildPreview";
 import { drawCityLabels, cityWorldCenter } from "./render/labels";
+import { drawStations, drawStationLabels } from "./render/stations";
+import { drawStationCatchment, type StationCatchmentPreview } from "./render/stationPreview";
 import { CameraInput, type BuildDragHandlers } from "./ui/cameraInput";
 import { createDebugControls } from "./ui/debugControls";
 import { createTopBar } from "./ui/topBar";
 import { createToolbar, createQuickBuildToggle, type ToolId } from "./ui/toolbar";
 import { openCityPanel, openIndustryPanel } from "./ui/infoPanels";
+import { openStationPanel, openStationPlacementPanel } from "./ui/stationPanels";
+import { closePanel } from "./ui/panel";
 import { initBackButton } from "./ui/backButton";
 import { showToast } from "./ui/toast";
 import { strings } from "./ui/strings";
@@ -33,11 +37,13 @@ import {
 } from "./sim/commands";
 import { findBuildPath } from "./sim/track/pathfind";
 import { spanTilesBetween, validBridgeTypes } from "./sim/track/cost";
+import { canPlaceStationAt, stationAtTile, stationCatchmentTiles } from "./sim/stations";
 import { terrainId } from "./sim/map/terrain";
 import { inBounds, tileIndex } from "./sim/map/grid";
 import { calendarFromTicks } from "./sim/time";
 import type { MapSizeName, Roughness, WaterLevel } from "./data/mapGen";
 import type { BridgeType } from "./data/track";
+import { STATION_TYPE_DEFS } from "./data/stations";
 
 const RIVER_ID = terrainId("river");
 const WATER_ID = terrainId("water");
@@ -94,6 +100,8 @@ function main(): void {
   let quickBuild = false;
   let dragState: DragState | null = null;
   let ghost: GhostPreview | null = null;
+  let stationPreview: StationCatchmentPreview | null = null;
+  let stationPlacementOpen = false;
 
   function currentYear(): number {
     return calendarFromTicks(state.startYear, state.ticks).year;
@@ -128,6 +136,27 @@ function main(): void {
     setTool("info");
   }
 
+  function startStationPlacement(tile: number): void {
+    stationPlacementOpen = true;
+    openStationPlacementPanel(ui, state, tile, {
+      onPreview: (previewTile, type, ok) => {
+        stationPreview = {
+          tile: previewTile,
+          catchment: stationCatchmentTiles(
+            state.map,
+            previewTile,
+            STATION_TYPE_DEFS[type].catchmentRadius,
+          ),
+          ok,
+        };
+      },
+      onClose: () => {
+        stationPreview = null;
+        stationPlacementOpen = false;
+      },
+    });
+  }
+
   /** World-px point roughly at a river mouth (midway between the last river tile and the water
    * it flows into) — used by e2e tests to frame a closeup screenshot without guessing coordinates. */
   function findRiverMouth(): { x: number; y: number } | null {
@@ -153,6 +182,24 @@ function main(): void {
     const tileY = Math.floor(world.y / TILE_SIZE);
     if (!inBounds(state.map, tileX, tileY)) return;
     const idx = tileIndex(state.map, tileX, tileY);
+
+    // An existing station is manageable from either Info or Station mode.
+    const station = stationAtTile(state.stations, idx);
+    if (station) {
+      openStationPanel(ui, state, station.id);
+      return;
+    }
+
+    if (currentTool === "station") {
+      if (canPlaceStationAt(state.map, state.trackGraph, idx)) {
+        startStationPlacement(idx);
+      } else {
+        showToast(ui, strings.station.tapTrackTile, "warn");
+      }
+      return;
+    }
+    if (currentTool !== "info") return;
+
     const cityId = state.map.cityId[idx] as number;
     const industryIdx = state.map.industryId[idx] as number;
     if (cityId >= 0 && state.cities[cityId]) {
@@ -365,8 +412,11 @@ function main(): void {
     currentTool = tool;
     toolbar.setActive(tool);
     cancelDrag();
-    const isBuildMode = tool !== "info";
-    cameraInput.setBuildMode(isBuildMode, isBuildMode ? buildHandlers : null);
+    if (stationPlacementOpen) closePanel();
+    // Track/Double/Bulldoze are drag-to-build; Station and Info are tap-driven (SPEC §6.1's
+    // placement flow is a tap + panel, not a drag).
+    const isDragBuildMode = tool === "track" || tool === "double" || tool === "bulldoze";
+    cameraInput.setBuildMode(isDragBuildMode, isDragBuildMode ? buildHandlers : null);
   }
 
   const fps = new FpsCounter();
@@ -388,8 +438,13 @@ function main(): void {
       const renderStart = performance.now();
       terrainRenderer.draw(ctx, camera, viewportW, viewportH, now);
       trackRenderer.draw(ctx, camera, viewportW, viewportH);
+      drawStations(ctx, camera, viewportW, viewportH, state.map.width, state.stations);
       if (ghost) drawBuildPreview(ctx, camera, viewportW, viewportH, state.map.width, ghost);
+      if (stationPreview) {
+        drawStationCatchment(ctx, camera, viewportW, viewportH, state.map.width, stationPreview);
+      }
       drawCityLabels(ctx, camera, viewportW, viewportH, state.cities, state.map.width);
+      drawStationLabels(ctx, camera, viewportW, viewportH, state.map.width, state.stations);
       fps.sampleRenderDuration(performance.now() - renderStart);
 
       const calendar = calendarFromTicks(state.startYear, state.ticks);
@@ -466,6 +521,20 @@ function main(): void {
           }>;
           tileScreenPoint: (x: number, y: number) => { x: number; y: number };
           setQuickBuild: (enabled: boolean) => void;
+          getStations: () => Array<{
+            id: number;
+            tile: number;
+            x: number;
+            y: number;
+            type: string;
+            name: string;
+            hasEngineShed: boolean;
+          }>;
+          getStationEconomy: (stationId: number) => {
+            supply: Partial<Record<string, number>>;
+            acceptPoints: Partial<Record<string, number>>;
+            accepts: string[];
+          } | null;
         };
       }
     ).__game = {
@@ -518,6 +587,17 @@ function main(): void {
       setQuickBuild: (enabled) => {
         quickBuild = enabled;
       },
+      getStations: () =>
+        state.stations.map((s) => ({
+          id: s.id,
+          tile: s.tile,
+          x: s.tile % state.map.width,
+          y: Math.floor(s.tile / state.map.width),
+          type: s.type,
+          name: s.name,
+          hasEngineShed: s.hasEngineShed,
+        })),
+      getStationEconomy: (stationId) => state.stationEconomy.get(stationId) ?? null,
     };
   }
 }

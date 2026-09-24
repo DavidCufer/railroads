@@ -58,6 +58,9 @@ export function makeTestState(map: GameMap, overrides: Partial<GameState> = {}):
     difficulty: "normal",
     cash: 1_000_000,
     trackGraph: new TrackGraph(),
+    stations: [],
+    nextStationId: 0,
+    stationEconomy: new Map(),
     ...overrides,
   };
 }

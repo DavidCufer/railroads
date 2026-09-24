@@ -157,12 +157,12 @@ SPEC: §5 (all), §9.1 (starting cash), §9.5, §12 (commands)
 ## Phase 5 — Stations
 SPEC: §6.1, §6.3 (supply/acceptance calculation; no cargo flow yet)
 
-- [ ] `buildStation`, `upgradeStation` commands; placement on track tiles; default naming.
-- [ ] Station mode with a catchment preview overlay and a supplies/accepts preview panel before confirming.
-- [ ] Acceptance-point calculation and supply-source calculation per station (cached; invalidated when stations/cities/industries change).
-- [ ] Station rendering by type (platform + building, bigger for terminals); station labels.
-- [ ] Station panel (name + rename, type, upgrade, supplies/accepts, placeholder for waiting cargo).
-- [ ] The first station built gets a free Engine Shed (flag only for now).
+- [x] `buildStation`, `upgradeStation` commands; placement on track tiles; default naming.
+- [x] Station mode with a catchment preview overlay and a supplies/accepts preview panel before confirming.
+- [x] Acceptance-point calculation and supply-source calculation per station (cached; invalidated when stations/cities/industries change).
+- [x] Station rendering by type (platform + building, bigger for terminals); station labels.
+- [x] Station panel (name + rename, type, upgrade, supplies/accepts, placeholder for waiting cargo).
+- [x] The first station built gets a free Engine Shed (flag only for now).
 
 **Tests:** catchment radius per type, acceptance threshold (≥ 8 points), overlapping supply split, naming rules.
 

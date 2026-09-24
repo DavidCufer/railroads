@@ -50,6 +50,17 @@ export const GHOST_BLOCKED_COLOR = "#E05A4F";
 export const GHOST_BULLDOZE_COLOR = "#E05A4F";
 export const GHOST_UPGRADE_COLOR = "#4F86B5";
 
+/** Station catchment preview overlay (SPEC §6.1: "tiles tinted" while choosing a station site). */
+export const STATION_CATCHMENT_FILL = "rgba(242, 181, 68, 0.22)";
+export const STATION_CATCHMENT_BLOCKED_FILL = "rgba(224, 90, 79, 0.22)";
+export const STATION_CATCHMENT_BORDER = "rgba(242, 181, 68, 0.85)";
+
+/** Station building colors (SPEC §6.1: "platform + building, bigger for terminals"). */
+export const STATION_BUILDING_COLOR = "#8A6A4A";
+export const STATION_BUILDING_ROOF_COLOR = "#5E3B25";
+export const STATION_PLATFORM_COLOR = "#B8AA8C";
+export const STATION_LABEL_COLOR = "#F4F1E8";
+
 export const UI_ACCENT = "#F2B544";
 export const UI_BG = "rgba(24, 28, 34, 0.88)";
 export const UI_GOOD = "#5BC27A";

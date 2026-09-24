@@ -1,7 +1,7 @@
 /**
  * Left build toolbar (SPEC §10.1): Track, Double, Electrify, Station, Bulldoze, Info.
- * Track/Double/Bulldoze/Info are live this phase; Electrify (era-gated, Phase 8) and Station
- * (Phase 5) render disabled so the layout already matches the final SPEC.
+ * Track/Double/Station/Bulldoze/Info are live; Electrify (era-gated, Phase 8) renders disabled so
+ * the layout already matches the final SPEC.
  */
 import { h } from "./h";
 import { strings } from "./strings";
@@ -12,7 +12,7 @@ const TOOLS: Array<{ id: ToolId; label: string; icon: string; enabled: boolean }
   { id: "track", label: strings.toolbar.track, icon: "🛤", enabled: true },
   { id: "double", label: strings.toolbar.double, icon: "≡", enabled: true },
   { id: "electrify", label: strings.toolbar.electrify, icon: "⚡", enabled: false },
-  { id: "station", label: strings.toolbar.station, icon: "🚉", enabled: false },
+  { id: "station", label: strings.toolbar.station, icon: "🚉", enabled: true },
   { id: "bulldoze", label: strings.toolbar.bulldoze, icon: "🛠", enabled: true },
   { id: "info", label: strings.toolbar.info, icon: "ℹ", enabled: true },
 ];

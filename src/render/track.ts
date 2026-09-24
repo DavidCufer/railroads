@@ -187,7 +187,11 @@ export class TrackRenderer {
     }
 
     const railColor = TRACK_COLOR;
-    const gap = 3 * scale;
+    // Separation between the two tracks of a double edge — wide enough to read as clearly two
+    // tracks (not one thick one) at zoom 1-1.5, where this is drawn from the cached "tiesStyle"
+    // raster (Phase 4 review: at the old, tighter gap the two rail pairs' inner rails nearly
+    // touched). Only used for `edge.double`; single track never references it.
+    const gap = 5 * scale;
     ctx.lineCap = "round";
 
     if (!tiesStyle) {

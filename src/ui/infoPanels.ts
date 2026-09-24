@@ -8,7 +8,7 @@ import { openPanel } from "./panel";
 import { strings } from "./strings";
 import { formatPopulation } from "./format";
 
-function row(label: string, value: string): HTMLElement {
+export function row(label: string, value: string): HTMLElement {
   return h(
     "div",
     { className: "panel-row" },
@@ -18,7 +18,7 @@ function row(label: string, value: string): HTMLElement {
 }
 
 /** Picks readable black/white chip text against an arbitrary `#rrggbb` background. */
-function chipTextColor(hex: string): string {
+export function chipTextColor(hex: string): string {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
@@ -26,11 +26,19 @@ function chipTextColor(hex: string): string {
   return luminance > 0.55 ? "#1a1a1a" : "#f4f1e8";
 }
 
-function cargoChip(cargo: CargoType, amount: number, suffix = ""): HTMLElement {
+export function cargoChip(
+  cargo: CargoType,
+  amount: number,
+  suffix = "",
+  dimmed = false,
+): HTMLElement {
   const def = CARGO[cargo];
   return h(
     "span",
-    { className: "chip", style: { background: def.color, color: chipTextColor(def.color) } },
+    {
+      className: `chip${dimmed ? " chip-dim" : ""}`,
+      style: { background: def.color, color: chipTextColor(def.color) },
+    },
     `${def.name} ${amount}${suffix}`,
   );
 }

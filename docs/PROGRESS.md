@@ -582,3 +582,167 @@ Append one entry per phase/session: date, phase, what was built, key files, know
     nothing charges it yet — there's no monthly ledger tick until Phase 7.
   - Quick build's toggle button is a standalone control, not part of a Settings screen (Phase 11).
 - Next: **Phase 5 — Stations**.
+
+## 2026-09-24 — Phase 5: Stations
+
+- **Data** (`src/data/stations.ts`): `STATION_TYPE_DEFS` for Depot/Station/Terminal — catchment
+  radius, max train length, storage/cargo, cost, monthly maintenance — straight from SPEC §6.1's
+  table. `STATION_ACCEPTANCE_THRESHOLD = 8` (SPEC §6.3, "like RRT").
+- **Placement** (`src/sim/stations/placement.ts`): `canPlaceStationAt` allows exactly a dead end
+  (1 track edge) or a straight/diagonal through-run (2 edges exactly opposite in the 8-direction
+  wheel) — a junction (3+ edges) or a bend (2 edges not opposite) can't take a station, matching
+  SPEC §6.1 literally. `stationCatchmentTiles` returns the Chebyshev-radius square (3×3/5×5/7×7),
+  clipped to the map.
+- **Cost** (`src/sim/stations/cost.ts`): same era-inflation × difficulty-multiplier scaling as
+  track (`src/sim/track/cost.ts`'s `CostContext`, reused directly). Upgrade cost is the difference
+  between the two tiers' *currently* scaled costs (not a price locked in at original build time —
+  SPEC's "paying the difference" doesn't specify which, and this reads more naturally: upgrading
+  later costs the era-adjusted difference, same as buying a bigger station outright would).
+- **Naming** (`src/sim/stations/naming.ts`, `defaultStationName`): SPEC §6.1's example is "Harlow
+  Coal Mine" — nearest-city name, plus a suffix when the station isn't itself on a city tile.
+  Implemented as: city name alone if `map.cityId[tile] >= 0`; else nearest city's name + the
+  nearest industry's name if one is inside the *chosen type's* catchment (e.g. "Harlow Coal
+  Mine"); else + "Junction" if a neighboring tile carries a 3+-edge junction (a station tile
+  itself can never literally *be* a junction, since `canPlaceStationAt` only allows a dead end or
+  a straight run — so "Junction" means "sits right next to one", which is what the word means in
+  real railroading anyway); else + "Crossing" as the generic fallback. Duplicate default names get
+  a trailing " 2", " 3", etc. No cities at all on the map falls back to the type's own name
+  ("Depot").
+- **Economy** (`src/sim/stations/economy.ts`, `computeStationEconomies`): acceptance is purely
+  per-station — sum of acceptance points (industry `acceptancePoints`, or a city tile's points via
+  a new `cityTileAcceptance` factored out of Phase 3's `cityAcceptance`) over the station's own
+  catchment tiles, thresholded at 8. Supply is shared: each producer tile (an industry, or a city
+  tile's population-proportional passenger/mail share via the new `cityTileSupply`) splits its
+  output evenly across every station whose catchment covers that tile (SPEC §6.1: "overlapping
+  supply is split evenly"). `previewStationEconomy` runs the same calculation with a not-yet-built
+  station spliced in, so the placement panel's live preview already accounts for overlap with
+  stations that exist. The whole thing is a pure recompute (cheap at realistic station counts, no
+  incremental cache logic) — `GameState.stationEconomy` is just the last recompute's result,
+  refreshed by `refreshStationEconomy` at the end of `buildStation`/`upgradeStation` (`src/sim/
+  commands.ts`), which is what PLAN's "cached; invalidated when stations/cities/industries change"
+  means in practice here. Cities/industries never change after generation in Phase 5 (that's Phase
+  8's industry dynamics), so a station build/upgrade is the only invalidation trigger there is yet.
+- **Commands** (`src/sim/commands.ts`): `buildStation` (validates track shape, tile not already
+  occupied, affordability; the very first station built in the game — `state.stations.length ===
+  0` at build time — gets `hasEngineShed: true`, a flag only, per PLAN), `upgradeStation` (must be
+  a strict Depot→Station→Terminal step forward), `renameStation` (free, rejects an empty/
+  whitespace-only name). All the usual `{ok}` / `{ok:false, reason}` shape; new reason codes
+  (`station-no-track`, `station-occupied`, `invalid-station-upgrade`, `invalid-station-name`) added
+  to `strings.build.reasons` alongside the existing track ones.
+- **Station mode UX** (`src/main.ts`, `src/ui/stationPanels.ts`): unlike Track/Double/Bulldoze,
+  Station mode is a *tap*, not a drag — `CameraInput.setBuildMode` is only engaged for the three
+  drag modes now; Station (like Info) uses the plain one-finger-pans/tap-to-act path. Tapping a
+  valid track tile opens a "New Station" panel (`openStationPlacementPanel`): a type picker
+  (Depot/Station/Terminal, live cost), stats, and a live supplies/accepts preview (cargo-colored
+  chips, reusing Phase 3's `cargoChip`/`chipTextColor` from `ui/infoPanels.ts`, now exported) that
+  all update in place — no panel re-open/flash — as the player taps between types, driven by a
+  single `update()` closure rather than three separate mutable pieces of state. The map itself
+  shows a tinted catchment overlay (`render/stationPreview.ts`) that grows/shrinks live with the
+  selected type, plus a ring marker on the station tile. Confirm/Cancel live inside the panel body
+  (Station mode has no drag, so there's no floating confirm bar to reuse). Tapping an *existing*
+  station — in either Info or Station mode — opens its management panel (`openStationPanel`): name
+  + rename (a text input, committed on blur/Enter via the `change` event), type + an upgrade
+  button (only shown if not already a Terminal), the same supplies/accepts chips read live from
+  `state.stationEconomy`, a "⚙ Free Engine Shed" note when set, and a static waiting-cargo
+  placeholder line (SPEC's real cargo piles are Phase 7).
+- **Rendering** (`src/render/stations.ts`): stations are drawn directly every frame (not baked
+  into an offscreen chunk cache like terrain/track) — there are only ever a few dozen of them in a
+  session, nowhere near enough to need the caching+invalidation machinery track/terrain use, and
+  skipping it means no `invalidateTiles`-equivalent to remember to call on build/upgrade. Each
+  type draws a platform strip plus a peaked-roof building block, scaled up per type (Depot smallest
+  single small building; Terminal noticeably bigger with *two* building blocks side by side) so
+  the three are distinguishable at a glance, matching SPEC §6.1's "platform + building, bigger for
+  terminals". Labels reuse the city-label look (dark-halo text) under the icon.
+- **Tests** (`tests/sim/stations/*.test.ts`, 36 new): `canPlaceStationAt` over dead-end/straight/
+  diagonal/junction/bend cases; `stationCatchmentTiles` radius-to-footprint math (3×3/5×5/7×7) and
+  edge clipping; `stationCost`/`stationUpgradeCost` era/difficulty scaling; `defaultStationName`
+  for all four naming branches plus duplicate disambiguation and the no-cities fallback;
+  `computeStationEconomies` for the acceptance threshold (both sides of it), catchment-radius
+  gating, a lone station getting a producer's full output, two stations splitting an overlapping
+  producer evenly, and a city's supply splitting by tile-coverage fraction; `previewStationEconomy`
+  accounting for an already-built station's share; and `buildStation`/`upgradeStation`/
+  `renameStation` round-trips including the free-Engine-Shed-only-on-the-first-station case and
+  every failure reason. `tests/sim/track/helpers.ts`'s `makeTestState` got the three new
+  `GameState` fields (`stations`, `nextStationId`, `stationEconomy`) as defaults.
+- **E2E** (`e2e/stations.spec.ts`, all screenshots at the 800×360 CSS px phone viewport): built a
+  long flat track run through the town of Ashtown for seed 12345 (found with a throwaway search
+  script — the same "flat row near map center" idea Phase 4 used, now also confirming it runs
+  straight through Ashtown's own footprint, the same town `phase-4-junction.png` shows). One test
+  taps a track tile inside Ashtown's footprint, checks the panel/type-picker/overlay, switches the
+  type live, and cancels; a second builds one of each type and screenshots each on the map at zoom
+  1.5; a third builds, opens the management panel, renames, and upgrades it, asserting the panel's
+  content and `getStationEconomy()` (a new `?debug=1` hook, alongside `getStations()`) throughout.
+- **Screenshots — looked at them**:
+  - `phase-5-station-placement.png`: "New Station" panel open over an amber-tinted 3×3 catchment
+    square with a ring on the tapped tile; Depot/Station/Terminal buttons with costs; stats;
+    Supplies shows "Passengers 14.9/mo" and "Mail 4.7/mo"; Accepts shows Passengers/Mail/Goods/Food
+    as full-opacity chips and a dimmed "Lumber 4" (below the 8-point threshold) — the dimming is
+    visibly distinct at this size. First attempt at this screenshot came back with the panel
+    sliced down to ~150px of its real 360px width and the confirm/cancel row unclickable in an
+    actual (non-screenshot) run — a genuine bug (see Carry-overs below), not a screenshot fluke.
+  - `phase-5-depot.png` / `phase-5-station-type.png` / `phase-5-terminal.png`: Depot is one small
+    building with a short platform; the Station-type one (named "Ashtown", sitting on the city
+    tile) is visibly bigger; the Terminal (further down the line, alone in frame) is clearly the
+    biggest — two building blocks side by side over a long platform, unmistakably a bigger
+    structure than the other two even at a glance.
+  - `phase-5-station-panel.png`: title "Ashtown", an editable name field pre-filled "Ashtown",
+    "Type: Depot", stats, "⚙ Free Engine Shed", and a blue "Upgrade to Station ($25k)" button —
+    all readable, nothing clipped or overlapping.
+  - Also regenerated (same reasoning as every prior phase's carry-over fixes): `phase-4-*.png`
+    (the double-track gap fix — see below — and Station now enabled in the toolbar) and
+    `phase-3-city-*.png`/`phase-0-smoke.png`/`phase-1-*.png` (the city-density rewrite, also below,
+    plus the toolbar change). Kept the regenerated versions per CLAUDE.md's rule, same as Phase 3
+    and Phase 4's own entries.
+- **Carry-overs from the Phase 4 review**:
+  - Double track vs. single track at zoom 1–1.5: `render/track.ts`'s cached "tiesStyle" raster
+    (used at zoom ≥ 0.75, i.e. exactly the 1–1.5 range called out) offset the two parallel tracks
+    by only 3px-at-scale-1, and each track's own two rails sat 2.2px-at-scale-1 off *that* —
+    leaving the two tracks' inner rails only ~1.6px apart, nearly touching. Widened the offset to
+    5px-at-scale-1 (a ~67% wider gap since it's baked into the raster at a fixed tile resolution
+    and then scaled by zoom, this widens it proportionally at every zoom in that bucket) — cropped
+    `phase-4-double-track.png` 3× and confirmed two clearly separate rail-and-tie sets with a real
+    gap between them, not a thick single line.
+  - City density: `render/cities.ts`'s `drawCityRoofs` drew every roof at a random position/size
+    within the tile regardless of density, so even the "dense" core end of the interpolation just
+    meant *more* randomly-scattered small rectangles — which is exactly what a Phase 3 review
+    already flagged once, and the reviewer's note that `phase-4-junction.png`'s Ashtown still
+    looked sparse/scattered confirms the earlier fix didn't go far enough. Replaced it with two
+    genuinely different layouts picked by a per-tier `blockAt` closeness threshold: below it,
+    the original scattered-small-houses look (kept, unchanged, for the outskirts); at or above it,
+    a new `drawDenseBlock` that lays out 2–3 rows of buildings spanning the *full* tile width,
+    widths randomized but summing edge-to-edge (touching, no gaps) within each row, with a street
+    line at each row boundary. Villages never cross their `blockAt` (set > 1, unreachable) since a
+    village has no real downtown to speak of. Looked at the regenerated `phase-3-city-closeup.png`
+    (zoom 2) and `phase-4-junction.png`/`phase-0-smoke.png` (zoom 1.5/1): both towns now show a
+    visibly solid built-up core — roofs genuinely touching in rows along a street line — fading to
+    individual scattered houses at the footprint's edge, not a uniform cloud of dots at any zoom.
+  - A third, smaller bug found while building this phase's own placement panel: `.panel`
+    (`index.html`) had no explicit `z-index`, and the bottom-right `.quick-build-toggle` does
+    (`z-index: 6`) — on the 800×360 viewport, a panel whose content reaches near the screen bottom
+    (Station mode's in-panel Build/Cancel row, unlike any Phase 1–4 panel) had its own
+    bottom-right corner covered by the toggle, which *visually* sat on top despite being earlier
+    in the DOM, making Confirm/Cancel unclickable there. Gave `.panel` `z-index: 10` (above the
+    toggle, below the transient confirm-bar/toast overlays that already had higher values) — this
+    is a general panel-vs-toggle stacking fix, not Station-specific, so it'll matter for any future
+    panel whose content runs long on a short viewport too.
+- Known issues / deviations:
+  - Station bulldoze/removal isn't implemented — not in this phase's checklist (`buildStation`,
+    `upgradeStation` only). Track under a station can still be bulldozed by an existing Bulldoze
+    drag without removing the station on top of it; that's an edge case this phase doesn't need to
+    resolve (no phase before Trains cares whether a station's track is intact) but is worth a look
+    whenever station removal is actually implemented.
+  - Station improvements from SPEC §6.2 (Water Tower, Post Office, Hotel, Warehouse, Cold Storage,
+    Freight Yard, Livestock Pens) aren't buildable yet — only the free Engine Shed *flag* PLAN asks
+    for this phase exists. None of them do anything yet regardless (they all affect cargo flow/
+    revenue/breakdowns, none of which exist before Phase 6/7).
+  - `STATION_TYPE_DEFS`'s `maxTrainLength`/`storagePerCargo` are recorded and shown in the panel
+    but nothing reads them yet (train length enforcement is Phase 6, storage caps are Phase 7).
+  - Upgrade cost is the *current* era-adjusted price difference between tiers, not a price locked
+    in at original build time (see Cost above) — flagging in case a future balance pass expected
+    the other reading.
+  - Station supply/accept numbers shown are the SPEC §6.3 calculation as specified (nominal
+    monthly producer output and city population share), not gated by whether a processor's own
+    inputs are actually being delivered — there's no cargo flow yet to gate on (Phase 7), so a
+    processor's "Supplies" preview is its full nameplate output, same convention Phase 3's
+    industry info panel already uses.
+- Next: **Phase 6 — Trains: buying, orders, movement, blocks**.

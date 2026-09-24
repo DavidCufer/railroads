@@ -51,6 +51,20 @@ export interface GameWindow {
   }>;
   tileScreenPoint: (x: number, y: number) => { x: number; y: number };
   setQuickBuild: (enabled: boolean) => void;
+  getStations: () => Array<{
+    id: number;
+    tile: number;
+    x: number;
+    y: number;
+    type: string;
+    name: string;
+    hasEngineShed: boolean;
+  }>;
+  getStationEconomy: (stationId: number) => {
+    supply: Partial<Record<string, number>>;
+    acceptPoints: Partial<Record<string, number>>;
+    accepts: string[];
+  } | null;
 }
 
 declare global {

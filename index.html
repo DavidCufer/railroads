@@ -154,6 +154,10 @@
         transition: transform 0.2s ease;
         overflow-y: auto;
         font: 13px sans-serif;
+        /* Above the quick-build toggle (z-index 6), which otherwise floats over a panel's own
+           bottom-right content (e.g. Station mode's in-panel Build/Cancel row) on a short
+           viewport where the panel's content reaches near the screen bottom. */
+        z-index: 10;
       }
       .panel.panel-open {
         transform: translateX(0);
@@ -208,6 +212,91 @@
         border-radius: 999px;
         font-size: 12px;
         color: #1a1a1a;
+      }
+      .chip-dim {
+        opacity: 0.45;
+      }
+
+      /* Station mode (SPEC §6.1): type picker in the placement panel, and in-panel action/upgrade
+         buttons (the floating .confirm-bar is for drag-build modes only — station placement is a
+         tap, so its confirm/cancel live inside the panel itself). */
+      .station-type-picker {
+        display: flex;
+        gap: 6px;
+      }
+      .station-type-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 8px 4px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+        font: 12px sans-serif;
+        min-height: 44px;
+      }
+      .station-type-btn.active {
+        background: #f2b544;
+        color: #1e2a38;
+        border-color: #f2b544;
+        font-weight: 700;
+      }
+      .station-type-btn:disabled {
+        opacity: 0.4;
+      }
+      .station-type-btn .cost {
+        font-weight: 700;
+      }
+      .panel-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .panel-actions button {
+        flex: 1;
+        min-height: 44px;
+        border-radius: 8px;
+        border: none;
+        font: 700 14px sans-serif;
+      }
+      .panel-action-build {
+        background: #5bc27a;
+        color: #0c2013;
+      }
+      .panel-action-build:disabled {
+        background: #5a5f57;
+        color: rgba(255, 255, 255, 0.5);
+      }
+      .panel-action-cancel {
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        flex: 0 0 44px;
+      }
+      .station-name-input {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #fff;
+        border-radius: 6px;
+        padding: 6px 8px;
+        font: 14px sans-serif;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .station-upgrade-btn {
+        width: 100%;
+        min-height: 40px;
+        border-radius: 8px;
+        border: none;
+        background: #4f86b5;
+        color: #fff;
+        font: 700 13px sans-serif;
+        margin-top: 4px;
+      }
+      .station-upgrade-btn:disabled {
+        background: #5a5f57;
+        color: rgba(255, 255, 255, 0.5);
       }
 
       .toast-container {

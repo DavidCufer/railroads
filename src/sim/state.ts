@@ -6,6 +6,8 @@ import type { City, Industry } from "./economy/types";
 import { DEFAULT_START_YEAR } from "../data/mapGen";
 import { DEFAULT_DIFFICULTY, DIFFICULTY, type Difficulty } from "../data/finance";
 import { TrackGraph } from "./track/graph";
+import type { Station } from "./stations/types";
+import type { StationEconomy } from "./stations/economy";
 
 export interface GameState {
   seed: number;
@@ -22,6 +24,13 @@ export interface GameState {
    * phase only needs a single deducted/credited balance for build costs and refunds. */
   cash: number;
   trackGraph: TrackGraph;
+  stations: Station[];
+  /** Monotonic counter for `Station.id` — not `stations.length`, so ids stay stable if a station
+   * is ever removed in a later phase. */
+  nextStationId: number;
+  /** Per-station supply/acceptance (SPEC §6.3), cached and refreshed by src/sim/commands.ts
+   * whenever a station is built or upgraded (see `refreshStationEconomy`). */
+  stationEconomy: Map<number, StationEconomy>;
 }
 
 export interface NewGameOptions extends MapGenOptions {
@@ -50,5 +59,8 @@ export function createGameState(options: NewGameOptions): GameState {
     difficulty,
     cash: DIFFICULTY[difficulty].startingCash,
     trackGraph: new TrackGraph(),
+    stations: [],
+    nextStationId: 0,
+    stationEconomy: new Map(),
   };
 }
