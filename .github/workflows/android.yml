@@ -15,10 +15,13 @@ jobs:
           node-version: 22
           cache: npm
 
+      # @capacitor/android's generated capacitor.build.gradle pins Java 21 source/target
+      # compatibility (compileOptions), which a JDK 17 javac can't compile ("invalid source
+      # release: 21") — confirmed by an actual CI run. Java 21 it is.
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
           cache: gradle
 
       # GitHub's ubuntu-latest runner already ships a full Android SDK (ANDROID_HOME preset,
