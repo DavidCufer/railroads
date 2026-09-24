@@ -1,10 +1,24 @@
-/** Wires pointer/touch/wheel input on the canvas to a render Camera (SPEC §5.2), and detects taps
- * (Info mode, SPEC §10.2) as pointer sequences that never turn into a drag or pinch. */
+/**
+ * Wires pointer/touch/wheel input on the canvas to a render Camera (SPEC §5.2), and detects taps
+ * (Info mode, SPEC §10.2) as pointer sequences that never turn into a drag or pinch.
+ *
+ * In a build mode (SPEC §5.2): a single finger/left-drag draws a build path instead of panning;
+ * two fingers pan (and pinch still zooms, in all modes). Desktop: left-drag builds,
+ * right/middle-drag pans.
+ */
 import { Camera } from "../render/camera";
 
 interface ActivePointer {
   x: number;
   y: number;
+}
+
+export interface BuildDragHandlers {
+  onStart: (canvasX: number, canvasY: number) => void;
+  onMove: (canvasX: number, canvasY: number) => void;
+  /** `committed` is true on a normal release (show confirm bar / quick build), false if the drag
+   * was cancelled (e.g. a second finger touched down). */
+  onEnd: (committed: boolean) => void;
 }
 
 const WHEEL_ZOOM_SPEED = 0.0015;
@@ -18,11 +32,16 @@ export class CameraInput {
   private pointers = new Map<number, ActivePointer>();
   private lastPinchDist: number | null = null;
   private lastPanPoint: ActivePointer | null = null;
+  private lastPanMidpoint: ActivePointer | null = null;
   private velocity = { x: 0, y: 0 };
   private lastMoveTime = 0;
   private tapStart: { x: number; y: number; time: number } | null = null;
   private tapMoved = false;
   private onTap: ((x: number, y: number) => void) | null = null;
+
+  private buildMode = false;
+  private buildHandlers: BuildDragHandlers | null = null;
+  private buildDragPointerId: number | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -39,6 +58,13 @@ export class CameraInput {
   /** Called with canvas-local (CSS px) coordinates when a pointer taps without dragging/pinching. */
   setOnTap(handler: (x: number, y: number) => void): void {
     this.onTap = handler;
+  }
+
+  /** Switches between "pan/zoom with 1 finger" (false, Info mode) and "1 finger/left-drag builds,
+   * 2 fingers pan" (true, a build mode). */
+  setBuildMode(active: boolean, handlers: BuildDragHandlers | null): void {
+    this.buildMode = active;
+    this.buildHandlers = handlers;
   }
 
   dispose(): void {
@@ -64,17 +90,40 @@ export class CameraInput {
     this.velocity.y *= decay;
   }
 
+  private isBuildButton(e: PointerEvent): boolean {
+    // Touch/pen has no meaningful "button"; on mouse, only the left button builds (SPEC §5.2:
+    // "Desktop: left-drag builds, right/middle-drag pans").
+    return e.pointerType !== "mouse" || e.button === 0;
+  }
+
+  private canvasLocal(e: { clientX: number; clientY: number }): ActivePointer {
+    const rect = this.canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
   private onPointerDown = (e: PointerEvent): void => {
     this.canvas.setPointerCapture(e.pointerId);
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     this.velocity.x = 0;
     this.velocity.y = 0;
+
     if (this.pointers.size === 1) {
+      if (this.buildMode && this.isBuildButton(e) && this.buildHandlers) {
+        this.buildDragPointerId = e.pointerId;
+        const local = this.canvasLocal(e);
+        this.buildHandlers.onStart(local.x, local.y);
+        return;
+      }
       this.lastPanPoint = { x: e.clientX, y: e.clientY };
       this.tapStart = { x: e.clientX, y: e.clientY, time: performance.now() };
       this.tapMoved = false;
     } else if (this.pointers.size === 2) {
+      if (this.buildDragPointerId !== null) {
+        this.buildHandlers?.onEnd(false);
+        this.buildDragPointerId = null;
+      }
       this.lastPinchDist = this.currentPinchDistance();
+      this.lastPanMidpoint = this.pinchMidpoint();
       this.lastPanPoint = null;
       this.tapStart = null;
     }
@@ -83,6 +132,12 @@ export class CameraInput {
   private onPointerMove = (e: PointerEvent): void => {
     if (!this.pointers.has(e.pointerId)) return;
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (this.buildDragPointerId === e.pointerId && this.pointers.size === 1) {
+      const local = this.canvasLocal(e);
+      this.buildHandlers?.onMove(local.x, local.y);
+      return;
+    }
 
     if (this.pointers.size === 1 && this.lastPanPoint) {
       const dx = e.clientX - this.lastPanPoint.x;
@@ -101,28 +156,42 @@ export class CameraInput {
       this.lastPanPoint = { x: e.clientX, y: e.clientY };
     } else if (this.pointers.size === 2) {
       const dist = this.currentPinchDistance();
-      if (dist !== null && this.lastPinchDist !== null && this.lastPinchDist > 0) {
+      const mid = this.pinchMidpoint();
+      const rect = this.canvas.getBoundingClientRect();
+      const viewport = this.getViewport();
+
+      // In a build mode, two fingers pan (translate) in addition to pinch-zooming.
+      if (this.buildMode && mid && this.lastPanMidpoint) {
+        this.camera.pan(mid.x - this.lastPanMidpoint.x, mid.y - this.lastPanMidpoint.y);
+      }
+
+      if (dist !== null && this.lastPinchDist !== null && this.lastPinchDist > 0 && mid) {
         const factor = dist / this.lastPinchDist;
-        const mid = this.pinchMidpoint();
-        const rect = this.canvas.getBoundingClientRect();
-        const viewport = this.getViewport();
-        if (mid) {
-          this.camera.zoomAt(
-            mid.x - rect.left,
-            mid.y - rect.top,
-            factor,
-            viewport.width,
-            viewport.height,
-          );
-        }
+        this.camera.zoomAt(
+          mid.x - rect.left,
+          mid.y - rect.top,
+          factor,
+          viewport.width,
+          viewport.height,
+        );
       }
       this.lastPinchDist = dist;
+      this.lastPanMidpoint = mid;
     }
   };
 
   private onPointerUp = (e: PointerEvent): void => {
     this.pointers.delete(e.pointerId);
-    if (this.pointers.size < 2) this.lastPinchDist = null;
+    if (this.pointers.size < 2) {
+      this.lastPinchDist = null;
+      this.lastPanMidpoint = null;
+    }
+
+    if (this.buildDragPointerId === e.pointerId) {
+      this.buildDragPointerId = null;
+      this.buildHandlers?.onEnd(true);
+    }
+
     if (this.pointers.size === 1) {
       const remaining = this.pointers.values().next().value as ActivePointer | undefined;
       this.lastPanPoint = remaining ? { x: remaining.x, y: remaining.y } : null;

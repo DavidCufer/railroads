@@ -18,19 +18,22 @@ export function createDebugControls(
 ): HTMLElement {
   const panel = document.createElement("div");
   panel.id = "debug-controls";
+  // Bottom-left, just clear of the build toolbar's column (which can span nearly the full
+  // height below the top bar) and above the fps/tick debug overlay — never overlaps the top bar
+  // or a slide-in panel's header/close button (both anchored top/right) — Phase 3 review.
   panel.style.cssText = [
     "position:absolute",
-    "top:52px",
-    "right:8px",
+    "left:68px",
+    "bottom:36px",
     "display:flex",
     "gap:6px",
     "align-items:center",
-    "background:rgba(24,28,34,0.88)",
+    "background:rgba(24,28,34,0.82)",
     "color:#fff",
-    "padding:6px 8px",
+    "padding:4px 6px",
     "border-radius:8px",
-    "font:12px sans-serif",
-    "z-index:10",
+    "font:11px sans-serif",
+    "z-index:6",
   ].join(";");
 
   const sizeSelect = document.createElement("select");

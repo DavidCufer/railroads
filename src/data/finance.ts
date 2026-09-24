@@ -39,3 +39,8 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
 };
 
 export const DEFAULT_DIFFICULTY: Difficulty = "normal";
+
+/** Era inflation (SPEC §9.5): all costs/revenues scale by this factor, ≈2.4× by 1950. */
+export function eraInflation(year: number): number {
+  return 1.0 + (year - 1830) * 0.012;
+}

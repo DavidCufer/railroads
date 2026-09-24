@@ -4,6 +4,8 @@ import { generateMap, type MapGenOptions } from "./map/generate";
 import type { GameMap } from "./map/types";
 import type { City, Industry } from "./economy/types";
 import { DEFAULT_START_YEAR } from "../data/mapGen";
+import { DEFAULT_DIFFICULTY, DIFFICULTY, type Difficulty } from "../data/finance";
+import { TrackGraph } from "./track/graph";
 
 export interface GameState {
   seed: number;
@@ -15,11 +17,17 @@ export interface GameState {
   startYear: number;
   /** Elapsed sim ticks (1 tick = 1 in-game hour) since `startYear` began. */
   ticks: number;
+  difficulty: Difficulty;
+  /** Running cash balance (SPEC §9.1). A full ledger by category (§9.2) is Phase 7's job — this
+   * phase only needs a single deducted/credited balance for build costs and refunds. */
+  cash: number;
+  trackGraph: TrackGraph;
 }
 
 export interface NewGameOptions extends MapGenOptions {
   seed: number;
   startYear?: number;
+  difficulty?: Difficulty;
 }
 
 /**
@@ -30,5 +38,17 @@ export function createGameState(options: NewGameOptions): GameState {
   const rng = createRng(options.seed);
   const startYear = options.startYear ?? DEFAULT_START_YEAR;
   const { map, cities, industries } = generateMap(rng, options, startYear);
-  return { seed: options.seed, rng, map, cities, industries, startYear, ticks: 0 };
+  const difficulty = options.difficulty ?? DEFAULT_DIFFICULTY;
+  return {
+    seed: options.seed,
+    rng,
+    map,
+    cities,
+    industries,
+    startYear,
+    ticks: 0,
+    difficulty,
+    cash: DIFFICULTY[difficulty].startingCash,
+    trackGraph: new TrackGraph(),
+  };
 }

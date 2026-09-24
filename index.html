@@ -103,14 +103,19 @@
       .toolbar {
         position: absolute;
         left: 8px;
-        top: 50%;
-        transform: translateY(-50%);
+        /* Centered within the space below the top bar (not the full viewport) so a tall toolbar
+           can't creep up under the top bar on a short landscape-phone viewport. */
+        top: 44px;
+        bottom: 0;
         display: flex;
         flex-direction: column;
+        justify-content: center;
         gap: 6px;
         padding: 6px;
         background: rgba(24, 28, 34, 0.88);
         border-radius: 10px;
+        max-height: calc(100% - 8px);
+        box-sizing: border-box;
       }
       .toolbar button {
         width: 44px;
@@ -236,6 +241,132 @@
       }
       .toast-warn {
         border-left: 3px solid #e05a4f;
+      }
+
+      /* Build mode HUD (SPEC §5.2): floating cost label while dragging, confirm bar on release. */
+      .build-cost-label {
+        position: absolute;
+        pointer-events: none;
+        background: rgba(24, 28, 34, 0.92);
+        color: #f2b544;
+        font: 700 13px sans-serif;
+        padding: 5px 10px;
+        border-radius: 999px;
+        text-align: center;
+        white-space: nowrap;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        z-index: 20;
+      }
+      .build-cost-label.build-cost-blocked {
+        color: #e05a4f;
+      }
+
+      .confirm-bar {
+        position: absolute;
+        left: 50%;
+        bottom: 16px;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(24, 28, 34, 0.94);
+        padding: 8px;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+        z-index: 25;
+      }
+      .confirm-bar-cost {
+        color: #fff;
+        font: 700 15px sans-serif;
+        padding: 0 8px;
+        min-width: 60px;
+        text-align: center;
+      }
+      .confirm-bar button {
+        min-height: 44px;
+        min-width: 44px;
+        border-radius: 8px;
+        border: none;
+        font: 700 14px sans-serif;
+        padding: 0 16px;
+      }
+      .confirm-bar-build {
+        background: #5bc27a;
+        color: #0c2013;
+      }
+      .confirm-bar-build:disabled {
+        background: #5a5f57;
+        color: rgba(255, 255, 255, 0.5);
+      }
+      .confirm-bar-cancel {
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        padding: 0;
+      }
+      .confirm-bar-bridge {
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        font-weight: 600;
+      }
+
+      .quick-build-toggle {
+        position: absolute;
+        right: 8px;
+        bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 44px;
+        padding: 0 10px;
+        background: rgba(24, 28, 34, 0.88);
+        border: none;
+        color: rgba(255, 255, 255, 0.85);
+        font: 11px sans-serif;
+        border-radius: 999px;
+        z-index: 6;
+      }
+      .quick-build-toggle .quick-build-label {
+        white-space: nowrap;
+      }
+      .quick-build-toggle .switch {
+        width: 28px;
+        height: 16px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.2);
+        position: relative;
+      }
+      .quick-build-toggle .switch::after {
+        content: "";
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #fff;
+        transition: left 0.15s ease;
+      }
+      .quick-build-toggle.active .switch {
+        background: #f2b544;
+      }
+      .quick-build-toggle.active .switch::after {
+        left: 14px;
+      }
+
+      #debug-overlay {
+        position: absolute;
+        /* Clear of the toolbar's column (left:8px, ~56px wide) at any viewport height. */
+        left: 68px;
+        bottom: 8px;
+        max-width: 46vw;
+        background: rgba(24, 28, 34, 0.82);
+        color: #fff;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font: 11px monospace;
+        white-space: pre;
+        pointer-events: none;
+        z-index: 5;
       }
     </style>
   </head>

@@ -33,6 +33,7 @@ export interface GameWindow {
     size?: string;
     waterLevel?: string;
     roughness?: string;
+    startYear?: number;
   }) => void;
   camera: {
     getZoom: () => number;
@@ -40,6 +41,16 @@ export interface GameWindow {
     pan: (dxScreen: number, dyScreen: number) => void;
     setCenter: (worldX: number, worldY: number) => void;
   };
+  getCash: () => number;
+  getTrackEdges: () => Array<{
+    a: number;
+    b: number;
+    double: boolean;
+    bridge: string | null;
+    cost: number;
+  }>;
+  tileScreenPoint: (x: number, y: number) => { x: number; y: number };
+  setQuickBuild: (enabled: boolean) => void;
 }
 
 declare global {

@@ -139,15 +139,15 @@ SPEC: §4.2 steps 4–6, §8.2, §8.3 (placement, rendering, info only — no ec
 ## Phase 4 — Track building
 SPEC: §5 (all), §9.1 (starting cash), §9.5, §12 (commands)
 
-- [ ] Track graph data structure (nodes = tiles, edges with double/electrified/bridge), with efficient add/remove and adjacency queries.
-- [ ] Cost calculator (terrain multipliers, diagonal, grade, bridges by era, inflation, difficulty).
-- [ ] `commands.ts` with `buildTrack`, `bulldoze` (with validation + reasons).
-- [ ] Build toolbar; Track mode with drag → A* ghost path, green/red coloring, 45° turn markers, cost label, confirm bar (and the Quick build setting).
-- [ ] Bridge auto-selection and tap-to-cycle bridge type in the confirm bar; bridge rendering by type.
-- [ ] Double mode (upgrade), Bulldoze mode (25% refund).
-- [ ] Two-finger pan while in build modes.
-- [ ] Track rendering cached per chunk (ties at zoom ≥ 1, lines at low zoom, double = parallel).
-- [ ] Cash shown and deducted; can't build when unaffordable (red + reason toast).
+- [x] Track graph data structure (nodes = tiles, edges with double/electrified/bridge), with efficient add/remove and adjacency queries.
+- [x] Cost calculator (terrain multipliers, diagonal, grade, bridges by era, inflation, difficulty).
+- [x] `commands.ts` with `buildTrack`, `bulldoze` (with validation + reasons).
+- [x] Build toolbar; Track mode with drag → A* ghost path, green/red coloring, 45° turn markers, cost label, confirm bar (and the Quick build setting).
+- [x] Bridge auto-selection and tap-to-cycle bridge type in the confirm bar; bridge rendering by type.
+- [x] Double mode (upgrade), Bulldoze mode (25% refund).
+- [x] Two-finger pan while in build modes.
+- [x] Track rendering cached per chunk (ties at zoom ≥ 1, lines at low zoom, double = parallel).
+- [x] Cash shown and deducted; can't build when unaffordable (red + reason toast).
 
 **Tests:** cost calculations (table-driven, incl. bridges, grades, diagonals), build/bulldoze round-trip, the turn-rule traversal function, can't build on water without a bridge, water bridge length limits.
 **E2E:** simulate a drag between two tiles in `?debug=1` mode, confirm, and assert the edges exist and cash decreased by the previewed cost.

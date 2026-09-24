@@ -407,4 +407,178 @@ Append one entry per phase/session: date, phase, what was built, key files, know
   debug UI yet (noted in Deviations) — Phase 10's new-game screen is the intended home. Toasts are
   wired up but nothing triggers one yet (first real use is Phase 4+ build validation / Phase 8
   news).
-- Next: **Phase 4 — Track building**.
+
+## 2026-09-24 — Phase 4: Track building
+
+- **Track graph** (`src/sim/track/graph.ts`, `types.ts`): `TrackGraph` — a `Map<edgeKey, TrackEdge>`
+  plus a `Map<tile, Set<neighborTile>>` adjacency index, giving O(1) `hasEdge`/`getEdge` and O(1)
+  (amortized) `addEdge`/`removeEdge`. `edgeKey(a,b)` canonicalizes on `a < b` so either argument
+  order finds the same edge. `directionIndex`/`directionSteps` convert a grid step to a `DIRS8`
+  index and measure angular distance between two of them in 45° units.
+- **Bridge model (SPEC deviation, read carefully)**: §5.1 describes edges as connecting *adjacent*
+  tile centers, but §5.3's bridge pricing ("per water tile, max 3/8 tiles") only makes sense for a
+  single structure spanning several tiles at once. I implemented bridges as a documented exception:
+  a bridge edge connects the land tile on each side of a river/water obstacle *directly* (Chebyshev
+  distance > 1, but still one of the 8 compass directions), and the water/river tiles it passes
+  over (`edge.bridgeSpan`) are never graph nodes themselves. This matches the per-tile pricing
+  exactly, keeps the pathfinder's state space to land tiles only, and lets one continuous visual
+  structure be drawn and bulldozed as a unit — trying to model a bridge as a chain of tile-by-tile
+  edges through non-buildable water/river nodes didn't fit any of those. A river is generated one
+  tile wide, so a "single-tile river crossing" bridge is just the span-1 case of the same mechanism
+  as a multi-tile water bridge, priced from the flat `riverCost` instead of `waterCostPerTile × N`.
+- **Cost calculator** (`src/sim/track/cost.ts`; balance numbers in `src/data/track.ts`):
+  `normalEdgeCost` = base × max(terrain multiplier of the two tiles) × diagonal factor (1.41) +
+  grade surcharge (flat, not terrain/diagonal-scaled) — all × era inflation × difficulty
+  build-cost multiplier. `eraInflation(year)` moved to `src/data/finance.ts` (§9.5) since Phase 4
+  needed it too. `bridgeCost`/`validBridgeTypes`/`cheapestBridgeType` implement the era-gated,
+  span-capped bridge table; `evaluatePath` walks a node path and, for every non-adjacent
+  ("bridge") step, classifies it river-vs-water from the spanned tiles' terrain and prices it,
+  auto-picking the cheapest legal type unless a `preferredBridgeType` (the confirm bar's
+  tap-to-cycle) is itself legal for that specific crossing. Double-track upgrade cost is derived
+  from the *fresh-build* multiplier rather than hand-picked: 1.6× total → 0.6× upgrade delta for
+  plain track, 1.8× total → 0.8× delta over a bridge (§5.3 states both fresh-build multipliers;
+  the delta is computed off them, not restated separately) — and it's charged as a fraction of the
+  edge's *originally recorded* build cost, not recomputed at the current (possibly later, more
+  inflated) year, since re-pricing terrain/grade at upgrade time isn't specified and the simpler
+  reading avoids surprise price hikes on old track.
+- **A\* pathfinder** (`src/sim/track/pathfind.ts`): search state is `(tile, incoming direction)`,
+  not just `tile`, so a turn penalty (2,500 × 45°-steps, comparable to the cheapest per-tile track
+  cost) can bias the search toward straight runs without blocking a turn that's actually the only
+  way through (SPEC §5.2: "prefer straight lines and cheaper terrain, with a penalty for direction
+  changes"). Neighbor generation scans past water/river tiles in a straight compass direction (up
+  to 8, steel's max span) looking for a landing tile, so a bridge is just another kind of edge to
+  the search. Bounded to a padded bounding box around start/goal and capped at 20k expansions so a
+  drag toward an unreachable corner can't hang a frame. Double mode reuses the same search with an
+  `existingTrackOnly` option that restricts neighbors to the graph's existing non-double edges,
+  so it "follows the rails" instead of inventing new ones. Bulldoze mode doesn't pathfind at all —
+  it just traces the raw tiles the finger passed over (`main.ts`'s `bresenhamTiles`), since you're
+  erasing what's already there, not routing.
+- **Turn rule** (`src/sim/track/turn.ts`): `turnAllowed(dirIn, dirOut)` is the core ≤45° check;
+  `canTraverse` applies it to three tile positions; `hasSharpJunction(graph, tile)` checks every
+  pair of a node's edges and flags the node if any pair meets at >45° (steps ≤ 2) — used by the
+  renderer for the small red marker SPEC §5.1 calls for ("allowed to exist... shown with a small
+  red marker in the build preview"), and separately by the ghost-path renderer for sharp turns in
+  the *drag* itself before anything is built.
+- **`src/sim/commands.ts`** (didn't exist before this phase): `buildTrack`, `upgradeTrack`,
+  `bulldoze`, each validating and returning `{ok:true, cost} | {ok:false, reason}`. `reason` is a
+  code (`"cant-afford"`, `"blocked"`, ...), not a string — `eslint.config.js` already forbids
+  `src/sim/**` from importing `src/ui/**` (kept a real ESLint error, not just a style nit), so the
+  UI maps the code to a string via a new `strings.build.reasons` table. Re-dragging over track that
+  already exists is free, not an error (`toBuild` filters out edges `hasEdge` already returns true
+  for), which makes the drag UX forgiving. Bulldoze collects every edge incident to *any* tile the
+  drag passed over (not just edges between literally-consecutive dragged tiles), because a bridge's
+  endpoints are graph nodes but its spanned tiles aren't — a raw tile trace across a bridge would
+  otherwise never match the actual (non-adjacent) edge. Exported `compute*Plan` pure/non-mutating
+  twins of each command so the UI can price the live drag preview without a mutate-then-undo dance.
+- **`GameState`** gained `cash` (seeded from `DIFFICULTY[difficulty].startingCash`, §9.1),
+  `difficulty` (defaults `"normal"`, no picker yet — Phase 10/11), and `trackGraph`. This phase
+  only needed a running balance, not the full per-category ledger (§9.2) — that's explicitly
+  Phase 7's job.
+- **Track rendering** (`src/render/track.ts`): `TrackRenderer`, cached per (chunk, zoom-bucket)
+  canvas exactly like `TerrainRenderer`, redrawn only when `invalidateTiles` is called after a
+  build/upgrade/bulldoze (chunk cache keys for every bucket touching the changed tiles are simply
+  dropped). Ties + double rails only at the zoom-1 bucket; a single line at 0.5/0.25. Bridges are
+  drawn as one continuous deck + cross-tie trestle marks in the type's color (wood trestle brown,
+  stone arches grey, steel truss dark blue-grey, per §10.3) directly between the two shore tiles'
+  centers, regardless of the water/river tiles' own rendering underneath. A small dark dot marks
+  any node with ≥3 edges (a junction); a small red dot (reusing `hasSharpJunction`) marks one where
+  a through-route isn't possible.
+- **Build preview** (`src/render/buildPreview.ts`): draws the live drag path green (buildable and
+  affordable) or red (blocked or over budget — SPEC groups both under "red"), plus small red dots
+  at any vertex where the *drag path itself* turns sharper than 45°, independent of the
+  already-built graph's own junction markers.
+- **Build HUD** (`src/ui/buildHud.ts`): a floating cost-label `<div>` that follows the drag,
+  offset up and away from the touch point (clamped to stay on-screen and below the top bar) so a
+  thumb never covers the number it's reading; a confirm bar (`✓ Build($X)` / `✕`) on release
+  unless Quick build is on, with a bridge-type chip that's tappable to cycle
+  `validBridgeTypes` for that crossing (re-prices live).
+- **Touch/mouse input** (`src/ui/cameraInput.ts`): added a `setBuildMode(active, handlers)` mode —
+  in a build mode, one finger (or, on desktop, a *left*-button drag; right/middle still pans,
+  per §5.2) drives `onStart`/`onMove`/`onEnd(committed)` instead of panning, and a second finger
+  arriving mid-drag cancels the build (`onEnd(false)`) and falls back to two-finger pinch/pan.
+  Two-finger *pan* (translate, not just the existing pinch-zoom) is new and only active in a build
+  mode, matching §5.2 exactly ("pan with one finger when not in a build mode; in a build mode, pan
+  with two fingers. Pinch zooms in all modes").
+- **Toolbar / modes** (`src/ui/toolbar.ts`, `main.ts`): Track/Double/Bulldoze/Info are live;
+  Electrify (era-gated) and Station stay disabled (Phase 8/5). Quick build is a small standalone
+  toggle bottom-right, not inside the vertical toolbar — with Track/Double/Bulldoze added, the
+  toolbar is already close to filling a 360px-tall phone viewport's height (see Deviations), and a
+  7th 44px item would overflow it. Persisted in `localStorage` per §13 even though the full
+  Settings *screen* is Phase 11.
+- **Tests** (`tests/sim/track/*.test.ts`, `tests/sim/commands.test.ts`, 51 + 11 new): table-driven
+  `normalEdgeCost` over every terrain multiplier, diagonal factor, grade surcharge, era inflation,
+  difficulty multiplier; bridge type/era/span-limit selection (`validBridgeTypes`); `evaluatePath`
+  bridging, preferred-type fallback, and the "blocked, no legal bridge" case; `TrackGraph` add/
+  remove/query; `directionIndex`/`directionSteps`; `turnAllowed`/`canTraverse`/`hasSharpJunction`
+  (both the "valid" and "sharp" geometric cases); `findBuildPath` — straight path, river bridge
+  jump, blocked/unblocked water span by era, prefers a cheap land detour over an expensive bridge,
+  Double-mode restricted to existing single track (including "an already-double edge isn't
+  offered again"); `buildTrack`/`upgradeTrack`/`bulldoze` round-trips (cash delta, edges
+  added/removed/doubled), re-build-is-free, can't-afford, blocked-by-water-without-a-bridge, and
+  bulldoze finding a bridge via its shore tiles rather than a literal consecutive-pair scan. Used
+  a small synthetic-map helper (`tests/sim/track/helpers.ts`) instead of the random generator, for
+  exact control over terrain/water layout.
+- **E2E** (`e2e/track.spec.ts`, all screenshots at the 800×360 CSS px phone viewport per this
+  session's brief): straight + diagonal + a 90°-branch junction (with its red sharp-turn marker)
+  built by simulated drags, then the same run upgraded to double via Double mode; a live drag with
+  the cost label visible mid-gesture; a water crossing where the confirm bar's auto-picked type is
+  asserted (`stone`, the cheapest legal one for that span); all three bridge types built at the
+  *same* river crossing in turn (cycling the confirm bar's bridge chip, bulldozing between each) to
+  show wood/stone/steel side by side. Crossing tile coordinates for seed 12345 were found with a
+  throwaway search script and *verified against the real `findBuildPath`* (not just "is there
+  water in a line") — an earlier draft picked crossings the pathfinder just routed around via a
+  cheaper diagonal land detour, which is correct pathfinding behavior but produced a screenshot
+  with no bridge in it at all.
+- **Screenshots — looked at them**: `phase-4-straight.png` and `phase-4-diagonal.png` show clean
+  rails-with-ties on plain ground, ties evenly spaced along the diagonal too, no seams at the bend.
+  `phase-4-junction.png` shows a clear red dot exactly at the T where a branch leaves the mainline
+  at 90°. `phase-4-double-track.png` looked identical to single track at thumbnail size — cropped
+  and 4×-zoomed it and confirmed two full parallel rail-and-tie sets with a visible gap, just subtle
+  at this zoom, matching real double-track. `phase-4-drag-preview.png` shows the green ghost line
+  with the cost pill offset above-left of the path, never under where a thumb would be.
+  `phase-4-bridge-wood/stone/steel.png` show the same diagonal river crossing in brown-trestle,
+  grey-arch, and dark-blue-grey-truss respectively — clearly distinct at a glance.
+  `phase-4-water-bridge.png` shows a 3-tile stone bridge across a lake with the shimmer dots still
+  visible on the water either side. First attempt at both bridge screenshots accidentally landed
+  the crossing tiles inside an industry's footprint (the mine headframe icon was easy to mistake
+  for the bridge itself in the thumbnail) — re-searched for crossings with no city/industry tile
+  within 4 tiles before re-shooting.
+- **Carry-overs from the Phase 3 review**:
+  - Debug overlay/controls no longer overlap the top bar or a panel's close button. The `?debug=1`
+    fps/tick text moved off the canvas onto a small DOM `#debug-overlay` (was drawn with
+    `ctx.fillText` at a fixed canvas position, which is what let the toolbar visually sit on top of
+    it) anchored bottom-left; the seed/size dev controls moved to `left:68px` (just past the
+    toolbar's ~56px-wide column) so neither can overlap the toolbar *or* each other regardless of
+    viewport height. Along the way, fixing the toolbar's own vertical centering (`top:50%` of the
+    *full* viewport, which let a tall toolbar creep up under the 44px top bar on a short landscape
+    phone) turned out to be necessary too — now centered within `top:44px; bottom:0` instead.
+  - Cities: `TerrainRenderer` precomputes each city's footprint centroid once per `setMap` and
+    passes a 0–1 "closeness to center" value into `drawCityRoofs`, which now interpolates roof
+    count (and tall-block chance) between a sparse edge value and a dense core value per tier, and
+    occasionally draws a short light street line on tiles away from the core. Re-shot
+    `phase-3-city-closeup.png` (regenerated by Phase 3's own e2e spec, which this phase's toolbar/
+    date changes also touch — see below) — now reads as a town with a denser middle and a couple
+    of visible streets, not scattered dots. Footprint *tile counts* were already tier-ranged
+    correctly (village 1–4 tiles) in Phase 3's generator; this was purely a rendering fix.
+  - `DEFAULT_START_YEAR`: 1900 → 1830 (`src/data/mapGen.ts`), matching SPEC §4.4 (1830 listed
+    first among the random-map year choices) and every real-world region's default start (§4.3).
+- **Regenerated Phase 0/1/3 screenshots**: same as the precedent set in Phase 3's own entry —
+  `phase-0-smoke.png`, `phase-1-*.png`, and all `phase-3-*.png` are regenerated by their owning
+  e2e specs against the unchanged seed 12345, and now legitimately show this phase's toolbar
+  (Track/Double/Bulldoze enabled), the 1830 default date, and the denser city rendering. Kept the
+  regenerated versions rather than reverting, per CLAUDE.md's rule ("commit screenshot changes
+  only for the phase that owns them") — the diffs reflect real new behavior these Phase 3 specs
+  happen to also capture, not incidental churn.
+- Known issues / deviations:
+  - The bridge model (edges spanning multiple tiles) is a deliberate reading of an ambiguity
+    between §5.1 and §5.3, documented above and in `src/data/track.ts`'s comments — flagging in
+    case a future phase (trains routing over bridges, SPEC §7.4/§6) expected the literal
+    tile-by-tile adjacency instead.
+  - No wooden-bridge weight-class enforcement or washout-chance yet — both are explicitly listed
+    against later phases (Phase 6 routing constraints, Phase 8 flood events) in `src/data/track.ts`.
+  - Electrify mode and electrified-track rendering (catenary poles) aren't implemented — Phase 8
+    per PLAN.md, not scoped to this phase's checklist.
+  - Track monthly maintenance (`MAINTENANCE_*` constants) is defined in `src/data/track.ts` but
+    nothing charges it yet — there's no monthly ledger tick until Phase 7.
+  - Quick build's toggle button is a standalone control, not part of a Settings screen (Phase 11).
+- Next: **Phase 5 — Stations**.

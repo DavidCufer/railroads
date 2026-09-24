@@ -31,6 +31,25 @@ export const CITY_ROOF_COLORS = ["#B5533C", "#8E6B5A", "#7A7A80"];
 export const CITY_ROOF_SHADOW = "rgba(20, 15, 10, 0.3)";
 export const CITY_WALL_COLOR = "rgba(230, 224, 210, 0.9)";
 
+/** Track visuals (SPEC §10.3). */
+export const TRACK_COLOR = "#3B3430";
+export const TIE_COLOR = "#6B5A4A";
+export const JUNCTION_DOT_COLOR = "#2A2521";
+export const SHARP_TURN_MARKER_COLOR = "#E05A4F";
+
+/** Bridges are drawn distinctively by type (SPEC §5.3): wood trestle brown, stone arches grey,
+ * steel truss dark blue-grey. */
+export const BRIDGE_COLORS = {
+  wood: { deck: "#8A5A3C", trestle: "#5E3B25" },
+  stone: { deck: "#8C8C90", trestle: "#6A6A6E" },
+  steel: { deck: "#3F4A57", trestle: "#2A323C" },
+};
+
+export const GHOST_BUILDABLE_COLOR = "#5BC27A";
+export const GHOST_BLOCKED_COLOR = "#E05A4F";
+export const GHOST_BULLDOZE_COLOR = "#E05A4F";
+export const GHOST_UPGRADE_COLOR = "#4F86B5";
+
 export const UI_ACCENT = "#F2B544";
 export const UI_BG = "rgba(24, 28, 34, 0.88)";
 export const UI_GOOD = "#5BC27A";

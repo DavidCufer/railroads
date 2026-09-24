@@ -2,19 +2,42 @@ import { GameLoop, type GameSpeed } from "./render/loop";
 import { FpsCounter } from "./render/fps";
 import { Camera, TILE_SIZE } from "./render/camera";
 import { TerrainRenderer } from "./render/terrain";
+import { TrackRenderer } from "./render/track";
+import { drawBuildPreview, type BuildMode, type GhostPreview } from "./render/buildPreview";
 import { drawCityLabels, cityWorldCenter } from "./render/labels";
-import { CameraInput } from "./ui/cameraInput";
+import { CameraInput, type BuildDragHandlers } from "./ui/cameraInput";
 import { createDebugControls } from "./ui/debugControls";
 import { createTopBar } from "./ui/topBar";
-import { createToolbar } from "./ui/toolbar";
+import { createToolbar, createQuickBuildToggle, type ToolId } from "./ui/toolbar";
 import { openCityPanel, openIndustryPanel } from "./ui/infoPanels";
 import { initBackButton } from "./ui/backButton";
+import { showToast } from "./ui/toast";
+import { strings } from "./ui/strings";
+import {
+  hideConfirmBar,
+  hideDragCostLabel,
+  showConfirmBar,
+  showDragCostLabel,
+} from "./ui/buildHud";
 import { createGameState, type GameState, type NewGameOptions } from "./sim/state";
+import {
+  buildTrack,
+  bulldoze,
+  computeBuildPlan,
+  computeBulldozePlan,
+  computeUpgradePlan,
+  upgradeTrack,
+  type BuildPlan,
+  type BulldozePlan,
+  type UpgradePlan,
+} from "./sim/commands";
+import { findBuildPath } from "./sim/track/pathfind";
+import { spanTilesBetween, validBridgeTypes } from "./sim/track/cost";
 import { terrainId } from "./sim/map/terrain";
 import { inBounds, tileIndex } from "./sim/map/grid";
 import { calendarFromTicks } from "./sim/time";
-import { DIFFICULTY, DEFAULT_DIFFICULTY } from "./data/finance";
 import type { MapSizeName, Roughness, WaterLevel } from "./data/mapGen";
+import type { BridgeType } from "./data/track";
 
 const RIVER_ID = terrainId("river");
 const WATER_ID = terrainId("water");
@@ -28,8 +51,16 @@ const DEFAULT_NEW_GAME: NewGameOptions = {
   roughness: "normal",
 };
 
-/** Placeholder cash (SPEC §9.1) — Phase 7 wires up the real ledger. */
-const PLACEHOLDER_CASH = DIFFICULTY[DEFAULT_DIFFICULTY].startingCash;
+interface DragState {
+  mode: BuildMode;
+  path: number[];
+  /** Last tile the path was extended to, so onMove can skip recomputing A* for sub-tile jitter. */
+  lastGoalTile: number;
+  bridgeOverride: BridgeType | null;
+  plan: BuildPlan | UpgradePlan | BulldozePlan;
+  cost: number;
+  ok: boolean;
+}
 
 function main(): void {
   const canvas = document.getElementById("game-canvas") as HTMLCanvasElement | null;
@@ -53,16 +84,48 @@ function main(): void {
   let state: GameState = createGameState(currentOptions);
   const camera = new Camera(state.map.width, state.map.height);
   const terrainRenderer = new TerrainRenderer(state.map, state.cities, state.industries);
+  const trackRenderer = new TrackRenderer(state.map.width, state.map.height, state.trackGraph);
   const cameraInput = new CameraInput(canvas, camera, () => ({
     width: window.innerWidth,
     height: window.innerHeight,
   }));
+
+  let currentTool: ToolId = "info";
+  let quickBuild = false;
+  let dragState: DragState | null = null;
+  let ghost: GhostPreview | null = null;
+
+  function currentYear(): number {
+    return calendarFromTicks(state.startYear, state.ticks).year;
+  }
+
+  function screenToTile(canvasX: number, canvasY: number): number | null {
+    const world = camera.screenToWorld(canvasX, canvasY, window.innerWidth, window.innerHeight);
+    const tx = Math.floor(world.x / TILE_SIZE);
+    const ty = Math.floor(world.y / TILE_SIZE);
+    if (!inBounds(state.map, tx, ty)) return null;
+    return tileIndex(state.map, tx, ty);
+  }
+
+  function invalidateAlongPath(path: readonly number[]): void {
+    const touched = [...path];
+    for (let i = 0; i < path.length - 1; i++) {
+      touched.push(...spanTilesBetween(state.map, path[i] as number, path[i + 1] as number));
+    }
+    trackRenderer.invalidateTiles(touched);
+  }
 
   function regenerate(options: NewGameOptions): void {
     currentOptions = options;
     state = createGameState(options);
     camera.setMapSize(state.map.width, state.map.height);
     terrainRenderer.setMap(state.map, state.cities, state.industries);
+    trackRenderer.setMap(state.map.width, state.map.height, state.trackGraph);
+    dragState = null;
+    ghost = null;
+    hideConfirmBar();
+    hideDragCostLabel();
+    setTool("info");
   }
 
   /** World-px point roughly at a river mouth (midway between the last river tile and the water
@@ -101,6 +164,211 @@ function main(): void {
   }
   cameraInput.setOnTap(handleTap);
 
+  // --- Build mode drag handling (SPEC §5.2) ---------------------------------------------------
+
+  function planFor(
+    mode: BuildMode,
+    path: number[],
+  ): { plan: BuildPlan | UpgradePlan | BulldozePlan; cost: number; ok: boolean } {
+    if (mode === "track") {
+      const plan = computeBuildPlan(state, path, dragState?.bridgeOverride ?? undefined);
+      return { plan, cost: plan.cost, ok: plan.valid };
+    }
+    if (mode === "double") {
+      const plan = computeUpgradePlan(state, path);
+      return { plan, cost: plan.cost, ok: plan.valid };
+    }
+    const plan = computeBulldozePlan(state, path);
+    return { plan, cost: plan.refund, ok: plan.valid };
+  }
+
+  function firstBridgeStep(plan: BuildPlan): { kind: "river" | "water"; span: number } | null {
+    const step = plan.toBuild.find((s) => s.bridge !== null);
+    if (!step || !step.bridgeKind) return null;
+    return { kind: step.bridgeKind, span: step.bridgeSpan.length || 1 };
+  }
+
+  function bridgeLabelFor(type: BridgeType): string {
+    if (type === "wood") return "Wood bridge";
+    if (type === "stone") return "Stone bridge";
+    return "Steel bridge";
+  }
+
+  function updateDragVisuals(canvasX: number, canvasY: number): void {
+    if (!dragState) return;
+    ghost = { mode: dragState.mode, path: dragState.path, ok: dragState.ok };
+    showDragCostLabel(
+      ui,
+      canvasX,
+      canvasY,
+      dragState.cost,
+      dragState.ok,
+      window.innerWidth,
+      window.innerHeight,
+    );
+  }
+
+  function showConfirm(): void {
+    if (!dragState) return;
+    const { mode, cost, ok, plan } = dragState;
+    let bridgeLabel: string | undefined;
+    if (mode === "track") {
+      const bridge = firstBridgeStep(plan as BuildPlan);
+      if (bridge) {
+        const options = validBridgeTypes(bridge.kind, bridge.span, currentYear());
+        const active = dragState.bridgeOverride ?? options[0];
+        if (active) bridgeLabel = bridgeLabelFor(active);
+      }
+    }
+    showConfirmBar(ui, {
+      mode,
+      cost,
+      ok,
+      ...(bridgeLabel !== undefined ? { bridgeLabel } : {}),
+      onConfirm: () => {
+        commit();
+      },
+      onCancel: () => {
+        cancelDrag();
+      },
+      onCycleBridge: () => {
+        cycleBridge();
+      },
+    });
+  }
+
+  function cycleBridge(): void {
+    if (!dragState || dragState.mode !== "track") return;
+    const bridge = firstBridgeStep(dragState.plan as BuildPlan);
+    if (!bridge) return;
+    const options = validBridgeTypes(bridge.kind, bridge.span, currentYear());
+    if (options.length <= 1) return;
+    const current = dragState.bridgeOverride ?? options[0];
+    const idx = current ? options.indexOf(current) : -1;
+    const next = options[(idx + 1) % options.length] as BridgeType;
+    dragState.bridgeOverride = next;
+    const { plan, cost, ok } = planFor("track", dragState.path);
+    dragState.plan = plan;
+    dragState.cost = cost;
+    dragState.ok = ok;
+    showConfirm();
+  }
+
+  function commit(): void {
+    if (!dragState) return;
+    const { mode, path, bridgeOverride } = dragState;
+    const result =
+      mode === "track"
+        ? buildTrack(state, path, bridgeOverride ?? undefined)
+        : mode === "double"
+          ? upgradeTrack(state, path)
+          : bulldoze(state, path);
+
+    if (!result.ok) {
+      showToast(ui, strings.build.reasons[result.reason], "warn");
+    } else {
+      invalidateAlongPath(path);
+    }
+    cancelDrag();
+  }
+
+  function cancelDrag(): void {
+    dragState = null;
+    ghost = null;
+    hideConfirmBar();
+    hideDragCostLabel();
+  }
+
+  const buildHandlers: BuildDragHandlers = {
+    onStart: (canvasX, canvasY) => {
+      const tile = screenToTile(canvasX, canvasY);
+      if (tile === null) return;
+      const mode = currentTool as BuildMode;
+      const { plan, cost, ok } = planFor(mode, [tile]);
+      dragState = { mode, path: [tile], lastGoalTile: tile, bridgeOverride: null, plan, cost, ok };
+      updateDragVisuals(canvasX, canvasY);
+    },
+    onMove: (canvasX, canvasY) => {
+      if (!dragState) return;
+      const goal = screenToTile(canvasX, canvasY);
+      if (goal === null || goal === dragState.lastGoalTile) {
+        updateDragVisuals(canvasX, canvasY);
+        return;
+      }
+      dragState.lastGoalTile = goal;
+      const start = dragState.path[0] as number;
+
+      let path: number[] | null;
+      if (dragState.mode === "double") {
+        path = findBuildPath(state.map, start, goal, currentYear(), {
+          existingTrackOnly: state.trackGraph,
+        });
+      } else if (dragState.mode === "bulldoze") {
+        // Bulldozing traces the raw tiles the finger passes over — no pathfinding, just remove
+        // whatever track already exists along the way.
+        path = bresenhamTiles(state.map.width, start, goal);
+      } else {
+        path = findBuildPath(state.map, start, goal, currentYear());
+      }
+      if (path && path.length >= 2) {
+        dragState.path = path;
+        const { plan, cost, ok } = planFor(dragState.mode, path);
+        dragState.plan = plan;
+        dragState.cost = cost;
+        dragState.ok = ok;
+      }
+      updateDragVisuals(canvasX, canvasY);
+    },
+    onEnd: (committed) => {
+      if (!dragState) return;
+      hideDragCostLabel();
+      if (!committed || dragState.path.length < 2) {
+        cancelDrag();
+        return;
+      }
+      if (quickBuild) {
+        commit();
+      } else {
+        showConfirm();
+      }
+    },
+  };
+
+  function bresenhamTiles(mapWidth: number, from: number, to: number): number[] {
+    let x0 = from % mapWidth;
+    let y0 = Math.floor(from / mapWidth);
+    const x1 = to % mapWidth;
+    const y1 = Math.floor(to / mapWidth);
+    const dx = Math.abs(x1 - x0);
+    const dy = -Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1;
+    const sy = y0 < y1 ? 1 : -1;
+    let err = dx + dy;
+    const tiles: number[] = [y0 * mapWidth + x0];
+    for (let guard = 0; guard < mapWidth + Math.floor(from / mapWidth) + mapWidth * 2; guard++) {
+      if (x0 === x1 && y0 === y1) break;
+      const e2 = 2 * err;
+      if (e2 >= dy) {
+        err += dy;
+        x0 += sx;
+      }
+      if (e2 <= dx) {
+        err += dx;
+        y0 += sy;
+      }
+      tiles.push(y0 * mapWidth + x0);
+    }
+    return tiles;
+  }
+
+  function setTool(tool: ToolId): void {
+    currentTool = tool;
+    toolbar.setActive(tool);
+    cancelDrag();
+    const isBuildMode = tool !== "info";
+    cameraInput.setBuildMode(isBuildMode, isBuildMode ? buildHandlers : null);
+  }
+
   const fps = new FpsCounter();
 
   const loop = new GameLoop({
@@ -119,20 +387,18 @@ function main(): void {
 
       const renderStart = performance.now();
       terrainRenderer.draw(ctx, camera, viewportW, viewportH, now);
+      trackRenderer.draw(ctx, camera, viewportW, viewportH);
+      if (ghost) drawBuildPreview(ctx, camera, viewportW, viewportH, state.map.width, ghost);
       drawCityLabels(ctx, camera, viewportW, viewportH, state.cities, state.map.width);
       fps.sampleRenderDuration(performance.now() - renderStart);
 
       const calendar = calendarFromTicks(state.startYear, state.ticks);
-      topBar.update(calendar, PLACEHOLDER_CASH);
+      topBar.update(calendar, state.cash);
 
-      if (DEBUG) {
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "14px sans-serif";
-        ctx.fillText(
-          `fps: ${fps.fps.toFixed(1)}  frame: ${fps.avgFrameMs.toFixed(2)}ms  render: ${fps.avgRenderMs.toFixed(2)}ms  ticks: ${state.ticks}  zoom: ${camera.zoom.toFixed(2)}`,
-          12,
-          64,
-        );
+      if (DEBUG && debugOverlay) {
+        debugOverlay.textContent =
+          `fps ${fps.fps.toFixed(1)}  frame ${fps.avgFrameMs.toFixed(2)}ms  render ${fps.avgRenderMs.toFixed(2)}ms\n` +
+          `ticks ${state.ticks}  zoom ${camera.zoom.toFixed(2)}  cash ${Math.round(state.cash)}`;
       }
     },
   });
@@ -141,12 +407,21 @@ function main(): void {
     onSetSpeed: (speed: GameSpeed) => loop.setSpeed(speed),
     getSpeed: () => loop.getSpeed(),
   });
-  createToolbar(ui);
+  const toolbar = createToolbar(ui, (tool) => setTool(tool));
+  createQuickBuildToggle(ui, (enabled) => {
+    quickBuild = enabled;
+  });
 
   loop.start();
   initBackButton();
 
+  let debugOverlay: HTMLDivElement | null = null;
+
   if (DEBUG) {
+    debugOverlay = document.createElement("div");
+    debugOverlay.id = "debug-overlay";
+    ui.appendChild(debugOverlay);
+
     createDebugControls(ui, {
       onRegenerate: (seed, size: MapSizeName) => {
         regenerate({ ...currentOptions, seed, size });
@@ -173,6 +448,7 @@ function main(): void {
             size?: MapSizeName;
             waterLevel?: WaterLevel;
             roughness?: Roughness;
+            startYear?: number;
           }) => void;
           camera: {
             getZoom: () => number;
@@ -180,6 +456,16 @@ function main(): void {
             pan: (dxScreen: number, dyScreen: number) => void;
             setCenter: (worldX: number, worldY: number) => void;
           };
+          getCash: () => number;
+          getTrackEdges: () => Array<{
+            a: number;
+            b: number;
+            double: boolean;
+            bridge: string | null;
+            cost: number;
+          }>;
+          tileScreenPoint: (x: number, y: number) => { x: number; y: number };
+          setQuickBuild: (enabled: boolean) => void;
         };
       }
     ).__game = {
@@ -215,6 +501,22 @@ function main(): void {
           camera.x = worldX;
           camera.y = worldY;
         },
+      },
+      getCash: () => state.cash,
+      getTrackEdges: () =>
+        state.trackGraph.allEdges().map((e) => ({
+          a: e.a,
+          b: e.b,
+          double: e.double,
+          bridge: e.bridge,
+          cost: e.cost,
+        })),
+      tileScreenPoint: (x, y) => {
+        const world = { x: (x + 0.5) * TILE_SIZE, y: (y + 0.5) * TILE_SIZE };
+        return camera.worldToScreen(world.x, world.y, window.innerWidth, window.innerHeight);
+      },
+      setQuickBuild: (enabled) => {
+        quickBuild = enabled;
       },
     };
   }

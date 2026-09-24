@@ -70,11 +70,18 @@ interface ShimmerDot {
   y: number;
 }
 
+interface CityCenter {
+  cx: number;
+  cy: number;
+  maxDist: number;
+}
+
 export class TerrainRenderer {
   private cache = new Map<string, HTMLCanvasElement>();
   private map: GameMap;
   private cities: readonly City[];
   private industries: readonly Industry[];
+  private cityCenters = new Map<number, CityCenter>();
   private shimmerDots: ShimmerDot[] = [];
   private lastShimmerUpdate = -Infinity;
   private lastShimmerKey = "";
@@ -83,6 +90,7 @@ export class TerrainRenderer {
     this.map = map;
     this.cities = cities;
     this.industries = industries;
+    this.computeCityCenters();
   }
 
   setMap(map: GameMap, cities: readonly City[] = [], industries: readonly Industry[] = []): void {
@@ -92,6 +100,31 @@ export class TerrainRenderer {
     this.cache.clear();
     this.shimmerDots = [];
     this.lastShimmerUpdate = -Infinity;
+    this.computeCityCenters();
+  }
+
+  /** Precomputes each city's footprint centroid and its farthest tile's distance from it, so
+   * per-tile rendering can tell how close a tile is to the city's core (SPEC §10.3: denser/
+   * taller roof clusters toward the center) without re-scanning the footprint every tile. */
+  private computeCityCenters(): void {
+    this.cityCenters.clear();
+    for (const city of this.cities) {
+      let sx = 0;
+      let sy = 0;
+      for (const idx of city.tiles) {
+        sx += idx % this.map.width;
+        sy += Math.floor(idx / this.map.width);
+      }
+      const cx = sx / city.tiles.length;
+      const cy = sy / city.tiles.length;
+      let maxDist = 0;
+      for (const idx of city.tiles) {
+        const tx = idx % this.map.width;
+        const ty = Math.floor(idx / this.map.width);
+        maxDist = Math.max(maxDist, Math.hypot(tx - cx, ty - cy));
+      }
+      this.cityCenters.set(city.id, { cx, cy, maxDist: Math.max(maxDist, 0.5) });
+    }
   }
 
   draw(
@@ -217,7 +250,12 @@ export class TerrainRenderer {
     const cityId = this.map.cityId[idx] as number;
     const industryIdx = this.map.industryId[idx] as number;
     if (cityId >= 0 && this.cities[cityId]) {
-      drawCityRoofs(ctx, px, py, size, (this.cities[cityId] as City).tier);
+      const city = this.cities[cityId] as City;
+      const center = this.cityCenters.get(city.id);
+      const closeness = center
+        ? 1 - Math.min(1, Math.hypot(mapX - center.cx, mapY - center.cy) / center.maxDist)
+        : 1;
+      drawCityRoofs(ctx, px, py, size, city.tier, closeness);
     } else if (industryIdx >= 0 && this.industries[industryIdx]) {
       drawIndustryIcon(ctx, (this.industries[industryIdx] as Industry).type, px, py, size);
     } else {
