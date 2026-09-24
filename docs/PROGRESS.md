@@ -746,3 +746,7 @@ Append one entry per phase/session: date, phase, what was built, key files, know
     processor's "Supplies" preview is its full nameplate output, same convention Phase 3's
     industry info panel already uses.
 - Next: **Phase 6 — Trains: buying, orders, movement, blocks**.
+
+## 2026-09-24 — Review of Phase 5 (Opus)
+- Accepted (125 unit / 15 e2e green). Revised SPEC §7.4 movement scale + §8.1 revenue expected time (see Deviations) before Phase 6.
+- Carry-overs into Phase 6: station build panel overflows an 800×360 viewport (confirm button cut off); station label overlaps city label when a station sits in a city; terminal building looks as small as a depot.

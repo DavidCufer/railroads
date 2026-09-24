@@ -317,7 +317,11 @@ targetSpeed = maxSpeed × speedFactor × conditionFactor
 - Double track doesn't increase speed but eliminates head-on waits (§7.5).
 - Display speeds in km/h or mph (setting).
 
-Movement scale: 1 tile = 10 km for revenue/distance display. Movement per tick = speed (km/h) × 1 h / 10 km per tile.
+Movement scale (**revised in Phase 5 review**; the old "1 tile = 10 km at real speed" made trains cross the map in ~1 s):
+- Displayed distances still use 1 tile = 10 km, but game time is compressed. A train moves
+  `tilesPerDay = speedKmh / 30` tiles per in-game day (so 60 km/h ≈ 2 tiles/day ≈ 2 tiles per real second at 1×,
+  and the 270 km/h trainset ≈ 9 tiles/day). Per tick (1 in-game hour) that's `speedKmh / 720` tiles.
+- Put the constant `KMH_PER_TILE_PER_DAY = 30` in `src/data/` so it can be tuned.
 
 ### 7.5 Blocks & signaling (single vs. double track)
 
@@ -416,7 +420,10 @@ Costs and maintenance in $ at introduction year (era inflation applies to later 
 distanceTiles = straight-line (Euclidean) distance between the station where it was loaded and destination
 days          = in-game days since loaded
 timeFactor    = days <= expected ? 1.0 + 0.25*(1 - days/expected) : max(0.2, 1 - (days-expected)/(decayDays*2))
-                where expected = decayDays * (distanceTiles / 20)  (min 1 day)
+                where expected = distanceTiles / 2 × urgency + 2   (days; 2 tiles/day ≈ a 60 km/h train, +2 days for loading)
+                urgency: passengers 1.0, mail 0.8, livestock 1.2, food 1.3, goods 1.6, all other freight 2.5
+                (revised in Phase 5 review so expected times match the compressed movement scale in §7.4;
+                 decayDays now only controls how fast revenue falls after `expected`)
 revenue       = base × (distanceTiles / 10) × timeFactor × stationBonuses × eraInflation × difficultyRevenueMult
 ```
 Minimum distance for revenue: 3 tiles (shorter pays 0, warns once). Show a floating `+$12k` above the
@@ -636,3 +643,4 @@ localization (English only, but keep strings in one `strings.ts` file for later)
   performance on Large maps, and the playability check (§4.2 step 6) does one deterministic retry
   with a larger city-count target (continuing the same RNG stream) if fewer than 3 qualifying
   town/city pairs are found — it does not regenerate the terrain itself.
+- [Phase 5 review] §7.4 movement scale and §8.1 `expected` transit time revised: trains move speedKmh/30 tiles per in-game day (the original real-speed scale crossed the map in ~1 s); revenue expectations rescaled to match.
