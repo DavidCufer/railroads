@@ -13,6 +13,9 @@ export interface StationTypeDef {
   storagePerCargo: number;
   cost: number;
   monthlyMaintenance: number;
+  /** Trains that can be docked (loading) at once (SPEC §7.5) — this is what lets a station act as
+   * a passing loop on a single-track line. See src/data/trains.ts `STATION_TRAIN_CAPACITY`. */
+  trainCapacity: number;
 }
 
 export const STATION_TYPE_DEFS: Record<StationType, StationTypeDef> = {
@@ -24,6 +27,7 @@ export const STATION_TYPE_DEFS: Record<StationType, StationTypeDef> = {
     storagePerCargo: 40,
     cost: 15_000,
     monthlyMaintenance: 100,
+    trainCapacity: 1,
   },
   station: {
     id: "station",
@@ -33,6 +37,7 @@ export const STATION_TYPE_DEFS: Record<StationType, StationTypeDef> = {
     storagePerCargo: 80,
     cost: 40_000,
     monthlyMaintenance: 250,
+    trainCapacity: 2,
   },
   terminal: {
     id: "terminal",
@@ -42,6 +47,7 @@ export const STATION_TYPE_DEFS: Record<StationType, StationTypeDef> = {
     storagePerCargo: 150,
     cost: 100_000,
     monthlyMaintenance: 600,
+    trainCapacity: 4,
   },
 };
 

@@ -186,7 +186,12 @@
         font-size: 14px;
       }
       .panel-body {
-        padding: 12px 14px;
+        /* Extra bottom padding reserves room so the sticky `.panel-actions` bar (below) never
+           visually overlaps the last row(s) of content — sticky positioning clamps the bar to the
+           scrollport bottom even when total content is only barely taller than the panel, which
+           without this buffer could otherwise render the bar on top of the preceding row instead
+           of below it. */
+        padding: 12px 14px 64px;
         display: flex;
         flex-direction: column;
         gap: 10px;
@@ -253,6 +258,17 @@
       .panel-actions {
         display: flex;
         gap: 8px;
+        /* Pinned to the bottom of the panel's own scroll area (same sticky trick `.panel-header`
+           uses at the top) so the confirm/build/sell button is always reachable on a short
+           viewport instead of requiring a scroll past the rest of the panel body (Phase 5 review
+           carry-over: the New Station panel's Build button could get cut off at 800×360). The
+           negative margins reclaim `.panel-body`'s own padding so the bar spans edge-to-edge. */
+        position: sticky;
+        bottom: 0;
+        margin: 8px -14px -64px;
+        padding: 10px 14px 12px;
+        background: rgba(24, 28, 34, 0.97);
+        box-shadow: 0 -6px 10px -6px rgba(0, 0, 0, 0.4);
       }
       .panel-actions button {
         flex: 1;
@@ -284,7 +300,8 @@
         width: 100%;
         box-sizing: border-box;
       }
-      .station-upgrade-btn {
+      .station-upgrade-btn,
+      .station-buy-train-btn {
         width: 100%;
         min-height: 40px;
         border-radius: 8px;
@@ -297,6 +314,133 @@
       .station-upgrade-btn:disabled {
         background: #5a5f57;
         color: rgba(255, 255, 255, 0.5);
+      }
+
+      /* Train UI (PLAN Phase 6). */
+      .train-list-button {
+        position: absolute;
+        right: 8px;
+        bottom: 60px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        min-height: 40px;
+        padding: 0 10px;
+        background: rgba(24, 28, 34, 0.88);
+        border: none;
+        color: #fff;
+        font: 12px sans-serif;
+        border-radius: 999px;
+        z-index: 6;
+      }
+      .train-loco-list,
+      .train-orders-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 96px;
+        overflow-y: auto;
+      }
+      .train-loco-btn {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+        font: 12px sans-serif;
+        text-align: left;
+        min-height: 40px;
+      }
+      .train-loco-btn.active {
+        background: #f2b544;
+        color: #1e2a38;
+        border-color: #f2b544;
+        font-weight: 700;
+      }
+      .train-loco-stats {
+        opacity: 0.75;
+        white-space: nowrap;
+      }
+      .train-car-picker {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .train-car-add-btn,
+      .train-car-chip {
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: none;
+        color: #1a1a1a;
+        font: 700 11px sans-serif;
+        min-height: 32px;
+      }
+      .train-car-add-btn:disabled {
+        opacity: 0.35;
+      }
+      .train-car-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .train-order-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .train-order-label {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .train-order-rule-btn {
+        padding: 4px 8px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+        font: 11px sans-serif;
+        min-height: 30px;
+      }
+      .train-order-remove-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        border: none;
+        background: rgba(224, 90, 79, 0.25);
+        color: #fff;
+      }
+      .train-pick-station-btn {
+        min-height: 40px;
+        border-radius: 8px;
+        border: 1px dashed rgba(255, 255, 255, 0.35);
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+        font: 700 12px sans-serif;
+      }
+      .train-pick-station-btn.active {
+        background: #f2b544;
+        color: #1e2a38;
+        border-style: solid;
+      }
+      .train-list-row {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.05);
+        color: #fff;
+        font: 13px sans-serif;
+        min-height: 44px;
+      }
+      .train-list-status {
+        opacity: 0.75;
       }
 
       .toast-container {

@@ -7,6 +7,7 @@ import { drawBuildPreview, type BuildMode, type GhostPreview } from "./render/bu
 import { drawCityLabels, cityWorldCenter } from "./render/labels";
 import { drawStations, drawStationLabels } from "./render/stations";
 import { drawStationCatchment, type StationCatchmentPreview } from "./render/stationPreview";
+import { drawTrains } from "./render/trains";
 import { CameraInput, type BuildDragHandlers } from "./ui/cameraInput";
 import { createDebugControls } from "./ui/debugControls";
 import { createTopBar } from "./ui/topBar";
@@ -25,11 +26,15 @@ import {
 } from "./ui/buildHud";
 import { createGameState, type GameState, type NewGameOptions } from "./sim/state";
 import {
+  buildStation,
   buildTrack,
   bulldoze,
+  buyTrain,
   computeBuildPlan,
   computeBulldozePlan,
   computeUpgradePlan,
+  sellTrain,
+  setOrders,
   upgradeTrack,
   type BuildPlan,
   type BulldozePlan,
@@ -43,7 +48,12 @@ import { inBounds, tileIndex } from "./sim/map/grid";
 import { calendarFromTicks } from "./sim/time";
 import type { MapSizeName, Roughness, WaterLevel } from "./data/mapGen";
 import type { BridgeType } from "./data/track";
-import { STATION_TYPE_DEFS } from "./data/stations";
+import { STATION_TYPE_DEFS, type StationType } from "./data/stations";
+import type { CargoType } from "./data/cargo";
+import { stepTrains } from "./sim/trains";
+import type { TrainOrder } from "./sim/trains/types";
+import { openBuyTrainPanel, openTrainListPanel, openTrainPanel } from "./ui/trainPanels";
+import { createTrainListButton } from "./ui/toolbar";
 
 const RIVER_ID = terrainId("river");
 const WATER_ID = terrainId("water");
@@ -102,6 +112,9 @@ function main(): void {
   let ghost: GhostPreview | null = null;
   let stationPreview: StationCatchmentPreview | null = null;
   let stationPlacementOpen = false;
+  /** Set while the Buy Train dialog's orders editor is "tap a station to add it" mode is active —
+   * intercepts the next station tap instead of opening that station's own panel. */
+  let stationPickHandler: ((stationId: number) => void) | null = null;
 
   function currentYear(): number {
     return calendarFromTicks(state.startYear, state.ticks).year;
@@ -131,6 +144,8 @@ function main(): void {
     trackRenderer.setMap(state.map.width, state.map.height, state.trackGraph);
     dragState = null;
     ghost = null;
+    stationPickHandler = null;
+    stuckTrainsNotified.clear();
     hideConfirmBar();
     hideDragCostLabel();
     setTool("info");
@@ -174,9 +189,43 @@ function main(): void {
     return null;
   }
 
+  /** Screen-space hit test against every train's current head position — trains are small and
+   * moving, so this is simpler and more accurate than mapping the tap back to a tile. */
+  function findTrainAt(canvasX: number, canvasY: number, viewportW: number, viewportH: number) {
+    const hitRadius = TILE_SIZE * camera.zoom * 0.6;
+    for (const train of state.trains) {
+      const screen = camera.worldToScreen(
+        train.renderToX * TILE_SIZE,
+        train.renderToY * TILE_SIZE,
+        viewportW,
+        viewportH,
+      );
+      if (Math.hypot(screen.x - canvasX, screen.y - canvasY) <= hitRadius) return train;
+    }
+    return null;
+  }
+
+  function openBuyTrain(stationId: number): void {
+    openBuyTrainPanel(ui, state, stationId, {
+      pickStationOnMap: (onPicked) => {
+        stationPickHandler = onPicked;
+      },
+      cancelPickStationOnMap: () => {
+        stationPickHandler = null;
+      },
+    });
+  }
+
   function handleTap(canvasX: number, canvasY: number): void {
     const viewportW = window.innerWidth;
     const viewportH = window.innerHeight;
+
+    const trainHit = findTrainAt(canvasX, canvasY, viewportW, viewportH);
+    if (trainHit) {
+      openTrainPanel(ui, state, trainHit.id);
+      return;
+    }
+
     const world = camera.screenToWorld(canvasX, canvasY, viewportW, viewportH);
     const tileX = Math.floor(world.x / TILE_SIZE);
     const tileY = Math.floor(world.y / TILE_SIZE);
@@ -186,7 +235,13 @@ function main(): void {
     // An existing station is manageable from either Info or Station mode.
     const station = stationAtTile(state.stations, idx);
     if (station) {
-      openStationPanel(ui, state, station.id);
+      if (stationPickHandler) {
+        const picked = stationPickHandler;
+        stationPickHandler = null;
+        picked(station.id);
+        return;
+      }
+      openStationPanel(ui, state, station.id, { onBuyTrain: () => openBuyTrain(station.id) });
       return;
     }
 
@@ -421,11 +476,48 @@ function main(): void {
 
   const fps = new FpsCounter();
 
+  const stuckTrainsNotified = new Set<number>();
+
+  /** Nearest built station to `tile` by straight-line tile distance — for the "Traffic jam near X"
+   * news toast (SPEC §7.5), which names a place, not the stuck train itself. */
+  function nearestStationName(tile: number): string {
+    const width = state.map.width;
+    const tx = tile % width;
+    const ty = Math.floor(tile / width);
+    let best: { name: string; d: number } | null = null;
+    for (const s of state.stations) {
+      const sx = s.tile % width;
+      const sy = Math.floor(s.tile / width);
+      const d = Math.hypot(sx - tx, sy - ty);
+      if (!best || d < best.d) best = { name: s.name, d };
+    }
+    return best?.name ?? "?";
+  }
+
+  /** One in-game hour of simulation — shared by the real-time game loop and the `runDays` debug
+   * hook (SPEC/PLAN Phase 6 e2e tests drive the sim directly instead of waiting on wall-clock). */
+  function tickOnce(): void {
+    state.ticks++;
+    stepTrains(state);
+    for (const train of state.trains) {
+      if (train.status === "stuck") {
+        if (!stuckTrainsNotified.has(train.id)) {
+          stuckTrainsNotified.add(train.id);
+          const nearTile = train.route[train.routeIndex] ?? train.route[0];
+          const name = nearTile !== undefined ? nearestStationName(nearTile) : "?";
+          showToast(ui, strings.trains.trafficJam(name), "warn");
+        }
+      } else {
+        stuckTrainsNotified.delete(train.id);
+      }
+    }
+  }
+
   const loop = new GameLoop({
     tick: (_dt) => {
-      state.ticks++;
+      tickOnce();
     },
-    render: (_alpha) => {
+    render: (alpha) => {
       const now = performance.now();
       fps.sample(now);
       cameraInput.update(loop.lastFrameDeltaMs);
@@ -439,12 +531,32 @@ function main(): void {
       terrainRenderer.draw(ctx, camera, viewportW, viewportH, now);
       trackRenderer.draw(ctx, camera, viewportW, viewportH);
       drawStations(ctx, camera, viewportW, viewportH, state.map.width, state.stations);
+      drawTrains(
+        ctx,
+        camera,
+        viewportW,
+        viewportH,
+        state.map.width,
+        state.trackGraph,
+        state.trains,
+        alpha,
+        now,
+      );
       if (ghost) drawBuildPreview(ctx, camera, viewportW, viewportH, state.map.width, ghost);
       if (stationPreview) {
         drawStationCatchment(ctx, camera, viewportW, viewportH, state.map.width, stationPreview);
       }
       drawCityLabels(ctx, camera, viewportW, viewportH, state.cities, state.map.width);
-      drawStationLabels(ctx, camera, viewportW, viewportH, state.map.width, state.stations);
+      drawStationLabels(
+        ctx,
+        camera,
+        viewportW,
+        viewportH,
+        state.map.width,
+        state.stations,
+        state.cities,
+        (tile) => state.map.cityId[tile] ?? -1,
+      );
       fps.sampleRenderDuration(performance.now() - renderStart);
 
       const calendar = calendarFromTicks(state.startYear, state.ticks);
@@ -465,6 +577,15 @@ function main(): void {
   const toolbar = createToolbar(ui, (tool) => setTool(tool));
   createQuickBuildToggle(ui, (enabled) => {
     quickBuild = enabled;
+  });
+  createTrainListButton(ui, () => {
+    openTrainListPanel(ui, state, (trainId) => {
+      const train = state.trains.find((t) => t.id === trainId);
+      if (train) {
+        camera.x = train.renderToX * TILE_SIZE;
+        camera.y = train.renderToY * TILE_SIZE;
+      }
+    });
   });
 
   loop.start();
@@ -535,6 +656,29 @@ function main(): void {
             acceptPoints: Partial<Record<string, number>>;
             accepts: string[];
           } | null;
+          runDays: (n: number) => void;
+          buildTrackPath: (path: number[]) => { ok: boolean; reason?: string };
+          buildStation: (tile: number, type: StationType) => { ok: boolean; reason?: string };
+          buyTrain: (
+            stationId: number,
+            locoModelId: string,
+            cars: CargoType[],
+          ) => { ok: boolean; reason?: string; trainId?: number };
+          setOrders: (trainId: number, orders: TrainOrder[]) => { ok: boolean; reason?: string };
+          sellTrain: (trainId: number) => { ok: boolean; reason?: string };
+          getTrains: () => Array<{
+            id: number;
+            name: string;
+            locoModelId: string;
+            status: string;
+            tile: number;
+            x: number;
+            y: number;
+            speed: number;
+            cars: string[];
+            orders: Array<{ stationId: number; rule: string }>;
+            currentOrderIndex: number;
+          }>;
         };
       }
     ).__game = {
@@ -598,6 +742,52 @@ function main(): void {
           hasEngineShed: s.hasEngineShed,
         })),
       getStationEconomy: (stationId) => state.stationEconomy.get(stationId) ?? null,
+      runDays: (n) => {
+        const ticks = Math.round(n * 24);
+        for (let i = 0; i < ticks; i++) tickOnce();
+      },
+      buildTrackPath: (path) => {
+        const result = buildTrack(state, path);
+        if (result.ok) invalidateAlongPath(path);
+        return result.ok ? { ok: true } : { ok: false, reason: result.reason };
+      },
+      buildStation: (tile, type) => {
+        const result = buildStation(state, tile, type);
+        return result.ok ? { ok: true } : { ok: false, reason: result.reason };
+      },
+      buyTrain: (stationId, locoModelId, cars) => {
+        const before = state.trains.length;
+        const result = buyTrain(state, stationId, locoModelId, cars);
+        if (!result.ok) return { ok: false, reason: result.reason };
+        const created =
+          state.trains.length > before ? state.trains[state.trains.length - 1] : undefined;
+        return created ? { ok: true, trainId: created.id } : { ok: true };
+      },
+      setOrders: (trainId, orders) => {
+        const result = setOrders(state, trainId, orders);
+        return result.ok ? { ok: true } : { ok: false, reason: result.reason };
+      },
+      sellTrain: (trainId) => {
+        const result = sellTrain(state, trainId);
+        return result.ok ? { ok: true } : { ok: false, reason: result.reason };
+      },
+      getTrains: () =>
+        state.trains.map((t) => {
+          const tile = t.route[t.routeIndex] as number;
+          return {
+            id: t.id,
+            name: t.name,
+            locoModelId: t.locoModelId,
+            status: t.status,
+            tile,
+            x: tile % state.map.width,
+            y: Math.floor(tile / state.map.width),
+            speed: t.speed,
+            cars: t.cars.map((c) => c.cargoType),
+            orders: t.orders.map((o) => ({ stationId: o.stationId, rule: o.rule })),
+            currentOrderIndex: t.currentOrderIndex,
+          };
+        }),
     };
   }
 }

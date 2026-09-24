@@ -65,6 +65,32 @@ export interface GameWindow {
     acceptPoints: Partial<Record<string, number>>;
     accepts: string[];
   } | null;
+  runDays: (n: number) => void;
+  buildTrackPath: (path: number[]) => { ok: boolean; reason?: string };
+  buildStation: (tile: number, type: string) => { ok: boolean; reason?: string };
+  buyTrain: (
+    stationId: number,
+    locoModelId: string,
+    cars: string[],
+  ) => { ok: boolean; reason?: string; trainId?: number };
+  setOrders: (
+    trainId: number,
+    orders: Array<{ stationId: number; rule: string }>,
+  ) => { ok: boolean; reason?: string };
+  sellTrain: (trainId: number) => { ok: boolean; reason?: string };
+  getTrains: () => Array<{
+    id: number;
+    name: string;
+    locoModelId: string;
+    status: string;
+    tile: number;
+    x: number;
+    y: number;
+    speed: number;
+    cars: string[];
+    orders: Array<{ stationId: number; rule: string }>;
+    currentOrderIndex: number;
+  }>;
 }
 
 declare global {

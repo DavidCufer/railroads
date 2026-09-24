@@ -27,6 +27,11 @@ import { stationCost, stationUpgradeCost } from "./stations/cost";
 import { defaultStationName } from "./stations/naming";
 import { computeStationEconomies } from "./stations/economy";
 import type { Station } from "./stations/types";
+import { CARGO, type CargoType } from "../data/cargo";
+import { locomotiveById, SELL_REFUND_FRACTION } from "../data/trains";
+import { eraInflation } from "../data/finance";
+import { tileXY } from "./trains/geometry";
+import type { Train, TrainOrder } from "./trains/types";
 
 export type CommandReasonCode =
   | "no-path"
@@ -37,7 +42,12 @@ export type CommandReasonCode =
   | "station-no-track"
   | "station-occupied"
   | "invalid-station-upgrade"
-  | "invalid-station-name";
+  | "invalid-station-name"
+  | "no-engine-shed"
+  | "invalid-locomotive"
+  | "too-many-cars"
+  | "invalid-train"
+  | "invalid-orders";
 
 export type CommandResult = { ok: true; cost: number } | { ok: false; reason: CommandReasonCode };
 
@@ -156,6 +166,7 @@ export function buildTrack(
     state.trackGraph.addEdge(edge);
   }
   state.cash -= plan.cost;
+  if (plan.toBuild.length > 0) state.trackVersion++;
   return { ok: true, cost: plan.cost };
 }
 
@@ -172,6 +183,7 @@ export function upgradeTrack(state: GameState, path: readonly number[]): Command
     edge.double = true;
   }
   state.cash -= plan.cost;
+  if (plan.edges.length > 0) state.trackVersion++;
   return { ok: true, cost: plan.cost };
 }
 
@@ -184,6 +196,7 @@ export function bulldoze(state: GameState, path: readonly number[]): CommandResu
 
   for (const edge of plan.edges) state.trackGraph.removeEdge(edge.a, edge.b);
   state.cash += plan.refund;
+  if (plan.edges.length > 0) state.trackVersion++;
   return { ok: true, cost: -plan.refund };
 }
 
@@ -250,6 +263,7 @@ export function buildStation(state: GameState, tile: number, type: StationType):
   };
   state.stations.push(station);
   state.cash -= cost;
+  state.trackVersion++; // a station is a block boundary (SPEC §7.5) — splits whatever block it sits in
   refreshStationEconomy(state);
   return { ok: true, cost };
 }
@@ -300,4 +314,136 @@ export function renameStation(state: GameState, stationId: number, name: string)
   if (!station) return { ok: false, reason: "invalid-station-name" };
   station.name = trimmed;
   return { ok: true, cost: 0 };
+}
+
+// --- Trains (SPEC §7.1, §7.2) -----------------------------------------------------------------
+
+export interface BuyTrainPlan {
+  cost: number;
+  valid: boolean;
+}
+
+/** Prices buying `locoModelId` with `cars` at the current year, without mutating state. Doesn't
+ * check the engine-shed/cash gates — those are cheap and only meaningful against a specific
+ * station/cash balance, so `buyTrain` checks them itself. */
+export function computeBuyTrainPlan(
+  state: GameState,
+  locoModelId: string,
+  cars: readonly CargoType[],
+): BuyTrainPlan {
+  const loco = locomotiveById(locoModelId);
+  const year = calendarFromTicks(state.startYear, state.ticks).year;
+  if (!loco || loco.introYear > year) return { cost: 0, valid: false };
+  if (cars.length > loco.maxCars) return { cost: 0, valid: false };
+  if (loco.passengerMailOnly && cars.some((c) => c !== "passengers" && c !== "mail")) {
+    return { cost: 0, valid: false };
+  }
+  const ctx = costContext(state);
+  const mult = eraInflation(ctx.year) * ctx.buildCostMult;
+  const cost = loco.cost * mult + cars.reduce((sum, c) => sum + CARGO[c].carCost * mult, 0);
+  return { cost, valid: true };
+}
+
+/** Buys a new train at `stationId` (must have an Engine Shed, SPEC §7's "must be at a station with
+ * an Engine Shed") with the given locomotive and cars. The train starts empty-ordered (`loading`
+ * with no orders) — set its route with `setOrders`. */
+export function buyTrain(
+  state: GameState,
+  stationId: number,
+  locoModelId: string,
+  cars: readonly CargoType[],
+): CommandResult {
+  const station = state.stations.find((s) => s.id === stationId);
+  if (!station) return { ok: false, reason: "invalid-train" };
+  if (!station.hasEngineShed) return { ok: false, reason: "no-engine-shed" };
+
+  const plan = computeBuyTrainPlan(state, locoModelId, cars);
+  if (!plan.valid) {
+    return {
+      ok: false,
+      reason:
+        cars.length > (locomotiveById(locoModelId)?.maxCars ?? 0)
+          ? "too-many-cars"
+          : "invalid-locomotive",
+    };
+  }
+  if (plan.cost > state.cash) return { ok: false, reason: "cant-afford" };
+
+  const [tx, ty] = tileXY(station.tile, state.map.width);
+  const centerX = tx + 0.5;
+  const centerY = ty + 0.5;
+  const id = state.nextTrainId++;
+  const train: Train = {
+    id,
+    name: `Train ${id + 1}`,
+    locoModelId,
+    cars: cars.map((cargoType) => ({ cargoType })),
+    orders: [],
+    currentOrderIndex: 0,
+    status: "loading",
+    route: [station.tile],
+    routeIndex: 0,
+    edgeProgress: 0,
+    speed: 0,
+    direction: -1,
+    waitTicks: 0,
+    routeTrackVersion: state.trackVersion,
+    heldBlocks: [],
+    blockPenalties: new Map(),
+    renderFromX: centerX,
+    renderFromY: centerY,
+    renderToX: centerX,
+    renderToY: centerY,
+  };
+  state.trains.push(train);
+  state.cash -= plan.cost;
+  return { ok: true, cost: plan.cost };
+}
+
+/** Sets `trainId`'s orders (SPEC §7.2: "an ordered list of 2–8 stations, looping"). Resets progress
+ * to the top of the new list — the train picks up its route toward `orders[0]` once it next
+ * finishes loading (or immediately, if it was idle for lack of orders). */
+export function setOrders(
+  state: GameState,
+  trainId: number,
+  orders: readonly TrainOrder[],
+): CommandResult {
+  const train = state.trains.find((t) => t.id === trainId);
+  if (!train) return { ok: false, reason: "invalid-train" };
+  if (orders.length < 2 || orders.length > 8) return { ok: false, reason: "invalid-orders" };
+  const stationIds = new Set(state.stations.map((s) => s.id));
+  if (orders.some((o) => !stationIds.has(o.stationId)))
+    return { ok: false, reason: "invalid-orders" };
+
+  train.orders = orders.map((o) => ({ ...o }));
+  train.currentOrderIndex = 0;
+  return { ok: true, cost: 0 };
+}
+
+export interface SellTrainPlan {
+  refund: number;
+  valid: boolean;
+}
+
+export function computeSellTrainPlan(state: GameState, trainId: number): SellTrainPlan {
+  const train = state.trains.find((t) => t.id === trainId);
+  if (!train) return { refund: 0, valid: false };
+  const loco = locomotiveById(train.locoModelId);
+  if (!loco) return { refund: 0, valid: false };
+  const ctx = costContext(state);
+  const mult = eraInflation(ctx.year) * ctx.buildCostMult;
+  const value =
+    loco.cost * mult + train.cars.reduce((sum, c) => sum + CARGO[c.cargoType].carCost * mult, 0);
+  return { refund: value * SELL_REFUND_FRACTION, valid: true };
+}
+
+/** Sells `trainId` for 50% of its current (era-adjusted) locomotive + cars value (SPEC §7,
+ * placeholder rate — a real depreciation model arrives with Phase 8's trade-in mechanics). */
+export function sellTrain(state: GameState, trainId: number): CommandResult {
+  const plan = computeSellTrainPlan(state, trainId);
+  if (!plan.valid) return { ok: false, reason: "invalid-train" };
+  const index = state.trains.findIndex((t) => t.id === trainId);
+  state.trains.splice(index, 1);
+  state.cash += plan.refund;
+  return { ok: true, cost: -plan.refund };
 }

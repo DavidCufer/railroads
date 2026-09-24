@@ -4,7 +4,10 @@
  * directly every frame — no offscreen chunk cache — is simplest and plenty fast.
  */
 import type { StationType } from "../data/stations";
+import type { CityTier } from "../data/cities";
+import type { City } from "../sim/economy/types";
 import { Camera, TILE_SIZE } from "./camera";
+import { cityWorldCenter } from "./labels";
 import {
   STATION_BUILDING_COLOR,
   STATION_BUILDING_ROOF_COLOR,
@@ -13,16 +16,29 @@ import {
 } from "./palette";
 import type { Station } from "../sim/stations/types";
 
+/** Matches labels.ts's TIER_FONT_PX — used here only to estimate a city label's rendered height,
+ * to know how far below it a station label needs to sit to clear it (Phase 5 review carry-over:
+ * a station inside a city's footprint had its name collide with the city's own label). */
+const CITY_TIER_FONT_PX: Record<CityTier, number> = {
+  village: 11,
+  town: 13,
+  city: 16,
+  metropolis: 19,
+};
+
 function tileWorldOrigin(tile: number, mapWidth: number): [number, number] {
   return [(tile % mapWidth) * TILE_SIZE, Math.floor(tile / mapWidth) * TILE_SIZE];
 }
 
 /** Building half-width (fraction of a tile) and platform length by type — visibly bigger for a
  * terminal than a depot, per SPEC §6.1. */
+/* Phase 5 review carry-over: a Terminal needs to read as clearly bigger than a Depot, not just a
+ * slightly larger version of the same box — so the terminal building here is nearly double the
+ * depot's linear size (not ~1.5×) on top of getting the second roof block. */
 const TYPE_SCALE: Record<StationType, { building: number; platform: number; roofCount: number }> = {
-  depot: { building: 0.34, platform: 0.55, roofCount: 1 },
+  depot: { building: 0.3, platform: 0.5, roofCount: 1 },
   station: { building: 0.42, platform: 0.75, roofCount: 1 },
-  terminal: { building: 0.5, platform: 0.95, roofCount: 2 },
+  terminal: { building: 0.58, platform: 0.95, roofCount: 2 },
 };
 
 function drawStationIcon(
@@ -90,6 +106,8 @@ export function drawStationLabels(
   viewportH: number,
   mapWidth: number,
   stations: readonly Station[],
+  cities: readonly City[] = [],
+  cityIdAt: (tile: number) => number = () => -1,
 ): void {
   ctx.font = `600 ${FONT_PX}px sans-serif`;
   ctx.textAlign = "center";
@@ -101,11 +119,33 @@ export function drawStationLabels(
     const s = camera.worldToScreen(wx + TILE_SIZE / 2, wy + TILE_SIZE, viewportW, viewportH);
     if (s.x < -80 || s.y < -20 || s.x > viewportW + 80 || s.y > viewportH + 20) continue;
 
+    // A station inside a city's footprint can land its label right on top of the city's own name
+    // (drawn at the footprint centroid, which the station tile may sit very close to) — if so,
+    // push the station label down to clear it instead of overlapping (Phase 5 review carry-over).
+    let labelY = s.y + 2;
+    const cityId = cityIdAt(station.tile);
+    const city = cityId >= 0 ? cities[cityId] : undefined;
+    if (city) {
+      const center = cityWorldCenter(city, mapWidth);
+      const cityScreen = camera.worldToScreen(center.x, center.y, viewportW, viewportH);
+      const cityFontPx = CITY_TIER_FONT_PX[city.tier] * camera.zoom;
+      const cityLabelBottom = cityScreen.y + cityFontPx * 0.4 + cityFontPx * 1.15;
+      const stationLabelTop = labelY;
+      const horizontalOverlap = Math.abs(cityScreen.x - s.x) < 90 * camera.zoom;
+      if (
+        horizontalOverlap &&
+        stationLabelTop < cityLabelBottom &&
+        labelY + FONT_PX * 1.15 > cityScreen.y
+      ) {
+        labelY = cityLabelBottom + 2;
+      }
+    }
+
     ctx.lineWidth = Math.max(2, FONT_PX * 0.22);
     ctx.strokeStyle = "rgba(10, 12, 16, 0.75)";
-    ctx.strokeText(station.name, s.x, s.y + 2);
+    ctx.strokeText(station.name, s.x, labelY);
 
     ctx.fillStyle = STATION_LABEL_COLOR;
-    ctx.fillText(station.name, s.x, s.y + 2);
+    ctx.fillText(station.name, s.x, labelY);
   }
 }

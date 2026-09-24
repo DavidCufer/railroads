@@ -84,6 +84,19 @@ function writeQuickBuildSetting(enabled: boolean): void {
   }
 }
 
+/** Floating "Trains" button (SPEC PLAN Phase 6): opens the train list. Stacked above the quick
+ * build toggle in the same bottom-right corner the toolbar.ts comment above earmarked for it. */
+export function createTrainListButton(container: HTMLElement, onClick: () => void): HTMLElement {
+  const btn = h(
+    "button",
+    { className: "train-list-button", "aria-label": strings.trains.trainsButton, onClick },
+    h("span", null, "🚆"),
+    h("span", null, strings.trains.trainsButton),
+  );
+  container.appendChild(btn);
+  return btn;
+}
+
 export function createQuickBuildToggle(
   container: HTMLElement,
   onChange: (enabled: boolean) => void,

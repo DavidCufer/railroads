@@ -177,11 +177,17 @@ export function openStationPlacementPanel(
   update();
 }
 
+export interface StationPanelHandlers {
+  /** Fired when the player taps "Buy train" — only shown when the station has an Engine Shed. */
+  onBuyTrain: () => void;
+}
+
 /** Opens the management panel for an already-built station (Station or Info mode tap). */
 export function openStationPanel(
   container: HTMLElement,
   state: GameState,
   stationId: number,
+  handlers?: StationPanelHandlers,
 ): void {
   const render = (): void => {
     const station = state.stations.find((s) => s.id === stationId);
@@ -219,6 +225,15 @@ export function openStationPanel(
 
     if (station.hasEngineShed) {
       body.push(h("div", { className: "panel-row" }, `⚙ ${strings.station.engineShedFree}`));
+      if (handlers) {
+        body.push(
+          h(
+            "button",
+            { className: "station-buy-train-btn", onClick: () => handlers.onBuyTrain() },
+            strings.trains.buyTitle,
+          ),
+        );
+      }
     }
 
     if (nextType) {

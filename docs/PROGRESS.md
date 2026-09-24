@@ -750,3 +750,180 @@ Append one entry per phase/session: date, phase, what was built, key files, know
 ## 2026-09-24 — Review of Phase 5 (Opus)
 - Accepted (125 unit / 15 e2e green). Revised SPEC §7.4 movement scale + §8.1 revenue expected time (see Deviations) before Phase 6.
 - Carry-overs into Phase 6: station build panel overflows an 800×360 viewport (confirm button cut off); station label overlaps city label when a station sits in a city; terminal building looks as small as a depot.
+
+## 2026-09-24 — Phase 6: Trains (buying, orders, movement, blocks)
+
+- **Data** (`src/data/trains.ts`): the full SPEC §7.7 locomotive roster (22 models, steam/diesel/
+  electric) as a flat array with `locomotivesAvailableIn(year)`/`locomotiveById`. Movement-scale
+  constants (`KMH_PER_TILE_PER_DAY = 30`, `TICKS_PER_TILE_DIVISOR = 720`) live here per the Phase 5
+  review's SPEC §7.4 revision. Speed-model constants (grade/curve factors, load weights), block/
+  deadlock timing (`MIN_SPACING_TILES_DOUBLE_TRACK`, `DEADLOCK_REROUTE_DAYS` = 5,
+  `DEADLOCK_STUCK_DAYS` = 10, `DEADLOCK_BLOCK_PENALTY`, `DEAD_END_REVERSE_HOURS` = 6), the
+  placeholder `TRAIN_LOADING_TICKS = 12`, and car/loco render lengths. Added `trainCapacity` to
+  `STATION_TYPE_DEFS` (Depot 1 / Station 2 / Terminal 4, SPEC §7.5) alongside the existing per-type
+  numbers rather than a separate table, per CLAUDE.md's "balance numbers live in one place".
+- **Routing** (`src/sim/trains/route.ts`, `findTrainRoute`): A* whose search state is
+  `(node, incomingDirection)`, not just `node` — the same node can be legally entered from one
+  direction and not another, so a plain visited-set (like the Track-mode build pathfinder uses)
+  would under- or over-constrain the search. Turn rule = `turnAllowed` (≤45°) OR (at a station tile
+  AND a full 180° reversal) — stations only ever have 1 or 2 opposite edges (`canPlaceStationAt`
+  guarantees this), so that reversal exception can never accidentally legalize some other sharp
+  turn through one. A fresh route from a station passes `incomingDirection: -1` (unconstrained
+  first move); a mid-journey reroute passes the train's actual current heading, so it still can't
+  reverse away from a plain node. Wooden-bridge weight limit and per-edge electrification are plain
+  neighbor-feasibility filters. Heuristic is straight octile tile-distance (admissible against the
+  tile-length + optional block-penalty edge cost); a deadlock reroute biases the search away from a
+  specific block via `blockPenalties: Map<blockId, number>` rather than re-deriving a whole new
+  cost model.
+- **Blocks** (`src/sim/trains/blocks.ts`, `computeBlocks`): pure function of the track graph +
+  station tiles — boundaries are stations, degree-≠2 nodes (junctions and dead ends), matching SPEC
+  §7.5 exactly (a *station* is a boundary regardless of its own degree, since `canPlaceStationAt`
+  only ever allows degree 1 or 2 there). Walks each unvisited edge outward in both directions until
+  it hits a boundary (or a closed loop with no boundary anywhere, an edge case handled by stopping
+  when the walk revisits an already-claimed edge — the whole loop becomes one block with both
+  "ends" coincident at an arbitrary node on it). A block is `double` only if every edge in it is.
+  Recomputed lazily by `src/sim/trains/index.ts`'s `getTrainRuntime`, cached in a `WeakMap<GameState,
+  …>` keyed off `state.trackVersion` — a new counter on `GameState`, bumped by every track command
+  (`buildTrack`/`upgradeTrack`/`bulldoze`) *and* by `buildStation` (a station is a boundary, so
+  building one can split an existing block even though the graph's edges didn't change).
+- **Movement** (`src/sim/trains/movement.ts`, `stepTrain` — called once per train per tick by
+  `src/sim/trains/index.ts`'s `stepTrains`, wired into `main.ts`'s game-loop tick handler and the
+  `runDays` debug hook):
+  - Speed model is SPEC §7.4 literally: `effort = load × (1 + 0.6×grade)`,
+    `speedFactor = clamp(power/effort, 0.15, 1)`, curve factor 0.7 at a 45° node, both applied to
+    `maxSpeedKmh`. Acceleration/deceleration rate = the loco's own `maxSpeedKmh` per tick, i.e. it
+    reaches any target speed within one tick — a literal reading of "reach max in ~1 in-game hour"
+    given 1 tick *is* 1 in-game hour; braking is the SPEC-endorsed "stop at boundary" simplification
+    (target speed snaps to 0 while a train is `waitingForBlock`/`waitingForStation`, so it coasts
+    down over however many ticks it has left before the boundary, however many that turns out to
+    be). Cars are always "empty" weight (0.4/car) — no cargo loading yet (Phase 7).
+  - Per tick, a train converts `speed / 720` tiles of budget into `edgeProgress`, crossing zero or
+    more graph nodes in a bounded loop (fast locos never cross more than one edge boundary per tick
+    at any speed in the roster, but the loop tolerates a few for safety). At every node boundary it
+    doesn't already hold the next block for, it attempts `tryEnterBlock`: single-track blocks are
+    exclusive; double-track blocks require ≥`MIN_SPACING_TILES_DOUBLE_TRACK` (2) tiles from the
+    nearest *same-direction* occupant (opposing-direction trains never conflict, since SPEC treats
+    them as separate lanes) — direction and distance-into-block are read off every train's
+    `heldBlocks` (at most 2 entries: the block a train's head is in, plus the previous one kept an
+    extra tick as the documented "head-based release + one-block lag" simplification for tail
+    clearance, SPEC §7.5). Entering the block that ends exactly at the current order's target
+    station additionally requires a free `stationOccupancy` slot (SPEC: "reserve station slot
+    together with the final block") — occupancy counts trains already docked (`loading`) there
+    *and* trains already committed to the final block inbound to it, so two blocks converging on
+    one station can't both admit a train past its capacity in the same tick.
+  - Deadlock handling matches SPEC §7.5's timeouts (5/10 in-game days) with one real bug found and
+    fixed while writing the "4 trains congested on one line" test: the reroute-with-penalty attempt
+    at day 5 must **not** go through the same "always resolves to `moving`/`noRoute`" helper used
+    for a fresh route — if the alternate route it finds is immediately blocked too, that helper
+    would still flip status to `moving` and reset `waitTicks`, so a train stuck behind real,
+    persistent traffic would retry every 5 days *forever* and never reach the 10-day `stuck`
+    threshold. Fixed by having the deadlock-timeout path call `tryEnterBlock` itself and only
+    change status on an actual grant — a failed retry leaves the status string unchanged, so the
+    wait-tick counter (which only resets on a genuine status change) keeps counting toward `stuck`.
+  - Dead-end recovery (SPEC §7.3, "mainly for recovery"): a train idle at a non-target dead end for
+    `DEAD_END_REVERSE_HOURS` (6 ticks) gets a synthetic one-edge route back the way it came; reaching
+    the end of any route that isn't the actual target (this recovery hop included) just forces a
+    fresh route search from wherever it ends up, rather than treating it as "arrived".
+  - Rendering interpolation support: `renderFromX/Y` (start of tick) / `renderToX/Y` (end of tick)
+    fractional tile coordinates, refreshed every tick regardless of status, for the renderer to lerp
+    with the frame's accumulator alpha.
+- **Commands** (`src/sim/commands.ts`): `buyTrain` (station must have `hasEngineShed`; validates
+  era availability, max cars, and the High-Speed Trainset's passenger/mail-only restriction; era-
+  inflation-scaled cost like every other purchase), `setOrders` (2–8 valid station ids, resets to
+  the top of the list), `sellTrain` (50% refund of the *current* era-adjusted loco+cars value, same
+  "not locked in at purchase time" convention Phase 5 set for station upgrades).
+- **Rendering** (`src/render/trains.ts`): drawn directly every frame (a handful of trains, same
+  reasoning as station rendering — no chunk cache needed). Loco head lerps between
+  `renderFromX/Y`→`renderToX/Y` with the loop's alpha; cars are placed by walking backward along
+  `route`/`edgeProgress` by `LOCO_LENGTH_TILES/2 + (i+0.5)×CAR_LENGTH_TILES` tiles per car (clamped
+  at the start of the known route — a train that just left a station doesn't have enough route
+  history yet, so its cars bunch toward the head; a cosmetic simplification, not a physics one).
+  Steam locos get a dark boiler/body/chimney plus two soft smoke puffs cycling on wall-clock time
+  (independent of sim tick rate, so they animate smoothly even paused); diesel gets a colored hood
+  and window; electric gets a boxy body, window, and a small zig-zag pantograph. A small red dot
+  above a `waitingForBlock`/`waitingForStation` train is the "signal" SPEC §7.5 asks for; `⚠` marks
+  `stuck`/`noRoute`.
+- **UI** (`src/ui/trainPanels.ts`): Buy Train dialog (loco list with stats, a car picker built from
+  `CARGO_TYPES` filtered by era and the selected loco's passenger/mail-only flag, and an orders
+  editor where "+ Add stop" arms a one-shot "tap a station on the map" mode — main.ts intercepts the
+  next station tap via a `stationPickHandler` instead of opening that station's own panel, then
+  disarms itself); Train panel (status/locomotive/speed/consist/orders, Sell); Train list (tap a row
+  to jump the camera to that train and open its panel). A "🚆 Trains" button floats above the
+  existing quick-build toggle (the corner toolbar.ts's own comment had earmarked for it). Tapping a
+  train icon anywhere on the map (small screen-space hit-radius against every train's current head
+  position, checked before the tile-based station/city/industry taps) opens its panel too.
+  "Buy Train" itself is a button in the existing station panel, shown only when `hasEngineShed`.
+- **Debug hooks** (`main.ts`'s `window.__game`, `?debug=1`): `runDays(n)` (shares the exact tick
+  body — `tickOnce` — the real-time game loop uses, so debug-hook time and wall-clock time are the
+  same simulation, just batched), `buildTrackPath`, `buildStation`, `buyTrain`, `setOrders`,
+  `sellTrain`, `getTrains`.
+- **Carry-overs from the Phase 5 review, fixed**:
+  - Panel overflow: `.panel-actions` is now `position: sticky; bottom: 0` inside `.panel` (the
+    actual scroll container — same trick `.panel-header`'s `sticky; top: 0` already used), with
+    `.panel-body` given a 64px bottom-padding buffer. That buffer turned out to matter, not just be
+    defensive: without it, a panel whose content is only *barely* taller than the 316px body (e.g.
+    the Train panel with 2 orders) could have the sticky bar's clamped position land right on top of
+    the last content row instead of below it (sticky positioning reserves the element's normal-flow
+    space but can visually render it elsewhere) — found via the Train panel screenshot showing one
+    order missing, chased down by dumping the panel's actual DOM (both rows were always there) and
+    confirmed fixed by inspecting the scrolled-to-bottom state, not just the default scroll-to-top
+    view a first screenshot happens to capture.
+  - Station-vs-city label collision: `drawStationLabels` (`render/stations.ts`) now takes the
+    city list and a `cityId` lookup; for a station inside a city's footprint, it computes that
+    city's own label screen position the same way `drawCityLabels` does and, if they'd overlap
+    (horizontally close and vertically within the city label's estimated line height), pushes the
+    station's label down to sit just below the city's instead.
+  - Terminal vs. Depot size: bumped the terminal's building scale from 0.5× to 0.58× a tile (Depot
+    stayed at ~0.3×, slightly *down* from 0.34× to widen the gap further) — Terminal is now visibly
+    ~1.9× Depot's linear building size plus its existing second roof block, not ~1.5×.
+- Screenshots (all in `docs/screenshots/`, looked at each one before calling this done):
+  - `phase-6-train-moving-zoom1.5.png` / `-zoom2.png`: a steam loco (dark boiler/chimney silhouette)
+    partway along a single-track line, camera re-centered on the train's *actual* position each
+    time rather than a fixed midpoint — a fixed camera at zoom 1.5 with the train still near its
+    departure station put it directly under the left toolbar overlay, invisible in the first attempt.
+  - `phase-6-train-waiting-signal.png`: two locos parked nose-to-tail near a station, the rear one
+    showing the small red signal dot (`waitingForBlock`).
+  - `phase-6-double-track-passing.png`: two locos on a double-track line, camera centered on their
+    midpoint at the moment they're closest while moving in opposite directions.
+  - `phase-6-buy-train-dialog.png`: the Buy Train dialog — locomotive list, in-progress car
+    selection, a 2-stop orders list built by tapping stations on the map, the pinned Buy button.
+  - `phase-6-train-panel.png`: the bought train's management panel, scrolled to the bottom so both
+    order rows and the pinned Sell button are all visible at once (this panel's content is just
+    over the 316px body height).
+- Known issues / deviations:
+  - No double-heading (SPEC §7.1, two locos from 1850) — a train is always exactly one locomotive
+    this phase; not required by PLAN's checklist and cargo/revenue (where it'd actually matter)
+    doesn't exist yet either.
+  - Train priority (Normal/Express, SPEC §7.2) isn't implemented — orders store a loading `rule`
+    but no priority field, and block admission has no priority tie-breaking. Nothing before Phase 8
+    needs it.
+  - "Camera follow toggle" (PLAN's wording) is a one-shot jump-to-train from the Train list, not a
+    continuously-locked-on camera; re-tap the list to re-center if the train has moved since.
+  - `maxTrainLength` (SPEC §6.1, already recorded per station type since Phase 5) still isn't
+    enforced against a train's actual car count — noted then as a Phase 6 gap, still not needed by
+    any test here; worth a look whenever it becomes a real constraint on car-buying.
+  - A block reservation is granted or denied for the *whole* remaining journey through it in one
+    shot (SPEC's simplification), and released on a one-tick lag after the head leaves rather than
+    true tail-clearance (`train.length = cars×0.25 + 0.5` tiles) — both explicitly SPEC-endorsed
+    simplifications, flagged here since a future tighter-packing pass on very short blocks would
+    need to revisit them.
+  - Station "Pass through (non-stop)" and other loading rules are stored (`TrainOrder.rule`) and
+    round-trip through Buy/setOrders/the train panel, but every stop currently dwells for the same
+    fixed `TRAIN_LOADING_TICKS` regardless of rule — real per-rule behavior (and cargo loading
+    itself) is Phase 7.
+  - A track edit that destroys the exact edge a train is mid-transit on (rare: requires bulldozing
+    directly under a moving train) snaps that train back to the node it last fully held and forces
+    a reroute from there next tick, rather than anything more sophisticated — not a "teleport" in
+    the gameplay sense (it only ever moves backward to a point it already legitimately occupied)
+    but flagging the simplification since it's the one place movement.ts deals with a route whose
+    next edge has simply ceased to exist mid-tick.
+- Tests: 30 new unit tests (`tests/sim/trains/{route,blocks,movement}.test.ts` — 175 total, all
+  green) covering the 45° rule + reversal-only-at-stations, wooden-bridge weight limit,
+  electrification, a 60-day single-track shuttle (block never double-booked, neither train stuck),
+  60-day double-track opposing traffic, a 4-train congested-line scenario (never double-books a
+  block; the deadlock clock is bounded exactly at `DEADLOCK_STUCK_DAYS`, which is what caught the
+  reroute-reset bug above), grade-vs-flat speed, and a 90-day determinism check (same commands from
+  the same seed → byte-identical route/position/status). Plus 4 new e2e specs
+  (`e2e/trains.spec.ts`) exercising the debug hooks end to end and the real Buy Train dialog/train
+  panel UI. `npm run check` and `npm run e2e` both green (19/19 e2e specs, 145/145 unit tests).
+- Next: **Phase 7 — Cargo flow and economy**.

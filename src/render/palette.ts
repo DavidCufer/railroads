@@ -61,6 +61,19 @@ export const STATION_BUILDING_ROOF_COLOR = "#5E3B25";
 export const STATION_PLATFORM_COLOR = "#B8AA8C";
 export const STATION_LABEL_COLOR = "#F4F1E8";
 
+/** Locomotive body colors by type (SPEC §7 rendering: "steam: dark body...; diesel: colored hood;
+ * electric: boxy + pantograph"). */
+export const LOCO_COLORS = {
+  steam: { body: "#2A2622", boiler: "#3E3A34", trim: "#8A6A4A", chimney: "#1C1A17" },
+  diesel: { body: "#B5533C", trim: "#3A3A3E", window: "#CFE0EA" },
+  electric: { body: "#4F86B5", trim: "#2E3A44", window: "#CFE0EA", pantograph: "#2A2521" },
+};
+export const LOCO_SMOKE_COLOR = "rgba(210, 208, 202, 0.6)";
+export const CAR_OUTLINE_COLOR = "rgba(20, 18, 16, 0.55)";
+
+export const TRAIN_SIGNAL_WAIT_COLOR = "#E05A4F";
+export const TRAIN_WARNING_COLOR = "#F2B544";
+
 export const UI_ACCENT = "#F2B544";
 export const UI_BG = "rgba(24, 28, 34, 0.88)";
 export const UI_GOOD = "#5BC27A";

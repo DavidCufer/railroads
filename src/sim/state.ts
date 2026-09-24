@@ -8,6 +8,7 @@ import { DEFAULT_DIFFICULTY, DIFFICULTY, type Difficulty } from "../data/finance
 import { TrackGraph } from "./track/graph";
 import type { Station } from "./stations/types";
 import type { StationEconomy } from "./stations/economy";
+import type { Train } from "./trains/types";
 
 export interface GameState {
   seed: number;
@@ -31,6 +32,12 @@ export interface GameState {
   /** Per-station supply/acceptance (SPEC §6.3), cached and refreshed by src/sim/commands.ts
    * whenever a station is built or upgraded (see `refreshStationEconomy`). */
   stationEconomy: Map<number, StationEconomy>;
+  trains: Train[];
+  /** Monotonic counter for `Train.id`. */
+  nextTrainId: number;
+  /** Bumped by every track command (build/upgrade/bulldoze) — src/sim/trains reroutes and
+   * recomputes blocks whenever it sees this change (SPEC §7.3/§7.5's "simplest correct approach"). */
+  trackVersion: number;
 }
 
 export interface NewGameOptions extends MapGenOptions {
@@ -62,5 +69,8 @@ export function createGameState(options: NewGameOptions): GameState {
     stations: [],
     nextStationId: 0,
     stationEconomy: new Map(),
+    trains: [],
+    nextTrainId: 0,
+    trackVersion: 0,
   };
 }

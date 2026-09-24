@@ -61,6 +61,9 @@ export function makeTestState(map: GameMap, overrides: Partial<GameState> = {}):
     stations: [],
     nextStationId: 0,
     stationEconomy: new Map(),
+    trains: [],
+    nextTrainId: 0,
+    trackVersion: 0,
     ...overrides,
   };
 }

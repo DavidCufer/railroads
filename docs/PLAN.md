@@ -171,13 +171,13 @@ SPEC: §6.1, §6.3 (supply/acceptance calculation; no cargo flow yet)
 ## Phase 6 — Trains: buying, orders, movement, blocks
 SPEC: §7.1–7.5, §7.7 (roster data; availability by year)
 
-- [ ] Locomotive roster data table; available-by-year filter.
-- [ ] `buyTrain` (must be at a station with an Engine Shed), car selection, orders editor (tap stations on the map), per-stop loading rules (store them; loading comes in Phase 7).
-- [ ] A* routing over the track graph with the turn rule, wooden-bridge weight limit and electrification constraints; path cache and invalidation on track change.
-- [ ] Movement with the speed model (grade, curves, acceleration), reversing at stations.
-- [ ] Block partitioning; single/double-track reservation rules; station capacity; waiting at boundaries; deadlock timeout rerouting; ⚠ for no-route/jams.
-- [ ] Train rendering: loco by type (steam smoke puffs, diesel hood, electric pantograph) + cars colored by cargo, rotated along the track, smooth interpolation between ticks.
-- [ ] Train panel (status, orders, consist), Train list, tap a train to select, camera follow toggle.
+- [x] Locomotive roster data table; available-by-year filter.
+- [x] `buyTrain` (must be at a station with an Engine Shed), car selection, orders editor (tap stations on the map), per-stop loading rules (store them; loading comes in Phase 7).
+- [x] A* routing over the track graph with the turn rule, wooden-bridge weight limit and electrification constraints; path cache and invalidation on track change.
+- [x] Movement with the speed model (grade, curves, acceleration), reversing at stations.
+- [x] Block partitioning; single/double-track reservation rules; station capacity; waiting at boundaries; deadlock timeout rerouting; ⚠ for no-route/jams.
+- [x] Train rendering: loco by type (steam smoke puffs, diesel hood, electric pantograph) + cars colored by cargo, rotated along the track, smooth interpolation between ticks.
+- [x] Train panel (status, orders, consist), Train list, tap a train to select. Camera follow is a one-shot jump-to-train from the list, not a continuous locked-on toggle — see PROGRESS.md deviations.
 
 **Tests:** pathfinding respects the 45° rule and constraints; two trains on a single-track line between two stations never occupy the same block; the same on double track allows opposing movement; a deadlock scenario triggers a reroute or warning within the timeouts; the speed model on a grade.
 **E2E (debug hooks):** build a small line, buy a train, run 30 in-game days at 8×, assert the train visited both stations; screenshot.
