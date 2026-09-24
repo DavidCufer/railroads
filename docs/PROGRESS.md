@@ -280,6 +280,13 @@ Append one entry per phase/session: date, phase, what was built, key files, know
      workflow's JDK version. Bumped `setup-java` from 17 to 21 — a deliberate, confirmed-necessary
      deviation from CLAUDE.md's session instructions (which said 17), since 17 doesn't work with
      this Capacitor version's generated build config.
+  3. **Confirmed green with a real artifact**, not just "workflow file is valid": after the JDK 21
+     fix, `android.yml` run [#3](https://github.com/DavidCufer/railroads/actions/runs/36029558358)
+     completed with `conclusion: success` and produced an `app-debug` artifact — a real
+     3,677,931-byte APK (checked via the Actions API's artifact listing, not assumed). `ci.yml` is
+     green on this same final commit too. So unlike the usual "can't verify from this session"
+     situation, Phase 2's APK pipeline is confirmed actually working end-to-end, not just
+     plausible-looking YAML.
 - `npm run check` and `npm run e2e` both green (web app itself is unchanged by this phase besides
   the safe-area CSS, the back-button wiring, and the Phase-1.1-carry-over terrain fix above — no
   screenshot changes from Phase 2 itself; the four screenshot diffs in this commit are only from
