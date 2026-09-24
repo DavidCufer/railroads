@@ -251,22 +251,23 @@ Append one entry per phase/session: date, phase, what was built, key files, know
   `@color/splashBackground` (`android/app/src/main/res/values/colors.xml`, same `#1E2A38` as the
   icon background) rather than committing an image asset for this.
 - **`android.yml`** (GitHub Actions): triggers on push to any branch + `workflow_dispatch`.
-  `setup-node` (22, matching `ci.yml`) → `setup-java` (Temurin 17, `cache: gradle`) →
-  `android-actions/setup-android@v3` (installs the SDK cmdline-tools and accepts licenses, so AGP
-  can auto-download whatever exact platform/build-tools `compileSdkVersion`/`targetSdkVersion` 36
-  need during the Gradle build itself — nothing pinned by hand, so this shouldn't rot as the SDK
-  catalog changes) → `npm ci` → `npm run build` → `npx cap sync android` → `chmod +x
-  android/gradlew` → `./gradlew assembleDebug --stacktrace` (working directory `android`) →
-  `actions/upload-artifact@v4` uploading `android/app/build/outputs/apk/debug/app-debug.apk` as
-  `app-debug`, 14-day retention.
-- **Verification limits (stated explicitly per PLAN's accept criteria)**: there's no Android SDK or
-  Gradle in this cloud session (per CLAUDE.md's environment notes), so `./gradlew assembleDebug`
-  itself has **not** been run or verified here — only that the workflow YAML is syntactically valid
-  (parsed with PyYAML) and that every step before it (`npm run build`, `npx cap add/sync android`)
-  actually ran successfully in this session, including a second `cap sync` after all the manifest/
-  MainActivity/icon/splash edits to confirm `cap sync` doesn't clobber any of them. **Whether the
-  `android.yml` Actions run actually succeeds (Gradle resolves the SDK, compiles, and produces the
-  APK) can only be confirmed by watching the Actions run after this push — not from this session.**
+  `setup-node` (22, matching `ci.yml`) → `setup-java` (Temurin 17, `cache: gradle`) → `npm ci` →
+  `npm run build` → `npx cap sync android` → `chmod +x android/gradlew` → `./gradlew assembleDebug
+  --stacktrace` (working directory `android`) → `actions/upload-artifact@v4` uploading
+  `android/app/build/outputs/apk/debug/app-debug.apk` as `app-debug`, 14-day retention.
+- **This session has GitHub API access (unusual for this kind of task — the original instructions
+  assumed it wouldn't), so the Actions run was actually watched instead of just described**: the
+  first push's `android.yml` run failed in ~25s, before `npm ci` even started. Pulled the job log —
+  `android-actions/setup-android@v3` ran `sdkmanager tools`, which errored `Failed to find package
+  'tools'` (exit code 1) and hard-failed the whole action. That package was removed from the SDK
+  repository years ago; `android-actions/setup-android@v3` is unmaintained and still tries to
+  install it. Checked GitHub's own `actions/runner-images` docs for `ubuntu-latest`: it already
+  ships `ANDROID_HOME`/`ANDROID_SDK_ROOT` pre-set with build-tools 34.0.0–37.0.0 and platforms
+  34–37 preinstalled — already covers this project's `compileSdkVersion`/`targetSdkVersion` 36
+  with nothing extra to install. So the fix was to delete the `setup-android` step entirely rather
+  than swap in a different version of it (added a cheap `ls "$ANDROID_HOME"/{platforms,build-tools}`
+  diagnostic step in its place, so a future SDK-related failure is easy to read from the log
+  instead of a mystery). Pushing this fix and re-watching the run next.
 - `npm run check` and `npm run e2e` both green (web app itself is unchanged by this phase besides
   the safe-area CSS, the back-button wiring, and the Phase-1.1-carry-over terrain fix above — no
   screenshot changes from Phase 2 itself; the four screenshot diffs in this commit are only from

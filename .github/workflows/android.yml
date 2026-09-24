@@ -21,7 +21,13 @@ jobs:
           java-version: "17"
           cache: gradle
 
-      - uses: android-actions/setup-android@v3
+      # GitHub's ubuntu-latest runner already ships a full Android SDK (ANDROID_HOME preset,
+      # build-tools/platforms well past our compileSdkVersion/targetSdkVersion) — see
+      # https://github.com/actions/runner-images. android-actions/setup-android@v3 tries to
+      # install the long-removed legacy "tools" package and fails outright, so it's deliberately
+      # not used here; nothing else needs installing.
+      - name: Show pre-installed Android SDK
+        run: echo "ANDROID_HOME=$ANDROID_HOME" && ls "$ANDROID_HOME/platforms" "$ANDROID_HOME/build-tools"
 
       - run: npm ci
 
