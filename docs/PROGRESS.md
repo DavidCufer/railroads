@@ -188,3 +188,96 @@ Append one entry per phase/session: date, phase, what was built, key files, know
   marching-squares contour; revisit if coastlines still look too blocky once cities/track are on
   screen and there's more to compare against. Overview-zoom rivers still not drawn (see above).
 - Next: **Phase 2 — Android shell & APK pipeline**.
+
+## 2026-09-24 — Carry-over fix: chunk-corner terrain artifact (review of Phase 1.1)
+- **Root cause found**: `TerrainRenderer.drawCornerBlend` (`src/render/terrain.ts`) drew its
+  coastline diagonal-corner blend gradient at `(corner.cx, corner.cy)` — `0` or `size` — without
+  adding the tile's own pixel offset (`px, py`) within the chunk canvas. Since every tile in a
+  chunk shares the same `size`, every tile whose diagonal-corner condition fired (i.e. every real
+  coastline corner anywhere in that 16×16 chunk) had its blend blob drawn at one of only 4 fixed
+  absolute positions — always right next to the chunk canvas's own `(0,0)` corner — instead of at
+  that tile's actual position. That's exactly the "faint blue fragments at a grid every 16 tiles"
+  the review flagged: real coastline corners scattered throughout each chunk all got misdrawn onto
+  that chunk's own top-left tiles, regardless of what terrain was actually there (confirmed by
+  dumping the seed-12345 map's terrain around one flagged screen position — pure `plain` for 2+
+  tiles in every direction, with the nearest real water 3+ tiles away and inside the same chunk).
+- **Fix**: offset the gradient/arc center by the tile's own `(px, py)` (one-line change × 2 call
+  sites inside the function). No other logic changed.
+- **Verified**: regenerated `docs/screenshots/phase-1-zoom-{1,0.5,0.25}.png` and
+  `phase-1.1-closeup-zoom2.png` (same seed 12345) and looked at them — the periodic dot grid is
+  gone; also wrote a throwaway Python connected-components scan over the pixels to confirm no more
+  small isolated blue clusters at the old periodic (256px-at-zoom-0.5 = 16-tile) spacing. `npm run
+  check` and `npm run e2e` still pass (this is a render-only fix; no sim tests touch it).
+
+## 2026-09-24 — Phase 2: Android shell & APK pipeline
+- **Capacitor**: added `@capacitor/core`, `@capacitor/android`, `@capacitor/app` (regular deps) and
+  `@capacitor/cli` (dev dep) per PLAN — no other runtime dependency added. `capacitor.config.ts`
+  (appId `com.railroads.game`, appName "Railroads", `webDir: "dist"`). Ran `npm run build` then
+  `npx cap add android` to generate `android/`; its own nested `.gitignore` (from the Capacitor CLI)
+  already excludes the synced web assets, generated `capacitor.config.json`/`capacitor.plugins.json`
+  and `res/xml/config.xml`, so those aren't committed — only the actual native project source is.
+  Deleted the default template's `ExampleInstrumentedTest.java`/`ExampleUnitTest.java` (wrong
+  package `com.getcapacitor.myapp`, asserted a package name that isn't ours; dead weight, not part
+  of our app).
+- **Landscape lock**: `android:screenOrientation="landscape"` on `MainActivity` in
+  `AndroidManifest.xml` (native-level lock, no extra plugin needed).
+- **Fullscreen/immersive + keep screen on**: `MainActivity.java` now hides the system bars
+  (`WindowCompat`/`WindowInsetsControllerCompat`, swipe-to-reveal behavior) and sets
+  `FLAG_KEEP_SCREEN_ON`, both via plain AndroidX APIs already pulled in by Capacitor — no new
+  dependency, so "keep screen on" wasn't worth skipping like PLAN allowed.
+- **Safe-area insets**: `viewport-fit=cover` added to the viewport meta tag; `#ui` gets
+  `padding: env(safe-area-inset-*)` (SPEC §10) so panels built in later phases automatically clear
+  notches/cutouts/gesture-nav areas without each one handling it individually.
+- **Android back button**: `src/ui/backButton.ts` — `App.addListener("backButton", ...)` with a
+  small push/pop handler stack. Empty stack (true today, since no panels exist yet) →
+  `window.confirm(strings.app.exitGameConfirm)` ("Exit game?") → `App.exitApp()` if confirmed.
+  Later phases' panels (Station, Train, City, ...) call `pushBackHandler(closeThisPanel)` on open
+  and invoke the returned unregister function on close — the back button then closes the top panel
+  instead of prompting to exit, per SPEC. Wired up once in `main.ts` (`initBackButton()`), works
+  as a no-op on plain web (Capacitor's web shim for `@capacitor/app` just never fires
+  `backButton`), so it doesn't affect desktop/e2e behavior.
+- **App icon**: `tools/icon/generate.mjs` — a Node script that draws a simple locomotive silhouette
+  (boiler, cab, smokestack, headlamp, cowcatcher, three wheels; dark steel-blue background `#1E2A38`,
+  gold `#F2B544`/`#C8912A` per SPEC's `ui-accent`) with Canvas 2D inside the pre-installed headless
+  Chromium (via `@playwright/test`'s `chromium` launcher — already a dev dependency, so no new one
+  needed for image generation) and writes `ic_launcher{,_round}.png` at all 5 legacy mipmap
+  densities plus `ic_launcher_foreground.png` at the larger adaptive-icon safe-zone sizes, straight
+  into `android/app/src/main/res/mipmap-*/`. Looked at the generated icon (both square and the
+  round variant) at 3× — reads clearly as a locomotive down to 48×48. Re-run any time with
+  `node tools/icon/generate.mjs`.
+- **Splash**: replaced the default Capacitor-logo `splash.png` assets (which `cap add` generates
+  pointing at Capacitor's own blue-X branding) with a solid color instead — deleted all the
+  generated `splash.png` files and pointed `AppTheme.NoActionBarLaunch`'s background at a new
+  `@color/splashBackground` (`android/app/src/main/res/values/colors.xml`, same `#1E2A38` as the
+  icon background) rather than committing an image asset for this.
+- **`android.yml`** (GitHub Actions): triggers on push to any branch + `workflow_dispatch`.
+  `setup-node` (22, matching `ci.yml`) → `setup-java` (Temurin 17, `cache: gradle`) →
+  `android-actions/setup-android@v3` (installs the SDK cmdline-tools and accepts licenses, so AGP
+  can auto-download whatever exact platform/build-tools `compileSdkVersion`/`targetSdkVersion` 36
+  need during the Gradle build itself — nothing pinned by hand, so this shouldn't rot as the SDK
+  catalog changes) → `npm ci` → `npm run build` → `npx cap sync android` → `chmod +x
+  android/gradlew` → `./gradlew assembleDebug --stacktrace` (working directory `android`) →
+  `actions/upload-artifact@v4` uploading `android/app/build/outputs/apk/debug/app-debug.apk` as
+  `app-debug`, 14-day retention.
+- **Verification limits (stated explicitly per PLAN's accept criteria)**: there's no Android SDK or
+  Gradle in this cloud session (per CLAUDE.md's environment notes), so `./gradlew assembleDebug`
+  itself has **not** been run or verified here — only that the workflow YAML is syntactically valid
+  (parsed with PyYAML) and that every step before it (`npm run build`, `npx cap add/sync android`)
+  actually ran successfully in this session, including a second `cap sync` after all the manifest/
+  MainActivity/icon/splash edits to confirm `cap sync` doesn't clobber any of them. **Whether the
+  `android.yml` Actions run actually succeeds (Gradle resolves the SDK, compiles, and produces the
+  APK) can only be confirmed by watching the Actions run after this push — not from this session.**
+- `npm run check` and `npm run e2e` both green (web app itself is unchanged by this phase besides
+  the safe-area CSS, the back-button wiring, and the Phase-1.1-carry-over terrain fix above — no
+  screenshot changes from Phase 2 itself; the four screenshot diffs in this commit are only from
+  the carry-over fix).
+- Known issues / carry-over: adaptive-icon foreground safe-zone padding is approximate (scaled by
+  eye, not to the exact 66/108 Android spec), fine for a placeholder icon but worth revisiting if
+  it ever looks clipped on a real device/launcher. No Android emulator available anywhere in this
+  environment, so the landscape lock, immersive mode, keep-screen-on, back button, and the icon/
+  splash as they actually render on-device are all unverified beyond code review — worth an actual
+  phone/emulator check whenever one's available. `@capacitor/splash-screen` (a proper native splash
+  plugin with a controllable duration/fade) was deliberately not added since it's not in PLAN's
+  named dependency list; the current "splash" is just the instant static pre-WebView background
+  color standard to any Android launch theme.
+- Next: **Phase 3 — Cities and industries on the map**.

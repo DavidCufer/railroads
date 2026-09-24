@@ -110,12 +110,12 @@ blended and shaded rather than like a pixel grid.
 ## Phase 2 — Android shell & APK pipeline (early, so it can be tested on a phone)
 SPEC: §1, §10 (safe areas, landscape)
 
-- [ ] Add Capacitor (`@capacitor/core`, `@capacitor/android`, `@capacitor/app`), `capacitor.config.ts` (appId `com.railroads.game`, appName "Railroads"), generate `android/`.
-- [ ] Lock orientation to landscape, fullscreen/immersive, keep screen on while playing (optional plugin, or skip if it adds complexity), handle safe-area insets in CSS.
-- [ ] Android back button: closes the top panel/dialog; if none, asks "Exit game?".
-- [ ] Simple generated app icon (draw a locomotive silhouette with a script → PNGs at required densities), and a splash color.
-- [ ] GitHub Actions workflow `android.yml`: on push to any branch and manual dispatch, set up JDK 17 + Android SDK, `npm ci && npm run build && npx cap sync android && cd android && ./gradlew assembleDebug`, upload `app-debug.apk` as an artifact.
-- [ ] README section: "Install on your phone" (download the artifact from Actions, enable unknown sources, install).
+- [x] Add Capacitor (`@capacitor/core`, `@capacitor/android`, `@capacitor/app`), `capacitor.config.ts` (appId `com.railroads.game`, appName "Railroads"), generate `android/`.
+- [x] Lock orientation to landscape, fullscreen/immersive, keep screen on while playing (optional plugin, or skip if it adds complexity), handle safe-area insets in CSS.
+- [x] Android back button: closes the top panel/dialog; if none, asks "Exit game?".
+- [x] Simple generated app icon (draw a locomotive silhouette with a script → PNGs at required densities), and a splash color.
+- [x] GitHub Actions workflow `android.yml`: on push to any branch and manual dispatch, set up JDK 17 + Android SDK, `npm ci && npm run build && npx cap sync android && cd android && ./gradlew assembleDebug`, upload `app-debug.apk` as an artifact.
+- [x] README section: "Install on your phone" (download the artifact from Actions, enable unknown sources, install).
 
 **Accept:** the workflow is syntactically valid and (after push) produces an APK artifact; the web build still passes all checks. Note in PROGRESS.md whether the Actions run succeeded; if it can't be verified from the session, say so explicitly.
 

@@ -1,5 +1,8 @@
 /** All user-facing strings live here (CLAUDE.md hard rule), including dev-only debug UI. */
 export const strings = {
+  app: {
+    exitGameConfirm: "Exit game?",
+  },
   debug: {
     regenerate: "New seed",
     seedLabel: "Seed",

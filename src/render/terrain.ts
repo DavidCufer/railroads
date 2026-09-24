@@ -318,12 +318,14 @@ export class TerrainRenderer {
 
       const color = diagIsWater ? WATER_SHALLOW_COLOR : renderColorFor(this.map, mapX, mapY);
       const r = size * 0.34;
-      const gradient = ctx.createRadialGradient(corner.cx, corner.cy, 0, corner.cx, corner.cy, r);
+      const cx = px + corner.cx;
+      const cy = py + corner.cy;
+      const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
       gradient.addColorStop(0, withAlpha(color, 0.32));
       gradient.addColorStop(1, withAlpha(color, 0));
       ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.arc(corner.cx, corner.cy, r, 0, Math.PI * 2);
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.fill();
     }
   }

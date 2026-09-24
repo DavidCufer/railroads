@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
     <title>Railroads</title>
     <link rel="icon" href="data:," />
@@ -35,6 +35,10 @@
         position: absolute;
         inset: 0;
         pointer-events: none;
+        /* Respect Android safe-area insets (notches, gesture nav, display cutouts) — SPEC §10. */
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+          env(safe-area-inset-left);
+        box-sizing: border-box;
       }
       #ui > * {
         pointer-events: auto;

@@ -4,6 +4,7 @@ import { Camera } from "./render/camera";
 import { TerrainRenderer } from "./render/terrain";
 import { CameraInput } from "./ui/cameraInput";
 import { createDebugControls } from "./ui/debugControls";
+import { initBackButton } from "./ui/backButton";
 import { createGameState, type GameState, type NewGameOptions } from "./sim/state";
 import { terrainId } from "./sim/map/terrain";
 import { TILE_SIZE } from "./render/camera";
@@ -104,6 +105,7 @@ function main(): void {
     },
   });
   loop.start();
+  initBackButton();
 
   if (DEBUG) {
     createDebugControls(ui, {
