@@ -4,6 +4,9 @@
 
 export type MapSizeName = "small" | "medium" | "large";
 
+/** Scenario start year (SPEC §3: 1830–1950) used until Phase 10 adds a new-game year picker. */
+export const DEFAULT_START_YEAR = 1900;
+
 export const MAP_SIZES: Record<MapSizeName, { width: number; height: number }> = {
   small: { width: 96, height: 64 },
   medium: { width: 128, height: 96 },

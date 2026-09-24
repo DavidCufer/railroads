@@ -6,6 +6,8 @@
 import { Camera, OVERVIEW_ZOOM_THRESHOLD, TILE_SIZE } from "./camera";
 import { shadeColor, withAlpha } from "./color";
 import { hillshadeFactorAt } from "./hillshade";
+import { drawCityRoofs } from "./cities";
+import { drawIndustryIcon } from "./industries";
 import {
   FOREST_CANOPY_COLOR,
   FOREST_SHADOW_COLOR,
@@ -19,6 +21,7 @@ import {
 import { DIRS8, inBounds, tileIndex } from "../sim/map/grid";
 import { terrainId, terrainName, type Terrain } from "../sim/map/terrain";
 import type { GameMap } from "../sim/map/types";
+import type { City, Industry } from "../sim/economy/types";
 
 const CHUNK_TILES = 16;
 type ZoomBucket = 1 | 0.5 | 0.25;
@@ -70,16 +73,22 @@ interface ShimmerDot {
 export class TerrainRenderer {
   private cache = new Map<string, HTMLCanvasElement>();
   private map: GameMap;
+  private cities: readonly City[];
+  private industries: readonly Industry[];
   private shimmerDots: ShimmerDot[] = [];
   private lastShimmerUpdate = -Infinity;
   private lastShimmerKey = "";
 
-  constructor(map: GameMap) {
+  constructor(map: GameMap, cities: readonly City[] = [], industries: readonly Industry[] = []) {
     this.map = map;
+    this.cities = cities;
+    this.industries = industries;
   }
 
-  setMap(map: GameMap): void {
+  setMap(map: GameMap, cities: readonly City[] = [], industries: readonly Industry[] = []): void {
     this.map = map;
+    this.cities = cities;
+    this.industries = industries;
     this.cache.clear();
     this.shimmerDots = [];
     this.lastShimmerUpdate = -Infinity;
@@ -204,7 +213,16 @@ export class TerrainRenderer {
 
     this.drawEdgeBlend(ctx, mapX, mapY, px, py, size);
     this.drawCornerBlend(ctx, mapX, mapY, px, py, size);
-    this.drawDecoration(ctx, mapX, mapY, terrain, px, py, size);
+
+    const cityId = this.map.cityId[idx] as number;
+    const industryIdx = this.map.industryId[idx] as number;
+    if (cityId >= 0 && this.cities[cityId]) {
+      drawCityRoofs(ctx, px, py, size, (this.cities[cityId] as City).tier);
+    } else if (industryIdx >= 0 && this.industries[industryIdx]) {
+      drawIndustryIcon(ctx, (this.industries[industryIdx] as Industry).type, px, py, size);
+    } else {
+      this.drawDecoration(ctx, mapX, mapY, terrain, px, py, size);
+    }
   }
 
   /** Fills the tile as a small grid of bilinearly-shaded subcells — smoother, stronger hillshading. */

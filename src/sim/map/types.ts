@@ -16,4 +16,8 @@ export interface GameMap {
   riverFlow: Uint16Array;
   /** Downstream tile index for a river tile (index of the next river/water tile), or -1. */
   riverNext: Int32Array;
+  /** Index into `GameState.cities`, or -1 if this tile isn't part of a city's footprint. */
+  cityId: Int16Array;
+  /** Index into `GameState.industries`, or -1 if this tile has no industry. */
+  industryId: Int16Array;
 }

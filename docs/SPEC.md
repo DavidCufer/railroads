@@ -623,3 +623,16 @@ localization (English only, but keep strings in one `strings.ts` file for later)
 - [Phase 1] `GameMap` stores `terrain`/`elevation`/`riverFlow` typed arrays; no separate generic
   "flags" array — nothing needs per-tile boolean flags yet. `cityId`/`industryId` will be added in
   Phase 3 when cities/industries exist.
+- [Phase 3] Calendar uses a simplified 12×30-day (360-day) year instead of the real Gregorian
+  calendar (`src/sim/time.ts`) — "monthly"/"yearly" processing (§3, §8.2, §8.3, §9) lands on exact
+  tick boundaries with no irregular month-length bookkeeping. Months are still named/numbered 1–12.
+- [Phase 3] Scenario start year defaults to a fixed 1900 (`DEFAULT_START_YEAR`,
+  `src/data/mapGen.ts`) since there's no new-game year picker yet (Phase 10). §4.2's "city count"
+  and "resource density" generator inputs exist as `MapGenOptions` fields with a `"normal"` default
+  but aren't exposed in the (dev-only) debug controls yet — same reason, Phase 10's new-game screen
+  is the intended home for those controls.
+- [Phase 3] City/industry placement is deterministic but not exactly "by score, greedy" as a single
+  pass: candidates are chosen from local-best tiles over a 4×4 block grid (not every tile) for
+  performance on Large maps, and the playability check (§4.2 step 6) does one deterministic retry
+  with a larger city-count target (continuing the same RNG stream) if fewer than 3 qualifying
+  town/city pairs are found — it does not regenerate the terrain itself.

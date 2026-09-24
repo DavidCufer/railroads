@@ -1,4 +1,5 @@
-/** Wires pointer/touch/wheel input on the canvas to a render Camera (SPEC §5.2). */
+/** Wires pointer/touch/wheel input on the canvas to a render Camera (SPEC §5.2), and detects taps
+ * (Info mode, SPEC §10.2) as pointer sequences that never turn into a drag or pinch. */
 import { Camera } from "../render/camera";
 
 interface ActivePointer {
@@ -9,6 +10,9 @@ interface ActivePointer {
 const WHEEL_ZOOM_SPEED = 0.0015;
 const INERTIA_DECAY_PER_SEC = 0.001; // exponential decay factor applied per second
 const INERTIA_STOP_SPEED = 4; // px/s below which inertia stops
+/** A pointer sequence is a tap, not a drag, if it never moves more than this many CSS px. */
+const TAP_MOVE_THRESHOLD = 8;
+const TAP_MAX_DURATION_MS = 500;
 
 export class CameraInput {
   private pointers = new Map<number, ActivePointer>();
@@ -16,6 +20,9 @@ export class CameraInput {
   private lastPanPoint: ActivePointer | null = null;
   private velocity = { x: 0, y: 0 };
   private lastMoveTime = 0;
+  private tapStart: { x: number; y: number; time: number } | null = null;
+  private tapMoved = false;
+  private onTap: ((x: number, y: number) => void) | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -27,6 +34,11 @@ export class CameraInput {
     window.addEventListener("pointerup", this.onPointerUp);
     window.addEventListener("pointercancel", this.onPointerUp);
     canvas.addEventListener("wheel", this.onWheel, { passive: false });
+  }
+
+  /** Called with canvas-local (CSS px) coordinates when a pointer taps without dragging/pinching. */
+  setOnTap(handler: (x: number, y: number) => void): void {
+    this.onTap = handler;
   }
 
   dispose(): void {
@@ -59,9 +71,12 @@ export class CameraInput {
     this.velocity.y = 0;
     if (this.pointers.size === 1) {
       this.lastPanPoint = { x: e.clientX, y: e.clientY };
+      this.tapStart = { x: e.clientX, y: e.clientY, time: performance.now() };
+      this.tapMoved = false;
     } else if (this.pointers.size === 2) {
       this.lastPinchDist = this.currentPinchDistance();
       this.lastPanPoint = null;
+      this.tapStart = null;
     }
   };
 
@@ -72,6 +87,11 @@ export class CameraInput {
     if (this.pointers.size === 1 && this.lastPanPoint) {
       const dx = e.clientX - this.lastPanPoint.x;
       const dy = e.clientY - this.lastPanPoint.y;
+      if (this.tapStart) {
+        const totalDx = e.clientX - this.tapStart.x;
+        const totalDy = e.clientY - this.tapStart.y;
+        if (Math.hypot(totalDx, totalDy) > TAP_MOVE_THRESHOLD) this.tapMoved = true;
+      }
       this.camera.pan(dx, dy);
       const now = performance.now();
       const dt = Math.max(1, now - this.lastMoveTime);
@@ -109,6 +129,18 @@ export class CameraInput {
     } else if (this.pointers.size === 0) {
       this.lastPanPoint = null;
     }
+
+    if (
+      this.tapStart &&
+      !this.tapMoved &&
+      this.pointers.size === 0 &&
+      performance.now() - this.tapStart.time <= TAP_MAX_DURATION_MS &&
+      this.onTap
+    ) {
+      const rect = this.canvas.getBoundingClientRect();
+      this.onTap(e.clientX - rect.left, e.clientY - rect.top);
+    }
+    if (this.pointers.size === 0) this.tapStart = null;
   };
 
   private onWheel = (e: WheelEvent): void => {

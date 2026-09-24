@@ -1,6 +1,10 @@
-/** Deterministic random map generator (SPEC §4.2, steps 1–3: elevation, terrain, rivers). */
+/**
+ * Deterministic random map generator (SPEC §4.2): elevation/terrain/rivers (steps 1–3), then
+ * cities and industries (steps 4–6).
+ */
 import type { RngState } from "../rng";
 import {
+  DEFAULT_START_YEAR,
   MAP_SIZES,
   type MapSizeName,
   MOISTURE_NOISE,
@@ -11,29 +15,45 @@ import {
   WATER_LEVEL_LAND_FRACTION,
   type WaterLevel,
 } from "../../data/mapGen";
+import type { CityCount, ResourceDensity } from "../../data/cities";
 import { buildPermutation, clamp, clamp01, fractalNoise2D, smoothstep } from "./noise";
 import { tileIndex } from "./grid";
 import { terrainId, type Terrain } from "./terrain";
 import { priorityFloodFill, type FloodFillResult } from "./flood";
 import { fillLakes, removeTinyWaterBodies } from "./lakes";
 import { carveRivers, type RiverInfo } from "./rivers";
+import { placeCities } from "../economy/cities";
+import { placeIndustries } from "../economy/industries";
+import { countPlayablePairs } from "../economy/playability";
+import type { City, Industry } from "../economy/types";
 import type { GameMap } from "./types";
 
 export interface MapGenOptions {
   size: MapSizeName;
   waterLevel: WaterLevel;
   roughness: Roughness;
+  cityCount?: CityCount;
+  resourceDensity?: ResourceDensity;
 }
 
 export interface GenerateMapResult {
   map: GameMap;
   rivers: RiverInfo[];
+  cities: City[];
+  industries: Industry[];
   /**
    * The priority-flood result computed (and used for routing) before lake conversion — exposed
    * mainly so tests can verify river monotonicity against the exact field routing used.
    */
   flood: FloodFillResult;
 }
+
+/** One step up in city count, used as a deterministic retry if the playability check fails. */
+function bumpCityCount(count: CityCount): CityCount {
+  return count === "few" ? "normal" : "many";
+}
+
+const MIN_PLAYABLE_PAIRS = 3;
 
 function classifyTerrain(elevation: number, moisture: number): Terrain {
   if (elevation === 0) return "water";
@@ -50,7 +70,11 @@ function classifyTerrain(elevation: number, moisture: number): Terrain {
   return "plain";
 }
 
-export function generateMap(rng: RngState, options: MapGenOptions): GenerateMapResult {
+export function generateMap(
+  rng: RngState,
+  options: MapGenOptions,
+  startYear: number = DEFAULT_START_YEAR,
+): GenerateMapResult {
   const { width, height } = MAP_SIZES[options.size];
   const map: GameMap = {
     width,
@@ -60,6 +84,8 @@ export function generateMap(rng: RngState, options: MapGenOptions): GenerateMapR
     elevationRaw: new Float32Array(width * height),
     riverFlow: new Uint16Array(width * height),
     riverNext: new Int32Array(width * height).fill(-1),
+    cityId: new Int16Array(width * height).fill(-1),
+    industryId: new Int16Array(width * height).fill(-1),
   };
 
   const elevationPerm = buildPermutation(rng);
@@ -144,5 +170,20 @@ export function generateMap(rng: RngState, options: MapGenOptions): GenerateMapR
   removeTinyWaterBodies(map);
   const rivers = carveRivers(map, rng, flood.parent);
 
-  return { map, rivers, flood };
+  let cities = placeCities(map, rng, options);
+  let industries = placeIndustries(map, rng, cities, startYear, options);
+
+  // Playability (SPEC §4.2 step 6): ensure enough nearby town/city pairs to build a first route
+  // between. One deterministic retry (same rng stream, just a bigger city-count target) if not.
+  if (countPlayablePairs(map, cities) < MIN_PLAYABLE_PAIRS && options.cityCount !== "many") {
+    map.cityId.fill(-1);
+    map.industryId.fill(-1);
+    cities = placeCities(map, rng, {
+      ...options,
+      cityCount: bumpCityCount(options.cityCount ?? "normal"),
+    });
+    industries = placeIndustries(map, rng, cities, startYear, options);
+  }
+
+  return { map, rivers, cities, industries, flood };
 }

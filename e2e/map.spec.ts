@@ -1,26 +1,5 @@
 import { expect, test } from "@playwright/test";
-
-declare global {
-  interface Window {
-    __game?: {
-      getAvgFrameMs: () => number;
-      getAvgRenderMs: () => number;
-      getMap: () => { width: number; height: number };
-      findRiverMouth: () => { x: number; y: number } | null;
-      regenerate: (options: {
-        seed: number;
-        size?: string;
-        waterLevel?: string;
-        roughness?: string;
-      }) => void;
-      camera: {
-        getZoom: () => number;
-        setZoom: (zoom: number) => void;
-        setCenter: (worldX: number, worldY: number) => void;
-      };
-    };
-  }
-}
+import "./gameWindow";
 
 test.describe("Phase 1 — map rendering", () => {
   test("renders the terrain at zoom 1, 0.5 and 0.25 for seed 12345", async ({ page }) => {

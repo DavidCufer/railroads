@@ -1,0 +1,88 @@
+/**
+ * City name labels (SPEC §8.3, §4.1, §10.3): render at all zooms, bigger/bolder for higher tiers,
+ * with a dark halo for legibility over any terrain. Drawn dynamically every frame (not baked into
+ * the terrain chunk cache) so text stays crisp at the current zoom instead of a cached bitmap's
+ * fixed resolution. At overview zoom (< 0.5x, no per-tile detail) cities also get a small dot
+ * marker, since the terrain chunk itself is a flat fill with no roof clusters baked in.
+ */
+import type { CityTier } from "../data/cities";
+import type { City } from "../sim/economy/types";
+import { Camera, OVERVIEW_ZOOM_THRESHOLD, TILE_SIZE } from "./camera";
+import { cityDotColor, cityDotRadius } from "./cities";
+
+const TIER_FONT_PX: Record<CityTier, number> = {
+  village: 11,
+  town: 13,
+  city: 16,
+  metropolis: 19,
+};
+
+const TIER_WEIGHT: Record<CityTier, string> = {
+  village: "400",
+  town: "600",
+  city: "700",
+  metropolis: "800",
+};
+
+/** World-px centroid of a city's footprint tiles (not just its anchor tile). */
+export function cityWorldCenter(city: City, mapWidth: number): { x: number; y: number } {
+  let sx = 0;
+  let sy = 0;
+  for (const idx of city.tiles) {
+    sx += idx % mapWidth;
+    sy += Math.floor(idx / mapWidth);
+  }
+  const count = city.tiles.length;
+  return { x: (sx / count + 0.5) * TILE_SIZE, y: (sy / count + 0.5) * TILE_SIZE };
+}
+
+export function drawCityLabels(
+  ctx: CanvasRenderingContext2D,
+  camera: Camera,
+  viewportW: number,
+  viewportH: number,
+  cities: readonly City[],
+  mapWidth: number,
+): void {
+  const overview = camera.zoom < OVERVIEW_ZOOM_THRESHOLD;
+
+  for (const city of cities) {
+    // Overview declutter: only show town-tier-or-above labels when zoomed far out.
+    if (overview && city.tier === "village") continue;
+
+    const { x: worldX, y: worldY } = cityWorldCenter(city, mapWidth);
+    const screen = camera.worldToScreen(worldX, worldY, viewportW, viewportH);
+    if (
+      screen.x < -60 ||
+      screen.y < -30 ||
+      screen.x > viewportW + 60 ||
+      screen.y > viewportH + 30
+    ) {
+      continue;
+    }
+
+    if (overview) {
+      ctx.fillStyle = cityDotColor(city.tier);
+      ctx.beginPath();
+      ctx.arc(screen.x, screen.y, cityDotRadius(city.tier), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(20, 20, 24, 0.7)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    const fontPx = TIER_FONT_PX[city.tier];
+    ctx.font = `${TIER_WEIGHT[city.tier]} ${fontPx}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    const labelY = screen.y + (overview ? cityDotRadius(city.tier) + 3 : fontPx * 0.4);
+
+    ctx.lineWidth = Math.max(2, fontPx * 0.22);
+    ctx.strokeStyle = "rgba(10, 12, 16, 0.75)";
+    ctx.lineJoin = "round";
+    ctx.strokeText(city.name, screen.x, labelY);
+
+    ctx.fillStyle = "#F4F1E8";
+    ctx.fillText(city.name, screen.x, labelY);
+  }
+}

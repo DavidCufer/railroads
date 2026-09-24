@@ -19,6 +19,8 @@ function buildPitMap(): GameMap {
     elevationRaw: new Float32Array(width * height).fill(0.5),
     riverFlow: new Uint16Array(width * height),
     riverNext: new Int32Array(width * height).fill(-1),
+    cityId: new Int16Array(width * height).fill(-1),
+    industryId: new Int16Array(width * height).fill(-1),
   };
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {

@@ -301,3 +301,110 @@ Append one entry per phase/session: date, phase, what was built, key files, know
   named dependency list; the current "splash" is just the instant static pre-WebView background
   color standard to any Android launch theme.
 - Next: **Phase 3 — Cities and industries on the map**.
+
+## 2026-09-24 — Phase 3: Cities and industries on the map
+- **Data tables** (`src/data/`): `cargo.ts` (13 cargo types, SPEC §8.1: base rate, decayDays,
+  color, car type/cost, era), `industries.ts` (12 industry types, SPEC §8.2: placement rule,
+  produces/consumes, acceptance points, era), `cities.ts` (4 tiers' tile/population ranges, min
+  spacing, city-count/resource-density tables, name-generator syllable lists), `finance.ts`
+  (starting cash + difficulty multipliers, SPEC §9.1/§9.6 — used for the top bar's cash
+  placeholder, not wired to a real ledger yet).
+- **Calendar** (`src/sim/time.ts`): simplified 12×30-day year (see Deviations), `calendarFromTicks`
+  derives year/month/day/hour from `GameState.ticks`. `GameState` gained `ticks`, `startYear`,
+  `cities`, `industries`.
+- **Sim tick rate** (`src/render/loop.ts`): was a fixed 20 Hz regardless of game speed; now
+  `GameLoop` has a real speed control (`GameSpeed` = 0/1/2/4/8) and ticks at `24 × speed` Hz per
+  SPEC §3 ("1 in-game day ≈ 1 s at 1×" = 24 ticks/s, since 1 tick = 1 hour). Pausing drops the
+  accumulator so unpausing doesn't burst-catch-up; the per-frame tick cap halves after a frame ran
+  over the 12 ms budget (§3's "drop to fewer if frame time > 12 ms").
+- **City placement** (`src/sim/economy/cities.ts`, `names.ts`): scores candidate sites (flat
+  terrain, near river/coast) over a 4×4-block grid for performance, greedily selects sites ≥
+  `CITY_MIN_SPACING` (8 tiles) apart, assigns tiers by rank (1–2 "city", ~20% "town", rest
+  "village" — SPEC §4.2 step 4), grows each footprint outward from its anchor tile to a random
+  tile-count within its tier's range, and names each with a syllable-table generator
+  (`generateCityNames`, dedupes). `GameMap` gained `cityId`/`industryId: Int16Array` (-1 = none).
+- **Industry placement** (`src/sim/economy/industries.ts`): raw producers (coal/iron mine, logging
+  camp, farm, ranch, oil well) placed on their allowed terrain with same-type spacing; processors
+  (steel mill, sawmill, food plant, factory, refinery) placed within a radius of cities, with a
+  per-tier slot count (village 0 → metropolis 4); ports placed on the coastline of coastal
+  town-tier-or-above cities. Everything is gated by `era <= startYear` at generation time (an
+  industry whose era is later just isn't placed yet — actual year-gated *appearance* over time is
+  Phase 8's job). Industry `id`s are assigned in placement order so they always match their index
+  in the returned/stored array (`map.industryId[tile] === industries[id].id === id`).
+- **Playability check** (`src/sim/economy/playability.ts`, wired into `generateMap`): flood-fills
+  land into connected components and counts town/city pairs within 15–30 tiles on the same
+  landmass (SPEC §4.2 step 6); if fewer than 3, one deterministic retry with a bumped city-count
+  target (same RNG stream, so still fully seed-deterministic).
+- **Rendering**:
+  - `src/render/cities.ts`: roof-cluster decoration baked into the terrain chunk cache (like the
+    existing forest/hill/mountain decorations) — 3–6 roofs per city tile depending on tier, red/
+    brown/grey cycling, drop shadows, occasional taller "block" with a lit wall face for city/
+    metropolis tiers.
+  - `src/render/industries.ts`: one hand-drawn icon function per industry type (headframe for
+    mines, trees + circular saw for logging, silo + field rows for farms, a fenced corral for
+    ranches, a nodding-donkey pumpjack for oil wells, chimneyed buildings with smoke for steel
+    mill/factory, a saw-bladed building for sawmill, tanks for food plant, linked tanks + flare
+    stack for refinery, a pier + crane for ports) — all baked into the terrain chunk cache the same
+    way.
+  - `src/render/labels.ts`: city name labels drawn dynamically every frame (not baked into the
+    zoom-bucketed chunk cache, so text stays crisp at any zoom instead of a fixed-resolution
+    bitmap), dark-halo stroke + light fill, font size/weight scaled by tier. At overview zoom
+    (< 0.5×, where terrain chunks are a flat fill with no decoration baked in) cities also get a
+    small tier-colored dot marker and village labels are hidden to reduce clutter (SPEC §4.1:
+    "cities as dots with names" at low zoom).
+  - `TerrainRenderer` now takes `cities`/`industries` alongside the map and checks
+    `map.cityId`/`map.industryId` per tile before falling back to the old forest/hill/etc.
+    decoration.
+- **UI framework** (`src/ui/`): `h.ts` (tiny DOM-builder per SPEC §1), `panel.ts` (slide-in-from-
+  right panel, ≤ 45% width via CSS `min(45%, 420px)`, registers/unregisters with the Android back
+  button on open/close), `toast.ts` (top-center, non-blocking, auto-dismiss — not used by any
+  event yet, wired up for Phase 8's news system), `toolbar.ts` (left build toolbar per SPEC §10.1;
+  only "Info" is enabled this phase, the rest render disabled so the layout matches the final SPEC
+  even though Track/Station/etc. don't exist until Phase 4/5), `topBar.ts` (cash placeholder, live
+  date from the calendar, ⏸/1×/2×/4×/8× speed buttons wired straight to `GameLoop.setSpeed`, a
+  menu button that's currently inert — Phase 10/11 give it somewhere to go), `infoPanels.ts` (city
+  panel: tier/population/supplies/accepts as cargo-colored chips computed from the SPEC §8.3
+  formulas — no station coverage exists yet so these are "at full coverage" numbers, not live
+  stats; industry panel: produces/consumes chips), `format.ts` (money/date/population formatting).
+  All new strings added to `strings.ts` per CLAUDE.md.
+- **Tap detection** (`src/ui/cameraInput.ts`): a pointer sequence that never moves more than 8px
+  and resolves within 500ms now fires `onTap(x, y)` in addition to the existing pan/pinch/wheel
+  handling; `main.ts` converts the tap to a tile via `camera.screenToWorld` and opens the city or
+  industry panel if that tile has one.
+- **Tests**: `tests/sim/economy/cities.test.ts` (min spacing across 5 seeds, unique names/ids,
+  footprint within tier's max tile count, determinism, `map.cityId` agreement) and
+  `industries.test.ts` (raw producers only on allowed terrain across 5 seeds, never on a city tile,
+  era gating — confirmed oil/refinery absent when `startYear` is 1850 — id/index agreement,
+  determinism). 9 new unit tests; 27 total, all passing.
+- **E2E** (`e2e/cities.spec.ts`): tap a city → panel title equals its name (+ screenshot); tap an
+  industry → panel visible (+ screenshot); speed buttons actually change `GameLoop`'s speed and the
+  calendar advances at 8× but not while paused; an overview (zoom 0.25) and a city-closeup (zoom 2)
+  screenshot for visual review. Extracted the `window.__game` debug-hook typing shared by
+  `map.spec.ts` and the new file into `e2e/gameWindow.ts` (two separate `declare global` blocks for
+  the same `Window.__game` property don't typecheck together).
+- **Screenshots — looked at them**: `phase-3-overview.png` (zoom 0.25) shows small tier-colored
+  dots with readable dark-halo labels for towns/cities (villages correctly hidden at this zoom),
+  smooth coastlines, no rendering artifacts. `phase-3-city-closeup.png` (zoom 2, on "Summerfordside")
+  shows a dense, organic-looking cluster of red/brown/grey roofs with drop shadows around the city
+  label, a mine headframe and a chimneyed steel-mill-style building nearby, and a small pier
+  reaching into the water on the coastline — reads clearly as a town from top-down, not colored
+  squares. `phase-3-city-panel.png`/`phase-3-industry-panel.png` show the slide-in panel with
+  readable cargo chips (added a luminance-based black/white text-color pick per chip so light cargo
+  colors like Passengers' white don't get white-on-white text). Also spot-checked every industry
+  icon type individually (throwaway script, not committed): the original oil-well icon (a plain
+  derrick, too similar to the mine headframe) was redrawn as a nodding-donkey pumpjack (A-frame +
+  tilted beam + counterweight + horsehead + wellhead) before finishing — now visually distinct.
+  Also re-looked at `phase-0-smoke.png` and `phase-1-*.png`/`phase-1.1-closeup-zoom2.png`: the same
+  e2e specs that own them regenerate them against the unchanged default seed, and since that map
+  now legitimately has cities/industries and a top bar/toolbar (this phase's actual output), those
+  screenshots changed too — kept the regenerated versions rather than reverting, since the diff
+  reflects real new behavior, not incidental churn.
+- Known issues / carry-over: cities/industries are placement + info-only, as scoped — no economy
+  simulation reads `produces`/`consumes`/`acceptancePoints` yet (Phase 7). The Civic Investment
+  lever, city growth, and industry dynamics (SPEC §8.2/§8.3) are Phase 9. The ☰ menu button and
+  disabled toolbar buttons are inert placeholders matching the SPEC §10.1 layout ahead of the
+  phases that implement them. City-count/resource-density generator options aren't exposed in the
+  debug UI yet (noted in Deviations) — Phase 10's new-game screen is the intended home. Toasts are
+  wired up but nothing triggers one yet (first real use is Phase 4+ build validation / Phase 8
+  news).
+- Next: **Phase 4 — Track building**.

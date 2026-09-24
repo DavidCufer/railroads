@@ -20,7 +20,7 @@ export function createDebugControls(
   panel.id = "debug-controls";
   panel.style.cssText = [
     "position:absolute",
-    "top:8px",
+    "top:52px",
     "right:8px",
     "display:flex",
     "gap:6px",

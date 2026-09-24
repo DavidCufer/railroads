@@ -124,12 +124,12 @@ SPEC: §1, §10 (safe areas, landscape)
 ## Phase 3 — Cities and industries on the map
 SPEC: §4.2 steps 4–6, §8.2, §8.3 (placement, rendering, info only — no economy yet)
 
-- [ ] Data tables in `src/data/`: cargo types (§8.1), industries (§8.2), city tiers (§8.3).
-- [ ] Generator places cities (names from a syllable generator) and industries with the terrain affinities; playability check.
-- [ ] Render cities (roof clusters by tier, labels scaled by tier and zoom) and industry icons.
-- [ ] Info mode: tap a city/industry → right-side panel with basic info (name, tier/pop, produces/accepts).
-- [ ] UI framework basics: the `h()` helper, panel container with slide-in/out, close button, toasts, `strings.ts`.
-- [ ] Top bar with the date (static for now), a cash placeholder, and speed buttons wired to the sim loop (the calendar advances).
+- [x] Data tables in `src/data/`: cargo types (§8.1), industries (§8.2), city tiers (§8.3).
+- [x] Generator places cities (names from a syllable generator) and industries with the terrain affinities; playability check.
+- [x] Render cities (roof clusters by tier, labels scaled by tier and zoom) and industry icons.
+- [x] Info mode: tap a city/industry → right-side panel with basic info (name, tier/pop, produces/accepts).
+- [x] UI framework basics: the `h()` helper, panel container with slide-in/out, close button, toasts, `strings.ts`.
+- [x] Top bar with the date (static for now), a cash placeholder, and speed buttons wired to the sim loop (the calendar advances).
 
 **Tests:** city spacing rule, industries placed only on allowed terrain, deterministic placement.
 **E2E:** tap a city → panel shows its name; screenshot.
