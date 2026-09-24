@@ -54,6 +54,59 @@ SPEC: §4.1, §4.2 (terrain, rivers only — no cities/industries yet), §10.3, 
 
 ---
 
+## Phase 1.1 — Fix rivers and terrain visuals (review findings on Phase 1)
+SPEC: §4.2 step 3, §10.3
+
+Review of the Phase 1 screenshots found that rivers render as triangles, "Y" shapes, short zig-zag stubs, and
+isolated 1-tile lakes, and that terrain reads as hard pixel squares with barely any hillshading.
+
+Root causes:
+- `src/sim/map/rivers.ts` traces steepest descent on the **quantized 0–9** elevation. That produces big
+  flat plateaus, so rivers hit "no strictly lower neighbor" almost immediately, random-walk (`escapeOptions`),
+  and `makeLakeAt` drops single-tile lakes.
+- `drawRivers` in `src/render/terrain.ts` draws a segment from each river tile to *every* neighbor that is
+  river/water, so adjacent river tiles form triangles and an X/Y mesh instead of one polyline.
+
+Fixes:
+- [ ] Keep the continuous (float) elevation field from generation (a `Float32Array`, not persisted to saves
+      later; it's fine to keep on `GameMap` for now) and do river routing on it. Use **priority-flood depression
+      filling** (e.g. Barnes et al. 2014 "Priority-Flood + ε") on the float field so every land tile has a
+      downhill path to water. Then each river follows the filled field's steepest-descent (D8) neighbor.
+      There are no random walks. Lakes form only where the fill raised a depression by more than a threshold, and
+      each lake must be at least 4 tiles (flood the depression area below the spill level); never 1-tile lakes.
+- [ ] Store the river as an explicit **downstream pointer** per river tile (`riverNext: Int32Array`, −1 = none). Record
+      flow accumulation, and merge tributaries into the existing river (stop tracing when you join one, and add flow downstream).
+- [ ] Choose sources so rivers are meaningful: start in hills/mountains, require a minimum path length of 12 tiles to
+      reach water (skip sources that are too short), and keep sources ≥ 10 tiles apart. Target 4–12 rivers per map as before.
+- [ ] Renderer: draw each river as **one smoothed polyline** following `riverNext` (tile center → tile center, with
+      quadratic-curve smoothing through midpoints). Width scales with flow (e.g. 2 px at the source up to 6 px at zoom 1). It ends
+      *into* the water tile's edge. Don't draw river tiles as blue squares; the tile keeps its land color underneath.
+- [ ] Terrain look (SPEC §10.3 "soft transitions, not hard squares"):
+  - Hillshading must be clearly visible: compute it from the **float** elevation (per-pixel or per-quarter-tile bilinear
+    interpolation inside the cached chunk), light from NW, strength noticeably stronger than now.
+  - Blend terrain borders: for each tile edge/corner shared with a different terrain, feather the neighbor color across
+    ~30% of the tile with a noise-jittered edge, so forests, hills and deserts get organic outlines, not stair-steps.
+  - Forest: draw small tree clusters (2–4 dark-green circles with a darker shadow offset) instead of a flat dark tile.
+  - Hills: soft darker/lighter bumps; mountains: small peak triangles with a light NW face and a dark SE face, snow caps only on
+    elevation 9 (and not as white squares).
+  - Coastline: smooth the land/water edge (marching-squares style or per-corner rounding) with a lighter shallow band.
+- [ ] Performance must stay within the Phase 1 budget (the e2e render-time assertion still passes).
+
+**Tests (replace the weak river test):**
+- Every river is a single downstream chain: following `riverNext` from any river tile reaches a water tile within
+  width+height steps, with no cycles.
+- Each river tile has at most 1 downstream and the elevation along a river (filled field) is non-increasing.
+- There are no water bodies smaller than 4 tiles, other than the sea.
+- Across 15 seeds: ≥ 4 rivers per Medium map, each with a length of ≥ 12 tiles.
+
+**Screenshots:** regenerate `docs/screenshots/phase-1-*.png` (same seed 12345) plus a `phase-1.1-closeup-zoom2.png`
+centered on a river mouth. Look at them yourself before committing and describe what you see in PROGRESS.md.
+
+**Accept:** rivers read as continuous blue curves from the hills to the sea/lakes; no triangles or stubs; terrain looks
+blended and shaded rather than like a pixel grid.
+
+---
+
 ## Phase 2 — Android shell & APK pipeline (early, so it can be tested on a phone)
 SPEC: §1, §10 (safe areas, landscape)
 

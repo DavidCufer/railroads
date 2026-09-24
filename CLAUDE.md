@@ -11,7 +11,13 @@ This repo is **Railroads**, a 2D railway tycoon game for Android (TypeScript + C
 2. Implement the phase. Keep changes within scope.
 3. `npm run check` and `npm run e2e` must pass before committing. Never skip or disable a test to go green.
 4. Update the PLAN.md checkboxes, append to PROGRESS.md, and record any SPEC deviations.
-5. Commit as `Phase N: <title>` (small intermediate commits are fine), then push.
+5. Commit as `Phase N: <title>` (small intermediate commits are fine), then push to your branch **and to `main`**
+   (fast-forward: `git push origin HEAD:main`). Start every session from the latest `main`; if PROGRESS.md looks
+   older than expected, `git fetch origin main` and check before doing anything.
+6. **Look at your screenshots** (open the PNGs) before declaring a visual task done. Passing tests aren't enough for
+   rendering work.
+7. E2E runs overwrite `docs/screenshots/*`. Commit screenshot changes only for the phase that owns them; otherwise
+   `git checkout -- docs/screenshots` before committing.
 
 ## Hard rules
 - `src/sim/**` is pure and deterministic: no DOM, no canvas, no `Date.now()`, no `Math.random()` — use the state's seeded RNG.

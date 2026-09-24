@@ -95,3 +95,9 @@ Append one entry per phase/session: date, phase, what was built, key files, know
   (zoom < 0.5×) currently still draws terrain (flat-filled) rather than switching to "cities as dots,
   track as lines" — correct per SPEC §4.1, since those features don't exist until later phases.
 - Next: **Phase 2 — Android shell & APK pipeline**.
+
+## 2026-09-24 — Review of Phase 1 (Opus)
+- Checks and e2e pass. But the screenshots show broken rivers (triangles/stubs/1-tile lakes) and a hard pixel-grid
+  terrain look. Root causes and fixes are written up as **Phase 1.1** in PLAN.md.
+- CLAUDE.md: sessions must push to `main`, look at their screenshots, and not commit incidental screenshot churn.
+- Next: **Phase 1.1 — Fix rivers and terrain visuals**, then Phase 2.
