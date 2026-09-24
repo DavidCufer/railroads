@@ -23,15 +23,15 @@ record what's left in PROGRESS.md under "Carry-over", and stop cleanly (tests gr
 ## Phase 0 — Project scaffold
 SPEC: §1
 
-- [ ] Vite + TypeScript (strict) project, `index.html` with a full-screen canvas + a `#ui` overlay div.
-- [ ] Folder layout from SPEC §1 with placeholder `index.ts` files.
-- [ ] ESLint (typescript-eslint, flat config) + Prettier. Add an ESLint rule (`no-restricted-imports`) so `src/sim/**` can't import from `src/render/**` or `src/ui/**`.
-- [ ] Vitest configured; one sample test for `sim/rng.ts` (seeded PRNG: same seed → same sequence).
-- [ ] Playwright configured to use Chromium at `/opt/pw-browsers` (`executablePath` fallback), starting `vite preview`. One smoke test: the page loads, the canvas exists, no console errors, screenshot saved.
-- [ ] npm scripts: `dev`, `build`, `preview`, `typecheck`, `lint`, `test`, `e2e`, `check` (= typecheck + lint + test).
-- [ ] Game loop skeleton: `requestAnimationFrame` render loop + fixed-timestep sim accumulator (SPEC §3), drawing a placeholder background and an FPS counter (dev only).
-- [ ] GitHub Actions workflow `ci.yml`: install, `npm run check`, `npm run build` on push/PR.
-- [ ] `.gitignore` (node_modules, dist, android build outputs, tools/mapgen/.cache, test-results).
+- [x] Vite + TypeScript (strict) project, `index.html` with a full-screen canvas + a `#ui` overlay div.
+- [x] Folder layout from SPEC §1 with placeholder `index.ts` files.
+- [x] ESLint (typescript-eslint, flat config) + Prettier. Add an ESLint rule (`no-restricted-imports`) so `src/sim/**` can't import from `src/render/**` or `src/ui/**`.
+- [x] Vitest configured; one sample test for `sim/rng.ts` (seeded PRNG: same seed → same sequence).
+- [x] Playwright configured to use Chromium at `/opt/pw-browsers` (`executablePath` fallback), starting `vite preview`. One smoke test: the page loads, the canvas exists, no console errors, screenshot saved.
+- [x] npm scripts: `dev`, `build`, `preview`, `typecheck`, `lint`, `test`, `e2e`, `check` (= typecheck + lint + test).
+- [x] Game loop skeleton: `requestAnimationFrame` render loop + fixed-timestep sim accumulator (SPEC §3), drawing a placeholder background and an FPS counter (dev only).
+- [x] GitHub Actions workflow `ci.yml`: install, `npm run check`, `npm run build` on push/PR.
+- [x] `.gitignore` (node_modules, dist, android build outputs, tools/mapgen/.cache, test-results).
 
 **Accept:** `npm run check`, `npm run build`, `npm run e2e` all pass locally; CI workflow file is valid.
 

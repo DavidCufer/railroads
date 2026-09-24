@@ -1,0 +1,13 @@
+node_modules/
+dist/
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/capacitor-cocoa/
+tools/mapgen/.cache/
+test-results/
+playwright-report/
+blob-report/
+*.log
+.DS_Store

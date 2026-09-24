@@ -8,4 +8,14 @@ to diesel to electric.
 - Build plan: [`docs/PLAN.md`](docs/PLAN.md)
 - Progress: [`docs/PROGRESS.md`](docs/PROGRESS.md)
 
-Status: planning complete, implementation starting with Phase 0.
+Status: Phase 0 (project scaffold) complete. See `docs/PROGRESS.md`.
+
+## Development
+
+```
+npm install
+npm run dev       # start the dev server
+npm run check     # typecheck + lint + unit tests
+npm run e2e       # Playwright e2e tests
+npm run build     # production build
+```
