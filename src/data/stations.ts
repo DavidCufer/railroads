@@ -16,6 +16,10 @@ export interface StationTypeDef {
   /** Trains that can be docked (loading) at once (SPEC §7.5) — this is what lets a station act as
    * a passing loop on a single-track line. See src/data/trains.ts `STATION_TRAIN_CAPACITY`. */
   trainCapacity: number;
+  /** Loading/unloading time multiplier (SPEC Phase 7: "time cost (station type...)") — bigger
+   * stations have more platforms/staff and handle cars faster. Multiplies
+   * `TICKS_PER_CAR_HANDLED` (src/data/trains.ts); lower is faster. */
+  loadSpeedMult: number;
 }
 
 export const STATION_TYPE_DEFS: Record<StationType, StationTypeDef> = {
@@ -28,6 +32,7 @@ export const STATION_TYPE_DEFS: Record<StationType, StationTypeDef> = {
     cost: 15_000,
     monthlyMaintenance: 100,
     trainCapacity: 1,
+    loadSpeedMult: 1.0,
   },
   station: {
     id: "station",
@@ -38,6 +43,7 @@ export const STATION_TYPE_DEFS: Record<StationType, StationTypeDef> = {
     cost: 40_000,
     monthlyMaintenance: 250,
     trainCapacity: 2,
+    loadSpeedMult: 0.85,
   },
   terminal: {
     id: "terminal",
@@ -48,6 +54,7 @@ export const STATION_TYPE_DEFS: Record<StationType, StationTypeDef> = {
     cost: 100_000,
     monthlyMaintenance: 600,
     trainCapacity: 4,
+    loadSpeedMult: 0.7,
   },
 };
 

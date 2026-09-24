@@ -5,7 +5,7 @@
  * - `openStationPanel` — tapping a built station (Station or Info mode): name + rename, type +
  *   upgrade, supplies/accepts, a waiting-cargo placeholder (Phase 7 does real cargo flow).
  */
-import { CARGO_TYPES, type CargoType } from "../data/cargo";
+import { CARGO, CARGO_TYPES, type CargoType } from "../data/cargo";
 import { STATION_ACCEPTANCE_THRESHOLD, STATION_TYPES, STATION_TYPE_DEFS } from "../data/stations";
 import type { StationType } from "../data/stations";
 import {
@@ -63,6 +63,34 @@ function economyBody(economy: StationEconomy): Node[] {
       : h("div", { className: "panel-row" }, "—"),
   );
   return body;
+}
+
+/** Waiting-cargo bars (SPEC §6.3, §10.2): amount vs. this station type's per-cargo storage cap. */
+function waitingCargoBody(state: GameState, stationId: number, type: StationType): Node[] {
+  const pile = state.stationCargo.get(stationId);
+  const cap = STATION_TYPE_DEFS[type].storagePerCargo;
+  const entries = CARGO_TYPES.filter((c) => (pile?.[c]?.amount ?? 0) > 0.5);
+  if (entries.length === 0) {
+    return [h("div", { className: "panel-row" }, strings.station.waitingCargoNone)];
+  }
+  return entries.map((cargo) => {
+    const amount = pile?.[cargo]?.amount ?? 0;
+    const pct = Math.max(0, Math.min(100, (amount / cap) * 100));
+    return h(
+      "div",
+      { className: "cargo-bar-row" },
+      h("span", { className: "cargo-bar-label" }, CARGO[cargo].name),
+      h(
+        "div",
+        { className: "cargo-bar-track" },
+        h("div", {
+          className: "cargo-bar-fill",
+          style: { width: `${pct}%`, background: CARGO[cargo].color },
+        }),
+      ),
+      h("span", { className: "cargo-bar-value" }, `${Math.round(amount)}/${cap}`),
+    );
+  });
 }
 
 function statsRows(type: StationType): Node[] {
@@ -261,7 +289,7 @@ export function openStationPanel(
     if (economy) body.push(...economyBody(economy));
 
     body.push(h("div", { className: "panel-section-title" }, strings.station.waitingCargo));
-    body.push(h("div", { className: "panel-row" }, strings.station.waitingCargoPlaceholder));
+    body.push(...waitingCargoBody(state, stationId, station.type));
 
     openPanel(container, { title: station.name, body });
   };

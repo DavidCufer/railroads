@@ -12,6 +12,7 @@ import { CARGO } from "../data/cargo";
 import { CAR_LENGTH_TILES, LOCO_LENGTH_TILES, locomotiveById } from "../data/trains";
 import { Camera, TILE_SIZE } from "./camera";
 import {
+  CAR_EMPTY_COLOR,
   CAR_OUTLINE_COLOR,
   LOCO_COLORS,
   LOCO_SMOKE_COLOR,
@@ -90,6 +91,28 @@ function worldToScreenScaled(
   return camera.worldToScreen(tileX * TILE_SIZE, tileY * TILE_SIZE, viewportW, viewportH);
 }
 
+/** Manual rounded-rect path (kept independent of `CanvasRenderingContext2D.roundRect` so this
+ * renders identically on any browser/engine version). */
+function roundedRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): void {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+/** Draws a locomotive in local space: +x is the direction of travel (the front/leading end), so a
+ * steam loco's chimney sits near +x and its cab/tender trail toward -x, where the cars follow. */
 function drawLoco(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -103,17 +126,50 @@ function drawLoco(
   ctx.translate(x, y);
   ctx.rotate(angle);
   const len = size * LOCO_LENGTH_TILES;
-  const w = size * 0.32;
+  const w = size * 0.34;
 
   if (type === "steam") {
     const c = LOCO_COLORS.steam;
+    const front = len / 2;
+    const rear = -len / 2;
+    const cabLen = len * 0.28;
+    const tenderLen = len * 0.22;
+    const boilerFront = front - len * 0.08; // leave a nose for the smokebox cap
+    const boilerRear = rear + tenderLen + cabLen;
+
+    // Tender, directly behind the cab (SPEC §7.7).
+    ctx.fillStyle = c.tender;
+    ctx.fillRect(rear, -w * 0.46, tenderLen, w * 0.92);
+
+    // Cab at the rear, boxier/taller than the boiler.
+    ctx.fillStyle = c.cab;
+    ctx.fillRect(rear + tenderLen, -w * 0.5, cabLen, w);
+    ctx.fillStyle = c.cabRoof;
+    ctx.fillRect(rear + tenderLen + cabLen * 0.15, -w * 0.5, cabLen * 0.7, w * 0.16);
+
+    // Boiler cylinder with a few bands, from the cab to the smokebox nose.
+    roundedRectPath(ctx, boilerRear, -w * 0.4, boilerFront - boilerRear, w * 0.8, w * 0.32);
     ctx.fillStyle = c.boiler;
-    ctx.fillRect(-len / 2, -w / 2, len * 0.75, w);
-    ctx.fillStyle = c.body;
-    ctx.fillRect(len * 0.15, -w * 0.6, len * 0.35, w * 1.2);
+    ctx.fill();
+    ctx.strokeStyle = c.band;
+    ctx.lineWidth = Math.max(1, w * 0.09);
+    for (let i = 1; i <= 3; i++) {
+      const bx = boilerRear + ((boilerFront - boilerRear) * i) / 4;
+      ctx.beginPath();
+      ctx.moveTo(bx, -w * 0.38);
+      ctx.lineTo(bx, w * 0.38);
+      ctx.stroke();
+    }
+
+    // Smokebox nose cap.
     ctx.fillStyle = c.chimney;
-    ctx.fillRect(-len * 0.35, -w * 0.85, w * 0.35, w * 0.5);
-    // Cheap smoke puffs: a couple of soft circles drifting up-back from the chimney, cycling with
+    ctx.fillRect(boilerFront, -w * 0.42, front - boilerFront, w * 0.84);
+
+    // Chimney, set back a little from the very front.
+    const chimneyX = boilerFront - len * 0.12;
+    ctx.fillRect(chimneyX - w * 0.13, -w * 0.85, w * 0.26, w * 0.5);
+
+    // Cheap smoke puffs drifting up and back (toward the cars) from the chimney, cycling with
     // real time so they animate independent of sim tick rate.
     const puffPhase = (nowMs / 550) % 1;
     for (let i = 0; i < 2; i++) {
@@ -122,8 +178,8 @@ function drawLoco(
       ctx.fillStyle = LOCO_SMOKE_COLOR;
       ctx.beginPath();
       ctx.arc(
-        -len * 0.35 - t * len * 0.4,
-        -w * 1.0 - t * w * 1.6,
+        chimneyX - t * len * 0.4,
+        -w * 1.1 - t * w * 1.6,
         w * (0.25 + t * 0.3),
         0,
         Math.PI * 2,
@@ -133,30 +189,40 @@ function drawLoco(
     ctx.globalAlpha = 1;
   } else if (type === "diesel") {
     const c = LOCO_COLORS.diesel;
+    roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.18);
     ctx.fillStyle = c.body;
-    ctx.fillRect(-len / 2, -w / 2, len, w);
+    ctx.fill();
     ctx.fillStyle = c.window;
-    ctx.fillRect(len * 0.2, -w * 0.3, len * 0.25, w * 0.5);
+    ctx.fillRect(len * 0.22, -w * 0.28, len * 0.22, w * 0.5);
+    ctx.fillStyle = c.stripe;
+    ctx.fillRect(-len / 2, w * 0.14, len, w * 0.16);
     ctx.fillStyle = c.trim;
-    ctx.fillRect(-len / 2, w * 0.3, len, w * 0.14);
+    ctx.fillRect(len / 2 - w * 0.1, -w * 0.5, w * 0.1, w);
   } else {
     const c = LOCO_COLORS.electric;
+    roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.16);
     ctx.fillStyle = c.body;
-    ctx.fillRect(-len / 2, -w / 2, len, w);
+    ctx.fill();
+    ctx.fillStyle = c.roof;
+    ctx.fillRect(-len * 0.35, -w * 0.5, len * 0.7, w * 0.18);
     ctx.fillStyle = c.window;
-    ctx.fillRect(-len * 0.1, -w * 0.3, len * 0.4, w * 0.5);
-    // Pantograph: a small zig-zag on the roof.
+    ctx.fillRect(len * 0.18, -w * 0.3, len * 0.28, w * 0.5);
+    ctx.fillRect(-len * 0.46, -w * 0.3, len * 0.22, w * 0.5);
+    // Pantograph: a small diamond frame on the roof.
     ctx.strokeStyle = c.pantograph;
-    ctx.lineWidth = Math.max(1, w * 0.08);
+    ctx.lineWidth = Math.max(1, w * 0.09);
     ctx.beginPath();
-    ctx.moveTo(-w * 0.2, -w / 2);
-    ctx.lineTo(0, -w);
-    ctx.lineTo(w * 0.2, -w / 2);
+    ctx.moveTo(-w * 0.22, -w * 0.5);
+    ctx.lineTo(-w * 0.06, -w * 1.05);
+    ctx.lineTo(w * 0.06, -w * 1.05);
+    ctx.lineTo(w * 0.22, -w * 0.5);
     ctx.stroke();
   }
   ctx.restore();
 }
 
+/** Draws one car in local space, colored by cargo when loaded (SPEC §7's rendering rule), grey
+ * when empty so a full vs. running-empty consist reads at a glance. */
 function drawCar(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -164,17 +230,19 @@ function drawCar(
   angle: number,
   size: number,
   color: string,
+  loaded: boolean,
 ): void {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle);
   const len = size * CAR_LENGTH_TILES * 2.2;
   const w = size * 0.3;
-  ctx.fillStyle = color;
-  ctx.fillRect(-len / 2, -w / 2, len, w);
+  roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.22);
+  ctx.fillStyle = loaded ? color : CAR_EMPTY_COLOR;
+  ctx.fill();
   ctx.strokeStyle = CAR_OUTLINE_COLOR;
-  ctx.lineWidth = Math.max(1, size * 0.02);
-  ctx.strokeRect(-len / 2, -w / 2, len, w);
+  ctx.lineWidth = Math.max(1, size * 0.025);
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -233,8 +301,9 @@ export function drawTrains(
       const distanceBehind = LOCO_LENGTH_TILES / 2 + (i + 0.5) * CAR_LENGTH_TILES;
       const sample = sampleBehindHead(mapWidth, graph, train, distanceBehind);
       const screen = worldToScreenScaled(camera, sample.x, sample.y, viewportW, viewportH);
-      const cargo = train.cars[i]?.cargoType;
-      drawCar(ctx, screen.x, screen.y, sample.angle, size, cargo ? CARGO[cargo].color : "#888");
+      const car = train.cars[i];
+      const color = car ? CARGO[car.cargoType].color : CAR_EMPTY_COLOR;
+      drawCar(ctx, screen.x, screen.y, sample.angle, size, color, car?.loaded ?? false);
     }
 
     drawLoco(ctx, head.x, head.y, angle, size, loco.type, nowMs);

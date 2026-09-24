@@ -38,7 +38,17 @@ export interface IndustryDef {
   acceptancePoints: Partial<Record<CargoType, number>>;
   /** Year this industry starts appearing. */
   era: number;
+  /** How multi-input processing combines `consumes` (SPEC §8.2): "all" needs every input in lock
+   * step (Steel Mill: output = min(coal, ore)); "any" accepts either input on its own (Food Plant:
+   * grain OR livestock; Factory: steel OR lumber). Irrelevant when `consumes` has 0-1 entries. */
+  recipeMode: "all" | "any";
 }
+
+/** Cap on a processor's undelivered input stockpile per cargo (SPEC §8.2 doesn't specify one —
+ * without a cap a permanently-unserved processor's `consumes` inputs would never be picked up
+ * anyway, but a served-then-abandoned one shouldn't stockpile forever; ~4 months at full capacity
+ * is a reasonable buffer). */
+export const INDUSTRY_INPUT_STORAGE_CAP = 240;
 
 export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
   coalMine: {
@@ -49,6 +59,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
     consumes: {},
     acceptancePoints: {},
     era: 1830,
+    recipeMode: "any",
   },
   ironMine: {
     id: "ironMine",
@@ -58,6 +69,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
     consumes: {},
     acceptancePoints: {},
     era: 1830,
+    recipeMode: "any",
   },
   loggingCamp: {
     id: "loggingCamp",
@@ -67,6 +79,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
     consumes: {},
     acceptancePoints: {},
     era: 1830,
+    recipeMode: "any",
   },
   farm: {
     id: "farm",
@@ -76,6 +89,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
     consumes: {},
     acceptancePoints: {},
     era: 1830,
+    recipeMode: "any",
   },
   ranch: {
     id: "ranch",
@@ -85,6 +99,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
     consumes: {},
     acceptancePoints: {},
     era: 1830,
+    recipeMode: "any",
   },
   oilWell: {
     id: "oilWell",
@@ -94,6 +109,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
     consumes: {},
     acceptancePoints: {},
     era: 1860,
+    recipeMode: "any",
   },
   steelMill: {
     id: "steelMill",
@@ -103,6 +119,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
     consumes: { coal: 60, ironOre: 60 },
     acceptancePoints: { coal: 8, ironOre: 8 },
     era: 1830,
+    recipeMode: "all",
   },
   sawmill: {
     id: "sawmill",
@@ -112,6 +129,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
     consumes: { wood: 60 },
     acceptancePoints: { wood: 8 },
     era: 1830,
+    recipeMode: "any",
   },
   foodPlant: {
     id: "foodPlant",
@@ -121,6 +139,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
     consumes: { grain: 60, livestock: 60 },
     acceptancePoints: { grain: 8, livestock: 8 },
     era: 1830,
+    recipeMode: "any",
   },
   factory: {
     id: "factory",
@@ -130,6 +149,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
     consumes: { steel: 60, lumber: 60 },
     acceptancePoints: { steel: 8, lumber: 8 },
     era: 1830,
+    recipeMode: "any",
   },
   refinery: {
     id: "refinery",
@@ -139,6 +159,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
     consumes: { oil: 60 },
     acceptancePoints: { oil: 8 },
     era: 1880,
+    recipeMode: "any",
   },
   port: {
     id: "port",
@@ -159,5 +180,6 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
       fuel: 8,
     },
     era: 1830,
+    recipeMode: "any",
   },
 };

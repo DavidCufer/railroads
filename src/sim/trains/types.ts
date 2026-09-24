@@ -18,7 +18,16 @@ export type TrainStatus =
   "loading" | "moving" | "waitingForBlock" | "waitingForStation" | "noRoute" | "stuck";
 
 export interface TrainCar {
+  /** Fixed at purchase — a car only ever carries this one cargo type (a simplification: SPEC
+   * §7.1's shared car types, e.g. a Boxcar hauling goods/food/lumber/steel, are modeled here as
+   * separate cargo-dedicated purchases instead, matching how the Buy Train dialog already works). */
   cargoType: CargoType;
+  /** Whether this car currently holds a carload (SPEC §7.1: 1 car = 1 carload, full or empty). */
+  loaded: boolean;
+  /** Tile the current load was picked up at, and the sim tick it happened — used to compute
+   * distance/time for the revenue formula (SPEC §8.1) on delivery. Undefined when `!loaded`. */
+  loadedTile?: number;
+  loadedTick?: number;
 }
 
 /** A block this train currently holds a reservation on (SPEC §7.5), newest last. At most 2 at a
@@ -61,10 +70,27 @@ export interface Train {
    * `GameState.trackVersion` is what triggers a reroute at the next node boundary (SPEC §7.3),
    * rather than a separate dirty flag. */
   routeTrackVersion: number;
+  /** The node the train arrived at its current/last station from, or -1 if unknown (never moved
+   * yet). Used only to seed the next departure's `route` with one tile of real history behind the
+   * station (SPEC/PLAN Phase 6 review carry-over: without it, cars have nowhere to lay out along
+   * on the approach track and bunch up at the head right after leaving a station) — purely a
+   * rendering aid, movement math only ever reads `route[routeIndex..]` onward. */
+  lastApproachNode: number;
   heldBlocks: HeldBlock[];
   /** Extra cost penalty applied to specific blocks the next time this train re-routes (SPEC §7.5
    * deadlock handling) — cleared once a route is found that avoids needing it. */
   blockPenalties: Map<number, number>;
+  /** Ticks left in the current loading/unloading stop (SPEC §7.2, §6.1's overlength penalty).
+   * -1 means "not yet computed for this stop" — src/sim/trains/loading.ts fills it in on first
+   * use and resets it to -1 whenever the train arrives at a new stop. */
+  loadTicksLeft: number;
+  /** Extra whole days waited beyond the initial load pass for a "Wait for full load" stop (SPEC
+   * §7.2) — reset to 0 on arrival. */
+  loadExtraWaitDays: number;
+  /** Total price paid for this train (locomotive + cars) and the tick it was bought — SPEC §9.3's
+   * depreciating rolling-stock value. */
+  purchasePrice: number;
+  purchaseTick: number;
   /** Cached fractional (tile-space) position at the start and end of the most recent tick, for the
    * renderer to lerp between with the frame's accumulator alpha. */
   renderFromX: number;

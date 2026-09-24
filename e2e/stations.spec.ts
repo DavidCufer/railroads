@@ -171,9 +171,7 @@ test.describe("Phase 5 — stations", () => {
     await page.screenshot({ path: "docs/screenshots/phase-5-terminal.png" });
   });
 
-  test("station panel: rename, upgrade, supplies/accepts, waiting-cargo placeholder", async ({
-    page,
-  }) => {
+  test("station panel: rename, upgrade, supplies/accepts, waiting-cargo bars", async ({ page }) => {
     await setup(page, { seed: 12345, size: "medium", waterLevel: "normal", roughness: "normal" });
     await buildStraightTrack(page, TRACK_FROM, TRACK_TO);
     const STATION_TILE = { x: 76, y: ROW_Y }; // inside Ashtown — rich supply/accept preview
@@ -197,7 +195,8 @@ test.describe("Phase 5 — stations", () => {
     await expect(page.locator(".panel-title")).toHaveText("Ashtown");
     await expect(page.locator(".station-upgrade-btn")).toContainText("Upgrade to Station");
     await expect(page.locator(".station-name-input")).toHaveValue("Ashtown");
-    await expect(page.locator("text=Cargo flow arrives in a later phase.")).toBeVisible();
+    // No days have run yet, so nothing has accrued (Phase 7 cargo flow).
+    await expect(page.locator("text=Nothing waiting.")).toBeVisible();
 
     await page.screenshot({ path: "docs/screenshots/phase-5-station-panel.png" });
 

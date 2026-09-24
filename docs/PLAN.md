@@ -187,16 +187,19 @@ SPEC: §7.1–7.5, §7.7 (roster data; availability by year)
 ## Phase 7 — Cargo flow and economy
 SPEC: §6.3, §7.2 (loading rules), §8.1 (revenue), §8.2 (processing), §8.3 (city supply), §9 (finance)
 
-- [ ] Daily production accrual to stations, storage caps, waiting-cargo decay.
-- [ ] Loading/unloading with time cost (station type, train length), Auto / Full load / Unload only / Pass through rules.
-- [ ] Revenue formula with the time factor; floating `+$` labels; per-train revenue stats.
-- [ ] Processing chains (steel, lumber, food, goods, fuel) with a monthly processing step.
-- [ ] Finance: monthly maintenance (trains, track, stations), loans (borrow/repay, credit limit, interest), ledger by category, net worth, bankruptcy rules by difficulty.
-- [ ] Finance panel with the ledger table and a cash/net-worth line chart; yearly report dialog.
-- [ ] Station panel shows waiting cargo bars; train panel shows the current load.
+- [x] Daily production accrual to stations, storage caps, waiting-cargo decay.
+- [x] Loading/unloading with time cost (station type, train length), Auto / Full load / Unload only / Pass through rules.
+- [x] Revenue formula with the time factor; floating `+$` labels; per-train revenue stats.
+- [x] Processing chains (steel, lumber, food, goods, fuel) with a monthly processing step.
+- [x] Finance: monthly maintenance (trains, track, stations), loans (borrow/repay, credit limit, interest), ledger by category, net worth, bankruptcy rules by difficulty.
+- [x] Finance panel with the ledger table and a cash/net-worth line chart; yearly report dialog.
+- [x] Station panel shows waiting cargo bars; train panel shows the current load.
 
 **Tests:** the revenue formula (table-driven), processing (steel needs both inputs), a loan/interest schedule, bankruptcy sequence, a deterministic 1-year simulation snapshot test (same seed + command log → same cash).
 **Accept:** a hand-built coal mine → steel mill route plus a two-city passenger route are profitable within 2 in-game years at Normal difficulty (checked in a test). Tune the numbers in the data tables if not, and note the changes as Deviations.
+
+**Done.** See PROGRESS.md for the balance table, screenshots, and deviations (car-type-per-cargo
+simplification, single freight ledger bucket, a couple of undocumented default constants).
 
 ---
 

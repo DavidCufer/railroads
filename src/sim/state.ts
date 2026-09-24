@@ -2,13 +2,34 @@
 import { createRng, type RngState } from "./rng";
 import { generateMap, type MapGenOptions } from "./map/generate";
 import type { GameMap } from "./map/types";
-import type { City, Industry } from "./economy/types";
+import type { City, Industry, IndustryEconomyState } from "./economy/types";
+import { initIndustryEconomy } from "./economy/processing";
 import { DEFAULT_START_YEAR } from "../data/mapGen";
 import { DEFAULT_DIFFICULTY, DIFFICULTY, type Difficulty } from "../data/finance";
+import type { CargoType } from "../data/cargo";
 import { TrackGraph } from "./track/graph";
 import type { Station } from "./stations/types";
 import type { StationEconomy } from "./stations/economy";
 import type { Train } from "./trains/types";
+import { createFinanceState, type FinanceState } from "./finance/types";
+
+/** A station's waiting pile for one cargo type (SPEC §6.3). */
+export interface StationCargoPile {
+  amount: number;
+  /** Consecutive in-game days this pile has gone without any of it being picked up — the decay
+   * clock proxy for "cargo older than N days" (there's no per-unit FIFO aging; resets to 0 the
+   * moment a train loads any amount, in src/sim/trains/loading.ts). */
+  waitingDays: number;
+}
+
+/** A delivery just paid out (SPEC §8.1's floating `+$` label) — pushed by
+ * src/sim/trains/loading.ts, drained once per rendered frame by the UI so the label's own
+ * animation timing (real time, not sim ticks) stays out of src/sim. */
+export interface DeliveryEvent {
+  stationId: number;
+  cargoType: CargoType;
+  revenue: number;
+}
 
 export interface GameState {
   seed: number;
@@ -38,6 +59,15 @@ export interface GameState {
   /** Bumped by every track command (build/upgrade/bulldoze) — src/sim/trains reroutes and
    * recomputes blocks whenever it sees this change (SPEC §7.3/§7.5's "simplest correct approach"). */
   trackVersion: number;
+  /** Per-station waiting cargo (SPEC §6.3), accrued daily by src/sim/economy/cargoFlow.ts and
+   * drained by src/sim/trains/loading.ts. */
+  stationCargo: Map<number, Partial<Record<CargoType, StationCargoPile>>>;
+  /** Per-industry processing state (SPEC §8.2), keyed by `Industry.id`. */
+  industryEconomy: Map<number, IndustryEconomyState>;
+  /** Ledger, loans, net worth history (SPEC §9). */
+  finance: FinanceState;
+  /** Deliveries paid out since the last frame drained this — see `DeliveryEvent`. */
+  pendingDeliveries: DeliveryEvent[];
 }
 
 export interface NewGameOptions extends MapGenOptions {
@@ -72,5 +102,9 @@ export function createGameState(options: NewGameOptions): GameState {
     trains: [],
     nextTrainId: 0,
     trackVersion: 0,
+    stationCargo: new Map(),
+    industryEconomy: initIndustryEconomy(industries),
+    finance: createFinanceState(),
+    pendingDeliveries: [],
   };
 }

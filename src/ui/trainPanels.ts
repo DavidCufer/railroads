@@ -15,8 +15,8 @@ import {
 } from "../sim/commands";
 import type { GameState } from "../sim/state";
 import { calendarFromTicks } from "../sim/time";
-import type { LoadingRule, TrainOrder } from "../sim/trains/types";
-import { cargoChip, row } from "./infoPanels";
+import type { LoadingRule, TrainCar, TrainOrder } from "../sim/trains/types";
+import { chipTextColor, row } from "./infoPanels";
 import { h } from "./h";
 import { closePanel, openPanel } from "./panel";
 import { strings } from "./strings";
@@ -27,6 +27,21 @@ const LOADING_RULES: readonly LoadingRule[] = ["auto", "fullLoad", "unloadOnly",
 
 function currentYear(state: GameState): number {
   return calendarFromTicks(state.startYear, state.ticks).year;
+}
+
+/** A car chip showing its current load (SPEC §10.2's "current load" in the train panel) — solid
+ * cargo color when loaded, dimmed and labeled "Empty" otherwise. */
+function carChip(car: TrainCar): HTMLElement {
+  const def = CARGO[car.cargoType];
+  const label = car.loaded ? def.name : `${strings.trains.empty} (${def.name})`;
+  return h(
+    "span",
+    {
+      className: `chip${car.loaded ? "" : " chip-dim"}`,
+      style: { background: def.color, color: chipTextColor(def.color) },
+    },
+    label,
+  );
 }
 
 export interface BuyTrainHandlers {
@@ -254,7 +269,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
       h(
         "div",
         { className: "panel-row", style: { flexWrap: "wrap" } },
-        ...(train.cars.length > 0 ? train.cars.map((c) => cargoChip(c.cargoType, 1, "")) : ["—"]),
+        ...(train.cars.length > 0 ? train.cars.map((c) => carChip(c)) : ["—"]),
       ),
       h("div", { className: "panel-section-title" }, strings.trains.orders),
       ...(train.orders.length > 0

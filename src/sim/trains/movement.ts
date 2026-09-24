@@ -5,6 +5,7 @@
  */
 import {
   CAR_WEIGHT_EMPTY,
+  CAR_WEIGHT_LOADED,
   CURVE_SPEED_FACTOR,
   DEADLOCK_BLOCK_PENALTY,
   DEADLOCK_REROUTE_DAYS,
@@ -16,7 +17,6 @@ import {
   MIN_SPACING_TILES_DOUBLE_TRACK,
   MIN_SPEED_FACTOR,
   TICKS_PER_TILE_DIVISOR,
-  TRAIN_LOADING_TICKS,
   locomotiveById,
   type LocomotiveDef,
 } from "../../data/trains";
@@ -26,6 +26,7 @@ import type { Station } from "../stations/types";
 import { directionSteps } from "../track/graph";
 import { directionBetween, edgeDirectionFrom, edgeLengthTiles, tileXY } from "./geometry";
 import { blockIdForEdge, blockOtherEnd, type BlockPartition } from "./blocks";
+import { stepLoading } from "./loading";
 import { findTrainRoute } from "./route";
 import type { Train, TrainStatus } from "./types";
 
@@ -170,8 +171,24 @@ function tryRoute(
     edgeToBlock: runtime.partition.edgeToBlock,
   });
   train.routeTrackVersion = runtime.trackVersion;
-  train.route = result ?? [start];
-  train.routeIndex = 0;
+
+  // Fresh departure from a station (`route` is just `[start]`): seed one tile of real history
+  // behind it from the approach track, so the renderer's consist layout has somewhere to put
+  // trailing cars instead of bunching them at the head (PLAN Phase 6 review carry-over). Only
+  // applies here — never for a mid-journey reroute, where `route` already has real tiles behind
+  // `routeIndex` from the actual, still-relevant journey so far.
+  if (
+    result &&
+    train.route.length <= 1 &&
+    train.lastApproachNode >= 0 &&
+    state.trackGraph.hasEdge(train.lastApproachNode, start)
+  ) {
+    train.route = [train.lastApproachNode, ...result];
+    train.routeIndex = 1;
+  } else {
+    train.route = result ?? [start];
+    train.routeIndex = 0;
+  }
   train.edgeProgress = 0;
   train.heldBlocks = [];
   setStatus(train, result ? "moving" : "noRoute");
@@ -185,7 +202,9 @@ export function computeTargetSpeed(
   a: number,
   b: number,
 ): number {
-  const load = LOCO_WEIGHT_UNITS + train.cars.length * CAR_WEIGHT_EMPTY;
+  const load =
+    LOCO_WEIGHT_UNITS +
+    train.cars.reduce((sum, c) => sum + (c.loaded ? CAR_WEIGHT_LOADED : CAR_WEIGHT_EMPTY), 0);
   const elevA = state.map.elevation[a] ?? 0;
   const elevB = state.map.elevation[b] ?? 0;
   const grade = Math.max(0, elevB - elevA);
@@ -250,6 +269,9 @@ function checkDeadlockTimeout(
 }
 
 function arriveAtStation(train: Train, station: Station): void {
+  if (train.routeIndex > 0) {
+    train.lastApproachNode = train.route[train.routeIndex - 1] as number;
+  }
   train.route = [station.tile];
   train.routeIndex = 0;
   train.edgeProgress = 0;
@@ -257,13 +279,21 @@ function arriveAtStation(train: Train, station: Station): void {
   train.blockPenalties.clear();
   train.speed = 0;
   train.direction = -1;
+  train.loadTicksLeft = -1;
+  train.loadExtraWaitDays = 0;
   setStatus(train, "loading");
 }
 
-function handleLoading(train: Train): void {
-  if (train.orders.length === 0 || train.waitTicks < TRAIN_LOADING_TICKS) return;
-  train.currentOrderIndex = (train.currentOrderIndex + 1) % train.orders.length;
-  setStatus(train, "moving");
+function handleLoading(state: GameState, train: Train): void {
+  if (train.orders.length === 0) return;
+  const order = train.orders[train.currentOrderIndex];
+  const station = order && state.stations.find((s) => s.id === order.stationId);
+  if (!station) return;
+
+  if (stepLoading(state, train, station)) {
+    train.currentOrderIndex = (train.currentOrderIndex + 1) % train.orders.length;
+    setStatus(train, "moving");
+  }
 }
 
 /** Shared recovery for `noRoute`/`stuck` trains: reverse off a dead end that isn't the
@@ -396,7 +426,7 @@ export function stepTrain(state: GameState, train: Train, runtime: TrainRuntime)
 
   const loco = locomotiveById(train.locoModelId);
   if (loco) {
-    if (train.status === "loading") handleLoading(train);
+    if (train.status === "loading") handleLoading(state, train);
     else if (train.status === "noRoute" || train.status === "stuck")
       handleIdle(state, train, runtime, loco);
     else handleMoving(state, train, runtime, loco);

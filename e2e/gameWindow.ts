@@ -15,6 +15,19 @@ export interface IndustryInfo {
   y: number;
 }
 
+export interface LedgerPeriod {
+  passengers: number;
+  mail: number;
+  freight: number;
+  trainMaintenance: number;
+  trackMaintenance: number;
+  stationMaintenance: number;
+  breakdownRepairs: number;
+  interest: number;
+  construction: number;
+  rollingStock: number;
+}
+
 export interface GameWindow {
   getState: () => unknown;
   getMap: () => { width: number; height: number };
@@ -91,6 +104,22 @@ export interface GameWindow {
     orders: Array<{ stationId: number; rule: string }>;
     currentOrderIndex: number;
   }>;
+  getTrainCars: (trainId: number) => Array<{ cargoType: string; loaded: boolean }>;
+  getStationCargo: (
+    stationId: number,
+  ) => Partial<Record<string, { amount: number; waitingDays: number }>> | null;
+  getFinance: () => {
+    loans: number;
+    thisYear: LedgerPeriod;
+    lastYear: LedgerPeriod;
+    netWorthHistory: Array<{ tick: number; cash: number; netWorth: number }>;
+    bankrupt: boolean;
+  };
+  takeLoan: (amount: number) => { ok: boolean; reason?: string };
+  repayLoan: (amount: number) => { ok: boolean; reason?: string };
+  debugPlaceIndustry: (tile: number, type: string) => number;
+  debugPlaceCity: (tiles: number[], population: number) => number;
+  getFloatingLabels: () => Array<{ stationTile: number; text: string; color: string }>;
 }
 
 declare global {

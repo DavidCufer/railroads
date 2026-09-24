@@ -64,12 +64,21 @@ export const STATION_LABEL_COLOR = "#F4F1E8";
 /** Locomotive body colors by type (SPEC §7 rendering: "steam: dark body...; diesel: colored hood;
  * electric: boxy + pantograph"). */
 export const LOCO_COLORS = {
-  steam: { body: "#2A2622", boiler: "#3E3A34", trim: "#8A6A4A", chimney: "#1C1A17" },
-  diesel: { body: "#B5533C", trim: "#3A3A3E", window: "#CFE0EA" },
-  electric: { body: "#4F86B5", trim: "#2E3A44", window: "#CFE0EA", pantograph: "#2A2521" },
+  steam: {
+    boiler: "#4A453C",
+    band: "#B59A5C",
+    cab: "#6B3F2E",
+    cabRoof: "#4A2A1E",
+    tender: "#332F2A",
+    chimney: "#1C1A17",
+  },
+  diesel: { body: "#B5533C", stripe: "#F2B544", trim: "#2A2A2E", window: "#CFE0EA" },
+  electric: { body: "#4F86B5", roof: "#345470", window: "#CFE0EA", pantograph: "#DCE4E8" },
 };
 export const LOCO_SMOKE_COLOR = "rgba(210, 208, 202, 0.6)";
 export const CAR_OUTLINE_COLOR = "rgba(20, 18, 16, 0.55)";
+/** An empty car (SPEC §7 rendering: "grey when empty"). */
+export const CAR_EMPTY_COLOR = "#8A8880";
 
 export const TRAIN_SIGNAL_WAIT_COLOR = "#E05A4F";
 export const TRAIN_WARNING_COLOR = "#F2B544";

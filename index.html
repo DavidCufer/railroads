@@ -190,8 +190,9 @@
            visually overlaps the last row(s) of content — sticky positioning clamps the bar to the
            scrollport bottom even when total content is only barely taller than the panel, which
            without this buffer could otherwise render the bar on top of the preceding row instead
-           of below it. */
-        padding: 12px 14px 64px;
+           of below it. 66px = .panel-actions' own rendered height (10px+12px padding + the 44px
+           button row) — keep this and its `margin-bottom` below in sync if that ever changes. */
+        padding: 12px 14px 66px;
         display: flex;
         flex-direction: column;
         gap: 10px;
@@ -265,7 +266,7 @@
            negative margins reclaim `.panel-body`'s own padding so the bar spans edge-to-edge. */
         position: sticky;
         bottom: 0;
-        margin: 8px -14px -64px;
+        margin: 8px -14px -66px;
         padding: 10px 14px 12px;
         background: rgba(24, 28, 34, 0.97);
         box-shadow: 0 -6px 10px -6px rgba(0, 0, 0, 0.4);
@@ -367,7 +368,14 @@
       .train-car-picker {
         display: flex;
         flex-wrap: wrap;
+        align-content: flex-start;
         gap: 6px;
+        /* Phase 6 review carry-over: with all 13 cargo types available this wrapped to 4+ rows
+           and, having no height cap of its own (unlike the loco/orders lists just above), pushed
+           the rest of the dialog's content down far enough that its last row landed behind the
+           pinned Buy button. Capping + scrolling it here keeps the whole dialog's height sane. */
+        max-height: 84px;
+        overflow-y: auto;
       }
       .train-car-add-btn,
       .train-car-chip {
@@ -584,6 +592,102 @@
       }
       .quick-build-toggle.active .switch::after {
         left: 14px;
+      }
+
+      /* Waiting-cargo bars (SPEC §6.3, Phase 7) — station panel. */
+      .cargo-bar-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+      }
+      .cargo-bar-label {
+        width: 64px;
+        flex: 0 0 64px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        opacity: 0.85;
+      }
+      .cargo-bar-track {
+        flex: 1;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.1);
+        overflow: hidden;
+      }
+      .cargo-bar-fill {
+        height: 100%;
+        border-radius: 999px;
+      }
+      .cargo-bar-value {
+        flex: 0 0 auto;
+        width: 48px;
+        text-align: right;
+        opacity: 0.85;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Finance panel (SPEC §10.2, Phase 7). */
+      .finance-loan-actions {
+        gap: 8px;
+      }
+      .finance-loan-btn {
+        flex: 1;
+        min-height: 40px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+        font: 700 12px sans-serif;
+      }
+      .finance-loan-btn:disabled {
+        opacity: 0.35;
+      }
+      .finance-bankrupt-warning {
+        color: #e05a4f;
+        font-weight: 700;
+        font-size: 12px;
+      }
+      .finance-chart {
+        width: 100%;
+        height: auto;
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 8px;
+      }
+      .finance-chart-legend {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        opacity: 0.85;
+      }
+      .legend-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        display: inline-block;
+      }
+      .ledger-net-row {
+        font-weight: 700;
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        padding-top: 6px;
+        margin-top: 2px;
+      }
+
+      /* Yearly report dialog (Phase 7). */
+      .yearly-report-headline {
+        font: 700 18px sans-serif;
+        text-align: center;
+        padding: 8px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .yearly-report-headline.good {
+        color: #5bc27a;
+      }
+      .yearly-report-headline.bad {
+        color: #e05a4f;
       }
 
       #debug-overlay {

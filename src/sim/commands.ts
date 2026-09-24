@@ -8,7 +8,7 @@
  * The `compute*Plan` functions are the pure, non-mutating halves of each command — the UI reuses
  * them to price the live drag preview (SPEC §5.2's floating cost label) without side effects.
  */
-import { DIFFICULTY } from "../data/finance";
+import { DIFFICULTY, LOAN_INCREMENT } from "../data/finance";
 import { BULLDOZE_REFUND_FRACTION, type BridgeType } from "../data/track";
 import { STATION_UPGRADE_ORDER, type StationType } from "../data/stations";
 import { calendarFromTicks } from "./time";
@@ -30,6 +30,7 @@ import type { Station } from "./stations/types";
 import { CARGO, type CargoType } from "../data/cargo";
 import { locomotiveById, SELL_REFUND_FRACTION } from "../data/trains";
 import { eraInflation } from "../data/finance";
+import { addExpense, computeCreditLimit } from "./finance/ledger";
 import { tileXY } from "./trains/geometry";
 import type { Train, TrainOrder } from "./trains/types";
 
@@ -47,7 +48,9 @@ export type CommandReasonCode =
   | "invalid-locomotive"
   | "too-many-cars"
   | "invalid-train"
-  | "invalid-orders";
+  | "invalid-orders"
+  | "invalid-loan-amount"
+  | "credit-limit-exceeded";
 
 export type CommandResult = { ok: true; cost: number } | { ok: false; reason: CommandReasonCode };
 
@@ -166,6 +169,8 @@ export function buildTrack(
     state.trackGraph.addEdge(edge);
   }
   state.cash -= plan.cost;
+  state.finance.capitalInvested += plan.cost;
+  addExpense(state, "construction", plan.cost);
   if (plan.toBuild.length > 0) state.trackVersion++;
   return { ok: true, cost: plan.cost };
 }
@@ -183,6 +188,8 @@ export function upgradeTrack(state: GameState, path: readonly number[]): Command
     edge.double = true;
   }
   state.cash -= plan.cost;
+  state.finance.capitalInvested += plan.cost;
+  addExpense(state, "construction", plan.cost);
   if (plan.edges.length > 0) state.trackVersion++;
   return { ok: true, cost: plan.cost };
 }
@@ -196,6 +203,7 @@ export function bulldoze(state: GameState, path: readonly number[]): CommandResu
 
   for (const edge of plan.edges) state.trackGraph.removeEdge(edge.a, edge.b);
   state.cash += plan.refund;
+  state.finance.capitalInvested -= plan.edges.reduce((sum, e) => sum + e.cost, 0);
   if (plan.edges.length > 0) state.trackVersion++;
   return { ok: true, cost: -plan.refund };
 }
@@ -212,6 +220,7 @@ export function refreshStationEconomy(state: GameState): void {
     state.industries,
     state.stations,
     year,
+    state.industryEconomy,
   );
 }
 
@@ -263,6 +272,8 @@ export function buildStation(state: GameState, tile: number, type: StationType):
   };
   state.stations.push(station);
   state.cash -= cost;
+  state.finance.capitalInvested += cost;
+  addExpense(state, "construction", cost);
   state.trackVersion++; // a station is a block boundary (SPEC §7.5) — splits whatever block it sits in
   refreshStationEconomy(state);
   return { ok: true, cost };
@@ -301,6 +312,8 @@ export function upgradeStation(
   const station = state.stations.find((s) => s.id === stationId) as Station;
   station.type = type;
   state.cash -= plan.cost;
+  state.finance.capitalInvested += plan.cost;
+  addExpense(state, "construction", plan.cost);
   refreshStationEconomy(state);
   return { ok: true, cost: plan.cost };
 }
@@ -377,7 +390,7 @@ export function buyTrain(
     id,
     name: `Train ${id + 1}`,
     locoModelId,
-    cars: cars.map((cargoType) => ({ cargoType })),
+    cars: cars.map((cargoType) => ({ cargoType, loaded: false })),
     orders: [],
     currentOrderIndex: 0,
     status: "loading",
@@ -388,8 +401,13 @@ export function buyTrain(
     direction: -1,
     waitTicks: 0,
     routeTrackVersion: state.trackVersion,
+    lastApproachNode: -1,
     heldBlocks: [],
     blockPenalties: new Map(),
+    loadTicksLeft: -1,
+    loadExtraWaitDays: 0,
+    purchasePrice: plan.cost,
+    purchaseTick: state.ticks,
     renderFromX: centerX,
     renderFromY: centerY,
     renderToX: centerX,
@@ -397,6 +415,7 @@ export function buyTrain(
   };
   state.trains.push(train);
   state.cash -= plan.cost;
+  addExpense(state, "rollingStock", plan.cost);
   return { ok: true, cost: plan.cost };
 }
 
@@ -445,5 +464,39 @@ export function sellTrain(state: GameState, trainId: number): CommandResult {
   const index = state.trains.findIndex((t) => t.id === trainId);
   state.trains.splice(index, 1);
   state.cash += plan.refund;
+  addExpense(state, "rollingStock", -plan.refund);
   return { ok: true, cost: -plan.refund };
+}
+
+// --- Loans (SPEC §9.1) --------------------------------------------------------------------------
+
+/** Credit limit: 50% of net worth, min $500k (SPEC §9.1) — exposed so the Finance panel can show
+ * how much more the player can still borrow. */
+export function creditLimit(state: GameState): number {
+  return computeCreditLimit(state);
+}
+
+/** Borrows `amount` (must be a positive multiple of $100k, SPEC §9.1) up to the credit limit. */
+export function takeLoan(state: GameState, amount: number): CommandResult {
+  if (amount <= 0 || amount % LOAN_INCREMENT !== 0) {
+    return { ok: false, reason: "invalid-loan-amount" };
+  }
+  if (state.finance.loans + amount > computeCreditLimit(state)) {
+    return { ok: false, reason: "credit-limit-exceeded" };
+  }
+  state.finance.loans += amount;
+  state.cash += amount;
+  return { ok: true, cost: -amount };
+}
+
+/** Repays `amount` (a positive multiple of $100k) of the outstanding loan balance. */
+export function repayLoan(state: GameState, amount: number): CommandResult {
+  if (amount <= 0 || amount % LOAN_INCREMENT !== 0) {
+    return { ok: false, reason: "invalid-loan-amount" };
+  }
+  const payment = Math.min(amount, state.finance.loans);
+  if (payment > state.cash) return { ok: false, reason: "cant-afford" };
+  state.finance.loans -= payment;
+  state.cash -= payment;
+  return { ok: true, cost: payment };
 }

@@ -4,6 +4,7 @@ import type { GameMap } from "../../../src/sim/map/types";
 import type { GameState } from "../../../src/sim/state";
 import { TrackGraph } from "../../../src/sim/track/graph";
 import { createRng } from "../../../src/sim/rng";
+import { createFinanceState } from "../../../src/sim/finance/types";
 
 /** `rows[y][x]` gives the terrain letter; `elevation[y][x]` (optional) gives 0-9, default 0.
  * Terrain letters: p=plain d=desert f=forest s=swamp h=hills m=mountain w=water r=river. */
@@ -64,6 +65,10 @@ export function makeTestState(map: GameMap, overrides: Partial<GameState> = {}):
     trains: [],
     nextTrainId: 0,
     trackVersion: 0,
+    stationCargo: new Map(),
+    industryEconomy: new Map(),
+    finance: createFinanceState(),
+    pendingDeliveries: [],
     ...overrides,
   };
 }

@@ -14,7 +14,7 @@ import { CARGO_TYPES, type CargoType } from "../../data/cargo";
 import { INDUSTRIES } from "../../data/industries";
 import { STATION_ACCEPTANCE_THRESHOLD, STATION_TYPE_DEFS } from "../../data/stations";
 import { cityTileAcceptance, cityTileSupply } from "../economy/cityStats";
-import type { City, Industry } from "../economy/types";
+import type { City, Industry, IndustryEconomyState } from "../economy/types";
 import type { GameMap } from "../map/types";
 import { stationCatchmentTiles } from "./placement";
 import type { Station } from "./types";
@@ -39,6 +39,7 @@ export function computeStationEconomies(
   industries: readonly Industry[],
   stations: readonly Station[],
   currentYear: number,
+  industryEconomy?: ReadonlyMap<number, IndustryEconomyState>,
 ): Map<number, StationEconomy> {
   const catchments = new Map<number, number[]>();
   for (const station of stations) {
@@ -99,7 +100,12 @@ export function computeStationEconomies(
     const covering = stationsAt.get(tile);
     if (!covering || covering.length === 0) continue;
     const def = INDUSTRIES[industry.type];
-    for (const [cargo, monthly] of Object.entries(def.produces) as Array<[CargoType, number]>) {
+    // Processed cargo's actual output depends on whether the industry got its inputs delivered
+    // (SPEC §8.2) — fall back to the static table only when no dynamic figure has been computed
+    // yet (a freshly-placed processor, or a caller that doesn't track it, e.g. the station
+    // placement preview).
+    const produces = industryEconomy?.get(industry.id)?.monthlyOutput ?? def.produces;
+    for (const [cargo, monthly] of Object.entries(produces) as Array<[CargoType, number]>) {
       const share = monthly / covering.length;
       for (const stationId of covering) {
         addTo((result.get(stationId) as StationEconomy).supply, cargo, share);
@@ -142,6 +148,7 @@ export function previewStationEconomy(
   tile: number,
   type: StationType,
   currentYear: number,
+  industryEconomy?: ReadonlyMap<number, IndustryEconomyState>,
 ): StationEconomy {
   const PREVIEW_ID = -1;
   const preview: Station = { id: PREVIEW_ID, tile, type, name: "", hasEngineShed: false };
@@ -151,6 +158,7 @@ export function previewStationEconomy(
     industries,
     [...existingStations, preview],
     currentYear,
+    industryEconomy,
   );
   return computed.get(PREVIEW_ID) as StationEconomy;
 }

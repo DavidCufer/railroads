@@ -355,10 +355,17 @@ export const DEAD_END_REVERSE_HOURS = 6;
 export const CAR_LENGTH_TILES = 0.25;
 export const LOCO_LENGTH_TILES = 0.5;
 
-// --- Orders / loading placeholder (real cargo flow is Phase 7) ----------------------------------
+// --- Orders / loading (SPEC §7.2, §6.1 "load/unload 50% slower" overlength penalty) --------------
 
-/** Fixed placeholder dwell time at a station stop, in ticks — Phase 7 replaces this with real
- * load/unload time based on station type, train length and cargo. */
-export const TRAIN_LOADING_TICKS = 12;
+/** Base ticks (in-game hours) to load or unload one car, before station-type/overlength factors. */
+export const TICKS_PER_CAR_HANDLED = 3;
+/** Minimum dwell at any stop that isn't a pass-through, even with nothing to load/unload. */
+export const MIN_LOADING_TICKS = 4;
+/** SPEC §6.1: "Trains longer than the station max can still stop but load/unload 50% slower" —
+ * i.e. handling each car takes 2× as long. */
+export const OVERLENGTH_SLOWDOWN_MULT = 2;
+/** Default cap on how many extra days a "Wait for full load" stop waits when the order doesn't set
+ * its own `maxWaitDays` (SPEC §7.2 says the cap is optional but doesn't give a fallback). */
+export const DEFAULT_FULL_LOAD_MAX_WAIT_DAYS = 14;
 
 export const SELL_REFUND_FRACTION = 0.5;

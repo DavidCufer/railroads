@@ -8,6 +8,7 @@ import { drawCityLabels, cityWorldCenter } from "./render/labels";
 import { drawStations, drawStationLabels } from "./render/stations";
 import { drawStationCatchment, type StationCatchmentPreview } from "./render/stationPreview";
 import { drawTrains } from "./render/trains";
+import { drawDeliveryLabels, isLabelExpired, type FloatingLabel } from "./render/deliveryLabels";
 import { CameraInput, type BuildDragHandlers } from "./ui/cameraInput";
 import { createDebugControls } from "./ui/debugControls";
 import { createTopBar } from "./ui/topBar";
@@ -33,27 +34,36 @@ import {
   computeBuildPlan,
   computeBulldozePlan,
   computeUpgradePlan,
+  refreshStationEconomy,
+  repayLoan,
   sellTrain,
   setOrders,
+  takeLoan,
   upgradeTrack,
   type BuildPlan,
   type BulldozePlan,
   type UpgradePlan,
 } from "./sim/commands";
+import { INDUSTRIES, type IndustryType } from "./data/industries";
+import type { City } from "./sim/economy/types";
 import { findBuildPath } from "./sim/track/pathfind";
 import { spanTilesBetween, validBridgeTypes } from "./sim/track/cost";
 import { canPlaceStationAt, stationAtTile, stationCatchmentTiles } from "./sim/stations";
 import { terrainId } from "./sim/map/terrain";
 import { inBounds, tileIndex } from "./sim/map/grid";
-import { calendarFromTicks } from "./sim/time";
+import { calendarFromTicks, isYearBoundary } from "./sim/time";
 import type { MapSizeName, Roughness, WaterLevel } from "./data/mapGen";
 import type { BridgeType } from "./data/track";
 import { STATION_TYPE_DEFS, type StationType } from "./data/stations";
-import type { CargoType } from "./data/cargo";
-import { stepTrains } from "./sim/trains";
+import { CARGO, type CargoType } from "./data/cargo";
+import { advanceOneHour } from "./sim/tick";
 import type { TrainOrder } from "./sim/trains/types";
 import { openBuyTrainPanel, openTrainListPanel, openTrainPanel } from "./ui/trainPanels";
 import { createTrainListButton } from "./ui/toolbar";
+import { openFinancePanel } from "./ui/financePanel";
+import { openYearlyReport } from "./ui/yearlyReport";
+import { isPanelOpen } from "./ui/panel";
+import { formatMoney } from "./ui/format";
 
 const RIVER_ID = terrainId("river");
 const WATER_ID = terrainId("water");
@@ -115,6 +125,9 @@ function main(): void {
   /** Set while the Buy Train dialog's orders editor is "tap a station to add it" mode is active —
    * intercepts the next station tap instead of opening that station's own panel. */
   let stationPickHandler: ((stationId: number) => void) | null = null;
+  /** Floating `+$` delivery labels (SPEC §8.1) — drained from `state.pendingDeliveries` each tick,
+   * pruned once their real-time animation finishes. */
+  let floatingLabels: FloatingLabel[] = [];
 
   function currentYear(): number {
     return calendarFromTicks(state.startYear, state.ticks).year;
@@ -145,6 +158,7 @@ function main(): void {
     dragState = null;
     ghost = null;
     stationPickHandler = null;
+    floatingLabels = [];
     stuckTrainsNotified.clear();
     hideConfirmBar();
     hideDragCostLabel();
@@ -497,8 +511,27 @@ function main(): void {
   /** One in-game hour of simulation — shared by the real-time game loop and the `runDays` debug
    * hook (SPEC/PLAN Phase 6 e2e tests drive the sim directly instead of waiting on wall-clock). */
   function tickOnce(): void {
-    state.ticks++;
-    stepTrains(state);
+    advanceOneHour(state);
+
+    if (state.pendingDeliveries.length > 0) {
+      const now = performance.now();
+      for (const delivery of state.pendingDeliveries) {
+        const station = state.stations.find((s) => s.id === delivery.stationId);
+        if (!station) continue;
+        floatingLabels.push({
+          stationTile: station.tile,
+          text: `+${formatMoney(delivery.revenue)}`,
+          color: CARGO[delivery.cargoType].color,
+          startMs: now,
+        });
+      }
+      state.pendingDeliveries.length = 0;
+    }
+
+    if (isYearBoundary(state.ticks) && !isPanelOpen()) {
+      openYearlyReport(ui, state);
+    }
+
     for (const train of state.trains) {
       if (train.status === "stuck") {
         if (!stuckTrainsNotified.has(train.id)) {
@@ -557,6 +590,10 @@ function main(): void {
         state.cities,
         (tile) => state.map.cityId[tile] ?? -1,
       );
+      if (floatingLabels.length > 0) {
+        floatingLabels = floatingLabels.filter((l) => !isLabelExpired(l, now));
+        drawDeliveryLabels(ctx, camera, viewportW, viewportH, state.map.width, floatingLabels, now);
+      }
       fps.sampleRenderDuration(performance.now() - renderStart);
 
       const calendar = calendarFromTicks(state.startYear, state.ticks);
@@ -573,6 +610,7 @@ function main(): void {
   const topBar = createTopBar(ui, {
     onSetSpeed: (speed: GameSpeed) => loop.setSpeed(speed),
     getSpeed: () => loop.getSpeed(),
+    onOpenFinance: () => openFinancePanel(ui, state),
   });
   const toolbar = createToolbar(ui, (tool) => setTool(tool));
   createQuickBuildToggle(ui, (enabled) => {
@@ -679,6 +717,20 @@ function main(): void {
             orders: Array<{ stationId: number; rule: string }>;
             currentOrderIndex: number;
           }>;
+          getTrainCars: (trainId: number) => Array<{ cargoType: CargoType; loaded: boolean }>;
+          getStationCargo: (
+            stationId: number,
+          ) => Partial<Record<string, { amount: number; waitingDays: number }>> | null;
+          getFinance: () => GameState["finance"];
+          takeLoan: (amount: number) => { ok: boolean; reason?: string };
+          repayLoan: (amount: number) => { ok: boolean; reason?: string };
+          /** Test-only: injects a raw-producer/port industry directly (bypassing map-gen
+           * placement) so e2e specs can set up a deterministic supply chain without hunting for
+           * real industries near buildable track on a given seed. */
+          debugPlaceIndustry: (tile: number, type: IndustryType) => number;
+          /** Test-only: injects a city directly, same rationale as `debugPlaceIndustry`. */
+          debugPlaceCity: (tiles: number[], population: number) => number;
+          getFloatingLabels: () => Array<{ stationTile: number; text: string; color: string }>;
         };
       }
     ).__game = {
@@ -788,6 +840,68 @@ function main(): void {
             currentOrderIndex: t.currentOrderIndex,
           };
         }),
+      getTrainCars: (trainId) =>
+        (state.trains.find((t) => t.id === trainId)?.cars ?? []).map((c) => ({
+          cargoType: c.cargoType,
+          loaded: c.loaded,
+        })),
+      getStationCargo: (stationId) => {
+        const pile = state.stationCargo.get(stationId);
+        if (!pile) return null;
+        const result: Partial<Record<string, { amount: number; waitingDays: number }>> = {};
+        for (const [cargo, entry] of Object.entries(pile)) {
+          if (entry) result[cargo] = { amount: entry.amount, waitingDays: entry.waitingDays };
+        }
+        return result;
+      },
+      getFinance: () => state.finance,
+      takeLoan: (amount) => {
+        const result = takeLoan(state, amount);
+        return result.ok ? { ok: true } : { ok: false, reason: result.reason };
+      },
+      repayLoan: (amount) => {
+        const result = repayLoan(state, amount);
+        return result.ok ? { ok: true } : { ok: false, reason: result.reason };
+      },
+      debugPlaceIndustry: (tile, type) => {
+        const id =
+          state.industries.length > 0 ? Math.max(...state.industries.map((i) => i.id)) + 1 : 0;
+        state.map.industryId[tile] = id;
+        state.industries.push({
+          id,
+          type,
+          x: tile % state.map.width,
+          y: Math.floor(tile / state.map.width),
+        });
+        const def = INDUSTRIES[type];
+        const isRaw = Object.keys(def.consumes).length === 0;
+        state.industryEconomy.set(id, {
+          inputStock: {},
+          monthlyOutput: isRaw ? { ...def.produces } : {},
+        });
+        refreshStationEconomy(state);
+        return id;
+      },
+      debugPlaceCity: (tiles, population) => {
+        const id = state.cities.length;
+        const anchor = tiles[0] as number;
+        const city: City = {
+          id,
+          name: `Test City ${id}`,
+          tier: "city",
+          population,
+          anchorX: anchor % state.map.width,
+          anchorY: Math.floor(anchor / state.map.width),
+          tiles: [...tiles],
+          coastal: false,
+        };
+        for (const t of tiles) state.map.cityId[t] = id;
+        state.cities.push(city);
+        refreshStationEconomy(state);
+        return id;
+      },
+      getFloatingLabels: () =>
+        floatingLabels.map((l) => ({ stationTile: l.stationTile, text: l.text, color: l.color })),
     };
   }
 }

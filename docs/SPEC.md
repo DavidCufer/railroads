@@ -644,3 +644,22 @@ localization (English only, but keep strings in one `strings.ts` file for later)
   with a larger city-count target (continuing the same RNG stream) if fewer than 3 qualifying
   town/city pairs are found — it does not regenerate the terrain itself.
 - [Phase 5 review] §7.4 movement scale and §8.1 `expected` transit time revised: trains move speedKmh/30 tiles per in-game day (the original real-speed scale crossed the map in ~1 s); revenue expectations rescaled to match.
+- [Phase 7] Cars are still cargo-dedicated at purchase (a Phase 6 simplification carried forward):
+  §7.1's shared car types (a Boxcar hauling goods/food/lumber/steel, a Tanker hauling oil/fuel) are
+  modeled as separate cargo-specific purchases instead, matching how the Buy Train dialog already
+  works. A car is simply full (1 carload = 20 units, SPEC's own abstraction) or empty of its one
+  cargo type.
+- [Phase 7] §9.2's ledger revenue is tracked as 3 buckets (passengers, mail, freight) rather than
+  "(per cargo type)" — the 800×360 finance panel has no room for a 13-row breakdown. All non-
+  passenger/mail cargo revenue is summed into `freight`.
+- [Phase 7] Station-type loading speed and the "Wait for full load" default timeout aren't specified
+  by SPEC's own text (§7.2 says the wait cap is "optional" but not what happens without one); added
+  `loadSpeedMult` per station type and `DEFAULT_FULL_LOAD_MAX_WAIT_DAYS = 14` (`src/data/stations.ts`,
+  `src/data/trains.ts`) as reasonable, tunable defaults.
+- [Phase 7] Station improvements (Engine Shed aside, already in Phase 6) are still inert — Warehouse/
+  Cold Storage/Freight Yard/etc. effects and their purchase UI are explicitly Phase 9's job per
+  PLAN, so this phase's waiting-cargo decay and loading-speed formulas don't yet special-case them.
+- [Phase 7] Net worth's depreciating "rolling stock" value is tracked per train from its own
+  `purchasePrice`/`purchaseTick` (SPEC §9.3's 5%/year, min 10%) rather than summing current
+  loco+car catalog prices, since a locomotive's price at purchase time already reflects that era's
+  inflation and shouldn't silently change if the player is still mid-game when prices rise further.

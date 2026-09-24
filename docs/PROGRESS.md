@@ -927,3 +927,195 @@ Append one entry per phase/session: date, phase, what was built, key files, know
   (`e2e/trains.spec.ts`) exercising the debug hooks end to end and the real Buy Train dialog/train
   panel UI. `npm run check` and `npm run e2e` both green (19/19 e2e specs, 145/145 unit tests).
 - Next: **Phase 7 — Cargo flow and economy**.
+
+## 2026-09-24 — Phase 7: Cargo flow and economy
+
+- **Data** (`src/data/cargo.ts`, `src/data/finance.ts`, `src/data/industries.ts`,
+  `src/data/stations.ts`, `src/data/trains.ts`): added `urgency` per cargo (SPEC §8.1's revenue
+  `expected` formula), `CARLOAD_UNITS = 20`, `MIN_REVENUE_DISTANCE_TILES = 3`,
+  `waitingDecayThresholdDays(cargo)` (30 general / 10 passengers / 15 mail, SPEC §6.3) and
+  `WAITING_DECAY_RATE_PER_DAY = 0.05`; `recipeMode: "all" | "any"` per industry (steel mill needs
+  *both* coal and ore, food plant/factory/sawmill/refinery take *either* listed input) plus
+  `INDUSTRY_INPUT_STORAGE_CAP = 240`; `loadSpeedMult` per station type and
+  `TICKS_PER_CAR_HANDLED`/`MIN_LOADING_TICKS`/`OVERLENGTH_SLOWDOWN_MULT`/
+  `DEFAULT_FULL_LOAD_MAX_WAIT_DAYS` replacing the old placeholder `TRAIN_LOADING_TICKS`; the full
+  SPEC §9 ledger shape (`LedgerPeriod`) and loan/net-worth constants.
+- **Cargo accrual & decay** (`src/sim/economy/cargoFlow.ts`, `accrueDailyCargo`, called once per
+  in-game day from `src/sim/tick.ts`): each station's waiting pile per cargo grows by
+  `stationEconomy.supply[cargo] / 30` (the existing monthly "capacity" figure from Phase 5,
+  unchanged), capped at that station type's `storagePerCargo`; a pile decays 5%/day once its
+  `waitingDays` (consecutive days without any of it being *picked up*, not a true per-unit FIFO
+  age — SPEC's "cargo older than 30 days" is a bulk-pile concept anyway) exceeds its threshold.
+  `state.stationCargo: Map<stationId, Partial<Record<CargoType, {amount, waitingDays}>>>` is new
+  `GameState`.
+- **Processing chains** (`src/sim/economy/processing.ts`): `computeStationEconomies`
+  (`src/sim/stations/economy.ts`, Phase 5) now takes an optional `industryEconomy` map and uses
+  each industry's dynamic `monthlyOutput` instead of the static `produces` table when present — raw
+  producers' `monthlyOutput` is always `produces` (set at creation); a processor's is recomputed
+  every month from its accumulated `inputStock` via `processIndustryMonth` (the `recipeMode`
+  interpreter) and starts at `{}` until its first month of real deliveries, matching SPEC §8.2's
+  "appears... the following month". Delivered cargo credits every consuming industry in the
+  *unloading* station's catchment by a full carload (`src/sim/trains/loading.ts`'s `applyUnload`),
+  on top of the revenue that delivery always earns — a station doesn't need to "be" an industry to
+  earn money for hauling its inputs there.
+- **Loading/unloading & revenue** (`src/sim/trains/loading.ts`, `stepLoading` — called every tick a
+  train's status is `loading`, replacing Phase 6's fixed-tick placeholder in
+  `src/sim/trains/movement.ts`): dwell time is computed lazily on arrival from how many cars
+  actually need handling (`TICKS_PER_CAR_HANDLED × station's loadSpeedMult × 2 if overlength`,
+  floored at `MIN_LOADING_TICKS`), not a flat constant. `"passThrough"` departs immediately.
+  `"auto"`/`"fullLoad"` unload any loaded car whose cargo the station accepts (SPEC §6.3: cargo the
+  station doesn't accept just stays on the train) and load any empty car whose cargo is both
+  available in the station's waiting pile (≥1 carload) *and* accepted at some **other** stop in the
+  train's order list — a car never picks up something it can't ever deliver. `"unloadOnly"` skips
+  the load half. `"fullLoad"` re-checks once a day (supply keeps accruing) until every car is full or
+  `maxWaitDays`/the 14-day default is hit, then departs with whatever it has. Revenue
+  (`computeRevenue`) is SPEC §8.1's formula exactly — `expected = distanceTiles/2 × urgency + 2`,
+  the two-piece `timeFactor`, era inflation, difficulty multiplier — with distance the Euclidean
+  tile distance between the car's `loadedTile` and the unloading station; under 3 tiles pays $0 but
+  still unloads. Each delivery pushes a `{stationId, cargoType, revenue}` onto
+  `state.pendingDeliveries` for the UI to drain into a floating label, and calls
+  `addRevenue`/`state.cash +=` directly. Movement's speed model now uses each car's real weight
+  (`CAR_WEIGHT_LOADED` vs `CAR_WEIGHT_EMPTY`, both already defined in Phase 6 but unused until a car
+  could actually be loaded) instead of always-empty.
+- **Finance** (`src/sim/finance/`): `ledger.ts`'s `monthlyFinanceStep` (called at each month
+  boundary from `src/sim/tick.ts`) charges track/station/train maintenance (era-inflated, summed
+  from every edge/station/train currently on the map — no more hardcoded placeholder) and monthly
+  loan interest, then runs SPEC §9.4 bankruptcy: a forced loan up to the credit limit if cash is
+  negative at month-end, 3 consecutive still-negative months (Normal/Hard only — Easy never sets
+  `bankrupt`) trips `state.finance.bankrupt`. `netWorth` is cash − loans + 50% of cumulative
+  `capitalInvested` (tracked in `commands.ts`: added on every track/station build or upgrade,
+  subtracted by the *original* cost — not just the 25% refund — on bulldoze) + every train's
+  `purchasePrice` depreciated 5%/year from its own `purchaseTick`, floored at 10%. `takeLoan`/
+  `repayLoan` (new commands) move cash in $100k increments, gated by `computeCreditLimit` (50% of
+  net worth, min $500k). A capped (`NET_WORTH_HISTORY_MAX_SAMPLES = 480`, 40 years) monthly
+  `{tick, cash, netWorth}` sample feeds the finance panel's chart.
+- **UI**:
+  - Floating `+$` labels (`src/render/deliveryLabels.ts`): `src/main.ts`'s `tickOnce` drains
+    `pendingDeliveries` into a short-lived `FloatingLabel[]` stamped with a real (`performance.now()`)
+    start time — kept out of `src/sim` entirely, matching CLAUDE.md's "renderers never mutate state,
+    sim stays pure" split the other way round (a render-only concern reading sim output, not the sim
+    depending on wall-clock time). Rises/fades over 1.4 real seconds, cargo-colored with a dark
+    stroke for legibility against any terrain. **Pitfall hit**: the label is drawn correctly on the
+    first attempt but is easy to accidentally bury — placing a test's coal mine/steel mill directly
+    *above* the station (the natural "adjacent tile" choice for a depot's 3×3 catchment) put the
+    industry's own dark icon exactly where the label rises through, and its `#2A2A2A` (coal) color
+    nearly matches the industry's dark palette. Fixed by offsetting industries diagonally instead of
+    straight up in the e2e scenarios; added a `getFloatingLabels()` debug hook (used to confirm the
+    label array itself was correct throughout, ruling out a real rendering bug) that's also just a
+    generically useful test hook going forward.
+  - Station panel (`src/ui/stationPanels.ts`): the Phase 5 "waiting cargo" placeholder is now real
+    bars (`cargo-bar-row`/`-track`/`-fill`/`-value`, cargo-colored fill, `amount/cap` label) fed by
+    `state.stationCargo`. Train panel (`src/ui/trainPanels.ts`): each consist chip now shows
+    `Empty (Coal)` dimmed vs. solid `Coal` per car's `loaded` flag.
+  - Finance panel (`src/ui/financePanel.ts`, new, opened by tapping the top bar's cash figure):
+    cash/net worth/loans/credit limit, Borrow/Repay $100k buttons, a small canvas line chart (cash
+    in green, net worth in gold, plain min/max-scaled polylines — no chart library, matches the
+    project's "no extra runtime deps" rule) fed by `netWorthHistory`, and this-year/last-year ledger
+    tables reusing the same row layout. A "Yearly Report" button opens the dialog on demand.
+  - Yearly report (`src/ui/yearlyReport.ts`, new): opens automatically at the year boundary
+    (`src/main.ts`'s `tickOnce`, only if no other panel is already open, so it never steals focus
+    mid-interaction) showing the *just-completed* year's net profit headline (green/red) and full
+    ledger breakdown, `finance.lastYear` — the rollover in `yearlyFinanceRollover` happens before
+    this check in the same tick, so `lastYear` is already the right period and the *current*
+    calendar year is one past it.
+- **Carry-overs from the Phase 6 review, fixed**:
+  - Train visuals (`src/render/trains.ts`, `src/render/palette.ts`): steam locos are now a proper
+    small assembly — boiler cylinder (with 3 lighter bands) between a smokebox nose/chimney at the
+    *front* (direction of travel) and a boxier cab + tender at the *rear* (the Phase 6 code had
+    these reversed: chimney toward the back, cab toward the front, which combined with an
+    all-dark-toned palette read as "one plain black rectangle" at zoom 2 exactly as the review
+    flagged). Diesel/electric got rounded-rect bodies, a stripe/roof-band accent, and a brighter
+    pantograph color for visibility. Cars are rounded rectangles, cargo-colored when `loaded`, a
+    neutral grey (`CAR_EMPTY_COLOR`) when not — real information now that cars can actually be
+    empty or full, not just a car-type color regardless of load.
+  - Car bunching right after departure (`src/sim/trains/movement.ts`/`types.ts`): a new
+    `Train.lastApproachNode` records the node a train arrived at a station *from*; `tryRoute`
+    prepends it to a fresh post-departure route (only when `route` is literally `[start]`, i.e. a
+    genuine station departure — never for a mid-journey reroute, which already has real history)
+    and sets `routeIndex = 1` instead of `0`. This gives `render/trains.ts`'s existing
+    walk-backward-along-route car-layout logic one real tile of "behind the station" track to use
+    immediately, instead of clamping at the station tile until the train has physically covered
+    enough distance itself. Verified with a screenshot taken at the exact tick of a *second*
+    departure (found by polling train status transitions) showing 4 cars laid out properly along
+    the approach track rather than bunched at the loco.
+  - Buy Train dialog padding (`index.html`): `.panel-body`'s reserved bottom padding and
+    `.panel-actions`' matching negative margin were both `64px`, but the footer's actual rendered
+    height (measured via a throwaway Playwright script: `.panel-actions`' bounding box) is `66px` —
+    a real, if small, miscalibration that meant the last two pixels of a fully-scrolled panel's
+    content could sit under the pinned button. Fixed to `66px` on both. Separately, `.train-car-picker`
+    (13 possible cargo chips) had no `max-height`/`overflow-y` of its own unlike the loco/orders
+    lists right next to it in the same dialog — that inconsistency, not the 2px footer mismatch, was
+    the real cause of the reviewer's screenshot showing cars cut off behind the Buy button (the whole
+    dialog's content was simply taller than 316px with an uncapped 4-row chip block in the middle of
+    it). Capped it the same way (`max-height: 84px; overflow-y: auto`).
+- **Balance** (`tests/sim/balance.test.ts`, hand-built synthetic maps, Normal difficulty, 1848 start,
+  `american-4-4-0` loco throughout — cheap and available from turn one):
+
+  | Route | Capital | Rev/yr (yr 2) | Costs/yr (yr 2) | Profit/yr (yr 2) | 2-yr net |
+  |---|---|---|---|---|---|
+  | Coal mine → Steel mill (12 tiles, 4 coal cars) | $64.4k | $71.7k | $9.6k | ~$62k | **+$55.0k** |
+  | Two-city passenger shuttle (12 tiles, 2× 40k-pop cities, 4 pax cars) | $74.2k | $519.0k | $14.1k | ~$505k | **+$907.8k** |
+
+  Both clear "profitable within 2 in-game years" with real margin (coal ~86% ROI on capital over 2
+  years; the passenger route is dramatically more profitable per train because it's the SPEC-
+  correct combination of a higher `baseRate`, urgency-1.0 short `expected` time, *and* genuinely
+  bidirectional carriage — both cities supply **and** accept passengers, so every round trip is
+  paid in both directions, unlike the coal route's empty return leg). No data-table tuning was
+  needed — both formulas as specified in SPEC §8.1 produced healthy, not razor-thin, margins on the
+  first real run.
+  **Upper-bound sanity** (also in `balance.test.ts`): 2 coal trains sharing one mine's limited
+  supply, and 3 passenger trains sharing one 2-city route's limited supply, both stay *under*
+  starting cash (`$1M` for the 2-coal-train case) or well under 10× it — adding more trains than a
+  route's actual cargo supply can feed doesn't scale revenue, it just adds maintenance cost per
+  idle/lightly-loaded train (the 3-passenger-train run actually nets slightly *negative* over 2
+  years vs. one train's `+$907.8k`, since three trains compete for the same fixed daily passenger
+  supply while each still pays full purchase + upkeep) — confirms the economy is self-limiting
+  rather than a money-printer that rewards blindly stacking trains on one route.
+- Screenshots (all in `docs/screenshots/`, looked at each one):
+  - `phase-7-coal-train-zoom2.png`: 4 coal cars trailing a steam loco at zoom 2 — the redesigned
+    loco (boiler bands, cab, chimney) clearly distinct from the Phase 6 "black rectangle".
+  - `phase-7-passenger-train-zoom1.5.png`: a 4-car passenger train (light/white cars, high contrast)
+    approaching a city, with a `+$5k` floating label caught mid-fade right next to it.
+  - `phase-7-delivery-label.png`: a coal delivery's `+$2k` label clearly on-screen above the
+    receiving station (industries placed diagonally off the station specifically so the label
+    doesn't render over their own dark icon — see the "pitfall hit" note above).
+  - `phase-7-station-waiting-cargo.png`: the station panel's waiting-cargo section, scrolled into
+    view, showing `Coal 20/40` with a half-filled bar.
+  - `phase-7-finance-panel.png`: cash/net worth/loans/credit-limit rows, Borrow/Repay buttons, and
+    the (still mostly flat, this early in a fresh game) cash/net-worth chart with its legend.
+  - `phase-7-yearly-report.png`: "1848 Year in Review" with a red `Net profit: -$90k` headline (an
+    idle track+station network with no trains bought, so pure maintenance cost — a believable,
+    correctly-computed number, not a bug) and the full revenue/expense breakdown.
+  - Also regenerated (train rendering changed everywhere trains appear, and one Phase 5/6 panel's
+    content genuinely changed): `phase-6-train-moving-zoom1.5/2.png`, `phase-6-double-track-
+    passing.png`, `phase-6-train-waiting-signal.png`, `phase-6-train-panel.png` (now shows an
+    `Empty (Coal)` chip), `phase-6-buy-train-dialog.png` (car-picker scroll fix); `phase-5-station-
+    panel.png` (now shows "Nothing waiting." instead of the old placeholder sentence). All other
+    phases' screenshots were reverted (`git checkout -- docs/screenshots/phase-{0,1,1.1,3,4}-*` plus
+    three untouched Phase 5 ones) after a full `npm run e2e` run regenerated them with only
+    incidental animation-timing noise, no real content change.
+- Known issues / deviations: see `docs/SPEC.md`'s Deviations section (car-type-per-cargo carried
+  forward from Phase 6, 3-bucket ledger instead of per-cargo-type, station loading-speed/full-load-
+  wait defaults not specified by SPEC, station improvements still inert pending Phase 9, net worth's
+  rolling-stock value keyed to each train's own purchase price rather than current catalog price).
+  Also: waiting-cargo bars and current-load chips are a snapshot from when the panel was opened —
+  like every other panel in the game so far, they don't live-refresh while left open during active
+  play; re-open to see current numbers.
+- Tests: 42 new unit tests — `tests/sim/economy/{cargoFlow,processing}.test.ts` (accrual/decay/caps;
+  steel mill's both-inputs recipe vs. food plant/factory's either-input recipe, output capped at
+  monthly capacity, leftover stock carries over), `tests/sim/trains/loading.test.ts` (the revenue
+  formula table-driven against hand-computed expected values, all four loading rules, the
+  under-minimum-distance $0 case, cargo-not-accepted stays on the train), `tests/sim/finance/
+  ledger.test.ts` (maintenance charges, interest, the forced-loan-then-bankruptcy sequence, Easy's
+  bankruptcy immunity, net worth's construction term and rolling-stock depreciation),
+  `tests/sim/commands.test.ts` additions (loan increment/limit validation), `tests/sim/tick.test.ts`
+  (a full year, same seed + command log → byte-identical cash/finance/train state, via the new
+  shared `advanceOneHour` tick entrypoint both `main.ts` and tests now call instead of duplicating
+  the day/month/year boundary logic), and `tests/sim/balance.test.ts` (the PLAN-mandated acceptance
+  test — both routes profitable within 2 years, plus the upper-bound sanity check). 187 unit tests
+  total (145 → 187), all green. 7 new e2e specs (`e2e/economy.spec.ts`, 26 total) covering all of
+  the above end-to-end through the real UI, plus 3 new debug hooks (`debugPlaceIndustry`/
+  `debugPlaceCity` to build deterministic economy scenarios on any seed without hunting for real
+  map-gen placements; `getFloatingLabels`/`getTrainCars`/`getStationCargo`/`getFinance`/`takeLoan`/
+  `repayLoan` for inspection and control). `npm run check` and `npm run e2e` both green.
+- Next: **Phase 8 — Eras and technology**.

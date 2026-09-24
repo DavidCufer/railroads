@@ -15,6 +15,8 @@ const SPEED_LABELS: Record<GameSpeed, string> = { 0: "⏸", 1: "1×", 2: "2×", 
 export interface TopBarHandlers {
   onSetSpeed: (speed: GameSpeed) => void;
   getSpeed: () => GameSpeed;
+  /** Tapping the cash figure opens the Finance panel (SPEC §10.1). */
+  onOpenFinance: () => void;
 }
 
 export interface TopBarController {
@@ -24,7 +26,7 @@ export interface TopBarController {
 
 export function createTopBar(container: HTMLElement, handlers: TopBarHandlers): TopBarController {
   const dateEl = h("span", { className: "date" }, "");
-  const cashEl = h("button", { className: "cash" }, "");
+  const cashEl = h("button", { className: "cash", onClick: () => handlers.onOpenFinance() }, "");
 
   const speedButtons = new Map<GameSpeed, HTMLButtonElement>();
   const speedGroup = h(

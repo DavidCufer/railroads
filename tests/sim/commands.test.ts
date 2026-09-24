@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { BULLDOZE_REFUND_FRACTION, DOUBLE_TRACK_UPGRADE_MULTIPLIER } from "../../src/data/track";
-import { buildTrack, bulldoze, upgradeTrack } from "../../src/sim/commands";
+import { LOAN_INCREMENT } from "../../src/data/finance";
+import {
+  buildTrack,
+  bulldoze,
+  creditLimit,
+  repayLoan,
+  takeLoan,
+  upgradeTrack,
+} from "../../src/sim/commands";
 import { makeTestMap, makeTestState, tileAt } from "./track/helpers";
 
 describe("buildTrack", () => {
@@ -158,5 +166,66 @@ describe("bulldoze", () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.reason).toBe("nothing-to-bulldoze");
+  });
+});
+
+describe("loans", () => {
+  it("takeLoan adds cash and increases the loan balance by the same amount", () => {
+    const map = makeTestMap(["p"]);
+    const state = makeTestState(map);
+    const cashBefore = state.cash;
+
+    const result = takeLoan(state, LOAN_INCREMENT);
+
+    expect(result.ok).toBe(true);
+    expect(state.finance.loans).toBe(LOAN_INCREMENT);
+    expect(state.cash).toBe(cashBefore + LOAN_INCREMENT);
+  });
+
+  it("rejects amounts that aren't a positive multiple of the loan increment", () => {
+    const map = makeTestMap(["p"]);
+    const state = makeTestState(map);
+    expect(takeLoan(state, 50_000).ok).toBe(false);
+    expect(takeLoan(state, 0).ok).toBe(false);
+    expect(takeLoan(state, -LOAN_INCREMENT).ok).toBe(false);
+  });
+
+  it("refuses a loan that would exceed the credit limit", () => {
+    const map = makeTestMap(["p"]);
+    const state = makeTestState(map, { cash: 0 });
+    const limit = creditLimit(state);
+
+    const tooMuch = Math.ceil((limit + LOAN_INCREMENT) / LOAN_INCREMENT) * LOAN_INCREMENT;
+    const result = takeLoan(state, tooMuch);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.reason).toBe("credit-limit-exceeded");
+  });
+
+  it("repayLoan reduces cash and the loan balance together", () => {
+    const map = makeTestMap(["p"]);
+    const state = makeTestState(map);
+    takeLoan(state, LOAN_INCREMENT * 2);
+    const cashBefore = state.cash;
+
+    const result = repayLoan(state, LOAN_INCREMENT);
+
+    expect(result.ok).toBe(true);
+    expect(state.finance.loans).toBe(LOAN_INCREMENT);
+    expect(state.cash).toBe(cashBefore - LOAN_INCREMENT);
+  });
+
+  it("repayLoan never pays back more than is owed", () => {
+    const map = makeTestMap(["p"]);
+    const state = makeTestState(map);
+    takeLoan(state, LOAN_INCREMENT);
+
+    const result = repayLoan(state, LOAN_INCREMENT * 5);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.cost).toBe(LOAN_INCREMENT);
+    expect(state.finance.loans).toBe(0);
   });
 });
