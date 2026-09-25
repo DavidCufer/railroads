@@ -116,6 +116,43 @@ test.describe("Phase 10 — real-world regions", () => {
     expect(consoleErrors).toEqual([]);
   });
 
+  test("us-west loads and renders at overview and closeup zoom", async ({ page }) => {
+    const consoleErrors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") consoleErrors.push(msg.text());
+    });
+    page.on("pageerror", (err) => consoleErrors.push(err.message));
+
+    await page.setViewportSize(PHONE_VIEWPORT);
+    await page.goto("/?debug=1");
+    await page.waitForFunction(() => window.__game !== undefined);
+
+    await page.evaluate(() => {
+      window.__game?.regenerate({ seed: 1, region: "us-west" });
+    });
+
+    const map = await page.evaluate(() => window.__game?.getMap());
+    expect(map?.width).toBe(136);
+    expect(map?.height).toBe(144);
+
+    await page.evaluate(() => window.__game?.camera.setZoom(0.25));
+    await page.evaluate(() => window.__game?.camera.setCenter(2176, 2304));
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: "docs/screenshots/phase-10-us-west-overview.png" });
+
+    // Closeup on San Francisco (id 0) at zoom 2 — shows the Bay.
+    const sfCenter = await page.evaluate(() => window.__game?.getCityWorldCenter(0));
+    expect(sfCenter).not.toBeNull();
+    if (sfCenter) {
+      await page.evaluate((c) => window.__game?.camera.setCenter(c.x, c.y), sfCenter);
+      await page.evaluate(() => window.__game?.camera.setZoom(2));
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: "docs/screenshots/phase-10-us-west-closeup.png" });
+    }
+
+    expect(consoleErrors).toEqual([]);
+  });
+
   test("Chicago is absent from the city list before 1833 and founded news fires once its year arrives", async ({
     page,
   }) => {

@@ -1776,3 +1776,44 @@ Frankfurt/Prague/Nuremberg/Munich/Salzburg all correctly relatively positioned).
 
 - `npm run check` (254 unit tests) and the full `npm run e2e` (41 specs) both green.
 - Next: **us-west region** (Phase 10.4).
+
+## Phase 10.4 — us-west region (all four regions now land)
+
+**us-west** (bounds fixed by SPEC's table: −125…−104 lon, 32…49 lat; grid **136×144**, matching
+`(21°·cos(40.5°))/17° ≈ 0.94 ≈ 136/144`). Start year 1860 (SPEC's default for this region). All 16
+SPEC-listed cities. **Five founding-year cities** — Boise (1863), Cheyenne (1867), Phoenix and Reno
+(both 1868), Spokane (1871) — more than any other region, which fits: the interior West really was
+settled later than the coasts, so this region exercises the founding mechanic hardest. The one
+snap-distance bug this region surfaced: Santa Fe's real coordinates sit almost exactly on the
+southern Rocky Mountains ridge point I'd picked, so it got swallowed into "mountain" terrain and
+snapped 2.46 tiles away — fixed by nudging that ridge point ~0.5° away from the city (same class of
+bug as gb's Cardiff, different cause: mountain-radius overlap instead of a coastline notch). Every
+other city landed within 1.2 tiles.
+
+**Sierra Nevada** (peak elevation 8, SPEC's own example) and **Rocky Mountains** (peak elevation 9)
+are both obvious as a continuous arc at overview zoom — confirmed in a wide (1400×1100, not
+committed) inspection screenshot showing the Sierra as a thin north-south ridge west of the Great
+Basin and the Rockies as a much broader arc curving from New Mexico up through Wyoming. Added a
+smaller Cascades range (Oregon/Washington, elevation 7 — not in SPEC's example list, but cheap given
+the pipeline already exists) for Pacific Northwest texture; it reads more as "hilly forest" than a
+sharp range at this scale, which is an acceptable secondary feature since it wasn't the requirement.
+**Great Salt Lake** (a `lakes` polygon just northwest of Salt Lake City) and **San Francisco Bay** (a
+notch in the coastline, with the Sacramento River flowing into it) are both clearly visible in the
+committed overview/closeup screenshots. Resource zones: Central Valley farmland, Rockies coal, High
+Plains ranching, Southern California oil (era 1860 — the start year — so it's live from turn one,
+unlike the other regions' oil zones which unlock in 1880).
+
+**Screenshots** (`e2e/regions.spec.ts`, 800×360): `phase-10-us-west-overview.png` (zoom 0.25,
+centered near Salt Lake City — the lake is unmistakable right next to it).
+`phase-10-us-west-closeup.png` (zoom 2 on San Francisco — coastline and the bay inlet both in frame).
+
+**Tests**: `us-west` added to `tests/mapgen/build.test.ts`'s shared `REGIONS` array; a
+`loadRegion(us-west)` case in `tests/sim/regions/load.test.ts` asserts all five founding-year
+cities are queued as pending by name; `e2e/regions.spec.ts` gained the load/screenshot test. All four
+SPEC-listed regions (us-east, gb, central-eu, us-west) now exist under `src/data/regions/`.
+
+**Bundle size**: now 4 regions statically imported — `npm run build`'s >500KB chunk warning is
+unchanged in kind from Phase 10.3's note (still deferred to Phase 12).
+
+- `npm run check` (262 unit tests) and the full `npm run e2e` (42 specs) both green.
+- Next: **Title/main menu + New Game screen** (Phase 10.5).

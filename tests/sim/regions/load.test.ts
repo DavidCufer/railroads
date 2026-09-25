@@ -70,6 +70,17 @@ describe("loadRegion(central-eu)", () => {
   });
 });
 
+describe("loadRegion(us-west)", () => {
+  it("queues five founding-year cities as pending", () => {
+    const region = getRegion("us-west");
+    const loaded = loadRegion(region);
+    const foundingNames = loaded.pendingCityFoundings
+      .map((p) => loaded.cities.find((c) => c.id === p.cityId)?.name)
+      .sort();
+    expect(foundingNames).toEqual(["Boise", "Cheyenne", "Phoenix", "Reno", "Spokane"].sort());
+  });
+});
+
 describe("createGameState with a region", () => {
   it("builds a playable GameState from us-east", () => {
     const state = createGameState({ seed: 1, region: "us-east" });

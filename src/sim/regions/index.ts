@@ -3,6 +3,7 @@
 import usEast from "../../data/regions/us-east.json";
 import gb from "../../data/regions/gb.json";
 import centralEu from "../../data/regions/central-eu.json";
+import usWest from "../../data/regions/us-west.json";
 import type { RegionId, RegionJson } from "./types";
 
 export { REGION_IDS, type RegionId } from "./types";
@@ -12,6 +13,7 @@ export const REGIONS: Partial<Record<RegionId, RegionJson>> = {
   "us-east": usEast as RegionJson,
   gb: gb as RegionJson,
   "central-eu": centralEu as RegionJson,
+  "us-west": usWest as RegionJson,
 };
 
 export function getRegion(id: RegionId): RegionJson {
