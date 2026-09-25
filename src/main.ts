@@ -768,6 +768,7 @@ function main(): void {
             setZoom: (zoom: number) => void;
             pan: (dxScreen: number, dyScreen: number) => void;
             setCenter: (worldX: number, worldY: number) => void;
+            getCenter: () => { x: number; y: number };
           };
           getCash: () => number;
           getTrackEdges: () => Array<{
@@ -881,6 +882,7 @@ function main(): void {
           );
         },
         pan: (dxScreen, dyScreen) => camera.pan(dxScreen, dyScreen),
+        getCenter: () => ({ x: camera.x, y: camera.y }),
         setCenter: (worldX, worldY) => {
           camera.x = worldX;
           camera.y = worldY;
@@ -1007,6 +1009,7 @@ function main(): void {
           monthlyOutput: isRaw ? { ...def.produces } : {},
         });
         refreshStationEconomy(state);
+        state.mapContentVersion++; // this industry needs to be baked into the terrain chunk cache
         return id;
       },
       debugPlaceCity: (tiles, population) => {
@@ -1025,6 +1028,7 @@ function main(): void {
         for (const t of tiles) state.map.cityId[t] = id;
         state.cities.push(city);
         refreshStationEconomy(state);
+        state.mapContentVersion++; // this city needs to be baked into the terrain chunk cache
         return id;
       },
       getFloatingLabels: () =>

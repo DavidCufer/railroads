@@ -31,7 +31,12 @@ export interface MiniMapRect {
 }
 
 export const MINIMAP_SIZE_PX = 120;
-const MINIMAP_MARGIN = 8;
+const MINIMAP_MARGIN_BOTTOM = 8;
+/** Clear of the left build toolbar's column (SPEC §10.1 puts both "bottom-left" — the toolbar is a
+ * full-height column at `left:8px` that's ~56px wide, so the mini-map starts past it rather than
+ * sitting underneath/behind it; matches the debug seed/size controls' own `left:68px` convention
+ * for "just clear of the toolbar"). */
+const MINIMAP_MARGIN_LEFT = 68;
 
 export class MiniMapRenderer {
   private map: GameMap;
@@ -117,8 +122,8 @@ export class MiniMapRenderer {
     const width = sizePx;
     const height = Math.max(1, Math.round(sizePx * aspect));
     return {
-      x: MINIMAP_MARGIN,
-      y: viewportH - MINIMAP_MARGIN - height,
+      x: MINIMAP_MARGIN_LEFT,
+      y: viewportH - MINIMAP_MARGIN_BOTTOM - height,
       width,
       height,
     };

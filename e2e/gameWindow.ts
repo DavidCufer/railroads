@@ -53,6 +53,7 @@ export interface GameWindow {
     setZoom: (zoom: number) => void;
     pan: (dxScreen: number, dyScreen: number) => void;
     setCenter: (worldX: number, worldY: number) => void;
+    getCenter: () => { x: number; y: number };
   };
   getCash: () => number;
   getTrackEdges: () => Array<{

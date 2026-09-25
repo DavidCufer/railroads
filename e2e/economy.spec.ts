@@ -425,6 +425,11 @@ test.describe("Phase 7 — cargo flow and economy", () => {
     }, bought.trainId);
     expect(sawLoaded).toBe(true);
 
+    // Pause before locating/clicking the train — otherwise the real-time gap while centering the
+    // camera and clicking (a couple hundred ms of wall-clock, ticking the sim at 1x) can carry a
+    // fast-moving train just far enough past its snapshotted tile position to slip outside
+    // findTrainAt's hit radius, an intermittent miss unrelated to what this test checks.
+    await page.evaluate(() => window.__game!.setSpeed(0));
     await selectTool(page, "Info");
     const trainNow = (await page.evaluate(() => window.__game!.getTrains()))[0]!;
     await centerOn(page, trainNow.x, trainNow.y, 1.5);
