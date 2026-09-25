@@ -359,4 +359,9 @@ export const strings = {
     sizeMedium: "Medium",
     sizeLarge: "Large",
   },
+  errorBoundary: {
+    title: "Something went wrong",
+    body: "Railroads hit an unexpected error. Your progress has been saved to a recovery slot — reload and use Load Game to pick it up.",
+    reload: "Save & Reload",
+  },
 };

@@ -86,6 +86,7 @@ import { CARGO, type CargoType } from "./data/cargo";
 import { advanceOneHour } from "./sim/tick";
 import type { TrainOrder } from "./sim/trains/types";
 import type { Station } from "./sim/stations/types";
+import { debugTriggerCrash, installErrorBoundary } from "./ui/errorBoundary";
 import { openBuyTrainPanel, openTrainListPanel, openTrainPanel } from "./ui/trainPanels";
 import { createTrainListButton } from "./ui/toolbar";
 import { createNewsButton, formatNewsItem, openNewsPanel } from "./ui/newsPanel";
@@ -147,6 +148,10 @@ function main(): void {
 
   let currentOptions: NewGameOptions = DEFAULT_NEW_GAME;
   let state: GameState = createGameState(currentOptions);
+  // Installed as early as possible so it covers everything below too — an uncaught exception
+  // during map generation or the very first render is exactly the kind of thing a player should
+  // see a recovery dialog for, not a silently frozen title screen.
+  installErrorBoundary(ui, () => state);
   const camera = new Camera(state.map.width, state.map.height);
   const terrainRenderer = new TerrainRenderer(state.map, state.cities, state.industries);
   const trackRenderer = new TrackRenderer(state.map.width, state.map.height, state.trackGraph);
@@ -995,6 +1000,9 @@ function main(): void {
           getFloatingLabelCount: () => number;
           getNewsCount: () => number;
           getNetWorthHistoryCount: () => number;
+          /** Test-only (Phase 12 error-boundary spec): fires the same uncaught-exception/
+           * unhandled-rejection path a real crash would, without actually corrupting anything. */
+          debugThrow: (kind: "sync" | "async") => void;
         };
       }
     ).__game = {
@@ -1345,6 +1353,7 @@ function main(): void {
       getFloatingLabelCount: () => floatingLabels.length,
       getNewsCount: () => state.news.length,
       getNetWorthHistoryCount: () => state.finance.netWorthHistory.length,
+      debugThrow: (kind) => debugTriggerCrash(kind),
     };
   }
 }

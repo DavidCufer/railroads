@@ -1346,6 +1346,50 @@
         background: #f2b544;
         color: #1e2a38;
       }
+
+      /* Error boundary (PLAN Phase 12) — an uncaught exception/unhandled rejection shows this,
+         above absolutely everything else (even the title screen's z-index 50), and is never
+         dismissible except via its own reload button: no close X, no back-button handler, since
+         the state that would resume behind it is exactly what just broke. */
+      .error-boundary-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 999;
+        background: rgba(10, 12, 16, 0.92);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+      .error-boundary-dialog {
+        max-width: 420px;
+        width: 100%;
+        background: rgba(24, 28, 34, 0.97);
+        border: 1px solid rgba(224, 90, 79, 0.4);
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+      }
+      .error-boundary-title {
+        font: 700 18px sans-serif;
+        color: #e05a4f;
+        margin-bottom: 10px;
+      }
+      .error-boundary-body {
+        font: 13px sans-serif;
+        opacity: 0.9;
+        margin-bottom: 16px;
+      }
+      .error-boundary-reload-btn {
+        width: 100%;
+        min-height: 44px;
+        border-radius: 8px;
+        border: none;
+        background: #f2b544;
+        color: #1e2a38;
+        font: 700 14px sans-serif;
+      }
     </style>
   </head>
   <body>

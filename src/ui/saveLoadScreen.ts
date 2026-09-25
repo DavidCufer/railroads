@@ -6,6 +6,7 @@
  */
 import {
   AUTO_SLOT_IDS,
+  EMERGENCY_SLOT_ID,
   MANUAL_SLOT_IDS,
   deleteSlot,
   listSaveSlots,
@@ -47,8 +48,6 @@ function slotDetail(meta: SaveMeta): string {
 export function renderSaveLoadScreen(handlers: SaveLoadScreenHandlers): HTMLElement {
   const s = strings.saveLoad;
   const root = h("div", { className: "save-load-screen" });
-  const slotIds: readonly SlotId[] =
-    handlers.mode === "save" ? MANUAL_SLOT_IDS : [...AUTO_SLOT_IDS, ...MANUAL_SLOT_IDS];
 
   async function refresh(): Promise<void> {
     let slots: SaveSlotInfo[] = [];
@@ -62,6 +61,18 @@ export function renderSaveLoadScreen(handlers: SaveLoadScreenHandlers): HTMLElem
   }
 
   function renderList(bySlot: Map<SlotId, SaveMeta>): void {
+    // The emergency slot (PLAN Phase 12) only ever shows as a row when it actually holds a crash
+    // save — unlike the always-present autosave/manual rows, a permanent empty "Emergency Save"
+    // row would be confusing clutter for the (overwhelmingly common) case where nothing ever
+    // crashed. It's load-only: never a manual save target, same as the autosave slots.
+    const slotIds: readonly SlotId[] =
+      handlers.mode === "save"
+        ? MANUAL_SLOT_IDS
+        : [
+            ...(bySlot.has(EMERGENCY_SLOT_ID) ? [EMERGENCY_SLOT_ID] : []),
+            ...AUTO_SLOT_IDS,
+            ...MANUAL_SLOT_IDS,
+          ];
     const rows = slotIds.map((slotId) => {
       const meta = bySlot.get(slotId);
       const label = slotLabel(slotId, meta);

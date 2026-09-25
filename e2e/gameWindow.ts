@@ -162,6 +162,7 @@ export interface GameWindow {
   getFloatingLabelCount: () => number;
   getNewsCount: () => number;
   getNetWorthHistoryCount: () => number;
+  debugThrow: (kind: "sync" | "async") => void;
 }
 
 declare global {

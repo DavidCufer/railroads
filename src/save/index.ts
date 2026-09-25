@@ -9,6 +9,7 @@ import { migrateSaveFile } from "./migrate";
 import { CURRENT_SAVE_VERSION, type SaveFileV1, type SaveMeta } from "./format";
 import {
   AUTO_SLOT_IDS,
+  EMERGENCY_SLOT_ID,
   MANUAL_SLOT_IDS,
   deleteSave,
   getAllSaves,
@@ -22,7 +23,7 @@ import { REGIONS } from "../sim/regions";
 import { calendarFromTicks } from "../sim/time";
 
 export type { SlotId, AutoSlotId, ManualSlotId } from "./db";
-export { AUTO_SLOT_IDS, MANUAL_SLOT_IDS, isAutoSlot } from "./db";
+export { AUTO_SLOT_IDS, MANUAL_SLOT_IDS, EMERGENCY_SLOT_ID, isAutoSlot } from "./db";
 export type { SaveMeta } from "./format";
 
 export interface SaveSlotInfo {
@@ -83,6 +84,14 @@ export async function autosave(state: GameState): Promise<SlotId> {
   return slot;
 }
 
+/** Written by the error boundary (PLAN Phase 12) right before it shows the "Save & Reload" dialog
+ * — a fixed, dedicated slot (never rotates, never collides with a monthly autosave or a manual
+ * save) so a crash's recovery point survives until the player explicitly loads or overwrites it.
+ * Named distinctly so it stands out on the Load screen. */
+export async function emergencySave(state: GameState): Promise<void> {
+  await putSave(EMERGENCY_SLOT_ID, buildSaveFile(state, "Emergency Save"));
+}
+
 export async function saveToSlot(
   state: GameState,
   slotId: ManualSlotId,
@@ -107,7 +116,7 @@ export async function deleteSlot(slotId: SlotId): Promise<void> {
 export async function listSaveSlots(): Promise<SaveSlotInfo[]> {
   const all = await getAllSaves();
   const bySlot = new Map(all.map((r) => [r.slotId, r.file]));
-  const order: SlotId[] = [...AUTO_SLOT_IDS, ...MANUAL_SLOT_IDS];
+  const order: SlotId[] = [EMERGENCY_SLOT_ID, ...AUTO_SLOT_IDS, ...MANUAL_SLOT_IDS];
   const result: SaveSlotInfo[] = [];
   for (const slotId of order) {
     const raw = bySlot.get(slotId);

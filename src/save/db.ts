@@ -17,7 +17,11 @@ export const MANUAL_SLOT_IDS = [
 ] as const;
 export type AutoSlotId = (typeof AUTO_SLOT_IDS)[number];
 export type ManualSlotId = (typeof MANUAL_SLOT_IDS)[number];
-export type SlotId = AutoSlotId | ManualSlotId;
+/** A dedicated slot for the Phase 12 error boundary's crash save — distinct from the 3 rotating
+ * autosaves so a crash's recovery point is never silently overwritten by the next monthly
+ * autosave, and distinct from the 5 manual slots so it never displaces a player's named save. */
+export const EMERGENCY_SLOT_ID = "emergency" as const;
+export type SlotId = AutoSlotId | ManualSlotId | typeof EMERGENCY_SLOT_ID;
 
 export function isAutoSlot(id: SlotId): id is AutoSlotId {
   return (AUTO_SLOT_IDS as readonly string[]).includes(id);
