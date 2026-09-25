@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CITY_PASSENGER_SUPPLY_DIVISOR } from "../../../src/data/cities";
 import { INDUSTRIES } from "../../../src/data/industries";
 import { STATION_ACCEPTANCE_THRESHOLD } from "../../../src/data/stations";
 import { computeStationEconomies, previewStationEconomy } from "../../../src/sim/stations/economy";
@@ -147,7 +148,7 @@ describe("computeStationEconomies — supply", () => {
     };
 
     const result = computeStationEconomies(map, [city], [], [stationA, stationB], 1830);
-    const expectedEach = city.population / 250 / 2;
+    const expectedEach = city.population / CITY_PASSENGER_SUPPLY_DIVISOR / 2;
     expect(result.get(0)!.supply.passengers).toBeCloseTo(expectedEach, 1);
     expect(result.get(1)!.supply.passengers).toBeCloseTo(expectedEach, 1);
   });

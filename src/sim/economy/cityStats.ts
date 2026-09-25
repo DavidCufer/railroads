@@ -1,6 +1,10 @@
 /** Pure display stats derived from a city (SPEC §8.3) — no station coverage yet (Phase 5+). */
 import type { CargoType } from "../../data/cargo";
-import type { CityTier } from "../../data/cities";
+import {
+  CITY_MAIL_SUPPLY_DIVISOR,
+  CITY_PASSENGER_SUPPLY_DIVISOR,
+  type CityTier,
+} from "../../data/cities";
 import type { City } from "./types";
 
 export interface CitySupply {
@@ -8,11 +12,11 @@ export interface CitySupply {
   mail: number;
 }
 
-/** Supply per month if fully covered by stations (SPEC §8.3: passengers = pop/250, mail = pop/800). */
+/** Supply per month if fully covered by stations (SPEC §8.3, tuned — see cities.ts). */
 export function citySupply(city: City): CitySupply {
   return {
-    passengers: Math.round(city.population / 250),
-    mail: Math.round(city.population / 800),
+    passengers: Math.round(city.population / CITY_PASSENGER_SUPPLY_DIVISOR),
+    mail: Math.round(city.population / CITY_MAIL_SUPPLY_DIVISOR),
   };
 }
 
@@ -23,8 +27,8 @@ export function citySupply(city: City): CitySupply {
 export function cityTileSupply(city: City): CitySupply {
   const tiles = city.tiles.length;
   return {
-    passengers: city.population / 250 / tiles,
-    mail: city.population / 800 / tiles,
+    passengers: city.population / CITY_PASSENGER_SUPPLY_DIVISOR / tiles,
+    mail: city.population / CITY_MAIL_SUPPLY_DIVISOR / tiles,
   };
 }
 

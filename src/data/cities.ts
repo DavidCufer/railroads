@@ -22,6 +22,15 @@ export const CITY_TIER_DEFS: Record<CityTier, CityTierDef> = {
 /** Minimum spacing (tiles, anchor to anchor) between two cities (SPEC §4.2 step 4). */
 export const CITY_MIN_SPACING = 8;
 
+/** Monthly passenger/mail supply per resident (SPEC §8.3: "passengers = pop/250, mail = pop/800").
+ * **Deviation (Phase 7.1 balance pass)**: SPEC's pop/250 made two decent-sized cities' passenger
+ * shuttle earn far more than any freight route (a single train could clear ~half the starting
+ * cash every year) — raised to pop/650 (passengers) / pop/1400 (mail) so a good passenger route
+ * lands in the same $80k-200k/yr/train ballpark as a good freight route instead of dwarfing it.
+ * See PROGRESS.md's Phase 7.1 entry for the measured before/after numbers. */
+export const CITY_PASSENGER_SUPPLY_DIVISOR = 650;
+export const CITY_MAIL_SUPPLY_DIVISOR = 1_400;
+
 export type CityCount = "few" | "normal" | "many";
 
 /** Target number of cities per 1,000 map tiles, by the "city count" option. */

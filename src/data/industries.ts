@@ -65,7 +65,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
     id: "ironMine",
     name: "Iron Mine",
     placement: { kind: "terrain", terrain: ["hills", "mountain"] },
-    produces: { ironOre: 50 },
+    produces: { ironOre: 60 },
     consumes: {},
     acceptancePoints: {},
     era: 1830,
