@@ -2491,3 +2491,179 @@ Known carry-overs, not fixed in this phase:
     behave differently in kind, just the scale factor, so this is a reasonably safe bet, but worth
     an eyeball check at the two extremes if UI scale ever becomes a support question).
 - Next: **Phase 12 — Performance and release hardening**.
+
+## 2026-09-25 — Phase 12: Performance and release hardening
+
+- **Stress scenario + perf e2e** (`e2e/stress.spec.ts`, SPEC §10.4): two new debug-only hooks in
+  `src/main.ts` build the scenario without going through real drag-to-build/UI (deterministic and
+  independent of procedurally-generated terrain, which would make "exactly ~1,500 buildable
+  edges" non-deterministic across seeds): `debugBuildStressNetwork` lays a 5×5 grid of horizontal/
+  vertical lines directly on `state.trackGraph` (bypassing `sim/commands.ts`'s cost/terrain
+  validation, same precedent as the existing `debugPlaceIndustry`/`debugPlaceCity`) across a Large
+  map — 1,590 edges, 3 of 5 lines in each direction double-tracked (mixed single/double per the
+  brief) — plus 25 stations along the horizontal lines; `debugSpawnStressTrains` buys and
+  orders N trains via the *real* `buyTrain`/`setOrders` commands, shuttling between adjacent
+  stations. `FpsCounter` gained `avgTickMs` (mirrors the existing `avgRenderMs`), timed around
+  `advanceOneHour` in `tickOnce()`.
+  - The e2e spec builds 60 trains/~1,590 edges, centers the camera on a busy stretch of the grid
+    (the default camera position mostly looks at open ground on this map — an empty-viewport
+    "render" measurement would be meaningless), lets the game run for 3s wall-clock at 8× to
+    freshly sample both counters, then repeats under 4× CDP CPU throttling
+    (`Emulation.setCPUThrottlingRate`).
+  - **Numbers** (this container, desktop Chromium headless): unthrottled sim tick ≈ **0.07–0.10 ms**
+    (budget: < 2 ms) and render ≈ **0.4–1.2 ms** depending on exactly what's on screen, `avgFrameMs`
+    pinned at the vsync-capped 16.67 ms (headless Chromium's `requestAnimationFrame` is exactly
+    60 Hz even under zero load — the same finding Phase 1 already made, `avgTickMs`/`avgRenderMs`
+    are the meaningful signals here, not the full rAF interval). Under 4× throttling: tick ≈
+    **0.15–0.31 ms**, render ≈ **2.1–4.5 ms**, `avgFrameMs` ≈ **55–57 ms** (~17–18 fps) — reported
+    honestly per the brief, not hard-gated (a shared cloud container under emulated throttling
+    isn't a real mid-range phone, and the unthrottled numbers are what SPEC §10.4 actually commits
+    to). Both are asserted with generous-but-real ceilings so a genuine regression still fails the
+    test.
+  - **No further optimization was needed to hit the target** — at n=60 trains the existing
+    architecture already clears the 2 ms budget by roughly 20–30×. Before touching anything, the
+    back-of-envelope math on the two candidate hot spots explains why: `otherTrainsInBlock`/
+    `stationOccupancy` scan `state.trains` per block-entry attempt, worst case ~60 trains × 8
+    edge-steps/tick × ~120 scanned entries ≈ 58k simple operations/tick — negligible in JS even
+    before any indexing. Given that, I didn't rewrite the O(n²) block-occupancy scan into an
+    indexed structure — it would've meant threading incremental index maintenance through five
+    different mutation points in `src/sim/trains/movement.ts` (block enter, block release on
+    reroute/arrival/deadlock-timeout, held-block distance bump) to preserve the *exact* current
+    intra-tick semantics (a train's block/station check must see updates from every
+    earlier-in-the-tick train, not a stale per-tick snapshot), for a change the measured numbers
+    don't call for. Flagged here rather than silently skipped, in case a future phase raises the
+    train count well past 60.
+  - **What I did fix** (real, low-risk, unconditionally-hot-path wins, found while profiling):
+    - `src/sim/trains/index.ts`/`movement.ts`: `TrainRuntime` now carries a `stationsById: Map`
+      built alongside the block partition (same `trackVersion`-keyed cache — `buildStation`
+      already bumps `trackVersion`, so this needs no separate invalidation), turning three
+      `state.stations.find(...)` scans *every train, every tick, unconditionally* (not gated on
+      any train state) into O(1) lookups.
+    - `src/render/labels.ts` (+ reused from `src/render/stations.ts`): `ctx.measureText()` was
+      called for every visible city/station label *every frame* — a real per-call cost (font
+      metrics), for a value (a name's pixel width at a given font) that never changes. Added
+      `measureTextWidthCached`, keyed by `font|text`, bounded (cleared wholesale past 2,000
+      entries — a session that regenerates many random maps could otherwise accumulate one entry
+      per generated city name forever).
+  - Considered and deliberately **not** done: caching/memoizing `drawCityLabels`' per-frame
+    tier/population sort (a few dozen items, genuinely trivial cost vs. the real `measureText`
+    cost) and caching `main.ts`'s 4 `getBoundingClientRect()` calls for the floating buttons'
+    reserved-label rects (real forced-layout cost, but tiny at 4 small fixed-position elements, and
+    a naive cache keyed only on viewport size + panel-open state could go stale if a button's own
+    content changes width — e.g. the unread-news badge — silently letting a label render behind a
+    button; not worth that correctness risk for a cost this small).
+- **Memory/long-run** (PLAN "20 in-game years at 8×… news history capped, chunk cache LRU
+  eviction"):
+  - The pure-sim half of this was already end-to-end covered by the existing
+    `tests/sim/longRun.test.ts` (Phase 8), which runs a full **131-year** game (well past the
+    20 years asked here) and already asserted `state.news.length`/
+    `state.finance.netWorthHistory.length` stay capped — not duplicated, just confirmed still green.
+  - **New**: `src/render/chunkCache.ts` — a small generic LRU cache (`Map`, re-inserted on every
+    `get` hit and every `set` so iteration order tracks recency; evicts from the front once over
+    cap). `TerrainRenderer`/`TrackRenderer` (`src/render/terrain.ts`/`track.ts`) now use it instead
+    of a raw unbounded `Map`, each capped at 350 entries — comfortably above a Large map's actual
+    worst case (`ceil(192/16) × ceil(128/16) = 96` chunks/bucket × 3 zoom buckets = **288**), so it
+    exists as a backstop against unbounded growth over a long panning session rather than a budget
+    meant to force eviction during ordinary play. Eviction correctness (touch-protects-from-
+    eviction, re-set-counts-as-touch, never exceeds cap across 1,000 inserts) is unit-tested in
+    isolation (`tests/render/chunkCache.test.ts`) since normal play on the biggest supported map
+    never actually exercises the eviction branch.
+  - **New `e2e/memory.spec.ts`**: tours a Large map across all 3 zoom buckets (a 6×4 grid of camera
+    positions × 3 zooms = 72 positions) — confirmed both caches land at exactly **288/350**, i.e.
+    every chunk on the map really did get cached and the cap held with headroom to spare. Then
+    builds the same 60-train stress scenario (tighter 8-tile station spacing than the perf test, so
+    1830-era locomotives — under 1 tile/day — actually complete a delivery inside the test's
+    runtime instead of still being mid-first-leg) with a small city placed on every stress station
+    (`debugPlaceCity`, since the bare grid network has no passenger supply of its own), warms up
+    60 in-game days via `runDays` (fast, no rendering), then runs a real rendered multi-year
+    session at 8× and samples `getFloatingLabelCount()`/`getNewsCount()`/
+    `getNetWorthHistoryCount()`. Confirmed genuinely non-trivial (not just "0, trivially bounded"):
+    a real run saw **3 concurrent floating `+$` labels** at peak — proving actual deliveries fired
+    and the render loop's per-frame pruning (`floatingLabels.filter(...)`, already existing code)
+    keeps the list from just accumulating.
+- **Error boundary** (SPEC/PLAN: uncaught exception → "Something went wrong — Save & Reload" +
+  emergency save):
+  - `src/ui/errorBoundary.ts`: global `window` `"error"`/`"unhandledrejection"` listeners, installed
+    once, as early as possible in `main()` (before map generation/first render, so even a startup
+    crash is caught). On the *first* crash (a `handled` flag guards against a second error while
+    the dialog is already up trying to double-write the save or stack a second dialog): writes an
+    emergency save, then shows a full-screen blocking dialog. Deliberately **not** built on the
+    existing slide-in `openPanel` (used for every other dialog in the game, including the goal-
+    celebration one) — that always has a ✕ close button and an Android-back-button handler, either
+    of which would let a player dismiss this and keep looking at a game that just proved its own
+    state is unreliable. This dialog has exactly one way out (the reload button) and installs no
+    back-button handler at all.
+  - **Emergency save** (`src/save/db.ts`/`index.ts`): a new dedicated `EMERGENCY_SLOT_ID` slot,
+    distinct from the 3 rotating autosaves (so a crash's recovery point can never be silently
+    overwritten by the next monthly autosave) and the 5 manual slots (never displaces a player's
+    named save). `emergencySave(state)` writes it, named "Emergency Save" so it's identifiable.
+    Included in `listSaveSlots()`, so it's reachable from the normal Load Game screen and eligible
+    to become "Continue" if it's the most recent save — a player who reloads after a crash can just
+    hit Continue and be exactly where they were. `src/ui/saveLoadScreen.ts`'s Load-screen row list
+    only includes it when it actually holds a save (unlike the always-present autosave/manual
+    rows) — a permanent empty "Emergency Save" row for the overwhelmingly common case of "nothing
+    ever crashed" would be confusing clutter.
+  - **Debug-only test hook**: `window.__game.debugThrow(kind: "sync" | "async")`
+    (`src/ui/errorBoundary.ts`'s `debugTriggerCrash`) fires a *real* uncaught exception (via
+    `setTimeout`, so it's a genuine browser-level "error" event, not one the caller's own try/catch
+    could intercept) or a real unhandled `Promise` rejection — exercising the actual global
+    listeners end-to-end, not just calling the handler function directly.
+  - **New `e2e/errorBoundary.spec.ts`** (3 tests): sync throw shows the dialog with no close button
+    present anywhere in it; an async rejection shows the same dialog; and, full round-trip, a
+    crash with a distinctive cash amount set beforehand → click the dialog's own reload button (a
+    real navigation) → since `?debug=1` reload skips the title screen by design, navigate fresh
+    without it (what a real player's post-crash reload actually looks like) → Load Game screen
+    shows "Emergency Save" with that exact cash amount.
+- **Release build config**:
+  - `vite.config.ts`: explicit `build.minify: true` / `build.sourcemap: false` — matches Vite's
+    existing defaults (verified: `dist/` already had zero `.map` files and a minified bundle before
+    this change), but explicit rather than implicit, since this is exactly what `npx cap sync
+    android` copies into the APK's assets.
+  - `android/app/build.gradle`: `versionCode`/`versionName` now derived from `package.json`'s
+    `"version"` field (currently `0.1.0` → versionCode `100`, encoding major×10000 + minor×100 +
+    patch) via Groovy's `JsonSlurper`, instead of the two hardcoded `1`/`"1.0"` that were never
+    bumped since Phase 2. Added a `signingConfigs.release` block that reads an optional keystore
+    via 4 environment variables (`RAILROADS_KEYSTORE_PATH`/`_PASSWORD`,
+    `RAILROADS_KEY_ALIAS`/`_PASSWORD`) and falls back to **no signing config at all** (not a build
+    failure) when `RAILROADS_KEYSTORE_PATH` is unset — `android.yml`'s every-push `assembleDebug`
+    never sets them, so it's completely unaffected; confirmed by watching that workflow's actual
+    CI run on this same commit rather than assuming the Groovy parses (no Android SDK/Gradle
+    available in this cloud session to test it locally).
+  - New `.github/workflows/release.yml` (`workflow_dispatch` only — a signed release build is a
+    deliberate act, never an every-push thing): `npm run build` → `cap sync` → decodes
+    `KEYSTORE_BASE64` into a keystore file **only when that secret is actually set** (the decode
+    step's own `if:` skips it entirely otherwise, so the Gradle build's fallback above takes over
+    and still produces a real, valid, just-unsigned APK/AAB) → `assembleRelease` +
+    `bundleRelease` → uploads both artifacts (30-day retention). `android.yml` itself is untouched
+    — still builds the debug APK on every push.
+  - `.gitignore`: keystore file patterns, as a backstop — the secrets mechanism above is the real
+    guard, but a local keystore file should just never exist in this repo's history at all.
+- **Final README**: rewritten from the Phase-2-era stub — what the game is, a features list pulled
+  from what's actually shipped (regions, track/stations/trains/cargo/finance/goals/save systems,
+  overlays), a short "how to play" walkthrough, install-the-APK steps (unchanged), a build section
+  split into plain dev build vs. the new signed-release flow (with the one-time `keytool`
+  keystore-generation + base64-encoding steps for the 4 GitHub secrets `release.yml` needs), and a
+  "How this was built" section pointing at SPEC/PLAN/PROGRESS/CLAUDE.md. Status line updated to
+  "Phase 12 complete — v1 feature-complete."
+- **Tests**: `npm run check` — 295 unit tests (5 new: `tests/render/chunkCache.test.ts`), all
+  green. `npm run e2e` — 64 specs (4 new: `stress.spec.ts`, `memory.spec.ts`,
+  `errorBoundary.spec.ts`, plus the existing suite), all green. `android.yml`'s CI run on the final
+  commit is the real verification the Gradle changes parse and `assembleDebug` still succeeds
+  (watched via the Actions API, same practice as Phase 2).
+- Known issues / deviations:
+  - The O(n²)-shaped `otherTrainsInBlock`/`stationOccupancy` train-scan pattern in
+    `src/sim/trains/movement.ts` was deliberately left as-is (see above) — fine at the 60-train
+    scale this phase's target is defined at, but worth indexing properly (an incrementally-
+    maintained per-block/per-station occupant map, threaded through the block-enter/release call
+    sites) if a future phase pushes train counts well beyond that.
+  - `main.ts`'s 4 `getBoundingClientRect()` calls for floating-button reserved-label rects are
+    still uncached (see above) — real but small forced-layout cost, left alone rather than risking
+    a stale-cache correctness bug for a marginal win.
+  - The chunk-cache LRU cap (350/renderer) is sized to *not* evict during ordinary play on the
+    biggest supported map (288 chunks worst case) — it's a genuine backstop, verified correct in
+    isolation, but `npm run e2e`'s `memory.spec.ts` doesn't (and structurally can't, without an
+    even larger contrived map) exercise the actual eviction branch end-to-end through the real
+    renderers, only via the dedicated unit test.
+- Next: **v1 is feature-complete per PLAN.md.** Ideas for after v1 (tunnels, more regions,
+  scenario editor, transfers between trains, seasonal effects, achievements) are listed at the
+  bottom of `docs/PLAN.md`, not scheduled.

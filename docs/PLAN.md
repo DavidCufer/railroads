@@ -326,11 +326,11 @@ SPEC: §13, §10 (remaining UI), §3
 ## Phase 12 — Performance and release hardening
 SPEC: §10.4
 
-- [ ] Stress scenario (Large map, 60 trains, 1,500 track edges) in debug mode; measure sim tick and frame time in e2e; optimize until the targets are met (path caching, block lookup, chunk caching, avoid per-frame allocations).
-- [ ] Memory check: no unbounded growth over 20 in-game years at 8× (news history capped, charts downsampled).
-- [ ] Error boundary: an uncaught exception shows a "Something went wrong — Save & Reload" dialog and writes an emergency save.
-- [ ] Release build config: minified, source maps off in the APK, versionCode/versionName from package.json; an optional signed-release workflow using repository secrets (document the setup; don't commit keys).
-- [ ] Final README: features, how to play, how to build, how to install.
+- [x] Stress scenario (Large map, 60 trains, 1,500 track edges) in debug mode; measure sim tick and frame time in e2e; optimize until the targets are met (path caching, block lookup, chunk caching, avoid per-frame allocations).
+- [x] Memory check: no unbounded growth over 20 in-game years at 8× (news history capped, charts downsampled).
+- [x] Error boundary: an uncaught exception shows a "Something went wrong — Save & Reload" dialog and writes an emergency save.
+- [x] Release build config: minified, source maps off in the APK, versionCode/versionName from package.json; an optional signed-release workflow using repository secrets (document the setup; don't commit keys).
+- [x] Final README: features, how to play, how to build, how to install.
 
 **Accept:** targets met in desktop Chromium with 4× CPU throttling (Playwright CDP) as a proxy for a mid-range phone; APK artifact builds in CI.
 
