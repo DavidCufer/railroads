@@ -32,6 +32,7 @@ describe("computeStationEconomies — acceptance", () => {
       type: "depot",
       name: "S1",
       hasEngineShed: false,
+      hasWaterTower: false,
     };
 
     const result = computeStationEconomies(map, [], [mill], [station], 1830);
@@ -54,6 +55,7 @@ describe("computeStationEconomies — acceptance", () => {
       type: "depot",
       name: "S1",
       hasEngineShed: false,
+      hasWaterTower: false,
     };
 
     const result = computeStationEconomies(map, [city], [], [station], 1830);
@@ -73,6 +75,7 @@ describe("computeStationEconomies — acceptance", () => {
       type: "depot",
       name: "S1",
       hasEngineShed: false,
+      hasWaterTower: false,
     };
 
     const result = computeStationEconomies(map, [], [mill], [station], 1830);
@@ -91,6 +94,7 @@ describe("computeStationEconomies — supply", () => {
       type: "depot",
       name: "S1",
       hasEngineShed: false,
+      hasWaterTower: false,
     };
 
     const result = computeStationEconomies(map, [], [mine], [station], 1830);
@@ -108,6 +112,7 @@ describe("computeStationEconomies — supply", () => {
       type: "station",
       name: "A",
       hasEngineShed: false,
+      hasWaterTower: false,
     };
     const stationB: Station = {
       id: 1,
@@ -115,6 +120,7 @@ describe("computeStationEconomies — supply", () => {
       type: "station",
       name: "B",
       hasEngineShed: false,
+      hasWaterTower: false,
     };
 
     const result = computeStationEconomies(map, [], [mine], [stationA, stationB], 1830);
@@ -138,6 +144,7 @@ describe("computeStationEconomies — supply", () => {
       type: "depot",
       name: "A",
       hasEngineShed: false,
+      hasWaterTower: false,
     };
     const stationB: Station = {
       id: 1,
@@ -145,6 +152,7 @@ describe("computeStationEconomies — supply", () => {
       type: "depot",
       name: "B",
       hasEngineShed: false,
+      hasWaterTower: false,
     };
 
     const result = computeStationEconomies(map, [city], [], [stationA, stationB], 1830);
@@ -165,6 +173,7 @@ describe("previewStationEconomy", () => {
       type: "station",
       name: "A",
       hasEngineShed: false,
+      hasWaterTower: false,
     };
 
     const preview = previewStationEconomy(

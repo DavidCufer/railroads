@@ -11,4 +11,7 @@ export interface Station {
   /** First station built in the game gets a free Engine Shed (SPEC §6.2) — flag only for now;
    * Phase 6 reads this to gate where trains can be bought. */
   hasEngineShed: boolean;
+  /** Water Tower improvement (SPEC §6.2), buildable via `buildWaterTower` — refills steam
+   * locomotives stopping here. The rest of §6.2's improvements are Phase 9's job. */
+  hasWaterTower: boolean;
 }

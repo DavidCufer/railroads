@@ -17,10 +17,13 @@ import {
   MIN_SPACING_TILES_DOUBLE_TRACK,
   MIN_SPEED_FACTOR,
   TICKS_PER_TILE_DIVISOR,
+  WATER_TOWER_RANGE_TILES,
+  WATER_TOWER_SPEED_PENALTY,
   locomotiveById,
   type LocomotiveDef,
 } from "../../data/trains";
 import { STATION_TYPE_DEFS } from "../../data/stations";
+import { pushNews } from "../news";
 import type { GameState } from "../state";
 import type { Station } from "../stations/types";
 import { directionSteps } from "../track/graph";
@@ -191,7 +194,11 @@ function tryRoute(
   }
   train.edgeProgress = 0;
   train.heldBlocks = [];
+  const wasNoRoute = train.status === "noRoute";
   setStatus(train, result ? "moving" : "noRoute");
+  if (!result && !wasNoRoute) {
+    pushNews(state, { kind: "noRoute", trainId: train.id, stationId: targetStation.id });
+  }
   return result !== null;
 }
 
@@ -213,7 +220,13 @@ export function computeTargetSpeed(
   const dirOut = directionBetween(a, b, state.map.width);
   const curve =
     train.direction >= 0 && directionSteps(train.direction, dirOut) === 1 ? CURVE_SPEED_FACTOR : 1;
-  return loco.maxSpeedKmh * speedFactor * curve;
+  // Water Tower rule (SPEC §6.2): steam only, and only once it's gone further than the range
+  // without a refill — diesel/electric never accumulate `tilesSinceWaterTower` at all.
+  const conditionFactor =
+    loco.type === "steam" && train.tilesSinceWaterTower > WATER_TOWER_RANGE_TILES
+      ? 1 - WATER_TOWER_SPEED_PENALTY
+      : 1;
+  return loco.maxSpeedKmh * speedFactor * curve * conditionFactor;
 }
 
 /** Handles a train sitting stalled at a boundary (`waitingForBlock`/`waitingForStation`): the
@@ -237,6 +250,7 @@ function checkDeadlockTimeout(
 ): void {
   if (train.waitTicks === DEADLOCK_STUCK_DAYS * 24) {
     setStatus(train, "stuck");
+    pushNews(state, { kind: "trafficJam", tile: a });
     return;
   }
   if (train.waitTicks !== DEADLOCK_REROUTE_DAYS * 24) return;
@@ -260,6 +274,7 @@ function checkDeadlockTimeout(
   train.heldBlocks = [];
   if (!result) {
     setStatus(train, "noRoute");
+    pushNews(state, { kind: "noRoute", trainId: train.id, stationId: targetStation.id });
     return;
   }
   const next = train.route[1];
@@ -268,7 +283,7 @@ function checkDeadlockTimeout(
   }
 }
 
-function arriveAtStation(train: Train, station: Station): void {
+function arriveAtStation(state: GameState, train: Train, station: Station): void {
   if (train.routeIndex > 0) {
     train.lastApproachNode = train.route[train.routeIndex - 1] as number;
   }
@@ -281,6 +296,10 @@ function arriveAtStation(train: Train, station: Station): void {
   train.direction = -1;
   train.loadTicksLeft = -1;
   train.loadExtraWaitDays = 0;
+  // Engine Shed servicing and Water Tower refills happen on any stop at a station that has them
+  // (SPEC §6.2), not just a scheduled order stop.
+  if (station.hasEngineShed) train.lastServicedTick = state.ticks;
+  if (station.hasWaterTower) train.tilesSinceWaterTower = 0;
   setStatus(train, "loading");
 }
 
@@ -371,7 +390,7 @@ function handleMoving(
     const b = train.route[train.routeIndex + 1];
     if (b === undefined) {
       if (a === targetStation.tile) {
-        arriveAtStation(train, targetStation);
+        arriveAtStation(state, train, targetStation);
       } else {
         // A recovery hop (dead-end reversal) ran out — force a fresh route search next tick.
         train.routeTrackVersion = -1;
@@ -404,11 +423,13 @@ function handleMoving(
     if (remainingTiles < remainingOnEdge) {
       train.edgeProgress += remainingTiles / edgeLen;
       bumpHeldBlockDistance(train, remainingTiles);
+      if (loco.type === "steam") train.tilesSinceWaterTower += remainingTiles;
       return;
     }
 
     remainingTiles -= remainingOnEdge;
     bumpHeldBlockDistance(train, remainingOnEdge);
+    if (loco.type === "steam") train.tilesSinceWaterTower += remainingOnEdge;
     train.edgeProgress = 0;
     train.routeIndex++;
     train.direction = edgeDirectionFrom(edge, a);
@@ -424,12 +445,23 @@ export function stepTrain(state: GameState, train: Train, runtime: TrainRuntime)
   train.renderFromY = train.renderToY;
   train.waitTicks++;
 
-  const loco = locomotiveById(train.locoModelId);
-  if (loco) {
-    if (train.status === "loading") handleLoading(state, train);
-    else if (train.status === "noRoute" || train.status === "stuck")
-      handleIdle(state, train, runtime, loco);
-    else handleMoving(state, train, runtime, loco);
+  if (train.breakdownTicksLeft > 0) {
+    // Frozen in place for the repair (SPEC §7.6) — keeps its held blocks (still physically
+    // occupying them) and skips loading/routing/movement entirely for the tick.
+    train.breakdownTicksLeft--;
+    setStatus(train, "broken");
+    train.speed = 0;
+    if (train.breakdownTicksLeft === 0) {
+      setStatus(train, train.route.length >= 2 ? "moving" : "loading");
+    }
+  } else {
+    const loco = locomotiveById(train.locoModelId);
+    if (loco) {
+      if (train.status === "loading") handleLoading(state, train);
+      else if (train.status === "noRoute" || train.status === "stuck")
+        handleIdle(state, train, runtime, loco);
+      else handleMoving(state, train, runtime, loco);
+    }
   }
 
   const pos = currentFractionalPosition(state.map.width, train);

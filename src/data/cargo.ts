@@ -61,7 +61,7 @@ export const CARGO: Record<CargoType, CargoDef> = {
     name: "Passengers",
     car: "Passenger",
     carCost: 4_000,
-    baseRate: 1_400,
+    baseRate: 1_650,
     decayDays: 3,
     urgency: 1.0,
     color: "#F2F2F2",

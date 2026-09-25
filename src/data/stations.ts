@@ -63,3 +63,9 @@ export const STATION_UPGRADE_ORDER: readonly StationType[] = ["depot", "station"
 
 /** Cargo acceptance threshold to "accept" a cargo at a station (SPEC §6.3: "like RRT"). */
 export const STATION_ACCEPTANCE_THRESHOLD = 8;
+
+/** Water Tower improvement (SPEC §6.2): steam era, refills steam locomotives stopping here. The
+ * rest of §6.2's improvement roster (Post Office, Hotel, Warehouse, ...) is Phase 9's job — this
+ * one is pulled forward because the steam speed-penalty rule (SPEC §7.6-adjacent, "water towers")
+ * is explicitly in Phase 8's scope. */
+export const WATER_TOWER_COST = 8_000;

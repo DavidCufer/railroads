@@ -69,6 +69,10 @@ export function makeTestState(map: GameMap, overrides: Partial<GameState> = {}):
     industryEconomy: new Map(),
     finance: createFinanceState(),
     pendingDeliveries: [],
+    news: [],
+    nextNewsId: 0,
+    pendingNews: [],
+    newsReadUpTo: -1,
     ...overrides,
   };
 }

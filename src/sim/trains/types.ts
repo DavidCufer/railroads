@@ -15,7 +15,7 @@ export interface TrainOrder {
 }
 
 export type TrainStatus =
-  "loading" | "moving" | "waitingForBlock" | "waitingForStation" | "noRoute" | "stuck";
+  "loading" | "moving" | "waitingForBlock" | "waitingForStation" | "noRoute" | "stuck" | "broken";
 
 export interface TrainCar {
   /** Fixed at purchase — a car only ever carries this one cargo type (a simplification: SPEC
@@ -88,9 +88,20 @@ export interface Train {
    * §7.2) — reset to 0 on arrival. */
   loadExtraWaitDays: number;
   /** Total price paid for this train (locomotive + cars) and the tick it was bought — SPEC §9.3's
-   * depreciating rolling-stock value. */
+   * depreciating rolling-stock value, and the age input for breakdown chance/obsolescence (§7.6). */
   purchasePrice: number;
   purchaseTick: number;
+  /** Ticks left in the current breakdown (SPEC §7.6: "train stops for 2-5 days"), 0 = not broken
+   * down. While > 0, `stepTrain` freezes the train in place (status `"broken"`) and skips its
+   * normal loading/routing/movement for the tick. */
+  breakdownTicksLeft: number;
+  /** `state.ticks` this train last stopped at a station with an Engine Shed, or undefined if never
+   * — breakdown chance is halved within `BREAKDOWN_ENGINE_SHED_WINDOW_DAYS` of this (SPEC §6.2). */
+  lastServicedTick?: number;
+  /** Tiles traveled (steam locomotives only) since the last stop at a station with a Water Tower —
+   * SPEC §6.2: beyond `WATER_TOWER_RANGE_TILES` the train loses `WATER_TOWER_SPEED_PENALTY` speed
+   * until its next refill. Diesel/electric never accumulate this (stays 0). */
+  tilesSinceWaterTower: number;
   /** Cached fractional (tile-space) position at the start and end of the most recent tick, for the
    * renderer to lerp between with the frame's accumulator alpha. */
   renderFromX: number;

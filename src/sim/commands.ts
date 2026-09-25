@@ -9,13 +9,14 @@
  * them to price the live drag preview (SPEC §5.2's floating cost label) without side effects.
  */
 import { DIFFICULTY, LOAN_INCREMENT } from "../data/finance";
-import { BULLDOZE_REFUND_FRACTION, type BridgeType } from "../data/track";
-import { STATION_UPGRADE_ORDER, type StationType } from "../data/stations";
+import { BULLDOZE_REFUND_FRACTION, ELECTRIFICATION_ERA, type BridgeType } from "../data/track";
+import { STATION_UPGRADE_ORDER, WATER_TOWER_COST, type StationType } from "../data/stations";
 import { calendarFromTicks } from "./time";
 import type { GameState } from "./state";
 import { directionIndex } from "./track/graph";
 import {
   doubleUpgradeCost,
+  electrifyCost,
   evaluatePath,
   pathIsValid,
   type CostContext,
@@ -28,9 +29,17 @@ import { defaultStationName } from "./stations/naming";
 import { computeStationEconomies } from "./stations/economy";
 import type { Station } from "./stations/types";
 import { CARGO, type CargoType } from "../data/cargo";
-import { locomotiveById, SELL_REFUND_FRACTION } from "../data/trains";
+import {
+  locomotiveById,
+  SELL_REFUND_FRACTION,
+  STEAM_PHASE_OUT_YEAR,
+  TRADE_IN_AGE_REDUCTION_PER_YEAR,
+  TRADE_IN_BASE_FRACTION,
+  TRADE_IN_MIN_FRACTION,
+} from "../data/trains";
 import { eraInflation } from "../data/finance";
 import { addExpense, computeCreditLimit } from "./finance/ledger";
+import { DAYS_PER_YEAR, HOURS_PER_DAY } from "./time";
 import { tileXY } from "./trains/geometry";
 import type { Train, TrainOrder } from "./trains/types";
 
@@ -39,6 +48,8 @@ export type CommandReasonCode =
   | "blocked"
   | "cant-afford"
   | "no-track-to-upgrade"
+  | "not-era-available"
+  | "already-improved"
   | "nothing-to-bulldoze"
   | "station-no-track"
   | "station-occupied"
@@ -46,6 +57,7 @@ export type CommandReasonCode =
   | "invalid-station-name"
   | "no-engine-shed"
   | "invalid-locomotive"
+  | "steam-phased-out"
   | "too-many-cars"
   | "invalid-train"
   | "invalid-orders"
@@ -194,6 +206,50 @@ export function upgradeTrack(state: GameState, path: readonly number[]): Command
   return { ok: true, cost: plan.cost };
 }
 
+export interface ElectrifyPlan {
+  edges: TrackEdge[];
+  cost: number;
+  valid: boolean;
+}
+
+/** Prices `path` as an Electrify-mode upgrade (SPEC §5.2/§5.3: drag along existing single or double
+ * track), without mutating state. Era-gated from `ELECTRIFICATION_ERA` (1905). */
+export function computeElectrifyPlan(state: GameState, path: readonly number[]): ElectrifyPlan {
+  if (path.length < 2) return { edges: [], cost: 0, valid: false };
+  const ctx = costContext(state);
+  if (ctx.year < ELECTRIFICATION_ERA) return { edges: [], cost: 0, valid: false };
+  const edges: TrackEdge[] = [];
+  for (let i = 0; i < path.length - 1; i++) {
+    const a = path[i] as number;
+    const b = path[i + 1] as number;
+    const edge = state.trackGraph.getEdge(a, b);
+    if (!edge) return { edges: [], cost: 0, valid: false };
+    if (!edge.electrified) edges.push(edge);
+  }
+  const cost = edges.reduce((sum, e) => sum + electrifyCost(e, ctx), 0);
+  return { edges, cost, valid: true };
+}
+
+/** Electrifies existing track along `path` (Electrify mode drag). Edges already electrified are
+ * skipped (free, not an error), matching Double mode's re-drag behavior. */
+export function electrifyTrack(state: GameState, path: readonly number[]): CommandResult {
+  if (path.length < 2) return { ok: false, reason: "no-path" };
+  const year = calendarFromTicks(state.startYear, state.ticks).year;
+  if (year < ELECTRIFICATION_ERA) return { ok: false, reason: "not-era-available" };
+  const plan = computeElectrifyPlan(state, path);
+  if (!plan.valid) return { ok: false, reason: "no-track-to-upgrade" };
+  if (plan.cost > state.cash) return { ok: false, reason: "cant-afford" };
+
+  for (const edge of plan.edges) edge.electrified = true;
+  state.cash -= plan.cost;
+  state.finance.capitalInvested += plan.cost;
+  addExpense(state, "construction", plan.cost);
+  // Electrified-ness gates electric-loco routing (src/sim/trains/route.ts) — bump so any train
+  // already routed (or parked `noRoute`) recomputes against the newly electrified edges.
+  if (plan.edges.length > 0) state.trackVersion++;
+  return { ok: true, cost: plan.cost };
+}
+
 /** Removes track along `path`'s edges, refunding 25% of each edge's recorded build cost
  * (SPEC §5.2). Edges not present are skipped silently (dragging past bare ground is fine). */
 export function bulldoze(state: GameState, path: readonly number[]): CommandResult {
@@ -269,6 +325,7 @@ export function buildStation(state: GameState, tile: number, type: StationType):
     type,
     name,
     hasEngineShed: state.stations.length === 0,
+    hasWaterTower: false,
   };
   state.stations.push(station);
   state.cash -= cost;
@@ -329,6 +386,31 @@ export function renameStation(state: GameState, stationId: number, name: string)
   return { ok: true, cost: 0 };
 }
 
+/** Prices building a Water Tower at `stationId` (SPEC §6.2), without mutating state. */
+export function computeWaterTowerPlan(
+  state: GameState,
+  stationId: number,
+): { cost: number; valid: boolean } {
+  const station = state.stations.find((s) => s.id === stationId);
+  if (!station || station.hasWaterTower) return { cost: 0, valid: false };
+  return { cost: WATER_TOWER_COST * eraInflation(costContext(state).year), valid: true };
+}
+
+/** Builds a Water Tower at `stationId` (SPEC §6.2: refills steam locomotives stopping here). */
+export function buildWaterTower(state: GameState, stationId: number): CommandResult {
+  const station = state.stations.find((s) => s.id === stationId);
+  if (!station) return { ok: false, reason: "invalid-station-name" };
+  if (station.hasWaterTower) return { ok: false, reason: "already-improved" };
+  const plan = computeWaterTowerPlan(state, stationId);
+  if (plan.cost > state.cash) return { ok: false, reason: "cant-afford" };
+
+  station.hasWaterTower = true;
+  state.cash -= plan.cost;
+  state.finance.capitalInvested += plan.cost;
+  addExpense(state, "construction", plan.cost);
+  return { ok: true, cost: plan.cost };
+}
+
 // --- Trains (SPEC §7.1, §7.2) -----------------------------------------------------------------
 
 export interface BuyTrainPlan {
@@ -347,6 +429,9 @@ export function computeBuyTrainPlan(
   const loco = locomotiveById(locoModelId);
   const year = calendarFromTicks(state.startYear, state.ticks).year;
   if (!loco || loco.introYear > year) return { cost: 0, valid: false };
+  // SPEC §7.6: "steam models can't be bought after 1960" (existing steam trains already in service
+  // keep running — this only blocks new purchases).
+  if (loco.type === "steam" && year > STEAM_PHASE_OUT_YEAR) return { cost: 0, valid: false };
   if (cars.length > loco.maxCars) return { cost: 0, valid: false };
   if (loco.passengerMailOnly && cars.some((c) => c !== "passengers" && c !== "mail")) {
     return { cost: 0, valid: false };
@@ -372,12 +457,16 @@ export function buyTrain(
 
   const plan = computeBuyTrainPlan(state, locoModelId, cars);
   if (!plan.valid) {
+    const loco = locomotiveById(locoModelId);
+    const year = calendarFromTicks(state.startYear, state.ticks).year;
     return {
       ok: false,
       reason:
-        cars.length > (locomotiveById(locoModelId)?.maxCars ?? 0)
+        cars.length > (loco?.maxCars ?? 0)
           ? "too-many-cars"
-          : "invalid-locomotive",
+          : loco && loco.type === "steam" && year > STEAM_PHASE_OUT_YEAR
+            ? "steam-phased-out"
+            : "invalid-locomotive",
     };
   }
   if (plan.cost > state.cash) return { ok: false, reason: "cant-afford" };
@@ -408,6 +497,9 @@ export function buyTrain(
     loadExtraWaitDays: 0,
     purchasePrice: plan.cost,
     purchaseTick: state.ticks,
+    breakdownTicksLeft: 0,
+    lastServicedTick: state.ticks, // bought at a station with an Engine Shed — freshly serviced
+    tilesSinceWaterTower: 0,
     renderFromX: centerX,
     renderFromY: centerY,
     renderToX: centerX,
@@ -457,7 +549,8 @@ export function computeSellTrainPlan(state: GameState, trainId: number): SellTra
 }
 
 /** Sells `trainId` for 50% of its current (era-adjusted) locomotive + cars value (SPEC §7,
- * placeholder rate — a real depreciation model arrives with Phase 8's trade-in mechanics). */
+ * placeholder rate — replacing just the locomotive with a trade-in credit, SPEC §7.6, is
+ * `replaceLocomotive` below instead). */
 export function sellTrain(state: GameState, trainId: number): CommandResult {
   const plan = computeSellTrainPlan(state, trainId);
   if (!plan.valid) return { ok: false, reason: "invalid-train" };
@@ -466,6 +559,79 @@ export function sellTrain(state: GameState, trainId: number): CommandResult {
   state.cash += plan.refund;
   addExpense(state, "rollingStock", -plan.refund);
   return { ok: true, cost: -plan.refund };
+}
+
+export interface ReplaceLocoPlan {
+  /** New loco price minus the trade-in credit — may be negative (a refund) when trading down. */
+  netCost: number;
+  newLocoCost: number;
+  tradeInValue: number;
+  valid: boolean;
+}
+
+/** Prices replacing `trainId`'s locomotive with `newLocoModelId` (SPEC §7.6: "pay new loco price
+ * minus 30% trade-in of the old loco's price, reduced 3%/year of age, min 10%"), without mutating
+ * state. Cars and orders are kept, so the new locomotive must still fit them (max cars,
+ * passenger/mail-only). */
+export function computeReplaceLocoPlan(
+  state: GameState,
+  trainId: number,
+  newLocoModelId: string,
+): ReplaceLocoPlan {
+  const invalid = { netCost: 0, newLocoCost: 0, tradeInValue: 0, valid: false };
+  const train = state.trains.find((t) => t.id === trainId);
+  if (!train) return invalid;
+  const oldLoco = locomotiveById(train.locoModelId);
+  const newLoco = locomotiveById(newLocoModelId);
+  const year = calendarFromTicks(state.startYear, state.ticks).year;
+  if (!oldLoco || !newLoco || newLoco.introYear > year) return invalid;
+  if (newLoco.type === "steam" && year > STEAM_PHASE_OUT_YEAR) return invalid;
+  if (train.cars.length > newLoco.maxCars) return invalid;
+  if (
+    newLoco.passengerMailOnly &&
+    train.cars.some((c) => c.cargoType !== "passengers" && c.cargoType !== "mail")
+  ) {
+    return invalid;
+  }
+
+  const ctx = costContext(state);
+  const mult = eraInflation(ctx.year) * ctx.buildCostMult;
+  const ageYears = (state.ticks - train.purchaseTick) / (HOURS_PER_DAY * DAYS_PER_YEAR);
+  const fraction = Math.max(
+    TRADE_IN_MIN_FRACTION,
+    TRADE_IN_BASE_FRACTION - TRADE_IN_AGE_REDUCTION_PER_YEAR * ageYears,
+  );
+  const tradeInValue = oldLoco.cost * mult * fraction;
+  const newLocoCost = newLoco.cost * mult;
+  return { netCost: newLocoCost - tradeInValue, newLocoCost, tradeInValue, valid: true };
+}
+
+/** Replaces `trainId`'s locomotive, paying the price difference after trade-in (SPEC §7.6). Resets
+ * the train's age (purchase tick, service/water-tower/breakdown state) to the new locomotive's —
+ * cars, their loads, and orders are untouched. */
+export function replaceLocomotive(
+  state: GameState,
+  trainId: number,
+  newLocoModelId: string,
+): CommandResult {
+  const plan = computeReplaceLocoPlan(state, trainId, newLocoModelId);
+  if (!plan.valid) return { ok: false, reason: "invalid-locomotive" };
+  if (plan.netCost > state.cash) return { ok: false, reason: "cant-afford" };
+
+  const train = state.trains.find((t) => t.id === trainId) as Train;
+  const ctx = costContext(state);
+  const mult = eraInflation(ctx.year) * ctx.buildCostMult;
+  const carsValue = train.cars.reduce((sum, c) => sum + CARGO[c.cargoType].carCost * mult, 0);
+
+  train.locoModelId = newLocoModelId;
+  train.purchasePrice = plan.newLocoCost + carsValue;
+  train.purchaseTick = state.ticks;
+  train.breakdownTicksLeft = 0;
+  train.lastServicedTick = state.ticks;
+  train.tilesSinceWaterTower = 0;
+  state.cash -= plan.netCost;
+  addExpense(state, "rollingStock", plan.netCost);
+  return { ok: true, cost: plan.netCost };
 }
 
 // --- Loans (SPEC §9.1) --------------------------------------------------------------------------

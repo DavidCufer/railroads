@@ -22,7 +22,14 @@ import {
   MAINTENANCE_SINGLE,
 } from "../../data/track";
 import { STATION_TYPE_DEFS } from "../../data/stations";
-import { locomotiveById } from "../../data/trains";
+import {
+  locomotiveById,
+  OBSOLESCENCE_AGE_YEARS,
+  OBSOLESCENCE_MAINTENANCE_MULT,
+  STEAM_MAINTENANCE_SURCHARGE_MULT,
+  STEAM_MAINTENANCE_SURCHARGE_YEAR,
+  type LocomotiveDef,
+} from "../../data/trains";
 import type { CargoType } from "../../data/cargo";
 import { calendarFromTicks, DAYS_PER_YEAR, HOURS_PER_DAY } from "../time";
 import type { GameState } from "../state";
@@ -40,6 +47,19 @@ export function addRevenue(state: GameState, cargo: CargoType, amount: number): 
 export function addExpense(state: GameState, category: ExpenseCategory, amount: number): void {
   state.finance.thisMonth[category] += amount;
   state.finance.thisYear[category] += amount;
+}
+
+/** Maintenance multiplier from obsolescence (SPEC §7.6): +50% once a model is more than 25 years
+ * past its introduction, and steam pays +50% after 1955 regardless of age — the *higher* of the
+ * two applies (not stacked/multiplied together, since SPEC lists them as two separate triggers for
+ * the same "maintenance costs more as it ages/the era moves on" idea, not compounding penalties). */
+function maintenanceMultiplier(loco: LocomotiveDef, ageYears: number, year: number): number {
+  let mult = 1;
+  if (ageYears > OBSOLESCENCE_AGE_YEARS) mult = Math.max(mult, OBSOLESCENCE_MAINTENANCE_MULT);
+  if (loco.type === "steam" && year > STEAM_MAINTENANCE_SURCHARGE_YEAR) {
+    mult = Math.max(mult, STEAM_MAINTENANCE_SURCHARGE_MULT);
+  }
+  return mult;
 }
 
 /** Locomotive/car value, depreciating from purchase price (SPEC §9.3: "5%/year, min 10%"). */
@@ -94,7 +114,9 @@ export function monthlyFinanceStep(state: GameState): void {
   let trainMaint = 0;
   for (const train of state.trains) {
     const loco = locomotiveById(train.locoModelId);
-    if (loco) trainMaint += loco.maintenancePerYear / 12;
+    if (!loco) continue;
+    const ageYears = (state.ticks - train.purchaseTick) / (HOURS_PER_DAY * DAYS_PER_YEAR);
+    trainMaint += (loco.maintenancePerYear / 12) * maintenanceMultiplier(loco, ageYears, year);
   }
   trainMaint *= inflation;
 

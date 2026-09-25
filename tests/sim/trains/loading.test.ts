@@ -51,7 +51,7 @@ describe("computeRevenue", () => {
     // Very late: time factor floors at 0.2.
     { cargo: "coal", distanceTiles: 8, days: 500, expected: 1200 * 0.8 * 0.2 },
     // Passengers: urgency 1.0. expected = (20/2)*1+2 = 12 days.
-    { cargo: "passengers", distanceTiles: 20, days: 12, expected: 1400 * 2 * 1.0 },
+    { cargo: "passengers", distanceTiles: 20, days: 12, expected: 1650 * 2 * 1.0 },
   ];
 
   for (const c of cases) {

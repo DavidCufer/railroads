@@ -369,3 +369,55 @@ export const OVERLENGTH_SLOWDOWN_MULT = 2;
 export const DEFAULT_FULL_LOAD_MAX_WAIT_DAYS = 14;
 
 export const SELL_REFUND_FRACTION = 0.5;
+
+// --- Breakdowns & aging (SPEC §7.6) --------------------------------------------------------------
+
+/** Base monthly breakdown chance by `reliability` (1 worst – 5 best): "0.5%, 1%, 2%, 4%, 7% for
+ * reliability 5…1". */
+export const BREAKDOWN_BASE_CHANCE_BY_RELIABILITY: Record<number, number> = {
+  5: 0.005,
+  4: 0.01,
+  3: 0.02,
+  2: 0.04,
+  1: 0.07,
+};
+/** Chance multiplies by `(1 + age/20 years)`. */
+export const BREAKDOWN_AGE_DIVISOR_YEARS = 20;
+/** Chance ×0.5 if serviced at an Engine Shed within the last 60 days. */
+export const BREAKDOWN_ENGINE_SHED_WINDOW_DAYS = 60;
+export const BREAKDOWN_ENGINE_SHED_MULT = 0.5;
+export const BREAKDOWN_REPAIR_MIN_DAYS = 2;
+export const BREAKDOWN_REPAIR_MAX_DAYS = 5;
+export const BREAKDOWN_REPAIR_COST = 5_000;
+
+/** Once a model is > 25 years past its introduction, maintenance +50%. */
+export const OBSOLESCENCE_AGE_YEARS = 25;
+export const OBSOLESCENCE_MAINTENANCE_MULT = 1.5;
+/** Steam maintenance +50% after this year, on top of (not stacked multiplicatively twice with) the
+ * generic age-based obsolescence surcharge above — SPEC §7.6 lists them as two separate rules, so
+ * a steam loco that's both >25 years old *and* it's past 1955 only ever pays the higher of the two
+ * (see `maintenanceMultiplier` in src/sim/finance/ledger.ts). */
+export const STEAM_MAINTENANCE_SURCHARGE_YEAR = 1955;
+export const STEAM_MAINTENANCE_SURCHARGE_MULT = 1.5;
+/** Steam locomotives can't be bought new after this year. */
+export const STEAM_PHASE_OUT_YEAR = 1960;
+
+/** Replace-locomotive trade-in (SPEC §7.6): 30% of the old loco's price, reduced 3%/year of age,
+ * floor 10%. */
+export const TRADE_IN_BASE_FRACTION = 0.3;
+export const TRADE_IN_AGE_REDUCTION_PER_YEAR = 0.03;
+export const TRADE_IN_MIN_FRACTION = 0.1;
+
+// --- Water towers (SPEC §6.2) --------------------------------------------------------------------
+
+/** Steam trains that go further than this many tiles without stopping at a Water Tower lose speed
+ * (until their next refill) — diesel/electric ignore this entirely. */
+export const WATER_TOWER_RANGE_TILES = 40;
+export const WATER_TOWER_SPEED_PENALTY = 0.2;
+
+// --- "New!" badge (SPEC §7.7) --------------------------------------------------------------------
+
+/** How many years after introduction a locomotive still shows the "New!" badge in the Buy Train
+ * dialog — not specified by SPEC beyond "when a new model becomes available", so picked to be long
+ * enough to notice on a slow-playing save without cluttering the roster indefinitely. */
+export const NEW_LOCOMOTIVE_BADGE_YEARS = 3;

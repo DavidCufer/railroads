@@ -28,6 +28,9 @@ const MAX_EXPANSIONS = 20_000;
 export interface PathfindOptions {
   /** Restrict travel to existing single (non-double) edges of this graph — Double mode. */
   existingTrackOnly?: TrackGraph;
+  /** Restrict travel to any existing edge (single or double) of this graph — Electrify mode (SPEC
+   * §5.2: "drag along existing track (single or double)"). */
+  existingAnyTrack?: TrackGraph;
   /** Extra tiles of margin around the start/goal bounding box the search may explore. */
   searchPadding?: number;
 }
@@ -49,6 +52,14 @@ function candidateNeighbors(
     for (const n of graph.neighborsOf(tile)) {
       const edge = graph.getEdge(tile, n);
       if (edge && !edge.double) out.push({ tile: n, cost: 0 });
+    }
+    return out;
+  }
+  if (options.existingAnyTrack) {
+    const graph = options.existingAnyTrack;
+    const out: Neighbor[] = [];
+    for (const n of graph.neighborsOf(tile)) {
+      if (graph.getEdge(tile, n)) out.push({ tile: n, cost: 0 });
     }
     return out;
   }

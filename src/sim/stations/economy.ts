@@ -151,7 +151,14 @@ export function previewStationEconomy(
   industryEconomy?: ReadonlyMap<number, IndustryEconomyState>,
 ): StationEconomy {
   const PREVIEW_ID = -1;
-  const preview: Station = { id: PREVIEW_ID, tile, type, name: "", hasEngineShed: false };
+  const preview: Station = {
+    id: PREVIEW_ID,
+    tile,
+    type,
+    name: "",
+    hasEngineShed: false,
+    hasWaterTower: false,
+  };
   const computed = computeStationEconomies(
     map,
     cities,

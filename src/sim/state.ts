@@ -12,6 +12,7 @@ import type { Station } from "./stations/types";
 import type { StationEconomy } from "./stations/economy";
 import type { Train } from "./trains/types";
 import { createFinanceState, type FinanceState } from "./finance/types";
+import type { NewsItem } from "./news";
 
 /** A station's waiting pile for one cargo type (SPEC §6.3). */
 export interface StationCargoPile {
@@ -68,6 +69,15 @@ export interface GameState {
   finance: FinanceState;
   /** Deliveries paid out since the last frame drained this — see `DeliveryEvent`. */
   pendingDeliveries: DeliveryEvent[];
+  /** News history (SPEC §10.1), capped at `NEWS_HISTORY_MAX` — see src/sim/news.ts. */
+  news: NewsItem[];
+  /** Monotonic counter for `NewsItem.id`. */
+  nextNewsId: number;
+  /** News items pushed since the last frame drained this — see `DeliveryEvent`'s same pattern. */
+  pendingNews: NewsItem[];
+  /** Highest `NewsItem.id` the player has seen (News panel opened) — items with a higher id are
+   * "unread" (SPEC §10.1's unread badge). */
+  newsReadUpTo: number;
 }
 
 export interface NewGameOptions extends MapGenOptions {
@@ -106,5 +116,9 @@ export function createGameState(options: NewGameOptions): GameState {
     industryEconomy: initIndustryEconomy(industries),
     finance: createFinanceState(),
     pendingDeliveries: [],
+    news: [],
+    nextNewsId: 0,
+    pendingNews: [],
+    newsReadUpTo: -1,
   };
 }

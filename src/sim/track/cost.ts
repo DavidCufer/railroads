@@ -11,6 +11,8 @@ import {
   DOUBLE_TRACK_BRIDGE_UPGRADE_MULTIPLIER,
   DOUBLE_TRACK_MULTIPLIER,
   DOUBLE_TRACK_UPGRADE_MULTIPLIER,
+  ELECTRIFICATION_COST_PER_EDGE,
+  ELECTRIFICATION_DOUBLE_SURCHARGE,
   GRADE_SURCHARGE_PER_ELEVATION,
   TERRAIN_COST_MULTIPLIER,
   TRACK_BASE_COST_PER_TILE,
@@ -209,4 +211,11 @@ export function doubleUpgradeCost(edge: { cost: number; bridge: string | null })
 /** Cost of building an edge as double from scratch (fresh single-track cost × multiplier). */
 export function freshDoubleCost(singleCost: number, isBridge: boolean): number {
   return singleCost * (isBridge ? DOUBLE_TRACK_BRIDGE_MULTIPLIER : DOUBLE_TRACK_MULTIPLIER);
+}
+
+/** Cost to electrify an existing edge (SPEC §5.3: "$6,000 per edge (+50% on double track)"). */
+export function electrifyCost(edge: { double: boolean }, ctx: CostContext): number {
+  const base =
+    ELECTRIFICATION_COST_PER_EDGE * (edge.double ? 1 + ELECTRIFICATION_DOUBLE_SURCHARGE : 1);
+  return base * eraInflation(ctx.year) * ctx.buildCostMult;
 }
