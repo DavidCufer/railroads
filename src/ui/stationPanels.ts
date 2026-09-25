@@ -6,11 +6,19 @@
  *   upgrade, supplies/accepts, a waiting-cargo placeholder (Phase 7 does real cargo flow).
  */
 import { CARGO, CARGO_TYPES, type CargoType } from "../data/cargo";
-import { STATION_ACCEPTANCE_THRESHOLD, STATION_TYPES, STATION_TYPE_DEFS } from "../data/stations";
+import {
+  STATION_ACCEPTANCE_THRESHOLD,
+  STATION_IMPROVEMENT_TYPES,
+  STATION_IMPROVEMENTS,
+  STATION_TYPES,
+  STATION_TYPE_DEFS,
+} from "../data/stations";
 import type { StationType } from "../data/stations";
 import {
+  buildImprovement,
   buildStation,
   buildWaterTower,
+  computeImprovementPlan,
   computeStationBuildPlan,
   computeStationUpgradePlan,
   computeWaterTowerPlan,
@@ -282,6 +290,39 @@ export function openStationPanel(
             },
           },
           `${strings.station.buildWaterTower} (${formatMoney(waterTowerPlan.cost)})`,
+        ),
+      );
+    }
+
+    body.push(h("div", { className: "panel-section-title" }, strings.station.improvements));
+    for (const type of STATION_IMPROVEMENT_TYPES) {
+      const def = STATION_IMPROVEMENTS[type];
+      if (station.improvements.includes(type)) {
+        body.push(
+          h("div", { className: "panel-row" }, `✅ ${strings.station.improvementNames[type]}`),
+        );
+        continue;
+      }
+      const plan = computeImprovementPlan(state, stationId, type);
+      const notYetAvailable = def.availableYear !== undefined && !plan.valid && plan.cost === 0;
+      body.push(
+        h(
+          "button",
+          {
+            className: "station-improvement-btn",
+            disabled: !plan.valid || plan.cost > state.cash,
+            onClick: () => {
+              const result = buildImprovement(state, stationId, type);
+              if (!result.ok) {
+                showToast(container, strings.build.reasons[result.reason], "warn");
+                return;
+              }
+              render();
+            },
+          },
+          notYetAvailable
+            ? `${strings.station.improvementNames[type]} — ${strings.station.improvementAvailableFrom(def.availableYear as number)}`
+            : `${strings.station.improvementNames[type]} (${formatMoney(plan.cost)})`,
         ),
       );
     }

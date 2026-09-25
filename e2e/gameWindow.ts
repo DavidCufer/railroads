@@ -73,6 +73,8 @@ export interface GameWindow {
     type: string;
     name: string;
     hasEngineShed: boolean;
+    hasWaterTower: boolean;
+    improvements: string[];
   }>;
   getStationEconomy: (stationId: number) => {
     supply: Partial<Record<string, number>>;
@@ -122,6 +124,29 @@ export interface GameWindow {
   debugPlaceIndustry: (tile: number, type: string) => number;
   debugPlaceCity: (tiles: number[], population: number) => number;
   getFloatingLabels: () => Array<{ stationTile: number; text: string; color: string }>;
+  buildImprovement: (stationId: number, type: string) => { ok: boolean; reason?: string };
+  civicInvestment: (cityId: number) => { ok: boolean; reason?: string };
+  getCityGrowth: (cityId: number) => {
+    points: number;
+    monthlyScore: number;
+    lastServed: boolean;
+    lastCivicInvestmentTick: number | undefined;
+  } | null;
+  getOverlayState: () => {
+    catchments: boolean;
+    cargoHeatmap: boolean;
+    heatmapCargo: string;
+    trackType: boolean;
+    trainProfit: boolean;
+    miniMap: boolean;
+  };
+  setOverlay: (
+    key: "catchments" | "cargoHeatmap" | "trackType" | "trainProfit" | "miniMap",
+    enabled: boolean,
+  ) => void;
+  setHeatmapCargo: (cargo: string) => void;
+  getMiniMapRect: () => { x: number; y: number; width: number; height: number };
+  tapMiniMap: (x: number, y: number) => void;
 }
 
 declare global {

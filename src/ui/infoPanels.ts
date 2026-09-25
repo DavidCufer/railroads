@@ -1,12 +1,17 @@
 /** Info-mode panels: tap a city or industry to see its basic info (SPEC §10.2, PLAN Phase 3). */
 import { CARGO, type CargoType } from "../data/cargo";
 import { INDUSTRIES } from "../data/industries";
-import type { City, Industry } from "../sim/economy/types";
+import { CIVIC_INVESTMENT_COOLDOWN_YEARS } from "../data/cities";
+import type { Industry } from "../sim/economy/types";
 import { cityAcceptance, citySupply } from "../sim/economy/cityStats";
+import { civicInvestment, computeCivicInvestmentPlan } from "../sim/commands";
+import type { GameState } from "../sim/state";
+import { calendarFromTicks, DAYS_PER_YEAR, HOURS_PER_DAY } from "../sim/time";
 import { h } from "./h";
 import { openPanel } from "./panel";
+import { showToast } from "./toast";
 import { strings } from "./strings";
-import { formatPopulation } from "./format";
+import { formatMoney, formatPopulation } from "./format";
 
 export function row(label: string, value: string): HTMLElement {
   return h(
@@ -43,16 +48,23 @@ export function cargoChip(
   );
 }
 
-export function openCityPanel(container: HTMLElement, city: City, currentYear: number): void {
-  const supply = citySupply(city);
-  const accepts = cityAcceptance(city, currentYear);
-  const acceptEntries = Object.entries(accepts) as Array<[CargoType, number]>;
+export function openCityPanel(container: HTMLElement, state: GameState, cityId: number): void {
+  const render = (): void => {
+    const city = state.cities.find((c) => c.id === cityId);
+    if (!city) return;
+    const currentYear = calendarFromTicks(state.startYear, state.ticks).year;
+    const supply = citySupply(city);
+    const accepts = cityAcceptance(city, currentYear);
+    const acceptEntries = Object.entries(accepts) as Array<[CargoType, number]>;
+    const growth = state.cityGrowth.get(cityId);
 
-  openPanel(container, {
-    title: city.name,
-    body: [
+    const body: Node[] = [
       row(strings.city.tier, strings.city.tierNames[city.tier]),
       row(strings.city.population, formatPopulation(city.population)),
+      row(
+        strings.city.growthTrend,
+        growth?.lastServed ? strings.city.growing : strings.city.stagnant,
+      ),
       h("div", { className: "panel-section-title" }, "Supplies (full coverage, per month)"),
       h(
         "div",
@@ -66,8 +78,42 @@ export function openCityPanel(container: HTMLElement, city: City, currentYear: n
         { className: "panel-row", style: { flexWrap: "wrap" } },
         ...acceptEntries.map(([cargo, points]) => cargoChip(cargo, points)),
       ),
-    ],
-  });
+    ];
+
+    const plan = computeCivicInvestmentPlan(state, cityId);
+    const lastTick = growth?.lastCivicInvestmentTick;
+    const onCooldown = !plan.valid && lastTick !== undefined;
+    let civicLabel = `${strings.city.civicInvestment} (${formatMoney(plan.cost)})`;
+    if (onCooldown) {
+      const yearsSince = (state.ticks - lastTick) / (HOURS_PER_DAY * DAYS_PER_YEAR);
+      const yearsLeft = Math.max(0, Math.ceil(CIVIC_INVESTMENT_COOLDOWN_YEARS - yearsSince));
+      civicLabel = `${strings.city.civicInvestment} — ${strings.city.civicInvestmentCooldown(yearsLeft)}`;
+    }
+    body.push(h("div", { className: "panel-section-title" }, strings.city.civicInvestment));
+    body.push(h("div", { className: "panel-row" }, strings.city.civicInvestmentDesc));
+    body.push(
+      h(
+        "button",
+        {
+          className: "city-civic-investment-btn",
+          disabled: !plan.valid || plan.cost > state.cash,
+          onClick: () => {
+            const result = civicInvestment(state, cityId);
+            if (!result.ok) {
+              showToast(container, strings.build.reasons[result.reason], "warn");
+              return;
+            }
+            render();
+          },
+        },
+        civicLabel,
+      ),
+    );
+
+    openPanel(container, { title: city.name, body });
+  };
+
+  render();
 }
 
 export function openIndustryPanel(container: HTMLElement, industry: Industry): void {

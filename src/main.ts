@@ -9,6 +9,14 @@ import { drawStations, drawStationLabels } from "./render/stations";
 import { drawStationCatchment, type StationCatchmentPreview } from "./render/stationPreview";
 import { drawTrains } from "./render/trains";
 import { drawDeliveryLabels, isLabelExpired, type FloatingLabel } from "./render/deliveryLabels";
+import {
+  drawCatchmentsOverlay,
+  drawCargoHeatmapOverlay,
+  drawTrackTypeOverlay,
+  drawTrainProfitOverlay,
+} from "./render/overlays";
+import { MiniMapRenderer } from "./render/minimap";
+import type { ReservedScreenRect } from "./render/reservedRects";
 import { CameraInput, type BuildDragHandlers } from "./ui/cameraInput";
 import { createDebugControls } from "./ui/debugControls";
 import { createTopBar } from "./ui/topBar";
@@ -20,6 +28,12 @@ import { initBackButton } from "./ui/backButton";
 import { showToast } from "./ui/toast";
 import { strings } from "./ui/strings";
 import {
+  defaultOverlayState,
+  openMenuPanel,
+  type OverlayState,
+  type OverlayToggle,
+} from "./ui/menuPanel";
+import {
   hideConfirmBar,
   hideDragCostLabel,
   showConfirmBar,
@@ -27,10 +41,12 @@ import {
 } from "./ui/buildHud";
 import { createGameState, type GameState, type NewGameOptions } from "./sim/state";
 import {
+  buildImprovement,
   buildStation,
   buildTrack,
   bulldoze,
   buyTrain,
+  civicInvestment,
   computeBuildPlan,
   computeBulldozePlan,
   computeElectrifyPlan,
@@ -57,7 +73,7 @@ import { inBounds, tileIndex } from "./sim/map/grid";
 import { calendarFromTicks, isYearBoundary } from "./sim/time";
 import type { MapSizeName, Roughness, WaterLevel } from "./data/mapGen";
 import type { BridgeType } from "./data/track";
-import { STATION_TYPE_DEFS, type StationType } from "./data/stations";
+import { STATION_TYPE_DEFS, type StationImprovementType, type StationType } from "./data/stations";
 import { CARGO, type CargoType } from "./data/cargo";
 import { advanceOneHour } from "./sim/tick";
 import type { TrainOrder } from "./sim/trains/types";
@@ -115,6 +131,8 @@ function main(): void {
   const camera = new Camera(state.map.width, state.map.height);
   const terrainRenderer = new TerrainRenderer(state.map, state.cities, state.industries);
   const trackRenderer = new TrackRenderer(state.map.width, state.map.height, state.trackGraph);
+  const miniMapRenderer = new MiniMapRenderer(state.map);
+  let lastMapContentVersion = state.mapContentVersion;
   const cameraInput = new CameraInput(canvas, camera, () => ({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -122,6 +140,7 @@ function main(): void {
 
   let currentTool: ToolId = "info";
   let quickBuild = false;
+  let overlayState: OverlayState = defaultOverlayState();
   let dragState: DragState | null = null;
   let ghost: GhostPreview | null = null;
   let stationPreview: StationCatchmentPreview | null = null;
@@ -159,6 +178,8 @@ function main(): void {
     camera.setMapSize(state.map.width, state.map.height);
     terrainRenderer.setMap(state.map, state.cities, state.industries);
     trackRenderer.setMap(state.map.width, state.map.height, state.trackGraph);
+    miniMapRenderer.setMap(state.map);
+    lastMapContentVersion = state.mapContentVersion;
     dragState = null;
     ghost = null;
     stationPickHandler = null;
@@ -238,6 +259,16 @@ function main(): void {
     const viewportW = window.innerWidth;
     const viewportH = window.innerHeight;
 
+    // Mini-map tap-to-jump (SPEC §10.1) takes priority over everything else under it.
+    if (overlayState.miniMap && !isPanelOpen()) {
+      const jumpTo = miniMapRenderer.worldPointAt(canvasX, canvasY, viewportH);
+      if (jumpTo) {
+        camera.x = jumpTo.x;
+        camera.y = jumpTo.y;
+        return;
+      }
+    }
+
     const trainHit = findTrainAt(canvasX, canvasY, viewportW, viewportH);
     if (trainHit) {
       openTrainPanel(ui, state, trainHit.id);
@@ -276,8 +307,7 @@ function main(): void {
     const cityId = state.map.cityId[idx] as number;
     const industryIdx = state.map.industryId[idx] as number;
     if (cityId >= 0 && state.cities[cityId]) {
-      const calendar = calendarFromTicks(state.startYear, state.ticks);
-      openCityPanel(ui, state.cities[cityId], calendar.year);
+      openCityPanel(ui, state, cityId);
     } else if (industryIdx >= 0 && state.industries[industryIdx]) {
       openIndustryPanel(ui, state.industries[industryIdx]);
     }
@@ -554,10 +584,36 @@ function main(): void {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, viewportW, viewportH);
 
+      if (state.mapContentVersion !== lastMapContentVersion) {
+        lastMapContentVersion = state.mapContentVersion;
+        terrainRenderer.refreshContent();
+      }
+
       const renderStart = performance.now();
       terrainRenderer.draw(ctx, camera, viewportW, viewportH, now);
       trackRenderer.draw(ctx, camera, viewportW, viewportH);
+      if (overlayState.trackType) {
+        drawTrackTypeOverlay(ctx, camera, viewportW, viewportH, state.map.width, state.trackGraph);
+      }
+      if (overlayState.catchments) {
+        drawCatchmentsOverlay(ctx, camera, viewportW, viewportH, state.map, state.stations);
+      }
+      if (overlayState.cargoHeatmap) {
+        drawCargoHeatmapOverlay(
+          ctx,
+          camera,
+          viewportW,
+          viewportH,
+          state.map,
+          state.stations,
+          state.stationEconomy,
+          overlayState.heatmapCargo,
+        );
+      }
       drawStations(ctx, camera, viewportW, viewportH, state.map.width, state.stations);
+      if (overlayState.trainProfit) {
+        drawTrainProfitOverlay(ctx, camera, viewportW, viewportH, state.trains, state.ticks);
+      }
       drawTrains(
         ctx,
         camera,
@@ -573,7 +629,28 @@ function main(): void {
       if (stationPreview) {
         drawStationCatchment(ctx, camera, viewportW, viewportH, state.map.width, stationPreview);
       }
-      drawCityLabels(ctx, camera, viewportW, viewportH, state.cities, state.map.width);
+
+      // Floating bottom-right buttons hide entirely while a panel is open (Phase 8 review carry-
+      // over — they'd otherwise render on top of/through the panel); labels near them or near the
+      // mini-map skip drawing rather than rendering underneath (same review, the station-label/
+      // News-button overlap).
+      const panelOpen = isPanelOpen();
+      for (const el of [newsButton.root, trainListButton, quickBuildToggle]) {
+        el.classList.toggle("floating-hidden", panelOpen);
+      }
+      const reserved: ReservedScreenRect[] = [];
+      if (!panelOpen) {
+        for (const el of [newsButton.root, trainListButton, quickBuildToggle]) {
+          const r = el.getBoundingClientRect();
+          reserved.push({ x0: r.left, y0: r.top, x1: r.right, y1: r.bottom });
+        }
+      }
+      if (overlayState.miniMap) {
+        const r = miniMapRenderer.screenRect(viewportH);
+        reserved.push({ x0: r.x, y0: r.y, x1: r.x + r.width, y1: r.y + r.height });
+      }
+
+      drawCityLabels(ctx, camera, viewportW, viewportH, state.cities, state.map.width, reserved);
       drawStationLabels(
         ctx,
         camera,
@@ -583,10 +660,24 @@ function main(): void {
         state.stations,
         state.cities,
         (tile) => state.map.cityId[tile] ?? -1,
+        reserved,
       );
       if (floatingLabels.length > 0) {
         floatingLabels = floatingLabels.filter((l) => !isLabelExpired(l, now));
         drawDeliveryLabels(ctx, camera, viewportW, viewportH, state.map.width, floatingLabels, now);
+      }
+      if (overlayState.miniMap) {
+        miniMapRenderer.draw(
+          ctx,
+          camera,
+          viewportW,
+          viewportH,
+          state.trackGraph,
+          state.stations,
+          state.cities,
+          state.trackVersion,
+          state.mapContentVersion,
+        );
       }
       fps.sampleRenderDuration(performance.now() - renderStart);
 
@@ -605,12 +696,22 @@ function main(): void {
     onSetSpeed: (speed: GameSpeed) => loop.setSpeed(speed),
     getSpeed: () => loop.getSpeed(),
     onOpenFinance: () => openFinancePanel(ui, state),
+    onOpenMenu: () =>
+      openMenuPanel(ui, {
+        getOverlayState: () => overlayState,
+        onToggle: (key: OverlayToggle) => {
+          overlayState = { ...overlayState, [key]: !overlayState[key] };
+        },
+        onSetHeatmapCargo: (cargo) => {
+          overlayState = { ...overlayState, heatmapCargo: cargo };
+        },
+      }),
   });
   const toolbar = createToolbar(ui, (tool) => setTool(tool));
-  createQuickBuildToggle(ui, (enabled) => {
+  const quickBuildToggle = createQuickBuildToggle(ui, (enabled) => {
     quickBuild = enabled;
   });
-  createTrainListButton(ui, () => {
+  const trainListButton = createTrainListButton(ui, () => {
     openTrainListPanel(ui, state, (trainId) => {
       const train = state.trains.find((t) => t.id === trainId);
       if (train) {
@@ -687,6 +788,8 @@ function main(): void {
             type: string;
             name: string;
             hasEngineShed: boolean;
+            hasWaterTower: boolean;
+            improvements: string[];
           }>;
           getStationEconomy: (stationId: number) => {
             supply: Partial<Record<string, number>>;
@@ -731,6 +834,22 @@ function main(): void {
           /** Test-only: injects a city directly, same rationale as `debugPlaceIndustry`. */
           debugPlaceCity: (tiles: number[], population: number) => number;
           getFloatingLabels: () => Array<{ stationTile: number; text: string; color: string }>;
+          buildImprovement: (
+            stationId: number,
+            type: StationImprovementType,
+          ) => { ok: boolean; reason?: string };
+          civicInvestment: (cityId: number) => { ok: boolean; reason?: string };
+          getCityGrowth: (cityId: number) => {
+            points: number;
+            monthlyScore: number;
+            lastServed: boolean;
+            lastCivicInvestmentTick: number | undefined;
+          } | null;
+          getOverlayState: () => OverlayState;
+          setOverlay: (key: OverlayToggle, enabled: boolean) => void;
+          setHeatmapCargo: (cargo: CargoType) => void;
+          getMiniMapRect: () => { x: number; y: number; width: number; height: number };
+          tapMiniMap: (x: number, y: number) => void;
         };
       }
     ).__game = {
@@ -793,6 +912,8 @@ function main(): void {
           type: s.type,
           name: s.name,
           hasEngineShed: s.hasEngineShed,
+          hasWaterTower: s.hasWaterTower,
+          improvements: [...s.improvements],
         })),
       getStationEconomy: (stationId) => state.stationEconomy.get(stationId) ?? null,
       runDays: (n) => {
@@ -908,6 +1029,34 @@ function main(): void {
       },
       getFloatingLabels: () =>
         floatingLabels.map((l) => ({ stationTile: l.stationTile, text: l.text, color: l.color })),
+      buildImprovement: (stationId, type) => {
+        const result = buildImprovement(state, stationId, type);
+        return result.ok ? { ok: true } : { ok: false, reason: result.reason };
+      },
+      civicInvestment: (cityId) => {
+        const result = civicInvestment(state, cityId);
+        return result.ok ? { ok: true } : { ok: false, reason: result.reason };
+      },
+      getCityGrowth: (cityId) => {
+        const growth = state.cityGrowth.get(cityId);
+        return growth
+          ? {
+              points: growth.points,
+              monthlyScore: growth.monthlyScore,
+              lastServed: growth.lastServed ?? false,
+              lastCivicInvestmentTick: growth.lastCivicInvestmentTick,
+            }
+          : null;
+      },
+      getOverlayState: () => overlayState,
+      setOverlay: (key, enabled) => {
+        overlayState = { ...overlayState, [key]: enabled };
+      },
+      setHeatmapCargo: (cargo) => {
+        overlayState = { ...overlayState, heatmapCargo: cargo };
+      },
+      getMiniMapRect: () => miniMapRenderer.screenRect(window.innerHeight),
+      tapMiniMap: (x, y) => handleTap(x, y),
     };
   }
 }

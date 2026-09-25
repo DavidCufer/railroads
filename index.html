@@ -323,7 +323,9 @@
       }
       .station-upgrade-btn,
       .station-water-tower-btn,
-      .station-buy-train-btn {
+      .station-buy-train-btn,
+      .station-improvement-btn,
+      .city-civic-investment-btn {
         width: 100%;
         min-height: 40px;
         border-radius: 8px;
@@ -334,7 +336,9 @@
         margin-top: 4px;
       }
       .station-upgrade-btn:disabled,
-      .station-water-tower-btn:disabled {
+      .station-water-tower-btn:disabled,
+      .station-improvement-btn:disabled,
+      .city-civic-investment-btn:disabled {
         background: #5a5f57;
         color: rgba(255, 255, 255, 0.5);
       }
@@ -773,6 +777,56 @@
       }
       .yearly-report-headline.bad {
         color: #e05a4f;
+      }
+
+      /* ☰ Menu: overlay toggles + mini-map toggle (SPEC §10.1/§10.2, Phase 9). */
+      .menu-toggle-btn {
+        width: 100%;
+        min-height: 44px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+        font: 700 13px sans-serif;
+        text-align: left;
+        padding: 0 12px;
+      }
+      .menu-toggle-btn.active {
+        background: #f2b544;
+        color: #1e2a38;
+        border-color: #f2b544;
+      }
+      .menu-cargo-picker {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .menu-cargo-btn {
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 2px solid transparent;
+        color: #1a1a1a;
+        font: 700 11px sans-serif;
+        min-height: 32px;
+      }
+      .menu-cargo-btn.active {
+        border-color: #fff;
+      }
+
+      /* Floating bottom-right buttons (SPEC §10.1: Trains, News) and the quick-build toggle need a
+         solid (not translucent) background — Phase 8 review carry-over: at ~0.88 alpha, bright
+         canvas content behind them (a station label, a bright terrain tile) was still faintly
+         visible through the chrome, see docs/screenshots/phase-8-electrified-line-zoom2.png. Hidden
+         entirely while a side panel is open (they'd otherwise render on top of/through it, see
+         docs/screenshots/phase-8-finance-panel-fixed.png) rather than just relying on stacking
+         order. */
+      .train-list-button,
+      .news-button,
+      .quick-build-toggle {
+        background: #181c22;
+      }
+      .floating-hidden {
+        display: none;
       }
 
       #debug-overlay {

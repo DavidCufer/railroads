@@ -156,6 +156,7 @@ function bareTrain(
     breakdownTicksLeft: 0,
     ...(lastServicedTick !== undefined ? { lastServicedTick } : {}),
     tilesSinceWaterTower: 0,
+    lifetimeRevenue: 0,
     renderFromX: 0.5,
     renderFromY: 0.5,
     renderToX: 0.5,

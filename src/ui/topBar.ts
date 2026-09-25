@@ -17,6 +17,8 @@ export interface TopBarHandlers {
   getSpeed: () => GameSpeed;
   /** Tapping the cash figure opens the Finance panel (SPEC §10.1). */
   onOpenFinance: () => void;
+  /** Tapping ☰ opens the menu (SPEC §10.1: overlay toggles, Phase 9's mini-map toggle). */
+  onOpenMenu: () => void;
 }
 
 export interface TopBarController {
@@ -64,7 +66,15 @@ export function createTopBar(container: HTMLElement, handlers: TopBarHandlers): 
     dateEl,
     h("div", { className: "spacer" }),
     speedGroup,
-    h("button", { className: "menu-btn", "aria-label": strings.topBar.menu }, "☰"),
+    h(
+      "button",
+      {
+        className: "menu-btn",
+        "aria-label": strings.topBar.menu,
+        onClick: () => handlers.onOpenMenu(),
+      },
+      "☰",
+    ),
   );
   container.appendChild(root);
 
