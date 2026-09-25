@@ -1577,3 +1577,113 @@ Civic Investment's cost is charged to the `construction` ledger category for lac
 
 - `npm run check` and `npm run e2e` both green (224 unit tests, 37 e2e specs).
 - Next: **Phase 10 — Real-world maps and the new game screen**.
+
+## Phase 10.1 — mapgen pipeline + region loader + us-east (in progress)
+
+**Network**: `cdn.jsdelivr.net` (the Natural Earth GeoJSON host SPEC §4.3 names) is blocked by this
+environment's egress policy — confirmed via `curl -sS "$HTTPS_PROXY/__agentproxy/status"`, which
+logged `connect_rejected: gateway answered 403 to CONNECT (policy denial or upstream failure)` for
+`cdn.jsdelivr.net:443`, not a config/cert problem. Per SPEC's own fallback and this phase's task
+brief, `tools/mapgen` uses **hand-authored simplified coastline/lake/river polygons** exclusively —
+no live-fetch code path was written at all (untestable code in this environment would just be dead
+weight); if a future session has network access, add a `tools/mapgen/fetch.ts` that downloads and
+caches the three GeoJSON files under `tools/mapgen/.cache/` (already gitignored) and rasterizes
+those instead of `RegionDef.land/lakes`.
+
+**Pipeline** (`tools/mapgen/`, run via `npm run mapgen -- <regionId>`):
+- `regionDef.ts`: the author-time format — bounds+grid size, start year, seed, hand-drawn land/lake
+  polygons and river polylines (lon/lat), mountain ridges (polyline + peak elevation + influence
+  radius in tiles), resource zones (which raw industry types are allowed where), optional arid
+  zones, and the city list (name/lon/lat/tier/population/optional foundingYear).
+- `geo.ts`: equirectangular projection (region bounds → tile space) and point-in-polygon /
+  point-to-polyline-distance / polyline rasterization helpers. Each region's grid width/height is
+  chosen up front (in its `regions/<id>.ts`) to match `(east-west)·cos(centerLat) / (north-south)`
+  so the projection doesn't stretch coastlines — no cos-lat term needed at query time once that's
+  baked into the aspect ratio.
+- `build.ts`: rasterizes land (minus lakes) tile-by-tile at tile *centers*; elevation = max over
+  mountain features of `peakElevation × falloff(distance/radius)`, plus low-amplitude fractal noise
+  for texture (`src/sim/map/noise.ts`, reused as-is); terrain classification reuses
+  `classifyTerrain` (now exported from `src/sim/map/generate.ts`) so regions and random maps agree
+  on thresholds; rivers are rasterized polylines that overwrite land tiles as `river` terrain and
+  cap elevation along their course (SPEC: "rivers pull elevation down").
+- `cities.ts` / `industries.ts`: cities snap to the nearest buildable land tile (hand-drawn
+  coastlines are imprecise, so an exact lon/lat can land just offshore) and grow a footprint via
+  the random generator's own `growFootprint`/`isCoastal` (now exported from
+  `src/sim/economy/cities.ts`) — reused, not reimplemented, so regions and random maps size
+  footprints identically. Raw industries reuse the terrain-affinity lists from `data/industries.ts`
+  but restrict placement to a region's resource zones when the type is zoned (e.g. `coalMine` only
+  in the Pennsylvania zone) and fall back to region-wide placement otherwise; processors/ports reuse
+  `placeProcessorsAndPorts` (now exported from `src/sim/economy/industries.ts`) unchanged.
+- `index.ts`: CLI entry, writes `src/data/regions/<id>.json`.
+- Runs via **`tsx`** (added as a dev-only dependency — devDependency, not shipped in the app
+  bundle). Node's own native TypeScript stripping (`--experimental-strip-types`) was tried first
+  since it needs no new dependency, but it requires explicit `.ts`/`.js` extensions on every
+  relative import (confirmed empirically), which the rest of this codebase's bundler-style
+  extensionless imports don't use — rewriting every `src/sim`/`src/data` import for one CLI tool
+  wasn't worth it. `tsx` resolves extensionless imports like Vite does.
+
+**Committed format** (`src/sim/regions/types.ts`): terrain/elevation packed as base64 `Uint8Array`,
+the continuous pre-quantization elevation (needed for hillshading, SPEC's render layer) packed as
+base64 fixed-point `Int16` (×10000) rather than raw `Float32`, halving that field's size. Rivers are
+stored as ordered tile-index chains (source→mouth) rather than a full `riverNext`/`riverFlow`
+array — the loader (`src/sim/regions/load.ts`) reconstructs those two GameMap fields from the
+chains deterministically. `us-east.json` is 127 KB (budget: <300 KB).
+
+**GameState changes**: `NewGameOptions` is now a discriminated union — `RandomNewGameOptions`
+(existing shape, `region` absent) or `RegionNewGameOptions` (`{seed, region, startYear?,
+difficulty?}`). `createGameState` branches on `options.region`. Added `GameState.regionId?` and
+`GameState.pendingCityFoundings: PendingCityFounding[]` (always `[]` on a random map) — a city
+whose `foundingYear` is still in the future loads with `tiles: []`/`population: 0` and an entry in
+`pendingCityFoundings` carrying its target tiles/population; **the tick-time code that applies a
+founding and fires the news toast is Phase 10.6's job** (goals + founding-year cities), not this
+step — for now a future city simply doesn't exist yet, which is already covered by an e2e test.
+`City` gained an optional `foundingYear?: number`.
+
+**us-east** (bounds fixed by SPEC's table: −92…−68 lon, 29…46 lat; grid **160×142**, chosen to match
+the region's true aspect ratio, `(24°·cos(37.5°))/17° ≈ 1.12 ≈ 160/142`). 25 cities per SPEC's list,
+real lon/lat, populations from 1830 census figures (or the village-tier floor of 1,000 where the
+real 1830 figure was smaller, e.g. Chicago's actual ~350 and Cleveland/Detroit's low hundreds—
+picking a real number below the game's own village floor would just be silently clamped-looking
+without explanation, so the floor is used directly and it's noted here instead). **Chicago**
+(founded 1833) and **Atlanta** (founded 1837, as "Terminus"/Marthasville) carry `foundingYear`, per
+the task brief's example. **Deviations** (both because the real location is outside `us-east`'s
+SPEC-fixed bounds): "Mesabi iron" (Minnesota, ~lat 47.3-47.9, north of the lat-46 edge) →
+substituted with an eastern-Ohio/western-PA iron zone; "Texas oil" (west of the lon-92 edge) →
+substituted with the historical Pennsylvania oil zone (Oil Creek/Titusville, the first US
+commercial well, 1859). Lake Superior is also outside the fixed bounds (its south shore is ~46.5-47N)
+— Michigan/Huron/Erie/Ontario are all drawn.
+
+A real city's exact hand-authored coastline snap-to-land, plus two real cities close enough for
+their footprints to touch (Baltimore/Washington, ~4 tiles apart at this resolution), surfaced a
+real bug: `growFootprint` unconditionally claims its anchor tile even if another city already
+claimed it — fixed in `tools/mapgen/cities.ts` by nudging a city's anchor to the nearest *unclaimed*
+buildable tile before calling it (a mapgen-only concern; `growFootprint` itself, shared with the
+random generator where `CITY_MIN_SPACING=8` already prevents this, is untouched).
+
+**Screenshots** (`e2e/regions.spec.ts`, 800×360, reviewed):
+- `phase-10-us-east-overview.png`: zoom 0.25 (SPEC's overview threshold), centered on the map's
+  geometric middle — the 800×360 phone viewport at 0.25× shows ~100×45 of the map's 160×142 tiles,
+  so this one shot is a crop, not the whole region (same limitation every other phase's overview
+  screenshot has on a Medium/Large map). What's visible: Chesapeake Bay's notch, the Atlantic coast
+  from NJ down past Norfolk, Washington/Baltimore/Philadelphia, Charleston/Savannah further south.
+  A **wider (1400×1100, not committed) inspection screenshot** was also taken to judge the whole
+  region and is genuinely recognizable: Great Lakes correctly shaped and positioned, Chesapeake Bay,
+  the Appalachian upland as a visible darker band from Pittsburgh down through Nashville, the
+  Atlantic coast curving from Montreal/Boston down to Savannah, and (in a second wide shot) the
+  Mississippi/Ohio confluence and Gulf coast toward Florida. At zoom 0.25 (overview style) rivers
+  aren't drawn — that's the existing renderer's overview simplification (SPEC §4.1: "no per-tile
+  detail" below zoom 0.5), not a regression.
+- `phase-10-us-east-closeup.png`: zoom 2 on New York — a large, dense multi-block metropolis
+  footprint right on the water, clearly distinct from a random map's villages.
+
+**Tests**: `tests/mapgen/build.test.ts` (determinism — two builds of the same `RegionDef` are
+byte-identical; <300 KB; every city within 1.5 tiles of its projected lat/lon; every city anchor on
+non-water/non-mountain terrain; no two cities' footprints overlap; river chains well-formed; no
+NaN/out-of-range elevation). `tests/sim/regions/load.test.ts` (JSON → GameMap sizing; founded vs.
+pending cities; `createGameState` with a region vs. a random map). `e2e/regions.spec.ts` (loads,
+screenshots, Chicago absent pre-1833). Existing 224 unit tests and 37 e2e specs still green —
+`tests/sim/track/helpers.ts`'s hand-built `GameState` fixture needed `pendingCityFoundings: []`
+added for the new required field.
+
+- `npm run check` (236 unit tests) and the full `npm run e2e` (39 specs) both green.
+- Next: **gb region** (Phase 10.2).

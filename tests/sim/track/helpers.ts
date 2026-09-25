@@ -75,6 +75,7 @@ export function makeTestState(map: GameMap, overrides: Partial<GameState> = {}):
     newsReadUpTo: -1,
     cityGrowth: new Map(),
     mapContentVersion: 0,
+    pendingCityFoundings: [],
     ...overrides,
   };
 }

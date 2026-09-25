@@ -15,6 +15,12 @@ export interface City {
   tiles: number[];
   /** True if any footprint tile is adjacent to water. */
   coastal: boolean;
+  /** Real-world regions only (SPEC §4.3): the year this city is founded, if after the region's
+   * start year. Absent/undefined means the city exists from game start. A city with a future
+   * `foundingYear` still has an id/name/tier reserved (for goals that reference it by name) but
+   * starts with `tiles: []`/`population: 0` in `GameState.cities` until
+   * `GameState.pendingCityFoundings` applies it — see src/sim/economy/founding.ts. */
+  foundingYear?: number;
 }
 
 export interface Industry {

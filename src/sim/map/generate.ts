@@ -55,7 +55,9 @@ function bumpCityCount(count: CityCount): CityCount {
 
 const MIN_PLAYABLE_PAIRS = 3;
 
-function classifyTerrain(elevation: number, moisture: number): Terrain {
+/** Exported for reuse by real-world region generation (tools/mapgen), which derives terrain from
+ * elevation the same way but builds its elevation field from mountain features instead of noise. */
+export function classifyTerrain(elevation: number, moisture: number): Terrain {
   if (elevation === 0) return "water";
   if (elevation >= TERRAIN_THRESHOLDS.mountainElevation) return "mountain";
   if (elevation >= TERRAIN_THRESHOLDS.hillsElevation) return "hills";

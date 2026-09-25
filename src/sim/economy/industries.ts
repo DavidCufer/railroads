@@ -160,7 +160,10 @@ const PROCESSOR_SLOTS: Record<string, number> = {
   metropolis: 4,
 };
 
-function placeProcessorsAndPorts(
+/** Exported for reuse by real-world region loading (tools/mapgen): raw-producer placement there
+ * uses region-specific resource zones instead of `placeRawProducers`, but processor/port placement
+ * (near cities, terrain-independent) is identical to the random generator's. */
+export function placeProcessorsAndPorts(
   map: GameMap,
   rng: RngState,
   cities: City[],

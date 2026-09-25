@@ -65,7 +65,7 @@ function siteScore(map: GameMap, x: number, y: number): number {
   return score;
 }
 
-function isCoastal(map: GameMap, city: City): boolean {
+export function isCoastal(map: GameMap, city: City): boolean {
   for (const idx of city.tiles) {
     const x = idx % map.width;
     const y = Math.floor(idx / map.width);
@@ -93,8 +93,10 @@ function tierForRank(rank: number, total: number): CityTier {
   return "village";
 }
 
-/** Grows a city footprint outward from its anchor tile to `targetTiles` land tiles. */
-function growFootprint(
+/** Grows a city footprint outward from its anchor tile to `targetTiles` land tiles. Exported for
+ * reuse by real-world region loading (tools/mapgen), which places cities at fixed lat/lon anchors
+ * rather than scored sites but needs the same deterministic outward-growth footprint shape. */
+export function growFootprint(
   map: GameMap,
   rng: RngState,
   anchorX: number,

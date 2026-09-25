@@ -47,6 +47,8 @@ export interface GameWindow {
     waterLevel?: string;
     roughness?: string;
     startYear?: number;
+    region?: string;
+    difficulty?: string;
   }) => void;
   camera: {
     getZoom: () => number;

@@ -13,6 +13,7 @@ import type { StationEconomy } from "./stations/economy";
 import type { Train } from "./trains/types";
 import { createFinanceState, type FinanceState } from "./finance/types";
 import type { NewsItem } from "./news";
+import { getRegion, loadRegion, type PendingCityFounding, type RegionId } from "./regions";
 
 /** A station's waiting pile for one cargo type (SPEC §6.3). */
 export interface StationCargoPile {
@@ -85,13 +86,32 @@ export interface GameState {
    * (src/render/terrain.ts) is only ever invalidated per-tile, not polled every frame, so the UI
    * layer diffs this against its own last-seen value to know when to invalidate. */
   mapContentVersion: number;
+  /** Set only for a real-world region (SPEC §4.3) — which region this game started from, for the
+   * Goals panel's per-region goal set and for display. Undefined on a random map. */
+  regionId?: RegionId;
+  /** Real-world region cities not yet founded (SPEC §4.3) — drained by
+   * src/sim/economy/founding.ts as the in-game year reaches each one. Always empty on a random map. */
+  pendingCityFoundings: PendingCityFounding[];
 }
 
-export interface NewGameOptions extends MapGenOptions {
+interface BaseNewGameOptions {
   seed: number;
   startYear?: number;
   difficulty?: Difficulty;
 }
+
+/** A freshly-generated random map (SPEC §4.2). */
+export interface RandomNewGameOptions extends BaseNewGameOptions, MapGenOptions {
+  region?: undefined;
+}
+
+/** A shipped real-world region (SPEC §4.3) — `region` selects the committed JSON; random-map-only
+ * options (size/waterLevel/...) don't apply. */
+export interface RegionNewGameOptions extends BaseNewGameOptions {
+  region: RegionId;
+}
+
+export type NewGameOptions = RandomNewGameOptions | RegionNewGameOptions;
 
 /**
  * Creates a fresh game state. Map generation consumes from the same RNG stream stored in the
@@ -99,9 +119,33 @@ export interface NewGameOptions extends MapGenOptions {
  */
 export function createGameState(options: NewGameOptions): GameState {
   const rng = createRng(options.seed);
-  const startYear = options.startYear ?? DEFAULT_START_YEAR;
-  const { map, cities, industries } = generateMap(rng, options, startYear);
   const difficulty = options.difficulty ?? DEFAULT_DIFFICULTY;
+
+  let map: GameMap;
+  let cities: City[];
+  let industries: Industry[];
+  let startYear: number;
+  let regionId: RegionId | undefined;
+  let pendingCityFoundings: PendingCityFounding[];
+
+  if (options.region) {
+    const region = getRegion(options.region);
+    const loaded = loadRegion(region);
+    map = loaded.map;
+    cities = loaded.cities;
+    industries = loaded.industries;
+    startYear = options.startYear ?? loaded.startYear;
+    regionId = options.region;
+    pendingCityFoundings = loaded.pendingCityFoundings;
+  } else {
+    startYear = options.startYear ?? DEFAULT_START_YEAR;
+    const generated = generateMap(rng, options, startYear);
+    map = generated.map;
+    cities = generated.cities;
+    industries = generated.industries;
+    pendingCityFoundings = [];
+  }
+
   return {
     seed: options.seed,
     rng,
@@ -129,5 +173,7 @@ export function createGameState(options: NewGameOptions): GameState {
     newsReadUpTo: -1,
     cityGrowth: new Map(),
     mapContentVersion: 0,
+    ...(regionId !== undefined ? { regionId } : {}),
+    pendingCityFoundings,
   };
 }

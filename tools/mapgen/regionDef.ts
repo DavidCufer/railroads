@@ -1,0 +1,59 @@
+/** Author-time region definition format (SPEC §4.3 step 1) — one file per region under
+ * `tools/mapgen/regions/`, consumed by `build.ts` to produce the committed `src/data/regions/*.json`. */
+import type { CityTier } from "../../src/data/cities";
+import type { IndustryType } from "../../src/data/industries";
+import type { LonLat, RegionBounds } from "./geo";
+
+export interface RegionCityDef {
+  name: string;
+  lon: number;
+  lat: number;
+  tier: CityTier;
+  /** Realistic population for the region's start year. */
+  population: number;
+  /** If set and after `startYear`, the city doesn't appear until this year (SPEC §4.3/§4.4). */
+  foundingYear?: number;
+}
+
+/** A mountain range's influence on elevation: `peakElevation` (0-9) at the ridge line, falling
+ * off to 0 over `radiusTiles`. */
+export interface MountainFeature {
+  name: string;
+  ridge: LonLat[];
+  peakElevation: number;
+  radiusTiles: number;
+}
+
+/** Restricts which terrain-placed raw industries can spawn where (SPEC §4.3 step 4 — "Pennsylvania
+ * coal", "Mesabi iron", etc). An industry type not mentioned in any zone for a region is free to
+ * spawn anywhere its terrain affinity allows, same as the random generator. */
+export interface ResourceZone {
+  name: string;
+  types: IndustryType[];
+  polygon: LonLat[];
+}
+
+/** A region's arid belt (SPEC §4.3: "region-specific moisture hints, e.g. desert in the US
+ * southwest") — moisture is pulled down inside the polygon so desert/plain classification is
+ * geographically plausible instead of noise-only. */
+export interface AridZone {
+  polygon: LonLat[];
+}
+
+export interface RegionDef {
+  id: string;
+  name: string;
+  bounds: RegionBounds;
+  startYear: number;
+  seed: number;
+  /** Land polygons (SPEC's Natural Earth fallback: hand-authored simplified coastlines). */
+  land: LonLat[][];
+  /** Inland lake polygons (Great Lakes, Great Salt Lake, ...) — same terrain as sea (`water`). */
+  lakes: LonLat[][];
+  /** Rivers as source→mouth polylines. */
+  rivers: LonLat[][];
+  mountains: MountainFeature[];
+  resourceZones: ResourceZone[];
+  aridZones?: AridZone[];
+  cities: RegionCityDef[];
+}

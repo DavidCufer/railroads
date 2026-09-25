@@ -39,7 +39,12 @@ import {
   showConfirmBar,
   showDragCostLabel,
 } from "./ui/buildHud";
-import { createGameState, type GameState, type NewGameOptions } from "./sim/state";
+import {
+  createGameState,
+  type GameState,
+  type NewGameOptions,
+  type RandomNewGameOptions,
+} from "./sim/state";
 import {
   buildImprovement,
   buildStation,
@@ -72,6 +77,8 @@ import { terrainId } from "./sim/map/terrain";
 import { inBounds, tileIndex } from "./sim/map/grid";
 import { calendarFromTicks, isYearBoundary } from "./sim/time";
 import type { MapSizeName, Roughness, WaterLevel } from "./data/mapGen";
+import type { Difficulty } from "./data/finance";
+import type { RegionId } from "./sim/regions";
 import type { BridgeType } from "./data/track";
 import { STATION_TYPE_DEFS, type StationImprovementType, type StationType } from "./data/stations";
 import { CARGO, type CargoType } from "./data/cargo";
@@ -737,7 +744,10 @@ function main(): void {
 
     createDebugControls(ui, {
       onRegenerate: (seed, size: MapSizeName) => {
-        regenerate({ ...currentOptions, seed, size });
+        const base: RandomNewGameOptions = currentOptions.region
+          ? { seed, size, waterLevel: "normal", roughness: "normal" }
+          : { ...currentOptions, seed, size };
+        regenerate(base);
       },
     });
 
@@ -762,6 +772,8 @@ function main(): void {
             waterLevel?: WaterLevel;
             roughness?: Roughness;
             startYear?: number;
+            region?: RegionId;
+            difficulty?: Difficulty;
           }) => void;
           camera: {
             getZoom: () => number;
@@ -869,7 +881,21 @@ function main(): void {
       getAvgFrameMs: () => fps.avgFrameMs,
       getAvgRenderMs: () => fps.avgRenderMs,
       findRiverMouth,
-      regenerate: (options) => regenerate({ ...currentOptions, ...options }),
+      regenerate: (options) => {
+        if (options.region) {
+          regenerate({
+            seed: options.seed,
+            region: options.region,
+            ...(options.startYear !== undefined ? { startYear: options.startYear } : {}),
+            ...(options.difficulty !== undefined ? { difficulty: options.difficulty } : {}),
+          });
+          return;
+        }
+        const base: RandomNewGameOptions = currentOptions.region
+          ? { seed: options.seed, size: "medium", waterLevel: "normal", roughness: "normal" }
+          : { ...currentOptions, ...options, region: undefined };
+        regenerate(base);
+      },
       camera: {
         getZoom: () => camera.zoom,
         setZoom: (zoom) => {
