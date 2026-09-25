@@ -1,5 +1,20 @@
 apply plugin: 'com.android.application'
 
+// PLAN Phase 12: versionCode/versionName derived from package.json's "version" (single source of
+// truth for the app's version, same field `npm` itself uses), rather than hand-bumped separately
+// here and forgotten. `rootDir` is the Gradle root project dir (`android/`), so `../package.json`
+// is the repo root's package.json.
+def packageJson = new groovy.json.JsonSlurper().parseText(new File(rootDir, "../package.json").text)
+def appVersionName = packageJson.version as String
+def versionParts = appVersionName.split(/[-+]/)[0].split(/\./)
+// major.minor.patch -> a single monotonically-increasing integer Play Store versionCode needs.
+// Each part is capped to 2 digits (0-99) — plenty for this project's versioning scheme; a part
+// that somehow exceeds that would need a different encoding, not silently wrap.
+def versionMajor = versionParts[0] as Integer
+def versionMinor = versionParts.size() > 1 ? (versionParts[1] as Integer) : 0
+def versionPatch = versionParts.size() > 2 ? (versionParts[2] as Integer) : 0
+def appVersionCode = versionMajor * 10000 + versionMinor * 100 + versionPatch
+
 android {
     namespace = "com.railroads.game"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +22,8 @@ android {
         applicationId "com.railroads.game"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +31,29 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // PLAN Phase 12: an optional signed release build (release.yml, manual dispatch only) passes
+    // a keystore via environment variables read here; android.yml's every-push debug build never
+    // sets them, so `signingConfigs.release.storeFile` stays null and `buildTypes.release` below
+    // falls back to no signing config at all rather than failing — `assembleRelease` still
+    // produces a real (unsigned) APK either way, it just can't be installed/uploaded unsigned.
+    // Never commit an actual keystore file or its passwords — see README's "Signed release builds"
+    // section for the one-time setup.
+    def releaseKeystorePath = System.getenv("RAILROADS_KEYSTORE_PATH")
+    signingConfigs {
+        release {
+            if (releaseKeystorePath) {
+                storeFile file(releaseKeystorePath)
+                storePassword System.getenv("RAILROADS_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("RAILROADS_KEY_ALIAS")
+                keyPassword System.getenv("RAILROADS_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig releaseKeystorePath ? signingConfigs.release : null
         }
     }
 }

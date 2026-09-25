@@ -1,0 +1,78 @@
+name: Release
+
+# Manual only — a signed release build is a deliberate act (uploading to the Play Store, sharing a
+# release APK), never something every push should produce. See android.yml for the every-push
+# debug build.
+on:
+  workflow_dispatch:
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Same JDK as android.yml (Capacitor's generated capacitor.build.gradle pins Java 21 source/
+      # target compatibility).
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - run: npx cap sync android
+
+      - run: chmod +x android/gradlew
+
+      # Signing is optional: if the repo's KEYSTORE_BASE64 secret isn't set, this step is skipped
+      # entirely (not just a no-op — `if:` short-circuits it), so RAILROADS_KEYSTORE_PATH is never
+      # set below and android/app/build.gradle's own fallback (see its signingConfigs comment)
+      # produces a real, valid, just-unsigned APK/AAB instead of failing the whole workflow. See
+      # README's "Signed release builds" section for the one-time keystore setup that populates
+      # this secret.
+      - name: Decode signing keystore
+        id: keystore
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        run: |
+          KEYSTORE_PATH="$RUNNER_TEMP/release.keystore.jks"
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$KEYSTORE_PATH"
+          echo "path=$KEYSTORE_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Build release APK
+        working-directory: android
+        env:
+          RAILROADS_KEYSTORE_PATH: ${{ steps.keystore.outputs.path }}
+          RAILROADS_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          RAILROADS_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          RAILROADS_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Build release AAB (Play Store bundle)
+        working-directory: android
+        env:
+          RAILROADS_KEYSTORE_PATH: ${{ steps.keystore.outputs.path }}
+          RAILROADS_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          RAILROADS_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          RAILROADS_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew bundleRelease --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: android/app/build/outputs/apk/release/*.apk
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          retention-days: 30

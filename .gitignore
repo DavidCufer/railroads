@@ -11,3 +11,11 @@ playwright-report/
 blob-report/
 *.log
 .DS_Store
+
+# Release signing (PLAN Phase 12) — never commit an actual keystore or its credentials; see
+# README's "Signed release builds" section. The release.yml workflow decodes one from a repo
+# secret into a runner temp dir instead, and android/app/build.gradle only reads it by path.
+*.keystore
+*.keystore.jks
+*.jks
+keystore.properties
