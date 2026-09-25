@@ -663,3 +663,14 @@ localization (English only, but keep strings in one `strings.ts` file for later)
   `purchasePrice`/`purchaseTick` (SPEC §9.3's 5%/year, min 10%) rather than summing current
   loco+car catalog prices, since a locomotive's price at purchase time already reflects that era's
   inflation and shouldn't silently change if the player is still mid-game when prices rise further.
+- [Phase 7.1] Balance retune (review of Phase 7's numbers — a passenger shuttle earned ~8x a coal
+  route). Formulas unchanged; tuned `src/data/*` tables only:
+  - §8.1 `CARGO.passengers.baseRate`: 3000 → 1400.
+  - §8.1 `CARGO.steel.baseRate`: 1800 → 2000; `CARGO.goods.baseRate`: 2600 → 2900 (so a full
+    processing chain clears a passenger shuttle's profit per train, per the Phase 7.1 target).
+  - §8.2 `INDUSTRIES.ironMine.produces.ironOre`: 50 → 60/month (matches `coalMine`, so a steel
+    mill fed by both isn't ore-starved relative to its coal supply).
+  - §8.3 city passenger/mail supply: SPEC's literal "pop/250" / "pop/800" divisors are now the
+    tunable constants `CITY_PASSENGER_SUPPLY_DIVISOR = 650` / `CITY_MAIL_SUPPLY_DIVISOR = 1400`
+    (`src/data/cities.ts`, used by `src/sim/economy/cityStats.ts`), replacing the hardcoded 250/800.
+  See PROGRESS.md's Phase 7.1 entry for the measured before/after balance table.

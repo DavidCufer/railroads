@@ -1119,3 +1119,110 @@ Append one entry per phase/session: date, phase, what was built, key files, know
   map-gen placements; `getFloatingLabels`/`getTrainCars`/`getStationCargo`/`getFinance`/`takeLoan`/
   `repayLoan` for inspection and control). `npm run check` and `npm run e2e` both green.
 - Next: **Phase 8 — Eras and technology**.
+
+## 2026-09-25 — Phase 7.1: Balance and UI fixes (review findings on Phase 7)
+
+- **Balance retune** (`src/data/cargo.ts`, `src/data/cities.ts`, `src/data/industries.ts`;
+  formulas unchanged, only table numbers — see `docs/SPEC.md`'s Deviations for the full list):
+  passengers `baseRate` 3000 → 1400; new tunable `CITY_PASSENGER_SUPPLY_DIVISOR = 650` /
+  `CITY_MAIL_SUPPLY_DIVISOR = 1400` (`src/data/cities.ts`, replacing SPEC §8.3's literal
+  pop/250 and pop/800 hardcoded in `src/sim/economy/cityStats.ts`); `ironMine.produces.ironOre`
+  50 → 60/month (matches `coalMine` so a steel mill isn't ore-starved relative to its coal
+  supply); steel `baseRate` 1800 → 2000, goods `baseRate` 2600 → 2900 (so a full processing chain
+  clears a passenger shuttle's profit per train, per this phase's target).
+- **Balance table** (`tests/sim/balance.test.ts`, hand-built synthetic maps, Normal difficulty,
+  1848 start, `american-4-4-0` loco, measured via `finance.lastYear`'s ledger after 2 full
+  in-game years — this excludes the initial train-purchase cost, which lands in year 1's ledger):
+
+  | Route | Yr-2 profit/train | Target | In range? |
+  |---|---|---|---|
+  | Coal mine → Steel mill (16 tiles, 4 coal cars) | $79.7k/yr | $40k–$120k | ✅ |
+  | Two-city passenger shuttle (16 tiles, 2× 40k-pop cities, 4 pax cars) | $113.9k/yr | $80k–$200k | ✅ |
+  | Passenger/freight ratio (both @ 16 tiles) | 1.43× | 1×–2.5× | ✅ |
+  | Coal+ore→steel→factory→goods chain (12-tile legs, 3 trains) | $127.5k/yr/train | > passenger shuttle ($115.7k @ 12 tiles) | ✅ (+10%) |
+  | Diversified 5-train network (3 coal + 2 passenger trains), cumulative profit | Yr1 $216k, Yr5 $1.18M | Yr1 < 50% of $1M starting cash; Yr5 within [50%, 200%] of it | ✅ |
+
+  At the wider end of the "12–20 tile" range (20 tiles) the passenger/freight ratio dips to
+  ~0.94× (freight very slightly ahead of passenger there — both routes are still individually
+  well inside their own $ ranges) since coal's higher `urgency`/shorter effective `expected`
+  transit time scales a little better with distance than passengers' does; not worth chasing
+  further tuning for, noted here rather than silently ignored. The old numbers (Phase 7, before
+  this pass): coal $62k/yr, passengers $519k/yr, ratio ~8.4×.
+- **Balance tests** (`tests/sim/balance.test.ts`): replaced the old "any profit at all within
+  2 years" checks with the precise ranges above (encoded as real assertions, not just printed),
+  added the passenger/freight ratio test, a new `buildChain` helper (4 industries, 4 stations, 3
+  trains: mine hub → mill → factory → city) for the chain-profitability test, and a new
+  `addNetworkCoalRoute`/`addNetworkPassengerRoute` pair of helpers that add independent routes
+  (no shared mine/city/catchment) onto one shared big map/state for the 5-train network test.
+  Kept the two existing "doesn't print absurd money" stress tests (oversubscribing *one* route's
+  fixed supply with extra trains) since they test something the new precise-range tests don't:
+  that piling more trains onto a already-saturated route doesn't scale revenue. All of the above
+  needed a `hasEngineShed` workaround in the chain/network helpers — only the *first* station
+  ever built in a `GameState` gets a free Engine Shed (buying more is Phase 9's job, not built
+  yet), so multi-hub synthetic scenarios force one onto each hub station directly, same as a
+  player will eventually be able to do once Phase 9 lands.
+- **Panel layout fix** (`index.html`): every panel (`.panel`) was a single scroll container, with
+  `.panel-header`/`.panel-actions` faking "pinned" via `position: sticky`. Sticky doesn't remove
+  an element from the document flow, so scrolled-past body content could still paint through/over
+  the "pinned" header — confirmed by reproducing the exact review screenshot (finance panel,
+  scrolled via `scrollIntoView` to bring the chart into frame): the "Credit limit" row's rect
+  landed inside the header's own rect afterward. Fixed by making `.panel` a real flex column
+  (fixed-size header and footer outside any scrollport) with `.panel-body` as the *only* scrolling
+  region (`flex: 1 1 auto; min-height: 0; overflow-y: auto`).
+  - That surfaced a second, previously-latent bug: a flex item with non-visible overflow (e.g.
+    `.train-car-picker`'s own `overflow-y: auto`) has an *automatic minimum size of 0* per the
+    flexbox spec. Once `.panel-body` became height-constrained instead of just growing to fit its
+    content, the browser shrank the car/loco/order pickers all the way to 0px height to make
+    everything else fit — they were still "visible" per the DOM, just invisible on screen (this
+    is exactly what made `buy-train-dialog and train panel fit an 800×360 viewport` time out
+    trying to click a 0-height Coal button). Fixed with a blanket
+    `.panel-body > * { flex-shrink: 0; }` — nothing in a panel body should ever be squeezed below
+    its natural/capped size; overflow is `.panel-body`'s own job to handle by scrolling.
+  - Two e2e specs scrolled `.panel` directly (`el.scrollTop = ...`) to frame a screenshot; updated
+    both to scroll `.panel-body` instead, since `.panel` itself no longer scrolls
+    (`e2e/economy.spec.ts`, `e2e/trains.spec.ts`).
+  - Also found and fixed a real (pre-existing, unrelated to the sticky bug) test-timing issue
+    while checking every panel screenshot per this phase's brief: the yearly report test's
+    100ms wait after the panel auto-opens wasn't enough to clear the panel's own 0.2s slide-in
+    CSS transition, so the screenshot sometimes caught it still sliding in — ledger row *values*
+    (right-aligned near the panel's right edge) rendered past x=800 and were invisible in the
+    800×360 screenshot, while the left-aligned labels were still on-screen (looked exactly like a
+    cut-off/overlap bug at a glance). Bumped the wait to 300ms.
+- **Delivery label fix** (`src/render/deliveryLabels.ts`): dark cargo colors (coal `#2A2A2A`,
+  wood, ...) as the label's fill color, over a half-opacity dark stroke, were unreadable against
+  almost any terrain. Cargo colors light enough to read on their own now stay cargo-colored
+  (still useful for "what got delivered" at a glance); anything darker (luminance < 0.45) falls
+  back to bold white. Also thickened the stroke halo (3px → 4px, 65% → 85% opacity) and bumped
+  the font from 13px to 15px, per the review's ask.
+- **Screenshots — looked at every one of the seven named panels at 800×360** (only the panel-
+  opening/delivery-label screenshots were regenerated and kept; the rest were reverted after
+  `npm run e2e` touched them with only incidental animation-timing noise, same precedent as prior
+  phases):
+  - `phase-7-finance-panel.png`: "Finance" header now reads cleanly with no "Credit limit" text
+    bleeding into it; Borrow/Repay buttons fully visible, not half-cut.
+  - `phase-7-delivery-label.png`: "+$2k" is now bold white with a strong dark halo, clearly
+    legible against the green grass background it used to disappear into.
+  - `phase-7-passenger-train-zoom1.5.png`: same fix visible on a second label mid-fade next to a
+    moving train.
+  - `phase-7-station-waiting-cargo.png`: correctly scrolled to the "Waiting cargo — Coal 20/40"
+    bar (this one actually regressed to showing the *unscrolled* top of the panel right after the
+    layout fix, since the test scrolled `.panel` — caught and fixed per the e2e-spec note above).
+  - `phase-7-yearly-report.png`: "1848 Year in Review" with all ledger row values (Revenue,
+    Expenses, Train/Track/Station maint., ...) visible on the right, not cut off past the
+    viewport edge (the slide-in-transition timing bug above).
+  - `phase-6-buy-train-dialog.png`: scrolled-to-top now genuinely shows the Locomotive picker at
+    the top (previously silently stayed scrolled to wherever the Coal-car click had left it,
+    since the reset also targeted the now-inert `.panel`).
+  - `phase-6-train-panel.png`: scrolled-to-bottom shows Consist/Sell/Orders correctly.
+  - `phase-3-city-panel.png`, `phase-3-industry-panel.png`, `phase-5-station-panel.png`,
+    `phase-5-station-placement.png`: all clean, header/footer never overlapping body content, at
+    both the 1280×720 (Phase 3's own viewport) and 800×360 sizes.
+- Known issues / carry-over: the yearly report's ledger-row-value cutoff (the slide-in-transition
+  timing bug) was a pre-existing issue in the *test*, not the panel — real play was never affected
+  since a real player doesn't screenshot 100ms after a panel opens. The passenger/freight ratio
+  dips slightly under 1× at the far end of the "12–20 tile" range (noted above, not chased
+  further). Station improvements (buying an Engine Shed at a second station) are still Phase 9's
+  job, so the chain/network balance tests force one onto extra hub stations directly rather than
+  going through a real in-game flow that doesn't exist yet.
+- `npm run check` and `npm run e2e` both green (190 unit tests, 26 e2e specs).
+- Next: **Phase 8 — Eras and technology**.

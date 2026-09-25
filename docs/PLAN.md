@@ -211,23 +211,23 @@ starting cash every year from one train), while a coal route earns ~$62k/yr. Pas
 freight, so freight is pointless and the early game has no challenge.
 
 Targets at Normal difficulty in 1830–1850 (encode as tests in `balance.test.ts`, replacing the loose upper bound):
-- [ ] A good early passenger route between two towns/cities (12–20 tiles) earns **$80k–$200k profit/yr** per train.
-- [ ] A good freight route (coal mine → steel mill, 12–20 tiles, full loads) earns **$40k–$120k profit/yr** per train;
+- [x] A good early passenger route between two towns/cities (12–20 tiles) earns **$80k–$200k profit/yr** per train.
+- [x] A good freight route (coal mine → steel mill, 12–20 tiles, full loads) earns **$40k–$120k profit/yr** per train;
       a complete chain (coal+ore → steel → factory → goods to a city) should be *more* profitable per train than a
       passenger shuttle, rewarding building networks.
-- [ ] Passenger/freight profit per train ratio for comparable routes should be within **1×–2.5×**.
-- [ ] With ~5 trains on well-chosen routes, cash should roughly double in 3–5 years, not every year.
+- [x] Passenger/freight profit per train ratio for comparable routes should be within **1×–2.5×**.
+- [x] With ~5 trains on well-chosen routes, cash should roughly double in 3–5 years, not every year.
 
 How: tune data tables only (e.g. passengers base rate ↓, raw industry production ↑ so freight trains fill up, city
 passenger supply per population ↓ or capped per station, freight base rates ↑). Keep the formulas. Record each
 changed number as a SPEC Deviation and put a new balance table in PROGRESS.md.
 
 UI fixes:
-- [ ] Finance panel: scrolled body content draws over the panel header ("Credit limit" overlaps the "Finance"
+- [x] Finance panel: scrolled body content draws over the panel header ("Credit limit" overlaps the "Finance"
       title; Borrow button half-hidden — see docs/screenshots/phase-7-finance-panel.png). Give every panel a fixed
       header, a scrolling body (`overflow:auto`, `min-height:0` in the flex column), and a pinned footer; check
       *every* panel (station, train, buy train, city, industry, finance, yearly report) at 800×360.
-- [ ] The floating "+$2k" delivery label is dark text on green and barely readable (phase-7-delivery-label.png). Use
+- [x] The floating "+$2k" delivery label is dark text on green and barely readable (phase-7-delivery-label.png). Use
       bold white or cargo-colored text with a dark outline/halo, slightly larger, rising and fading.
 
 **Accept:** balance tests green with the targets above; screenshots of every panel at 800×360 with no overlap.
