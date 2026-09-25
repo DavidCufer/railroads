@@ -102,6 +102,9 @@ export interface Train {
    * SPEC §6.2: beyond `WATER_TOWER_RANGE_TILES` the train loses `WATER_TOWER_SPEED_PENALTY` speed
    * until its next refill. Diesel/electric never accumulate this (stays 0). */
   tilesSinceWaterTower: number;
+  /** Cumulative revenue this train has ever earned (SPEC §10.2's "lifetime revenue", Phase 9's
+   * train-profit-colors overlay) — never reset, including across a locomotive replacement. */
+  lifetimeRevenue: number;
   /** Cached fractional (tile-space) position at the start and end of the most recent tick, for the
    * renderer to lerp between with the frame's accumulator alpha. */
   renderFromX: number;

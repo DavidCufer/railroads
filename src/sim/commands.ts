@@ -623,6 +623,7 @@ export function buyTrain(
     breakdownTicksLeft: 0,
     lastServicedTick: state.ticks, // bought at a station with an Engine Shed — freshly serviced
     tilesSinceWaterTower: 0,
+    lifetimeRevenue: 0,
     renderFromX: centerX,
     renderFromY: centerY,
     renderToX: centerX,

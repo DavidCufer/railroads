@@ -9,6 +9,7 @@ import type { CityTier } from "../data/cities";
 import type { City } from "../sim/economy/types";
 import { Camera, OVERVIEW_ZOOM_THRESHOLD, TILE_SIZE } from "./camera";
 import { cityDotColor, cityDotRadius } from "./cities";
+import { intersectsReserved, type ReservedScreenRect } from "./reservedRects";
 
 const TIER_FONT_PX: Record<CityTier, number> = {
   village: 11,
@@ -43,6 +44,7 @@ export function drawCityLabels(
   viewportH: number,
   cities: readonly City[],
   mapWidth: number,
+  reserved: readonly ReservedScreenRect[] = [],
 ): void {
   const overview = camera.zoom < OVERVIEW_ZOOM_THRESHOLD;
 
@@ -76,6 +78,19 @@ export function drawCityLabels(
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     const labelY = screen.y + (overview ? cityDotRadius(city.tier) + 3 : fontPx * 0.4);
+
+    const halfWidth = ctx.measureText(city.name).width / 2 + 4;
+    if (
+      intersectsReserved(
+        reserved,
+        screen.x - halfWidth,
+        labelY,
+        screen.x + halfWidth,
+        labelY + fontPx * 1.2,
+      )
+    ) {
+      continue;
+    }
 
     ctx.lineWidth = Math.max(2, fontPx * 0.22);
     ctx.strokeStyle = "rgba(10, 12, 16, 0.75)";

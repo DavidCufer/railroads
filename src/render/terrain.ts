@@ -103,6 +103,16 @@ export class TerrainRenderer {
     this.computeCityCenters();
   }
 
+  /** Call after `GameState.mapContentVersion` bumps — a city's footprint grew or a new industry
+   * spawned (Phase 9), mutating the same `cities`/`industries` arrays this renderer already holds
+   * rather than replacing them, so the chunk cache (baked at first draw) needs busting even though
+   * the references themselves didn't change. Clears every cached chunk at every zoom bucket, same
+   * as `setMap`, but keeps the shimmer animation state instead of resetting it. */
+  refreshContent(): void {
+    this.cache.clear();
+    this.computeCityCenters();
+  }
+
   /** Precomputes each city's footprint centroid and its farthest tile's distance from it, so
    * per-tile rendering can tell how close a tile is to the city's core (SPEC §10.3: denser/
    * taller roof clusters toward the center) without re-scanning the footprint every tile. */

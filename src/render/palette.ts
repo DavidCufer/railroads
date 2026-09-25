@@ -91,6 +91,35 @@ export const UI_BG = "rgba(24, 28, 34, 0.88)";
 export const UI_GOOD = "#5BC27A";
 export const UI_BAD = "#E05A4F";
 
+/** Small per-improvement marker colors drawn beside a station's building (SPEC §6.2, Phase 9) —
+ * distinct enough at a glance to tell which improvements a station has without opening its panel. */
+export const STATION_IMPROVEMENT_COLORS: Record<string, string> = {
+  engineShed: "#5A5A5E",
+  waterTower: "#4F86B5",
+  postOffice: "#B5533C",
+  hotel: "#F2B544",
+  warehouse: "#8A6A4A",
+  coldStorage: "#9AD1E0",
+  freightYard: "#6B5A4A",
+  livestockPens: "#C7A876",
+};
+
+/** Overlay colors (SPEC §10.2's "Overlays" menu). */
+export const OVERLAY_CATCHMENT_FILL = "rgba(242, 181, 68, 0.16)";
+export const OVERLAY_CATCHMENT_BORDER = "rgba(242, 181, 68, 0.5)";
+export const OVERLAY_TRACK_SINGLE = "#8C8272";
+export const OVERLAY_TRACK_DOUBLE = "#4F86B5";
+export const OVERLAY_TRACK_ELECTRIFIED = "#F2B544";
+export const OVERLAY_PROFIT_GOOD = "#5BC27A";
+export const OVERLAY_PROFIT_BAD = "#E05A4F";
+export const OVERLAY_PROFIT_NEUTRAL = "#B8BDC4";
+
+/** Mini-map (SPEC §10.1). */
+export const MINIMAP_BG = "rgba(10, 12, 16, 0.9)";
+export const MINIMAP_VIEWPORT_BORDER = "#F2B544";
+export const MINIMAP_TRACK_COLOR = "rgba(230, 224, 210, 0.8)";
+export const MINIMAP_STATION_COLOR = "#F2B544";
+
 /** Industry structure colors — kept muted/industrial, distinct from the natural terrain palette. */
 export const INDUSTRY_COLORS = {
   timber: "#6B4A2E",

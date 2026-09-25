@@ -169,6 +169,7 @@ function applyUnload(state: GameState, train: Train, station: Station, carIndex:
 
     state.cash += revenue;
     addRevenue(state, cargo, revenue);
+    train.lifetimeRevenue += revenue;
     state.pendingDeliveries.push({ stationId: station.id, cargoType: cargo, revenue });
     accrueCityGrowthScore(state, station, cargo, CARLOAD_UNITS);
   }
