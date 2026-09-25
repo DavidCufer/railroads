@@ -40,7 +40,7 @@ export const CITY_POPULATION_CAP = CITY_TIER_DEFS.metropolis.maxPop;
 /** Each growth step needs `population * this` accumulated points — scales with size so bigger
  * cities need proportionally more delivered cargo to keep growing (self-limiting: growth rate
  * naturally slows as a city gets bigger, rather than compounding into a runaway). */
-export const CITY_GROWTH_THRESHOLD_FACTOR = 8;
+export const CITY_GROWTH_THRESHOLD_FACTOR = 0.05;
 
 /** Population multiplier applied per growth step once `points` crosses the threshold. */
 export const CITY_GROWTH_STEP_FRACTION = 0.05;

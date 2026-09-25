@@ -13,6 +13,7 @@ import { describe, expect, it } from "vitest";
 import { INDUSTRIES } from "../../src/data/industries";
 import { buyableLocomotivesIn, LOCOMOTIVES, STEAM_PHASE_OUT_YEAR } from "../../src/data/trains";
 import { NEWS_HISTORY_MAX } from "../../src/data/news";
+import { CITY_TIER_DEFS } from "../../src/data/cities";
 import { NET_WORTH_HISTORY_MAX_SAMPLES } from "../../src/sim/finance/types";
 import {
   buildStation,
@@ -25,18 +26,19 @@ import type { NewsItem } from "../../src/sim/news";
 import type { GameState } from "../../src/sim/state";
 import { advanceOneHour } from "../../src/sim/tick";
 import { calendarFromTicks, DAYS_PER_YEAR, HOURS_PER_DAY } from "../../src/sim/time";
-import type { Industry } from "../../src/sim/economy/types";
+import type { City, Industry } from "../../src/sim/economy/types";
 import { makeTestMap, makeTestState, tileAt } from "./track/helpers";
 
 const START_YEAR = 1830;
 const END_YEAR = 1961; // one past the SPEC §7.6 steam phase-out year
 
-/** A simple coal mine -> steel mill freight route with two trains, on a synthetic map (no map-gen
- * RNG needed — this test cares about the sim's time axis, not economy balance). */
-function buildLongRunState(): GameState {
+/** A simple coal mine -> steel mill freight route with two trains, plus a small two-city passenger
+ * shuttle (Phase 9: exercises city growth over the same 131-year span), on a synthetic map (no
+ * map-gen RNG needed — this test cares about the sim's time axis, not economy balance). */
+function buildLongRunState(): { state: GameState; cityA: City; cityB: City } {
   const width = 20;
   const row = Array.from({ length: width }, () => "p").join("");
-  const map = makeTestMap([row, row, row]);
+  const map = makeTestMap([row, row, row, row, row, row]);
   const state = makeTestState(map, { startYear: START_YEAR });
 
   const mineTile = tileAt(map, 0, 0);
@@ -74,13 +76,69 @@ function buildLongRunState(): GameState {
     ).toBe(true);
   }
 
-  return state;
+  // A small served two-city passenger shuttle on rows 3-5, well clear of the freight route.
+  function cityTiles(originX: number): number[] {
+    return [
+      tileAt(map, originX, 3),
+      tileAt(map, originX + 1, 3),
+      tileAt(map, originX, 4),
+      tileAt(map, originX + 1, 4),
+    ];
+  }
+  // 40k (not a village-scale population) so its passenger supply comfortably fills a carload
+  // before SPEC §6.3's 10-day passenger decay threshold kicks in — a genuinely-served city, the
+  // scenario this assertion cares about (an unserved village growing at the slow baseline rate is
+  // already covered by tests/sim/economy/cityGrowth.test.ts's own unit test).
+  const cityA: City = {
+    id: 0,
+    name: "Ashtown",
+    tier: "city",
+    population: 40_000,
+    anchorX: 0,
+    anchorY: 3,
+    tiles: cityTiles(0),
+    coastal: false,
+  };
+  const cityB: City = {
+    id: 1,
+    name: "Bramford",
+    tier: "city",
+    population: 40_000,
+    anchorX: width - 2,
+    anchorY: 3,
+    tiles: cityTiles(width - 2),
+    coastal: false,
+  };
+  for (const t of cityA.tiles) map.cityId[t] = 0;
+  for (const t of cityB.tiles) map.cityId[t] = 1;
+  state.cities.push(cityA, cityB);
+
+  const paxPath = Array.from({ length: width - 2 }, (_, x) => tileAt(map, x + 1, 5));
+  expect(buildTrack(state, paxPath).ok).toBe(true);
+  expect(buildStation(state, tileAt(map, 1, 5), "station").ok).toBe(true);
+  expect(buildStation(state, tileAt(map, width - 2, 5), "station").ok).toBe(true);
+  const stationC = state.stations[2]!;
+  const stationD = state.stations[3]!;
+  stationC.hasEngineShed = true; // only the very first station built ever gets one for free
+
+  const paxBought = buyTrain(state, stationC.id, "grasshopper-0-4-0", ["passengers"]);
+  expect(paxBought.ok).toBe(true);
+  const paxTrain = state.trains[state.trains.length - 1]!;
+  expect(
+    setOrders(state, paxTrain.id, [
+      { stationId: stationC.id, rule: "auto" },
+      { stationId: stationD.id, rule: "auto" },
+    ]).ok,
+  ).toBe(true);
+
+  return { state, cityA, cityB };
 }
 
 describe("long-run simulation (1830 to 1961)", () => {
   it("runs the whole span without throwing, unlocks tech on schedule, blocks steam after 1960, keeps state bounded", () => {
-    const state = buildLongRunState();
+    const { state, cityA, cityB } = buildLongRunState();
     const totalTicks = (END_YEAR - START_YEAR) * DAYS_PER_YEAR * HOURS_PER_DAY;
+    const startingPopulation = cityA.population;
 
     // Drain pendingNews ourselves (same pattern as main.ts) into an unbounded test-side log, so
     // "the right years" can be checked against every item ever pushed — not just whatever
@@ -152,5 +210,18 @@ describe("long-run simulation (1830 to 1961)", () => {
     // --- Memory/state size stayed bounded ------------------------------------------------------
     expect(state.news.length).toBeLessThanOrEqual(NEWS_HISTORY_MAX);
     expect(state.finance.netWorthHistory.length).toBeLessThanOrEqual(NET_WORTH_HISTORY_MAX_SAMPLES);
+
+    // --- City growth (SPEC §8.3, Phase 9): grows when served, stays bounded ------------------
+    // A served two-city passenger shuttle running for 131 years grew well past its starting
+    // population...
+    expect(cityA.population).toBeGreaterThan(startingPopulation * 1.15);
+    expect(cityB.population).toBeGreaterThan(startingPopulation * 1.15);
+    // ...its footprint visibly grew, not just its population number...
+    expect(cityA.tiles.length).toBeGreaterThan(4);
+    // ...and none of that runs away unbounded even over 131 years of continuous service.
+    expect(cityA.population).toBeLessThanOrEqual(CITY_TIER_DEFS.metropolis.maxPop);
+    expect(cityB.population).toBeLessThanOrEqual(CITY_TIER_DEFS.metropolis.maxPop);
+    expect(cityA.tiles.length).toBeLessThanOrEqual(80);
+    expect(state.cityGrowth.size).toBeLessThanOrEqual(state.cities.length);
   }, 120_000);
 });

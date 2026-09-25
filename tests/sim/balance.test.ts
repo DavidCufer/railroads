@@ -9,9 +9,16 @@
  * Deviation in PROGRESS.md.
  */
 import { describe, expect, it } from "vitest";
-import { buildStation, buildTrack, buyTrain, setOrders } from "../../src/sim/commands";
+import {
+  buildImprovement,
+  buildStation,
+  buildTrack,
+  buyTrain,
+  setOrders,
+} from "../../src/sim/commands";
 import { DIFFICULTY, ledgerNetProfit } from "../../src/data/finance";
 import { INDUSTRIES } from "../../src/data/industries";
+import { STATION_IMPROVEMENT_TYPES } from "../../src/data/stations";
 import { advanceOneHour } from "../../src/sim/tick";
 import { makeTestMap, makeTestState, tileAt } from "./track/helpers";
 import type { City, Industry } from "../../src/sim/economy/types";
@@ -40,11 +47,11 @@ function yearlyProfits(state: GameState, years: number): number[] {
  * both industries sit just off their station (Chebyshev distance 1, inside a depot's 3×3
  * catchment). Steel mill's `coal: 8` acceptance point alone clears the ≥8 threshold, so station B
  * accepts coal without needing an iron mine too (this route only hauls coal). */
-function buildCoalToSteelRoute(distanceTiles: number, cars: number): GameState {
+function buildCoalToSteelRoute(distanceTiles: number, cars: number, startYear = 1848): GameState {
   const width = distanceTiles + 1;
   const row = Array.from({ length: width }, () => "p").join("");
   const map = makeTestMap([row, row, row]);
-  const state = makeTestState(map, { startYear: 1848 });
+  const state = makeTestState(map, { startYear });
 
   const mineTile = tileAt(map, 0, 0);
   map.industryId[mineTile] = 0;
@@ -497,5 +504,28 @@ describe("Phase 7.1 balance acceptance", () => {
     const yr5 = cumulativeProfitByYear[4] as number;
     expect(yr5).toBeGreaterThan(startingCash * 0.5);
     expect(yr5).toBeLessThan(startingCash * 2);
+  });
+});
+
+describe("Phase 9 balance guard: station improvements", () => {
+  it("a fully-improved coal route earns more than the unimproved one, but stays within ~1.5x", () => {
+    // 1880 so every era-gated improvement (Freight Yard 1870, Cold Storage 1880) is buildable —
+    // "fully improved" for a route that only ever hauls coal means every improvement that could
+    // conceivably apply to it, not just the ones that happen to move the needle for this cargo.
+    const baseline = buildCoalToSteelRoute(16, 4, 1880);
+    const [, baselineYr2] = yearlyProfits(baseline, 2);
+
+    const improved = buildCoalToSteelRoute(16, 4, 1880);
+    const stationAId = improved.stations[0]!.id;
+    const stationBId = improved.stations[1]!.id;
+    for (const type of STATION_IMPROVEMENT_TYPES) {
+      expect(buildImprovement(improved, stationAId, type).ok).toBe(true);
+      expect(buildImprovement(improved, stationBId, type).ok).toBe(true);
+    }
+    const [, improvedYr2] = yearlyProfits(improved, 2);
+
+    expect(improvedYr2 as number).toBeGreaterThan(baselineYr2 as number);
+    const ratio = (improvedYr2 as number) / (baselineYr2 as number);
+    expect(ratio).toBeLessThanOrEqual(1.5);
   });
 });
