@@ -40,6 +40,7 @@ export interface GameWindow {
   getSpeed: () => number;
   getAvgFrameMs: () => number;
   getAvgRenderMs: () => number;
+  getAvgTickMs: () => number;
   findRiverMouth: () => { x: number; y: number } | null;
   regenerate: (options: {
     seed: number;
@@ -127,6 +128,12 @@ export interface GameWindow {
   debugPlaceIndustry: (tile: number, type: string) => number;
   debugPlaceCity: (tiles: number[], population: number) => number;
   debugSetCash: (amount: number) => void;
+  debugBuildStressNetwork: (options: {
+    lines?: number;
+    doubleEvery?: number;
+    stationSpacing?: number;
+  }) => { edges: number; stations: number; stationIds: number[] };
+  debugSpawnStressTrains: (count: number) => { spawned: number; failed: number };
   getFloatingLabels: () => Array<{ stationTile: number; text: string; color: string }>;
   buildImprovement: (stationId: number, type: string) => { ok: boolean; reason?: string };
   civicInvestment: (cityId: number) => { ok: boolean; reason?: string };

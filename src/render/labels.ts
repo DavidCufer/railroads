@@ -32,6 +32,28 @@ const TIER_RANK: Record<CityTier, number> = {
   metropolis: 3,
 };
 
+/** `ctx.measureText` is a real per-call cost (font metrics lookup) and a city's name never
+ * changes, so cache width by `font|name` instead of re-measuring every label every frame (Phase 12
+ * perf pass). Bounded rather than a strict LRU: a session that regenerates many random maps could
+ * otherwise accumulate one entry per unique generated city name forever — an occasional full clear
+ * once the cache gets implausibly large for one game's city list is simpler and just as effective. */
+const textWidthCache = new Map<string, number>();
+const TEXT_WIDTH_CACHE_MAX = 2000;
+
+export function measureTextWidthCached(
+  ctx: CanvasRenderingContext2D,
+  font: string,
+  text: string,
+): number {
+  const key = `${font}|${text}`;
+  const cached = textWidthCache.get(key);
+  if (cached !== undefined) return cached;
+  if (textWidthCache.size > TEXT_WIDTH_CACHE_MAX) textWidthCache.clear();
+  const width = ctx.measureText(text).width;
+  textWidthCache.set(key, width);
+  return width;
+}
+
 /** World-px centroid of a city's footprint tiles (not just its anchor tile). */
 export function cityWorldCenter(city: City, mapWidth: number): { x: number; y: number } {
   let sx = 0;
@@ -94,7 +116,7 @@ export function drawCityLabels(
     ctx.textBaseline = "top";
     const labelY = screen.y + (overview ? cityDotRadius(city.tier) + 3 : fontPx * 0.4);
 
-    const halfWidth = ctx.measureText(city.name).width / 2 + 4;
+    const halfWidth = measureTextWidthCached(ctx, ctx.font, city.name) / 2 + 4;
     const box: ReservedScreenRect = {
       x0: screen.x - halfWidth,
       y0: labelY,

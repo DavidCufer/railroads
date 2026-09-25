@@ -37,6 +37,9 @@ export interface TrainRuntime {
   trackVersion: number;
   partition: BlockPartition;
   stationTiles: ReadonlySet<number>;
+  /** id -> Station, built alongside `partition` (see index.ts's `getTrainRuntime`) — O(1) lookup
+   * for the "find my order's target station" check every train does every tick. */
+  stationsById: ReadonlyMap<number, Station>;
 }
 
 const MAX_EDGE_STEPS_PER_TICK = 8;
@@ -303,10 +306,10 @@ function arriveAtStation(state: GameState, train: Train, station: Station): void
   setStatus(train, "loading");
 }
 
-function handleLoading(state: GameState, train: Train): void {
+function handleLoading(state: GameState, train: Train, runtime: TrainRuntime): void {
   if (train.orders.length === 0) return;
   const order = train.orders[train.currentOrderIndex];
-  const station = order && state.stations.find((s) => s.id === order.stationId);
+  const station = order && runtime.stationsById.get(order.stationId);
   if (!station) return;
 
   if (stepLoading(state, train, station)) {
@@ -324,7 +327,7 @@ function handleIdle(
   loco: LocomotiveDef,
 ): void {
   const order = train.orders[train.currentOrderIndex];
-  const targetStation = order ? state.stations.find((s) => s.id === order.stationId) : undefined;
+  const targetStation = order ? runtime.stationsById.get(order.stationId) : undefined;
   const node = train.route[train.routeIndex] as number;
 
   if (
@@ -357,7 +360,7 @@ function handleMoving(
     setStatus(train, "noRoute");
     return;
   }
-  const targetStation = state.stations.find((s) => s.id === order.stationId);
+  const targetStation = runtime.stationsById.get(order.stationId);
   if (!targetStation) {
     setStatus(train, "noRoute");
     return;
@@ -457,7 +460,7 @@ export function stepTrain(state: GameState, train: Train, runtime: TrainRuntime)
   } else {
     const loco = locomotiveById(train.locoModelId);
     if (loco) {
-      if (train.status === "loading") handleLoading(state, train);
+      if (train.status === "loading") handleLoading(state, train, runtime);
       else if (train.status === "noRoute" || train.status === "stuck")
         handleIdle(state, train, runtime, loco);
       else handleMoving(state, train, runtime, loco);

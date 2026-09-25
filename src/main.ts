@@ -71,6 +71,7 @@ import {
 import { INDUSTRIES, type IndustryType } from "./data/industries";
 import type { City } from "./sim/economy/types";
 import { findBuildPath } from "./sim/track/pathfind";
+import { directionIndex } from "./sim/track/graph";
 import { spanTilesBetween, validBridgeTypes } from "./sim/track/cost";
 import { canPlaceStationAt, stationAtTile, stationCatchmentTiles } from "./sim/stations";
 import { terrainId } from "./sim/map/terrain";
@@ -84,6 +85,7 @@ import { STATION_TYPE_DEFS, type StationImprovementType, type StationType } from
 import { CARGO, type CargoType } from "./data/cargo";
 import { advanceOneHour } from "./sim/tick";
 import type { TrainOrder } from "./sim/trains/types";
+import type { Station } from "./sim/stations/types";
 import { openBuyTrainPanel, openTrainListPanel, openTrainPanel } from "./ui/trainPanels";
 import { createTrainListButton } from "./ui/toolbar";
 import { createNewsButton, formatNewsItem, openNewsPanel } from "./ui/newsPanel";
@@ -615,7 +617,9 @@ function main(): void {
   /** One in-game hour of simulation — shared by the real-time game loop and the `runDays` debug
    * hook (SPEC/PLAN Phase 6 e2e tests drive the sim directly instead of waiting on wall-clock). */
   function tickOnce(): void {
+    const tickStart = performance.now();
     advanceOneHour(state);
+    fps.sampleTickDuration(performance.now() - tickStart);
 
     // SPEC §13: autosave monthly (rotating 3 slots). Fire-and-forget — a failed autosave (e.g.
     // IndexedDB unavailable in a private-browsing context) shouldn't interrupt play.
@@ -872,6 +876,7 @@ function main(): void {
           getSpeed: () => GameSpeed;
           getAvgFrameMs: () => number;
           getAvgRenderMs: () => number;
+          getAvgTickMs: () => number;
           findRiverMouth: () => { x: number; y: number } | null;
           regenerate: (options: {
             seed: number;
@@ -956,6 +961,16 @@ function main(): void {
           /** Test-only: sets cash directly, so e2e specs can trigger a netWorth-style goal without
            * simulating real revenue. */
           debugSetCash: (amount: number) => void;
+          /** Test-only (Phase 12 perf/memory stress specs): builds a deterministic grid track
+           * network directly, bypassing normal build validation — see the implementation below. */
+          debugBuildStressNetwork: (options: {
+            lines?: number;
+            doubleEvery?: number;
+            stationSpacing?: number;
+          }) => { edges: number; stations: number; stationIds: number[] };
+          /** Test-only: buys+orders `count` trains shuttling between adjacent stress-network
+           * stations, via the real buyTrain/setOrders commands. */
+          debugSpawnStressTrains: (count: number) => { spawned: number; failed: number };
           getFloatingLabels: () => Array<{ stationTile: number; text: string; color: string }>;
           buildImprovement: (
             stationId: number,
@@ -990,6 +1005,7 @@ function main(): void {
       getSpeed: () => loop.getSpeed(),
       getAvgFrameMs: () => fps.avgFrameMs,
       getAvgRenderMs: () => fps.avgRenderMs,
+      getAvgTickMs: () => fps.avgTickMs,
       findRiverMouth,
       regenerate: (options) => {
         if (options.region) {
@@ -1169,6 +1185,121 @@ function main(): void {
       },
       debugSetCash: (amount: number) => {
         state.cash = amount;
+      },
+      // Phase 12 stress-test scaffolding: builds a deterministic grid network directly on the
+      // track graph (bypassing sim/commands.ts's cost/terrain/turn validation, same precedent as
+      // debugPlaceIndustry/debugPlaceCity above) so the perf e2e spec gets an exact, stable edge
+      // count regardless of the procedurally-generated terrain underneath — real terrain (water,
+      // mountains, rivers) would make ~1,500 buildable edges non-deterministic across map seeds.
+      debugBuildStressNetwork: (options) => {
+        const width = state.map.width;
+        const height = state.map.height;
+        const lines = options.lines ?? 5;
+        const doubleEvery = options.doubleEvery ?? 2;
+        const stationSpacing = options.stationSpacing ?? 24;
+        const tileAt = (x: number, y: number) => y * width + x;
+
+        const xs = Array.from({ length: lines }, (_, i) =>
+          Math.round(((i + 1) * width) / (lines + 1)),
+        );
+        const ys = Array.from({ length: lines }, (_, i) =>
+          Math.round(((i + 1) * height) / (lines + 1)),
+        );
+
+        let edgesAdded = 0;
+        const addEdge = (a: number, b: number, double: boolean) => {
+          if (state.trackGraph.hasEdge(a, b)) return;
+          const ax = a % width;
+          const ay = Math.floor(a / width);
+          const bx = b % width;
+          const by = Math.floor(b / width);
+          state.trackGraph.addEdge({
+            a,
+            b,
+            direction: directionIndex(Math.sign(bx - ax), Math.sign(by - ay)),
+            double,
+            electrified: false,
+            bridge: null,
+            bridgeSpan: [],
+            cost: 0,
+          });
+          edgesAdded++;
+        };
+
+        ys.forEach((y, i) => {
+          const double = i % doubleEvery === 0;
+          for (let x = 0; x < width - 1; x++) addEdge(tileAt(x, y), tileAt(x + 1, y), double);
+        });
+        xs.forEach((x, i) => {
+          const double = i % doubleEvery === 0;
+          for (let y = 0; y < height - 1; y++) addEdge(tileAt(x, y), tileAt(x, y + 1), double);
+        });
+
+        const stationIds: number[] = [];
+        ys.forEach((y) => {
+          for (let x = stationSpacing; x < width - stationSpacing; x += stationSpacing) {
+            if (xs.some((vx) => Math.abs(vx - x) < 2)) continue; // keep off junction tiles
+            const tile = tileAt(x, y);
+            const id = state.nextStationId++;
+            const station: Station = {
+              id,
+              tile,
+              type: "station",
+              name: `Stress ${id}`,
+              hasEngineShed: true,
+              hasWaterTower: false,
+              improvements: [],
+            };
+            state.stations.push(station);
+            stationIds.push(id);
+          }
+        });
+
+        if (edgesAdded > 0 || stationIds.length > 0) state.trackVersion++;
+        refreshStationEconomy(state);
+        return { edges: edgesAdded, stations: stationIds.length, stationIds };
+      },
+      debugSpawnStressTrains: (count) => {
+        // Pairs of adjacent stress stations (built by debugBuildStressNetwork, in x order along
+        // each line) become a train's looping 2-stop order — real buyTrain/setOrders commands, so
+        // this exercises normal purchase/routing validation, just driven in bulk.
+        const byLine = new Map<number, Station[]>();
+        for (const s of state.stations) {
+          const y = Math.floor(s.tile / state.map.width);
+          const list = byLine.get(y) ?? [];
+          list.push(s);
+          byLine.set(y, list);
+        }
+        const pairs: Array<[Station, Station]> = [];
+        for (const list of byLine.values()) {
+          list.sort((a, b) => a.tile - b.tile);
+          for (let i = 0; i < list.length - 1; i++) {
+            pairs.push([list[i] as Station, list[i + 1] as Station]);
+          }
+        }
+        let spawned = 0;
+        let failed = 0;
+        for (let i = 0; i < count; i++) {
+          const pair = pairs[i % pairs.length];
+          if (!pair) {
+            failed++;
+            continue;
+          }
+          const [from, to] = pair;
+          const result = buyTrain(state, from.id, "grasshopper-0-4-0", ["passengers"]);
+          if (!result.ok) {
+            failed++;
+            continue;
+          }
+          const train = state.trains[state.trains.length - 1] as (typeof state.trains)[number];
+          const orderResult = setOrders(state, train.id, [
+            { stationId: from.id, rule: "auto" },
+            { stationId: to.id, rule: "auto" },
+          ]);
+          if (orderResult.ok) spawned++;
+          else failed++;
+        }
+        return { spawned, failed };
       },
       getFloatingLabels: () =>
         floatingLabels.map((l) => ({ stationTile: l.stationTile, text: l.text, color: l.color })),

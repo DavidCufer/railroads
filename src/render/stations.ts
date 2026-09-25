@@ -7,7 +7,7 @@ import type { StationImprovementType, StationType } from "../data/stations";
 import type { CityTier } from "../data/cities";
 import type { City } from "../sim/economy/types";
 import { Camera, TILE_SIZE } from "./camera";
-import { cityWorldCenter } from "./labels";
+import { cityWorldCenter, measureTextWidthCached } from "./labels";
 import {
   STATION_BUILDING_COLOR,
   STATION_BUILDING_ROOF_COLOR,
@@ -283,7 +283,7 @@ export function drawStationLabels(
       }
     }
 
-    const halfWidth = ctx.measureText(station.name).width / 2 + 4;
+    const halfWidth = measureTextWidthCached(ctx, ctx.font, station.name) / 2 + 4;
     if (
       intersectsReserved(reserved, s.x - halfWidth, labelY, s.x + halfWidth, labelY + FONT_PX * 1.2)
     ) {
