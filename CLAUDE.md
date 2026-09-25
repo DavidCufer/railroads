@@ -14,6 +14,8 @@ This repo is **Railroads**, a 2D railway tycoon game for Android (TypeScript + C
 5. Commit as `Phase N: <title>` (small intermediate commits are fine), then push to your branch **and to `main`**
    (fast-forward: `git push origin HEAD:main`). Start every session from the latest `main`; if PROGRESS.md looks
    older than expected, `git fetch origin main` and check before doing anything.
+   **Push early and often**: after each coherent step that passes `npm run check`, commit and
+   `git push origin HEAD:main`. Sessions can be cut off by usage limits; unpushed work is lost.
 6. **Look at your screenshots** (open the PNGs) before declaring a visual task done. Passing tests aren't enough for
    rendering work.
 7. E2E runs overwrite `docs/screenshots/*`. Commit screenshot changes only for the phase that owns them; otherwise
