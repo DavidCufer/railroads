@@ -2206,3 +2206,130 @@ future session doesn't have to rediscover them):
 
 - Final `npm run check` (283 unit tests) and `npm run e2e` (53 specs) both green on the commit this
   entry ships with.
+
+## 2026-09-25 — Phase 10.1: Real-world terrain breadth (review findings on Phase 10)
+
+Review of `phase-10-*-full.png` found mountain ranges rendering as 1-3-tile stripes (invisible at a
+glance, barely affecting grades/track cost) and no rivers at overview zoom. Root cause and fixes:
+
+- **Root cause**: `MountainFeature` elevation was a single point-ridge smoothstep falloff
+  (`peak * smoothstep(1 - d/radiusTiles)`). Because smoothstep is nearly flat near `t=1` and falls
+  steeply as `t` drops, elevation crossed the hills/mountain thresholds (6/8 out of 9) only within
+  about 1 tile of the ridge line regardless of how big `radiusTiles` was — the "radius" barely
+  mattered.
+- **Fix** (`tools/mapgen/regionDef.ts`, `build.ts`): `MountainFeature` gained `coreRadiusTiles` —
+  elevation now holds flat at `peakElevation` out to the core, *then* smoothstep-falls to 0 by
+  `radiusTiles`, so a range reads as an actual broad band (mountain core + hills margin) instead of
+  a seam. Distance-to-ridge is also jittered with a coherent noise field (capped at
+  `min(2, radiusTiles * 0.15)` tiles — see the "found the hard way" note below on why it's capped in
+  absolute tiles, not a fraction of a possibly-huge radius) so a band's edge isn't a perfect offset
+  curve of the hand-authored ridge polyline.
+- **Widened every named range** toward PLAN's target tile widths: Appalachians (broad
+  `peakElevation 6.5` hills pass, `coreRadiusTiles 5`/`radiusTiles 9`, full AL-to-Maine extent, with
+  a narrower `peakElevation 9`/`coreRadiusTiles 2`/`radiusTiles 5` Blue Ridge overlay PA-to-N.Georgia
+  for the real mountain core), Rockies (broad hills pass `coreRadiusTiles 14`/`radiusTiles 22`
+  covering the full CO-to-W.Montana extent, plus a `Wind River Range` mountain-core overlay in
+  WY/ID for texture — see below on why there's no separate Front Range overlay), Sierra
+  Nevada/Cascades/Wasatch (mostly-mountain narrow ranges, `coreRadiusTiles` 1-3), Alps (`peak 9`,
+  `coreRadiusTiles 4`/`radiusTiles 13` — see below on why the core isn't bigger), Carpathians/Black
+  Forest/Bohemian Forest (hills-only, `peakElevation 6.5`, no core-driven mountain), Pennines/
+  Scottish Highlands/Cambrian Mountains (hills with a modest mountain core, `coreRadiusTiles`
+  1.5-2.5).
+- **Found the hard way, twice, via the city-placement tests** (both are recorded as comments in the
+  region files so a future session doesn't reintroduce them):
+  1. A first draft used `peakElevation 7.5` for the hills-only bands (reasoning: "7.5 minus the
+     ±0.8 local-roughness noise is still ≥ 6.7, safely above the hills threshold"). It missed that
+     elevation is *rounded* before classification (`Math.round`), so `7.5 + 0.8 = 8.3` rounds to 8
+     and reads as **mountain**, not hills — a broad, supposedly-hills-only band could randomly sprout
+     mountain patches whichever way the local noise fell in a given map. Cheyenne's projected point
+     landed on exactly one such noise-tipped tile and got relocated 5 tiles away by the "nearest
+     non-mountain tile" fallback, failing the "within 1.5 tiles" test. Fixed by dropping every
+     hills-only band's `peakElevation` to 6.5 (so `6.5 + 0.8 = 7.3` rounds to 7, never 8).
+  2. A first draft added a separate `Front Range` mountain-core overlay in Colorado, reusing
+     essentially the same ridge coordinates as the main Rocky Mountains polyline (which was already
+     drawn close to Denver's real position, since Denver realistically sits at the foot of the
+     Front Range). Stacking a second flat mountain-elevation core directly on the same line pushed
+     Denver's exact tile into mountain territory, 8 tiles from its projected point. Removed the
+     duplicate overlay — the main Rockies ridge already *is* the Front Range at that latitude, real
+     mountain relief comes from the `Wind River Range` overlay positioned well clear of every listed
+     city instead. The same issue, smaller version: the Alps' first draft used `coreRadiusTiles 8`,
+     which is a literal reading of "mostly mountains" but swallowed real Alpine valley cities
+     (Innsbruck, Graz, Turin) that this ridge-distance model has no way to carve a valley out of;
+     dropped to `coreRadiusTiles 4` (widened the falloff margin instead to keep the total band width
+     in SPEC's 15-25 range) so those cities land just outside the flat core.
+  3. All four regions' `places every city within 1.5 tiles` / `on non-water non-mountain terrain`
+     tests pass after both fixes; verified with a throwaway script that prints every city whose
+     nearest-valid-tile distance exceeds the test's threshold, not just re-running the suite blind.
+- **Lakes added** (all as `RegionDef.lakes` polygons): Lake Geneva, Lake Constance, Lake Balaton
+  (`central-eu`), Lake Champlain (`us-east`), Lake Tahoe (`us-west`). Great Salt Lake and the Great
+  Lakes were already present from Phase 10.1's first pass.
+- **Rivers added** (`RegionDef.rivers` source→mouth polylines, same mechanism as the existing
+  Hudson/Ohio/Mississippi/Danube/Rhine/Thames/Severn): Potomac (`us-east`), Columbia and Colorado
+  (`us-west`), Elbe and Po (`central-eu`).
+- **Overview-zoom rivers** (`src/render/terrain.ts`): `TerrainRenderer.drawRivers` now runs for the
+  0.25× overview bucket too (previously gated `if (!overview)`, with a comment explicitly deferring
+  this to a later phase — this is that phase). Overview line width is a fixed thin
+  `max(1, min(1.75, 0.5 + flow*0.003))` px rather than the full-detail flow-proportional 2-6px, since
+  SPEC just wants "thin blue lines" as a build-guide hint at this zoom, not flood-stage widths. This
+  is a renderer change, not region-specific, so it also affects (and legitimately changed) two
+  existing Phase 1/3 screenshots taken at zoom 0.25 on the *random* map generator — kept those two
+  since they now correctly show the renderer's actual current behavior; reverted every other
+  screenshot the e2e run touched that this phase didn't cause (timing/shimmer-dot noise across the
+  Phase 4-9 specs, none at zoom 0.25) per CLAUDE.md's screenshot-ownership rule.
+- All four region JSONs regenerated (`npm run mapgen -- <id>`); sizes barely moved (91.8-127.5 KB,
+  same ballpark as before, comfortably under the 300 KB budget) since the format is unchanged —
+  only the elevation/terrain bytes differ.
+
+**Screenshots — looked at every regenerated full-region thumbnail** (`docs/screenshots/phase-10-
+<id>-full.png`), per the phase brief. Honest per-region read:
+
+- **us-east**: the Appalachians now read unmistakably as a broad diagonal tan band running the full
+  Alabama-to-Maine length, with a visibly darker/greyer mountain-core vein threading down its
+  center (the Blue Ridge overlay) — a real improvement over the old 1-3-tile seam. Adirondacks and
+  White Mountains show as smaller distinct patches near Albany/Maine. Ohio, Mississippi and Hudson
+  rivers are all clearly visible as thin blue lines; Potomac is visible flowing into Chesapeake Bay;
+  Lake Champlain is present but small (two adjoining blue tiles south of Montreal) — correctly
+  proportioned for how narrow the real lake is at this ~13 km/tile scale, but easy to miss at a
+  glance. **Verdict: named range reads as a broad band, major rivers visible — meets the accept
+  criterion.**
+- **gb**: Pennines now read as a clear, continuous brown diagonal band from Newcastle down past
+  Sheffield (previously near-invisible); Cambrian Mountains show as a similar band near Cardiff;
+  Scottish Highlands show as a smaller patch near Glasgow (correctly small — the region's bounds
+  cut the range off before its real extent, per the existing "Aberdeen off-map" note). Thames and
+  Severn are both visible as thin lines. **Verdict: meets the accept criterion.**
+- **central-eu**: the Alps are the clearest win in this pass — a wide, continuously curved
+  brown-grey band running the full Turin/Milan-to-Zagreb width of the map, unmistakably a mountain
+  range at a glance, with Innsbruck/Zurich/Graz/Turin all sitting just outside its edge rather than
+  inside it. Black Forest (near Basel/Strasbourg) and Bohemian Forest (between Dresden and Prague)
+  show as smaller tan hills patches. Danube, Rhine, Elbe and Po are all visible as thin blue lines
+  (Po traced from Turin through Milan to the Adriatic near Venice). Lake Constance and Lake Geneva
+  are both visible as small blue shapes near Zurich/Basel; Lake Balaton is visible near Budapest.
+  **Verdict: meets the accept criterion, best-looking of the four.**
+- **us-west**: Sierra Nevada (narrow, strongly mountain-toned vertical band) and the Rocky Mountains
+  (very broad khaki hills band covering most of the map's eastern half, with the Wind River Range's
+  darker mountain-core overlay clearly visible as a distinct diagonal stripe within it — reads as
+  "more than one range" as intended) are both clear wins. Cascades and Wasatch are visible but
+  narrower, as designed. Sacramento and Columbia rivers are visible as thin lines; Colorado river is
+  visible cutting through the Great Basin desert. One honest caveat: most of this region's cities
+  (LA, San Diego, Denver, Phoenix, Tucson, Boise, Cheyenne, Spokane, Reno — everything but San
+  Francisco/Sacramento/Salt Lake City) are `village` tier, and village labels/dots are hidden at
+  overview zoom by an existing Phase 3 declutter rule unrelated to this phase — so the thumbnail
+  reads a little sparser on named places than the other three regions, but that's pre-existing
+  behavior, not a terrain regression. **Verdict: meets the accept criterion.**
+
+**Tests**: `npm run check` (283 unit tests, unchanged count — no new test files this phase, existing
+region/mapgen tests already covered the invariants that mattered: determinism, size budget, city
+placement, river bounds, elevation range) and `npm run e2e` (53 specs) both green.
+
+Known carry-overs, not fixed in this phase:
+- The Alps' mountain core (`coreRadiusTiles 4` of a `radiusTiles 13` band) is narrower than a
+  literal reading of "mostly mountains" would suggest, traded off against not stranding Innsbruck/
+  Graz/Turin (see above) — the band still reads clearly mountainous at a glance, but a future session
+  with more time to re-route the ridge polyline itself away from those cities (rather than shrinking
+  the core) could push the mountain-core proportion higher without the placement risk.
+- Lake Champlain is present but small enough to miss at a glance — correct at this scale, but if a
+  future session ever changes `us-east`'s tiles-per-degree, it's worth rechecking this lake doesn't
+  disappear into sub-pixel noise.
+- No automated test asserts mountain band *width* in tiles (the PLAN's targets were verified by eye
+  against the regenerated screenshots this session, plus a scratch script during tuning, not a
+  committed test) — a regression here would only be caught by another visual review pass.
