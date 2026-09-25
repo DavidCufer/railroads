@@ -114,6 +114,9 @@ export const gb: RegionDef = {
 
   mountains: [
     {
+      // Hills with a modest mountain core along the crest, per the review brief. Kept narrower
+      // than the US/Alps ranges since real cities (Manchester, Sheffield) sit close to the real
+      // Pennines' western/eastern foothills at this region's fine ~5km/tile scale.
       name: "Pennines",
       ridge: [
         [-1.8, 53.1],
@@ -121,8 +124,9 @@ export const gb: RegionDef = {
         [-2.0, 54.2],
         [-2.4, 55.0],
       ],
-      peakElevation: 3,
-      radiusTiles: 4,
+      peakElevation: 9,
+      coreRadiusTiles: 1.5,
+      radiusTiles: 5,
     },
     {
       name: "Scottish Highlands",
@@ -131,8 +135,9 @@ export const gb: RegionDef = {
         [-4.2, 56.3],
         [-4.0, 56.5],
       ],
-      peakElevation: 5,
-      radiusTiles: 6,
+      peakElevation: 9,
+      coreRadiusTiles: 2.5,
+      radiusTiles: 7,
     },
     {
       name: "Cambrian Mountains",
@@ -141,8 +146,9 @@ export const gb: RegionDef = {
         [-3.9, 52.5],
         [-3.9, 53.0],
       ],
-      peakElevation: 4,
-      radiusTiles: 4,
+      peakElevation: 9,
+      coreRadiusTiles: 1.5,
+      radiusTiles: 4.5,
     },
   ],
 

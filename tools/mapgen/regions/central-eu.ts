@@ -46,6 +46,30 @@ export const centralEu: RegionDef = {
       [16.5, 44.3],
       [20, 44.0],
     ],
+    // Lake Geneva (Léman) — the Alpine SW corner near the Rhone, between France and Switzerland.
+    [
+      [6.15, 46.2],
+      [6.5, 46.45],
+      [6.9, 46.42],
+      [6.65, 46.28],
+      [6.3, 46.22],
+    ],
+    // Lake Constance (Bodensee) — Germany/Switzerland/Austria tripoint, Rhine's course.
+    [
+      [9.0, 47.55],
+      [9.35, 47.65],
+      [9.55, 47.55],
+      [9.3, 47.48],
+      [9.05, 47.48],
+    ],
+    // Lake Balaton — Hungary, west of Budapest.
+    [
+      [17.25, 46.95],
+      [17.6, 47.05],
+      [17.9, 46.95],
+      [17.6, 46.75],
+      [17.3, 46.8],
+    ],
   ],
 
   rivers: [
@@ -58,7 +82,7 @@ export const centralEu: RegionDef = {
       [17.5, 47.7],
       [19.0402, 47.4979],
     ],
-    // Rhine: Alpine source, through Basel, Strasbourg, Cologne.
+    // Rhine: Alpine source (near Lake Constance), through Basel, Strasbourg, Cologne.
     [
       [8.6, 46.6],
       [7.5886, 47.5596],
@@ -67,10 +91,36 @@ export const centralEu: RegionDef = {
       [6.9603, 50.9375],
       [6.6, 51.8],
     ],
+    // Elbe: Bohemian source near Prague, through Dresden and Hamburg to the North Sea.
+    [
+      [14.1, 50.2],
+      [13.7373, 51.0504],
+      [12.5, 52.1],
+      [11.5, 53.0],
+      [10.3, 53.4],
+      [9.9937, 53.5511],
+    ],
+    // Po: western Alps, through Turin and Milan's plain, to the Adriatic near Venice.
+    [
+      [7.6, 44.7],
+      [8.6, 45.0],
+      [9.19, 45.15],
+      [10.5, 45.05],
+      [11.8, 44.95],
+      [12.3, 44.85],
+    ],
   ],
 
   mountains: [
     {
+      // Mostly mountain across most of its width per the review brief ("Switzerland/Tyrol/
+      // Carinthia mostly mountains, snow on the highest core"). Kept the flat mountain-elevation
+      // core narrower than a literal reading of "mostly mountains" would suggest (found the hard
+      // way: a wider core swallowed real Alpine cities — Innsbruck, Graz, Turin — that sit in valleys
+      // this stylized ridge-distance model can't carve out; a first draft with coreRadiusTiles 8
+      // stranded them 2-4 tiles from their projected points). The falloff margin is widened instead,
+      // so the band still reads broad (mountain core + hills margin ≈ SPEC's 15-25 tiles) without a
+      // giant unbroken mountain plateau over every real settlement near the range.
       name: "Alps",
       ridge: [
         [7.0, 45.1],
@@ -82,42 +132,47 @@ export const centralEu: RegionDef = {
         [15.3, 46.4],
       ],
       peakElevation: 9,
-      radiusTiles: 11,
+      coreRadiusTiles: 4,
+      radiusTiles: 13,
     },
     {
       // Only the western Carpathian edge is inside this region's bounds (the range's main arc
       // continues east past lon 20 into Slovakia/Romania) — a hint of it near the Tatras, north of
-      // Budapest, per the review brief's "Carpathian edge".
+      // Budapest, per the review brief's "Carpathian edge". Hills band, per the review brief
+      // ("Carpathians/Bohemian Forest/Black Forest as hills bands") — no mountain core.
       name: "Carpathians (western edge)",
       ridge: [
         [19.2, 48.8],
         [19.6, 49.2],
         [20.0, 49.4],
       ],
-      peakElevation: 7,
-      radiusTiles: 4,
+      peakElevation: 6.5,
+      coreRadiusTiles: 3,
+      radiusTiles: 6,
     },
     {
-      // SW Germany, near Freiburg/Basel — hills, not a Alps-scale range.
+      // SW Germany, near Freiburg/Basel — hills band, not an Alps-scale range.
       name: "Black Forest",
       ridge: [
         [8.0, 47.6],
         [8.2, 48.2],
         [8.3, 48.6],
       ],
-      peakElevation: 6,
-      radiusTiles: 3,
+      peakElevation: 6.5,
+      coreRadiusTiles: 3,
+      radiusTiles: 6,
     },
     {
-      // Czech-German-Austrian border SW of Prague (Šumava) — hills.
+      // Czech-German-Austrian border SW of Prague (Šumava) — hills band.
       name: "Bohemian Forest",
       ridge: [
         [13.3, 49.7],
         [13.6, 49.2],
         [13.9, 48.8],
       ],
-      peakElevation: 6,
-      radiusTiles: 3,
+      peakElevation: 6.5,
+      coreRadiusTiles: 3,
+      radiusTiles: 6,
     },
   ],
 

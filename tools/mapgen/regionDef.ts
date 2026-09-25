@@ -15,12 +15,18 @@ export interface RegionCityDef {
   foundingYear?: number;
 }
 
-/** A mountain range's influence on elevation: `peakElevation` (0-9) at the ridge line, falling
- * off to 0 over `radiusTiles`. */
+/** A mountain range's influence on elevation: `peakElevation` (0-9) held flat out to
+ * `coreRadiusTiles` from the ridge line (the "core" — e.g. what reads as actual mountain terrain),
+ * then falling off smoothly to 0 by `radiusTiles` (the core plus a wider hills margin). Omitting
+ * `coreRadiusTiles` (or leaving it 0) gives the old point-ridge falloff, for a feature that's meant
+ * to read as hills everywhere rather than have a flat mountain top. The renderer/generator jitter
+ * the effective distance with coherent noise so the resulting band edge isn't a perfect offset
+ * curve of the ridge polyline (SPEC §4.3: "noise-jittered edges"). */
 export interface MountainFeature {
   name: string;
   ridge: LonLat[];
   peakElevation: number;
+  coreRadiusTiles?: number;
   radiusTiles: number;
 }
 

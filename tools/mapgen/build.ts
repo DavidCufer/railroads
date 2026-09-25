@@ -29,6 +29,20 @@ const RIVER_MAX_ELEVATION = 3;
  * aren't perfectly smooth cones. Kept low relative to `peakElevation` (0-9) so it textures rather
  * than reshapes the authored mountain ranges. */
 const LOCAL_NOISE_AMPLITUDE = 0.8;
+/** Coherent noise wavelength (tiles) used to jitter a mountain feature's effective distance from
+ * its ridge, so the core/falloff band's edge reads as an organic, uneven line rather than a smooth
+ * offset curve of the authored ridge polyline. */
+const MOUNTAIN_JITTER_SCALE = 10;
+
+/** Elevation (0-`peakElevation`) at perpendicular distance `d` (tiles, already jittered) from a
+ * mountain feature's ridge line: held flat at `peak` out to `core` tiles (the mountain core), then
+ * smoothstep-falls to 0 by `radius` tiles (the core plus its hills margin). */
+function mountainProfile(d: number, core: number, radius: number, peak: number): number {
+  if (radius <= 0 || d >= radius) return 0;
+  if (d <= core) return peak;
+  const t = clamp01(1 - (d - core) / Math.max(radius - core, 0.001));
+  return peak * smoothstep(t);
+}
 
 export function buildRegion(def: RegionDef): RegionJson {
   const { width, height } = def.bounds;
@@ -52,6 +66,7 @@ export function buildRegion(def: RegionDef): RegionJson {
 
   const elevationPerm = buildPermutation(rng);
   const moisturePerm = buildPermutation(rng);
+  const mountainJitterPerm = buildPermutation(rng);
   const noiseScale = Math.max(width, height) * 0.18;
   const moistureScale = Math.max(width, height) * 0.16;
 
@@ -69,10 +84,20 @@ export function buildRegion(def: RegionDef): RegionJson {
       }
 
       let mountainElev = 0;
+      const jitterN = fractalNoise2D(mountainJitterPerm, x, y, 2, 0.5, 2, MOUNTAIN_JITTER_SCALE);
       for (const range of mountains) {
-        const d = distanceToPolyline(cx, cy, range.ridge);
-        const t = clamp01(1 - d / range.radiusTiles);
-        mountainElev = Math.max(mountainElev, range.peakElevation * smoothstep(t));
+        const d0 = distanceToPolyline(cx, cy, range.ridge);
+        // Jitter is capped in absolute tiles (not just a fraction of radius) so it textures a
+        // range's edge without meaningfully relocating a narrow range's whole footprint — that
+        // would fight the hand-placed ridge lines authored around real cities (e.g. the Wasatch
+        // ridge is deliberately offset from Salt Lake City so the city lands in the valley).
+        const jitterAmplitude = Math.min(2, range.radiusTiles * 0.15);
+        const d = Math.max(0, d0 + jitterN * jitterAmplitude);
+        const core = range.coreRadiusTiles ?? 0;
+        mountainElev = Math.max(
+          mountainElev,
+          mountainProfile(d, core, range.radiusTiles, range.peakElevation),
+        );
       }
       const n = fractalNoise2D(elevationPerm, x, y, 4, 0.5, 2, noiseScale);
       const combined = mountainElev + n * LOCAL_NOISE_AMPLITUDE;

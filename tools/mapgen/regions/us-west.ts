@@ -72,6 +72,14 @@ export const usWest: RegionDef = {
       [-112.78, 41.55],
       [-112.65, 41.68],
     ],
+    // Lake Tahoe — Sierra Nevada crest, California/Nevada border.
+    [
+      [-120.15, 39.23],
+      [-119.94, 39.13],
+      [-119.94, 38.93],
+      [-120.13, 38.93],
+      [-120.15, 39.08],
+    ],
   ],
 
   rivers: [
@@ -84,10 +92,31 @@ export const usWest: RegionDef = {
       [-121.8, 38.2],
       [-122.0, 38.05],
     ],
+    // Columbia: enters from the north near Spokane, past The Dalles, to the Pacific at Astoria.
+    [
+      [-117.6, 47.9],
+      [-119.3, 47.3],
+      [-120.5, 45.9],
+      [-121.2, 45.65],
+      [-122.6, 45.65],
+      [-123.8, 46.2],
+    ],
+    // Colorado: Rockies headwaters near the Front Range, through the Grand Canyon to the Gulf.
+    [
+      [-106.0, 40.3],
+      [-108.5, 39.5],
+      [-109.9, 38.9],
+      [-111.5, 36.9],
+      [-113.5, 36.1],
+      [-114.6, 34.9],
+      [-114.6, 33.4],
+      [-114.8, 32.3],
+    ],
   ],
 
   mountains: [
     {
+      // Mostly mountain, real width ~80-130km at this region's ~13km/tile scale.
       name: "Sierra Nevada",
       ridge: [
         [-118.4, 35.6],
@@ -96,12 +125,23 @@ export const usWest: RegionDef = {
         [-120.0, 39.1],
         [-120.3, 40.3],
       ],
-      peakElevation: 8,
+      peakElevation: 9,
+      coreRadiusTiles: 3,
       radiusTiles: 5,
     },
     {
       // Colorado/Wyoming/Idaho/Montana per the review brief — extended north from the original
-      // Idaho endpoint into Montana (SPEC's regional table's north edge, lat 49).
+      // Idaho endpoint into Montana (SPEC's regional table's north edge, lat 49). A broad hills base
+      // covering most of that stretch (Phase 10.1 review: "20-40 wide covering most of Colorado/
+      // Wyoming/Idaho/W Montana"). `peakElevation` is kept a full point below the mountain threshold
+      // (8) — not just at it — so the local roughness noise added on top (±0.8) can never tip a
+      // stray tile in this huge flat core over into "mountain" and strand a city (found the hard
+      // way: Cheyenne's projected point landed on one such noise-tipped tile and got relocated 5
+      // tiles away before this fix). The ridge itself already runs along the real Front Range/
+      // Rockies crest, close enough to Denver's real foot-of-the-mountains position that a second,
+      // separate "Front Range" mountain-core overlay isn't needed (an earlier draft added one and
+      // it stranded Denver outright, 8 tiles from its projected point) — real mountain relief here
+      // comes from the Wind River overlay below instead, positioned well clear of every listed city.
       name: "Rocky Mountains",
       ridge: [
         [-105.3, 36.3],
@@ -113,8 +153,23 @@ export const usWest: RegionDef = {
         [-113.8, 47.0],
         [-113.5, 48.6],
       ],
+      peakElevation: 6.5,
+      coreRadiusTiles: 14,
+      radiusTiles: 22,
+    },
+    {
+      // Wind River / Bitterroot country (WY/ID, well clear of Boise/Cheyenne/Salt Lake City) — a
+      // mountain-core overlay on top of the broad Rockies band, so the range reads as more than one
+      // uniform ridge.
+      name: "Wind River Range",
+      ridge: [
+        [-108.8, 43.2],
+        [-110.5, 44.5],
+        [-113.5, 46.3],
+      ],
       peakElevation: 9,
-      radiusTiles: 8,
+      coreRadiusTiles: 3,
+      radiusTiles: 7,
     },
     {
       name: "Cascades",
@@ -124,13 +179,14 @@ export const usWest: RegionDef = {
         [-121.5, 47.0],
         [-121.3, 48.5],
       ],
-      peakElevation: 7,
-      radiusTiles: 4,
+      peakElevation: 9,
+      coreRadiusTiles: 2.5,
+      radiusTiles: 5,
     },
     {
       // The Wasatch Front, just east of Salt Lake City (review: the SLC area read as flat plains
-      // with no mountains at all). Kept narrow (radiusTiles 3) and centered ~0.25° east of SLC's
-      // own longitude so the city itself lands in the valley, not on the ridge.
+      // with no mountains at all). Kept narrow and centered ~0.25° east of SLC's own longitude so
+      // the city itself lands in the valley, not on the ridge.
       name: "Wasatch Range",
       ridge: [
         [-111.85, 39.0],
@@ -138,8 +194,9 @@ export const usWest: RegionDef = {
         [-111.6, 40.9],
         [-111.75, 41.7],
       ],
-      peakElevation: 8,
-      radiusTiles: 4,
+      peakElevation: 9,
+      coreRadiusTiles: 1,
+      radiusTiles: 3.5,
     },
   ],
 

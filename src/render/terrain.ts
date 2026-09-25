@@ -222,9 +222,7 @@ export class TerrainRenderer {
         this.drawTile(ctx, originX + tx, originY + ty, tx * px, ty * px, px, overview);
       }
     }
-    if (!overview) {
-      this.drawRivers(ctx, originX, originY, tilesX, tilesY, px);
-    }
+    this.drawRivers(ctx, originX, originY, tilesX, tilesY, px, overview);
     return canvas;
   }
 
@@ -570,6 +568,7 @@ export class TerrainRenderer {
     tilesX: number,
     tilesY: number,
     px: number,
+    overview: boolean,
   ): void {
     ctx.strokeStyle = RIVER_LINE_COLOR;
     ctx.lineCap = "round";
@@ -589,7 +588,12 @@ export class TerrainRenderer {
         const next = this.map.riverNext[idx] as number;
         if (next < 0) continue;
         const flow = this.map.riverFlow[idx] as number;
-        const width = Math.max(2, Math.min(6, 2 + flow * 0.5)) * (px / TILE_SIZE);
+        // At overview zoom, rivers are just thin guide lines (SPEC §4.3) rather than
+        // flow-proportional flood-stage widths, and get a floor so they don't anti-alias away to
+        // nothing at a fraction of a device pixel.
+        const width = overview
+          ? Math.max(1, Math.min(1.75, 0.5 + flow * 0.003))
+          : Math.max(2, Math.min(6, 2 + flow * 0.5)) * (px / TILE_SIZE);
         ctx.lineWidth = width;
 
         const [tcx, tcy] = localCenter(mapX, mapY);

@@ -136,6 +136,15 @@ export const usEast: RegionDef = {
       [-76.5, 38.8],
       [-76.3, 39.2],
     ],
+    // Lake Champlain — New York/Vermont border, south of Montreal.
+    [
+      [-73.35, 44.9],
+      [-73.15, 44.6],
+      [-73.4, 44.2],
+      [-73.45, 43.85],
+      [-73.25, 44.3],
+      [-73.15, 44.7],
+    ],
   ],
 
   rivers: [
@@ -175,14 +184,27 @@ export const usEast: RegionDef = {
       [-90.5, 30.2],
       [-89.9, 29.2],
     ],
+    // Potomac: Alleghenies near Cumberland, past Washington, to the Chesapeake.
+    [
+      [-78.75, 39.65],
+      [-78.0, 39.5],
+      [-77.5, 39.3],
+      [-77.0369, 38.9072],
+      [-76.5, 38.5],
+      [-76.3, 38.0],
+    ],
   ],
 
   mountains: [
     {
-      // Review: peakElevation 5 never crossed the hills threshold (6), so the whole range was
-      // invisible — raised to a solid hills-level ridge running the full original AL-to-Maine
-      // extent (a continuous NE-SW band), with a separate higher "core" ridge below adding real
-      // mountain elevation to the PA-to-northern-Georgia stretch specifically.
+      // Phase 10.1 review: a single point-ridge falloff only ever read as hills within ~1 tile of
+      // the ridge line regardless of radiusTiles, since the smoothstep falloff eats the band almost
+      // immediately away from d=0 — that's the "1-3 tile stripe" bug. Fixed with a `coreRadiusTiles`
+      // plateau: elevation now holds near `peakElevation` for the first few tiles off the ridge
+      // before falling off, so a wide swath actually reads as hills instead of a thin seam. Runs the
+      // full original AL-to-Maine extent (a continuous NE-SW band, ~12 tiles wide total), with a
+      // narrower higher "core" ridge below adding real mountain elevation to the PA-to-northern-
+      // Georgia stretch specifically (Blue Ridge/Alleghenies as mountain cores, per the review brief).
       name: "Appalachian Highlands",
       ridge: [
         [-86.8, 33.5],
@@ -198,11 +220,13 @@ export const usEast: RegionDef = {
         [-70.0, 45.0],
       ],
       peakElevation: 6.5,
-      radiusTiles: 7,
+      coreRadiusTiles: 5,
+      radiusTiles: 9,
     },
     {
       // The higher spine (Blue Ridge/Smokies/Alleghenies) — northern Georgia up to Pennsylvania
-      // only, per the review brief. A narrower, higher overlay on top of the broad band above.
+      // only, per the review brief. A narrower, higher mountain-core overlay riding on top of the
+      // broad hills band above, giving ~4-5 tiles of real mountain terrain along the ridge crest.
       name: "Appalachian Mountains (Blue Ridge)",
       ridge: [
         [-86.8, 33.5],
@@ -213,8 +237,9 @@ export const usEast: RegionDef = {
         [-79.0, 40.0],
         [-77.5, 41.3],
       ],
-      peakElevation: 8.5,
-      radiusTiles: 3,
+      peakElevation: 9,
+      coreRadiusTiles: 2,
+      radiusTiles: 5,
     },
     {
       // Upstate New York, around the real Adirondack Park (~44.0N, -74.0W) — hills, not a
@@ -226,18 +251,21 @@ export const usEast: RegionDef = {
         [-73.8, 44.1],
       ],
       peakElevation: 6.5,
-      radiusTiles: 4,
+      coreRadiusTiles: 3,
+      radiusTiles: 6,
     },
     {
-      // New Hampshire, around Mount Washington (~44.27N, -71.30W) — hills.
+      // New Hampshire, around Mount Washington (~44.27N, -71.30W) — hills, with a small mountain
+      // core at the actual Presidential Range peak.
       name: "White Mountains",
       ridge: [
         [-71.6, 44.0],
         [-71.3, 44.3],
         [-71.0, 44.5],
       ],
-      peakElevation: 6.5,
-      radiusTiles: 3,
+      peakElevation: 8.5,
+      coreRadiusTiles: 1,
+      radiusTiles: 4,
     },
   ],
 
