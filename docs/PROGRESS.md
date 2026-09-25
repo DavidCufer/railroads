@@ -1687,3 +1687,47 @@ added for the new required field.
 
 - `npm run check` (236 unit tests) and the full `npm run e2e` (39 specs) both green.
 - Next: **gb region** (Phase 10.2).
+
+## Phase 10.2 — gb region
+
+**gb** (bounds fixed by SPEC's table: −6.5…2 lon, 50…56.5 lat; grid **112×144**, matching
+`(8.5°·cos(53.25°))/6.5° ≈ 0.78 ≈ 112/144`). Aberdeen (real lat ≈57.15) is excluded per SPEC's own
+"(may be off map)" caveat in its city list — it's north of this region's fixed lat-56.5 edge, so the
+other 18 SPEC-listed cities are included. Populations from ~1830 figures; London and Glasgow are
+both well past the game's 400k metropolis ceiling in reality (London ~1.66M, Glasgow ~202k is
+actually within range) — London is clamped to the tier max (400,000) rather than silently
+overflowing it. No founding-year cities in this region (unlike us-east's Chicago/Atlanta, every
+SPEC-listed GB city already existed by 1830). Mountains use SPEC's own example peak elevations
+verbatim (Pennines 3, Scottish Highlands 5) plus an added Cambrian Mountains range (Wales, elevation
+4, not in SPEC's list but needed for Wales to read as upland rather than flat). Resource zones: South
+Wales coal, a combined Yorkshire/Midlands coal-and-iron zone (Sheffield's historical steel industry),
+a Scottish Central Belt coal-and-iron zone (Glasgow), and an East Anglia farm zone (Norwich). Rivers:
+Thames (through London) and Severn (Bristol Channel).
+
+**Bug found while authoring the coastline**: the Bristol Channel notch (carving water between South
+Wales and South-West England) was drawn too wide, and its "return" boundary (the Wales-side shore)
+passed south of Cardiff's real coordinates — so Cardiff's projected point landed 2.9 tiles out in
+open water and snapped to the nearest unrelated land, nowhere near its real site. Not a code bug
+(the point-in-polygon/rasterization logic checked out — verified there's no self-intersection in the
+coastline ring via a segment-pairwise check, and a flood-fill connectivity check confirmed the
+landmass is a single connected component, no phantom islands), just an imprecise hand-drawn
+coordinate — fixed by narrowing the notch and pulling its Wales-side shore north of Cardiff's
+latitude. General lesson carried into the remaining regions: after drawing a coastline, check every
+city's snap distance (`buildRegion` + `project`) before trusting the map, not just eyeballing the
+rendered preview.
+
+**Screenshots** (`e2e/regions.spec.ts`, 800×360): `phase-10-gb-overview.png` (zoom 0.25, centered on
+the map's middle — Manchester/Liverpool west, Leeds/York/Hull northeast, Sheffield/Nottingham south,
+Birmingham further south, all in correct relative positions; the GB outline is also visible whole in
+the mini-map thumbnail in-shot, and does read as Great Britain's shape). `phase-10-gb-closeup.png`
+(zoom 2 on London) — a large city footprint with the Thames running through it, clearly recognizable.
+
+**Tests**: `tests/mapgen/build.test.ts` was refactored to run its per-region checks (determinism,
+size budget, city placement accuracy, on-land anchors, no footprint overlap, river validity, no
+NaN/out-of-range elevation) against a `REGIONS` array instead of duplicating a describe block per
+region — gb and any later region just get added to that array. `tests/sim/regions/load.test.ts`
+gained a `loadRegion(gb)` case (no pending foundings, unlike us-east). `e2e/regions.spec.ts` gained
+the gb load/screenshot test.
+
+- `npm run check` (246 unit tests) and the full `npm run e2e` (40 specs) both green.
+- Next: **central-eu region** (Phase 10.3).

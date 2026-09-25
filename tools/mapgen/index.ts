@@ -9,10 +9,12 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { buildRegion } from "./build";
 import { usEast } from "./regions/us-east";
+import { gb } from "./regions/gb";
 import type { RegionDef } from "./regionDef";
 
 const REGIONS: Record<string, RegionDef> = {
   "us-east": usEast,
+  gb: gb,
 };
 
 function main(): void {

@@ -45,6 +45,20 @@ describe("loadRegion(us-east)", () => {
   });
 });
 
+describe("loadRegion(gb)", () => {
+  it("produces a GameMap sized to the region with no founding-year cities", () => {
+    const region = getRegion("gb");
+    const loaded = loadRegion(region);
+    expect(loaded.map.width).toBe(region.width);
+    expect(loaded.map.height).toBe(region.height);
+    expect(loaded.cities.length).toBe(region.cities.length);
+    expect(loaded.pendingCityFoundings).toEqual([]);
+    for (const city of loaded.cities) {
+      expect(city.tiles.length).toBeGreaterThan(0);
+    }
+  });
+});
+
 describe("createGameState with a region", () => {
   it("builds a playable GameState from us-east", () => {
     const state = createGameState({ seed: 1, region: "us-east" });
@@ -53,6 +67,13 @@ describe("createGameState with a region", () => {
     expect(state.cities.length).toBeGreaterThan(0);
     expect(state.pendingCityFoundings.length).toBeGreaterThan(0);
     expect(state.map.width).toBeGreaterThan(0);
+  });
+
+  it("builds a playable GameState from gb", () => {
+    const state = createGameState({ seed: 1, region: "gb" });
+    expect(state.regionId).toBe("gb");
+    expect(state.startYear).toBe(1830);
+    expect(state.cities.length).toBeGreaterThan(0);
   });
 
   it("still builds a random GameState with no region set", () => {
