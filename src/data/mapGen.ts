@@ -9,6 +9,9 @@ export type MapSizeName = "small" | "medium" | "large";
  * to it too — that's the game's intended default start. */
 export const DEFAULT_START_YEAR = 1830;
 
+/** Start year choices offered on the Random tab of the new-game screen (SPEC §4.4). */
+export const RANDOM_START_YEAR_CHOICES = [1830, 1850, 1870, 1900, 1930, 1950] as const;
+
 export const MAP_SIZES: Record<MapSizeName, { width: number; height: number }> = {
   small: { width: 96, height: 64 },
   medium: { width: 128, height: 96 },

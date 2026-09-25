@@ -91,6 +91,7 @@ import { openFinancePanel } from "./ui/financePanel";
 import { openYearlyReport } from "./ui/yearlyReport";
 import { isPanelOpen } from "./ui/panel";
 import { formatMoney } from "./ui/format";
+import { openTitleScreen } from "./ui/titleScreen";
 
 const RIVER_ID = terrainId("river");
 const WATER_ID = terrainId("water");
@@ -734,6 +735,12 @@ function main(): void {
 
   loop.start();
   initBackButton();
+
+  // Title/New Game screen (PLAN Phase 10): skipped under `?debug=1` so the game stays immediately
+  // interactive for every existing e2e test and debug tool, which all assume that.
+  if (!DEBUG) {
+    openTitleScreen(ui, { onStart: (options) => regenerate(options) });
+  }
 
   let debugOverlay: HTMLDivElement | null = null;
 

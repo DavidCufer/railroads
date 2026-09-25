@@ -844,6 +844,239 @@
         pointer-events: none;
         z-index: 5;
       }
+
+      /* Title screen / New Game screen (PLAN Phase 10) — a full-screen overlay above everything
+         else, including panels (z-index 10) and the confirm bar (25), since it's shown before any
+         game exists to interact with. */
+      .title-screen {
+        position: absolute;
+        inset: 0;
+        z-index: 50;
+        background: #141922;
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+      }
+      .title-menu {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+      }
+      .title-game-name {
+        font: 700 32px sans-serif;
+        color: #f2b544;
+        margin-bottom: 16px;
+        letter-spacing: 1px;
+      }
+      .title-btn {
+        width: 220px;
+        min-height: 44px;
+        border-radius: 8px;
+        border: none;
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+        font: 700 15px sans-serif;
+      }
+      .title-btn-primary {
+        background: #f2b544;
+        color: #1e2a38;
+      }
+      .title-btn:disabled {
+        opacity: 0.35;
+      }
+      .settings-placeholder {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        padding: 0 32px;
+        text-align: center;
+      }
+      .settings-placeholder-title {
+        font: 700 20px sans-serif;
+      }
+      .settings-placeholder-body {
+        opacity: 0.85;
+        font: 13px sans-serif;
+        max-width: 440px;
+      }
+
+      /* New Game screen. */
+      .new-game-screen {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .new-game-header {
+        flex: 0 0 auto;
+        padding: 5px 14px;
+        font: 700 15px sans-serif;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .new-game-tabs {
+        flex: 0 0 auto;
+        display: flex;
+        gap: 4px;
+        padding: 4px 10px;
+      }
+      .new-game-tab {
+        flex: 1;
+        min-height: 30px;
+        border-radius: 8px;
+        border: none;
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+        font: 700 13px sans-serif;
+      }
+      .new-game-tab.active {
+        background: #f2b544;
+        color: #1e2a38;
+      }
+      .new-game-content {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 4px 10px;
+      }
+      .region-card-row {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+      }
+      .region-card {
+        flex: 0 0 150px;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        padding: 6px;
+        border-radius: 8px;
+        border: 2px solid transparent;
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+        text-align: left;
+      }
+      .region-card.selected {
+        border-color: #f2b544;
+        background: rgba(242, 181, 68, 0.12);
+      }
+      .region-thumb {
+        width: 100%;
+        height: 62px;
+        object-fit: cover;
+        border-radius: 4px;
+        display: block;
+      }
+      .region-card-name {
+        font: 700 13px sans-serif;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .region-card-year {
+        font-size: 11px;
+        opacity: 0.75;
+      }
+      .region-card-desc {
+        font-size: 11px;
+        opacity: 0.85;
+        line-height: 1.3;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .random-options {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .option-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-height: 26px;
+      }
+      .option-label {
+        font-size: 12px;
+        opacity: 0.85;
+        flex: 0 0 auto;
+      }
+      .segmented-row {
+        display: flex;
+        gap: 4px;
+      }
+      .segmented-btn {
+        min-height: 26px;
+        padding: 0 10px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+        font: 12px sans-serif;
+      }
+      .segmented-btn.active {
+        background: #f2b544;
+        color: #1e2a38;
+        border-color: #f2b544;
+        font-weight: 700;
+      }
+      .seed-input {
+        width: 90px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #fff;
+        border-radius: 6px;
+        padding: 4px 8px;
+        font: 13px sans-serif;
+      }
+      .dice-btn {
+        min-width: 32px;
+        min-height: 30px;
+        border-radius: 6px;
+        border: none;
+        background: rgba(255, 255, 255, 0.08);
+        font-size: 14px;
+      }
+      .new-game-footer {
+        flex: 0 0 auto;
+        padding: 4px 14px 8px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.15);
+      }
+      .starting-cash {
+        font-weight: 700;
+        color: #f2b544;
+      }
+      .new-game-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 6px;
+      }
+      .new-game-back-btn,
+      .new-game-start-btn {
+        min-height: 40px;
+        border-radius: 8px;
+        border: none;
+        font: 700 14px sans-serif;
+      }
+      .new-game-back-btn {
+        flex: 0 0 80px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+      }
+      .new-game-start-btn {
+        flex: 1;
+        background: #5bc27a;
+        color: #0c2013;
+      }
     </style>
   </head>
   <body>

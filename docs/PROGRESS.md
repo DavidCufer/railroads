@@ -1935,3 +1935,80 @@ to it with no label, no overlapping text.
   actually needed their screenshots to change.
 - Next: **Title/main menu + New Game screen** (Phase 10.6, renumbered — Phase 10.5 was this
   terrain-fidelity fix).
+
+## Phase 10.6 — Title/main menu and New Game screen
+
+**Title screen** (`src/ui/titleScreen.ts`, new): a full-screen overlay (`z-index: 50`, above every
+panel and the confirm bar) mounted into `#ui` with three buttons — **New Game** (opens the New Game
+screen below), **Continue** (permanently `disabled`, with a `title` tooltip explaining why — there's
+no save system until Phase 11), and **Settings** (opens a one-screen placeholder stating what's
+coming, per PLAN's explicit "Settings placeholder" wording for this phase; the real Settings screen
+is Phase 11's job). **Deliberately skipped under `?debug=1`**: every existing e2e test across Phases
+0-9 navigates to `/?debug=1` and expects the game to be immediately interactive (tapping the canvas,
+calling `window.__game` methods) — gating the title screen on the same `DEBUG` flag `main.ts` already
+uses for the debug hooks meant zero changes needed to any of those 46 existing specs, while a real
+(non-debug) player still sees the title screen on load. Confirmed this is the right call: all 51
+e2e specs (46 existing + 5 new) pass unchanged.
+
+**New Game screen** (`src/ui/newGameScreen.ts`, new): tabs for **Real World** (a horizontally-
+scrollable row of cards, one per shipped region, each with a thumbnail, name, default start year,
+and a 2-line-clamped short description — tapping a card selects it) and **Random** (seed field with
+a 🎲 randomize button, plus segmented-button rows for every SPEC §4.2 option: size, water level,
+roughness, cities, resources, start year from `RANDOM_START_YEAR_CHOICES` — new in
+`src/data/mapGen.ts` — 1830/1850/1870/1900/1930/1950). A pinned footer holds the difficulty picker
+(Easy/Normal/Hard) with starting cash shown live from `DIFFICULTY[difficulty].startingCash`
+(`src/data/finance.ts`, unchanged), plus Back/Start Game buttons. Starting a Real World game passes
+`{seed: 1, region, difficulty}`; Random passes the full `RandomNewGameOptions` shape `sim/state.ts`
+already defines — both go through the exact same `regenerate()` path every existing debug/test tool
+already uses, so no new state-creation code was needed.
+
+**Region thumbnails** (`src/render/regionThumbnail.ts`, new): draws one pixel per tile at the
+region's native grid size directly into an `ImageData` buffer (fast — this only runs 4 times, once
+per card, when the New Game screen opens) using the same flat terrain-color palette
+(`TERRAIN_COLORS`) the in-game overview zoom bucket already uses, then lets CSS scale it down with
+`image-rendering: pixelated` rather than blurring it. Exported `hexToRgb` from `src/render/color.ts`
+(previously private) to build the palette lookup table once instead of re-parsing hex strings per
+tile. Cities already founded at the region's start year (`tiles.length > 0`) get a single gold pixel
+at their anchor, largest population first, so a big city's dot isn't overdrawn by a village's at
+this resolution — same declutter idea as the in-game label sort from Phase 10.5, reused here as
+plain draw order since there's no text to overlap.
+
+**Layout, actually fit to 800×360**: the first pass at the Random tab's option list didn't fit —
+7 rows (seed + 6 generator options) plus the pinned difficulty/cash/buttons footer overflowed the
+available height, and the Real World cards' 2-line description clamp got clipped by the card's own
+height before CSS `-webkit-line-clamp: 2` had room to show both lines. Fixed by tightening
+`.region-card`'s thumbnail to 62px (from a first-pass 84px) and trimming header/tab/option-row/
+footer padding throughout — rechecked with a real screenshot after each pass rather than trusting
+the CSS numbers alone. Final state: the Real World tab's 4 cards, difficulty row, and Start button
+all fit without any scrolling; the Random tab's last option row (start year) is still one scroll
+away — confirmed reachable (`.new-game-content`'s existing `overflow-y: auto`) with a throwaway
+scroll-and-assert test, not committed. A full "no overlapping panels, 44px targets" pass at this
+viewport size is explicitly Phase 11's own checklist item (PLAN.md), so this was fixed enough to be
+usable and honestly reported rather than pixel-chased further here.
+
+**Tests** (`e2e/titleScreen.spec.ts`, new, 5 specs, all navigate to `/` *without* `?debug=1`): title
+screen visible on load with Continue disabled and Settings enabled; Settings placeholder opens and
+Back returns to the menu; New Game screen shows exactly 4 region cards on the Real World tab and the
+generator options on the Random tab; selecting American West and starting actually dismisses the
+title screen and lands in a game whose top bar shows 1860 (that region's start year); starting a
+Random game also dismisses the title screen. No unit tests needed — this phase added no `src/sim`
+logic, only UI wiring through the existing `NewGameOptions`/`regenerate()` path.
+
+**Screenshots — looked at them**: `phase-10-main-menu.png` — dark full-screen menu, gold "Railroads"
+title, gold New Game button, visibly greyed-out Continue, enabled Settings; reads clearly as a real
+title screen, not a placeholder. `phase-10-new-game-real-world.png` — all 4 region cards fit on
+screen with recognizable thumbnails (Great Britain's outline is unmistakable even at this size; the
+American West card shows the Great Salt Lake as a small blue dot next to Salt Lake City; Central
+Europe & the Alps shows the brown mountain band across the middle), 2-line descriptions no longer
+clipped, difficulty/starting-cash/Start all visible without scrolling. `phase-10-new-game-random.png`
+— seed field + dice button, and 5 of 6 option rows (size/water/terrain/cities/resources) visible
+with the difficulty footer; start year needs one scroll (see above, not a hard blocker but worth
+listing honestly).
+
+- `npm run check` (262 unit tests, unchanged — no sim code touched) and the full `npm run e2e` (51
+  specs: 46 existing + 5 new) both green. Reverted unrelated screenshot re-encoding noise from every
+  other phase's specs per CLAUDE.md (this run's water-shimmer redraw timing, which is real-time
+  based per Phase 1, made even the *unchanged* Phase 10.1-10.5 region overview/closeup/full
+  screenshots re-diff by a few pixels with no actual behavior change — reverted those too, kept only
+  the 3 new title/new-game screenshots this phase actually owns).
+- Next: **Goals system** (Phase 10.7).
