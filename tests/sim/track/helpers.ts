@@ -76,6 +76,11 @@ export function makeTestState(map: GameMap, overrides: Partial<GameState> = {}):
     cityGrowth: new Map(),
     mapContentVersion: 0,
     pendingCityFoundings: [],
+    goals: [],
+    goalsCompleted: new Set(),
+    pendingGoalCelebrations: [],
+    cargoDeliveredThisYear: {},
+    cargoDeliveredBestYear: {},
     ...overrides,
   };
 }

@@ -218,7 +218,36 @@ export const strings = {
       cityGrowth: (cityName: string, tierName: string) =>
         `${cityName} has grown into a ${tierName}!`,
       civicInvestment: (cityName: string) => `Civic Investment boosts growth in ${cityName}`,
+      cityFounded: (cityName: string) => `${cityName} has been founded!`,
+      goalCompleted: (tierName: string, description: string) =>
+        `${tierName} goal reached: ${description}`,
     },
+  },
+  goals: {
+    title: "Goals",
+    button: "Goals",
+    tierNames: {
+      bronze: "Bronze",
+      silver: "Silver",
+      gold: "Gold",
+    },
+    complete: "Complete",
+    overdue: "Overdue",
+    byYear: (year: number) => `By ${year}`,
+    none: "This map has no goals.",
+    types: {
+      connect: (cities: string) => `Connect ${cities} by rail`,
+      annualRevenue: (amount: string) => `Annual revenue ${amount}`,
+      netWorth: (amount: string) => `Net worth ${amount}`,
+      cityTier: (city: string, tier: string) => `${city} reaches ${tier}`,
+      delivered: (amount: number, cargo: string) =>
+        `Deliver ${amount} carloads of ${cargo} in a year`,
+      electrifiedTiles: (n: number) => `Electrify ${n} tiles`,
+    },
+  },
+  celebration: {
+    title: "Goal reached! 🎉",
+    close: "Continue",
   },
   titleScreen: {
     gameTitle: "Railroads",

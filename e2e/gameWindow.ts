@@ -126,6 +126,7 @@ export interface GameWindow {
   repayLoan: (amount: number) => { ok: boolean; reason?: string };
   debugPlaceIndustry: (tile: number, type: string) => number;
   debugPlaceCity: (tiles: number[], population: number) => number;
+  debugSetCash: (amount: number) => void;
   getFloatingLabels: () => Array<{ stationTile: number; text: string; color: string }>;
   buildImprovement: (stationId: number, type: string) => { ok: boolean; reason?: string };
   civicInvestment: (cityId: number) => { ok: boolean; reason?: string };

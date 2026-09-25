@@ -172,6 +172,10 @@ function applyUnload(state: GameState, train: Train, station: Station, carIndex:
     train.lifetimeRevenue += revenue;
     state.pendingDeliveries.push({ stationId: station.id, cargoType: cargo, revenue });
     accrueCityGrowthScore(state, station, cargo, CARLOAD_UNITS);
+    // SPEC §11's `delivered` goal ("Deliver 1,000 carloads of coal in a year") counts a carload
+    // the same moment it earns revenue — a delivery too short to pay out doesn't count either.
+    state.cargoDeliveredThisYear[cargo] =
+      (state.cargoDeliveredThisYear[cargo] ?? 0) + CARLOAD_UNITS;
   }
 
   car.loaded = false;

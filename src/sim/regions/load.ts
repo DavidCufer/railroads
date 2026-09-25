@@ -13,6 +13,7 @@ export interface PendingCityFounding {
   year: number;
   tiles: number[];
   population: number;
+  coastal: boolean;
 }
 
 export interface LoadedRegion {
@@ -75,6 +76,7 @@ export function loadRegion(json: RegionJson): LoadedRegion {
         year: c.foundingYear as number,
         tiles: c.tiles,
         population: c.population,
+        coastal: c.coastal,
       });
     } else {
       for (const idx of c.tiles) map.cityId[idx] = c.id;

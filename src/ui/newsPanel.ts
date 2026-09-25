@@ -6,6 +6,7 @@
 import { locomotiveById } from "../data/trains";
 import { markAllNewsRead, unreadNewsCount, type NewsItem } from "../sim/news";
 import type { GameState } from "../sim/state";
+import { describeGoal } from "./goalStrings";
 import { h } from "./h";
 import { openPanel } from "./panel";
 import { strings } from "./strings";
@@ -60,6 +61,13 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
       );
     case "civicInvestment":
       return strings.news.kinds.civicInvestment(cityName(state, item.cityId));
+    case "cityFounded":
+      return strings.news.kinds.cityFounded(cityName(state, item.cityId));
+    case "goalCompleted": {
+      const goal = state.goals.find((g) => g.id === item.goalId);
+      const description = goal ? describeGoal(state, goal) : "?";
+      return strings.news.kinds.goalCompleted(strings.goals.tierNames[item.tier], description);
+    }
   }
 }
 

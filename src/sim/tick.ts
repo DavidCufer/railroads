@@ -8,6 +8,8 @@ import { LOCOMOTIVES } from "../data/trains";
 import { refreshStationEconomy } from "./commands";
 import { accrueDailyCargo } from "./economy/cargoFlow";
 import { monthlyCityGrowthStep } from "./economy/cityGrowth";
+import { yearlyCityFoundingStep } from "./economy/founding";
+import { dailyGoalsStep, yearlyCargoDeliveredRollover } from "./economy/goalTracking";
 import { monthlyIndustryDynamicsStep } from "./economy/industryDynamics";
 import { monthlyIndustryStep } from "./economy/processing";
 import { monthlyFinanceStep, yearlyFinanceRollover } from "./finance/ledger";
@@ -30,7 +32,10 @@ export function advanceOneHour(state: GameState): void {
   state.ticks++;
   stepTrains(state);
 
-  if (isDayBoundary(state.ticks)) accrueDailyCargo(state);
+  if (isDayBoundary(state.ticks)) {
+    accrueDailyCargo(state);
+    dailyGoalsStep(state);
+  }
 
   if (isMonthBoundary(state.ticks)) {
     monthlyIndustryStep(state);
@@ -56,5 +61,7 @@ export function advanceOneHour(state: GameState): void {
     }
     yearlyWashoutStep(state);
     yearlyFinanceRollover(state);
+    yearlyCargoDeliveredRollover(state);
+    yearlyCityFoundingStep(state);
   }
 }

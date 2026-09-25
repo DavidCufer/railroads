@@ -204,9 +204,52 @@ test.describe("Phase 10 — real-world regions", () => {
     await page.waitForFunction(() => window.__game !== undefined);
     await page.evaluate(() => window.__game?.regenerate({ seed: 1, region: "us-east" }));
 
-    const cities = await page.evaluate(() => window.__game?.getCities());
-    const chicago = cities?.find((c) => c.name === "Chicago");
-    expect(chicago).toBeDefined();
-    expect(chicago?.tiles.length).toBe(0);
+    const before = await page.evaluate(() => window.__game?.getCities());
+    const chicagoBefore = before?.find((c) => c.name === "Chicago");
+    expect(chicagoBefore).toBeDefined();
+    expect(chicagoBefore?.tiles.length).toBe(0);
+
+    // us-east starts 1830, Chicago founds 1833 — run past that boundary.
+    await page.evaluate(() => window.__game?.runDays(3 * 365));
+
+    const after = await page.evaluate(() => window.__game?.getCities());
+    const chicagoAfter = after?.find((c) => c.name === "Chicago");
+    expect(chicagoAfter?.tiles.length).toBeGreaterThan(0);
+
+    const news = await page.evaluate(() => window.__game?.getState());
+    expect(
+      (news as { news: Array<{ kind: string; cityId?: number }> }).news.some(
+        (n) => n.kind === "cityFounded" && n.cityId === chicagoAfter?.id,
+      ),
+    ).toBe(true);
+  });
+
+  test("Goals panel shows the region's bronze/silver/gold set with progress", async ({ page }) => {
+    await page.setViewportSize(PHONE_VIEWPORT);
+    await page.goto("/?debug=1");
+    await page.waitForFunction(() => window.__game !== undefined);
+    await page.evaluate(() => window.__game?.regenerate({ seed: 1, region: "us-east" }));
+
+    await page.getByRole("button", { name: "Goals" }).click();
+    await expect(page.locator(".goal-card")).toHaveCount(3);
+    await page.waitForTimeout(300); // let the slide-in panel transition finish before screenshotting
+    await expect(page.locator(".goal-tier-bronze")).toBeVisible();
+    await expect(page.locator(".goal-tier-gold")).toBeVisible();
+    await page.screenshot({ path: "docs/screenshots/phase-10-goals-panel.png" });
+  });
+
+  test("celebration dialog appears when a goal is completed", async ({ page }) => {
+    await page.setViewportSize(PHONE_VIEWPORT);
+    await page.goto("/?debug=1");
+    await page.waitForFunction(() => window.__game !== undefined);
+    // gb's gold goal is netWorth($5M) — cheapest goal type to force deterministically without
+    // simulating real train revenue (see debugSetCash's doc comment in src/main.ts).
+    await page.evaluate(() => window.__game?.regenerate({ seed: 1, region: "gb" }));
+    await page.evaluate(() => window.__game?.debugSetCash(6_000_000));
+    await page.evaluate(() => window.__game?.runDays(1));
+
+    await expect(page.getByText("Goal reached!")).toBeVisible();
+    await page.waitForTimeout(300); // let the slide-in panel transition finish before screenshotting
+    await page.screenshot({ path: "docs/screenshots/phase-10-celebration-dialog.png" });
   });
 });

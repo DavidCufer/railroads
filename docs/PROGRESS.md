@@ -2012,3 +2012,118 @@ listing honestly).
   screenshots re-diff by a few pixels with no actual behavior change — reverted those too, kept only
   the 3 new title/new-game screenshots this phase actually owns).
 - Next: **Goals system** (Phase 10.7).
+
+## Phase 10.7 — Goals system
+
+**Goal types** (`src/sim/goals/types.ts`): all six of SPEC §11's types
+(`connect`/`annualRevenue`/`netWorth`/`cityTier`/`delivered`/`electrifiedTiles`), with one
+documented generalization: `connect` takes `cityIds: number[]` (2+ cities, all mutually reachable
+by rail) rather than SPEC's literal `(cityA, cityB)` pair — needed for gb's own example goal,
+"Connect London-Birmingham-Manchester-Liverpool", which names four cities. A 2-city array is
+exactly SPEC's original case, so nothing is lost.
+
+**Per-region goal sets** (`src/data/goals.ts`): one bronze/silver/gold set per shipped region,
+using SPEC §11's own example goals wherever they map cleanly onto the six types, documented
+deviations where they don't:
+- `us-east`: connect(New York, Chicago) by 1860 → annual revenue $5M by 1880 → Chicago reaches
+  Metropolis (SPEC gave no year for this one; chose 1900).
+- `gb`: connect(London, Birmingham, Manchester, Liverpool) by 1845 → deliver 1,000 carloads of
+  coal in a year (SPEC gave no year; chose 1850) → net worth $5M by 1870 (SPEC's example list for
+  gb only gave 2 goals; added this gold one to fill out the trio).
+- `central-eu`: SPEC's "cross the Alps: connect Munich/Vienna to Milan or Venice/Trieste" is an OR
+  of OR, which the goal system doesn't have a type for — simplified to one representative pair,
+  connect(Munich, Milan) by 1875 → electrify 200 tiles by 1930 → net worth $30M by 1930 (added).
+- `us-west`: connect(Sacramento, Salt Lake City) by 1870 → net worth $50M by 1920 → annual revenue
+  $10M by 1900 (added).
+
+**Resolution and random-map generation** (`src/sim/goals/generate.ts`): region goal defs reference
+cities by *name* (readable, robust to array reordering); `resolveRegionGoals` looks each one up
+against the actual loaded region's `state.cities` and resolves to a concrete `Goal` with real
+`cityId`s — a name that doesn't match is silently dropped rather than throwing (defensive; a unit
+test checks every name in `REGION_GOALS` actually resolves for all four regions, so this path is
+never hit in practice). `generateRandomGoals` builds a bronze/silver/gold set for a random map from
+the same six types, scaled off the map's own two biggest cities and the chosen difficulty's
+starting cash (so a Small/Easy game and a Large/Hard game both get plausible targets) — one real
+random choice (which of `netWorth`/`cityTier`/`annualRevenue` fills the gold slot, and which cargo
+the silver `delivered` goal tracks) drawn from the game's own seeded RNG (`nextInt`/`pick`, never
+`Math.random` — CLAUDE.md's sim hard rule), so it's still fully deterministic from the seed like
+everything else. `GameState.goals` is populated once in `createGameState` and fixed for the game's
+lifetime.
+
+**Evaluation** (`src/sim/goals/evaluate.ts`, pure — never mutates `GameState`): `connect` does a
+BFS over `state.trackGraph` from one connector tile (a station whose catchment covers one of the
+city's footprint tiles — the same concept `src/sim/commands.ts`'s existing `cityIsRailConnected`
+uses for Civic Investment, reimplemented here for N cities instead of 1) of the first city, then
+checks every other named city has a connector tile in the visited set — this is "are they all on
+one mutually-reachable network," not "built as a single straight line," matching what the SPEC
+examples actually mean. `annualRevenue`/`netWorth` reuse `ledgerRevenue`/`netWorth` from the
+existing finance module unchanged. `cityTier` compares `CITY_TIERS` rank. `electrifiedTiles` counts
+distinct tiles touched by at least one `electrified` track edge. `delivered` is new plumbing: two
+`GameState` fields, `cargoDeliveredThisYear` (incremented in `src/sim/trains/loading.ts`'s
+`applyUnload`, the same place revenue and city-growth score are already credited) and
+`cargoDeliveredBestYear` (the max any *completed* year has ever hit, rolled over at the year
+boundary by the new `yearlyCargoDeliveredRollover` in `src/sim/economy/goalTracking.ts`) — a goal
+completes off `max(thisYear, bestYear)`, so it can trigger mid-year or from a past year without
+needing full per-year history. Every goal also reports `overdue` (target year passed, still
+incomplete) — goals never hard-fail (SPEC: "game continues"), this is just a status flag the panel
+shows, not a game-over condition.
+
+**Detection and celebration** (`src/sim/economy/goalTracking.ts`'s `dailyGoalsStep`, called from
+`src/sim/tick.ts` at the existing day boundary): re-evaluates every goal daily, and for any that's
+newly complete (checked against `GameState.goalsCompleted`, so it only fires once) pushes a
+`goalCompleted` news item and queues it in the new `GameState.pendingGoalCelebrations`. `src/main.ts`
+drains that queue the same one-shot-per-tick way it already drains `pendingDeliveries`/`pendingNews`,
+opening `openGoalCelebration` (`src/ui/goalsPanel.ts`) the moment no other panel is in the way —
+same precedent the yearly report already established for "something auto-opens if nothing's
+blocking it." The celebration and the Goals panel are both plain `openPanel` slide-ins (this
+codebase's only existing "automatic dialog" pattern), not a new full-screen modal system.
+
+**City foundings, finally wired up** (`src/sim/economy/founding.ts`, new — the `GameState.regionId`/
+`pendingCityFoundings` machinery and even the doc comment referencing this exact file were already
+in place since Phase 10.1, just unused until now): a yearly step, called from `tick.ts` at the year
+boundary, that applies each pending founding once its year arrives — population, footprint tiles,
+coastal flag, stamping `map.cityId` for every new tile, bumping `mapContentVersion` so the terrain
+chunk cache picks up the new city's roofs — and pushes a `cityFounded` news toast. Verified against
+the real us-east region in `e2e/regions.spec.ts`: Chicago (founds 1833) is absent with an empty
+footprint right after load, then `window.__game.runDays(3 * 365)` and it has a real footprint plus
+a matching `cityFounded` news item.
+
+**UI**: `src/ui/goalsPanel.ts` (Goals panel + celebration dialog + the floating Goals button,
+stacked above News/Trains bottom-right per the existing convention) and `src/ui/goalStrings.ts`
+(one `describeGoal(state, goal)` shared by the panel, the celebration dialog, and the news
+formatter, so all three describe a goal identically instead of three separate implementations
+drifting apart). Goal cards show a tier badge (bronze/silver/gold, color-coded left border),
+description, a progress bar, and an overdue flag if applicable.
+
+**Tests**: `tests/sim/goals/evaluate.test.ts` (9 tests — one per goal type, plus a disconnected-
+segments case for `connect` and the overdue flag), `tests/sim/goals/generate.test.ts` (8 tests —
+every region's goals resolve against the real region data, us-east's bronze goal specifically
+names New York/Chicago, random-goal determinism across two `createGameState` calls with the same
+seed, and every generated goal's city ids actually exist), `tests/sim/economy/founding.test.ts`
+(4 tests). 21 new unit tests; 283 total (was 262).
+
+**E2E** (`e2e/regions.spec.ts`): the existing Chicago test was extended from "is it absent" to
+actually running 3 years and checking both the footprint and the `cityFounded` news item; a new
+Goals-panel test screenshots all three goal cards with progress bars; a new celebration-dialog test
+uses a test-only debug hook (`debugSetCash`, added alongside the existing `debugPlaceCity`/
+`debugPlaceIndustry` test-only hooks) to push net worth over gb's $5M gold threshold without
+simulating real train revenue, confirming the celebration dialog *and* its news toast both fire.
+First pass at both new panel screenshots caught a real timing bug in the test, not the app: without
+a wait after opening the panel, the screenshot landed mid-slide-in-transition (CSS
+`transition: transform 0.2s ease`), showing the panel mostly off-screen with text apparently
+"cut off" — same `waitForTimeout` fix every other panel-screenshot test in this codebase already
+uses.
+
+**Screenshots — looked at them**: `phase-10-goals-panel.png` shows all three us-east goal cards
+(Bronze/Silver/Gold, color-coded) with full readable descriptions ("Connect New York – Chicago by
+rail", "Annual revenue $5.0M", "Chicago reaches Metropolis"), each at 0% progress on a fresh game.
+`phase-10-celebration-dialog.png` shows the dialog firing the instant net worth crosses gb's gold
+threshold — "Goal reached! 🎉" / "Gold" / "Net worth $5.0M" / Continue — with the matching toast
+("Gold goal reached: Net worth $5.0M") visible at the top of the same screenshot, confirming both
+fire together as designed.
+
+- `npm run check` (283 unit tests) and the full `npm run e2e` (53 specs, +2 for the goals/
+  celebration coverage) both green. Reverted unrelated screenshot re-encoding noise from every
+  other phase per CLAUDE.md, same as the last two sessions.
+- Next: **Phase 10 final wrap-up** — PLAN.md checkboxes, a consolidated PROGRESS.md entry, and the
+  `Phase 10: Real-world maps and new game screen` commit.

@@ -89,6 +89,7 @@ import { createTrainListButton } from "./ui/toolbar";
 import { createNewsButton, formatNewsItem, openNewsPanel } from "./ui/newsPanel";
 import { openFinancePanel } from "./ui/financePanel";
 import { openYearlyReport } from "./ui/yearlyReport";
+import { createGoalsButton, openGoalCelebration, openGoalsPanel } from "./ui/goalsPanel";
 import { isPanelOpen } from "./ui/panel";
 import { formatMoney } from "./ui/format";
 import { openTitleScreen } from "./ui/titleScreen";
@@ -573,6 +574,11 @@ function main(): void {
       newsButton.refreshBadge(state);
     }
 
+    if (state.pendingGoalCelebrations.length > 0 && !isPanelOpen()) {
+      const goal = state.pendingGoalCelebrations.shift();
+      if (goal) openGoalCelebration(ui, state, goal);
+    }
+
     if (isYearBoundary(state.ticks) && !isPanelOpen()) {
       openYearlyReport(ui, state);
     }
@@ -643,12 +649,12 @@ function main(): void {
       // mini-map skip drawing rather than rendering underneath (same review, the station-label/
       // News-button overlap).
       const panelOpen = isPanelOpen();
-      for (const el of [newsButton.root, trainListButton, quickBuildToggle]) {
+      for (const el of [newsButton.root, trainListButton, quickBuildToggle, goalsButton]) {
         el.classList.toggle("floating-hidden", panelOpen);
       }
       const reserved: ReservedScreenRect[] = [];
       if (!panelOpen) {
-        for (const el of [newsButton.root, trainListButton, quickBuildToggle]) {
+        for (const el of [newsButton.root, trainListButton, quickBuildToggle, goalsButton]) {
           const r = el.getBoundingClientRect();
           reserved.push({ x0: r.left, y0: r.top, x1: r.right, y1: r.bottom });
         }
@@ -732,6 +738,7 @@ function main(): void {
     openNewsPanel(ui, state);
     newsButton.refreshBadge(state);
   });
+  const goalsButton = createGoalsButton(ui, () => openGoalsPanel(ui, state));
 
   loop.start();
   initBackButton();
@@ -853,6 +860,9 @@ function main(): void {
           debugPlaceIndustry: (tile: number, type: IndustryType) => number;
           /** Test-only: injects a city directly, same rationale as `debugPlaceIndustry`. */
           debugPlaceCity: (tiles: number[], population: number) => number;
+          /** Test-only: sets cash directly, so e2e specs can trigger a netWorth-style goal without
+           * simulating real revenue. */
+          debugSetCash: (amount: number) => void;
           getFloatingLabels: () => Array<{ stationTile: number; text: string; color: string }>;
           buildImprovement: (
             stationId: number,
@@ -1063,6 +1073,9 @@ function main(): void {
         refreshStationEconomy(state);
         state.mapContentVersion++; // this city needs to be baked into the terrain chunk cache
         return id;
+      },
+      debugSetCash: (amount: number) => {
+        state.cash = amount;
       },
       getFloatingLabels: () =>
         floatingLabels.map((l) => ({ stationTile: l.stationTile, text: l.text, color: l.color })),

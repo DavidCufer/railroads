@@ -14,6 +14,8 @@ import type { Train } from "./trains/types";
 import { createFinanceState, type FinanceState } from "./finance/types";
 import type { NewsItem } from "./news";
 import { getRegion, loadRegion, type PendingCityFounding, type RegionId } from "./regions";
+import { createGoalsForNewGame } from "./goals/generate";
+import type { Goal } from "./goals/types";
 
 /** A station's waiting pile for one cargo type (SPEC §6.3). */
 export interface StationCargoPile {
@@ -92,6 +94,22 @@ export interface GameState {
   /** Real-world region cities not yet founded (SPEC §4.3) — drained by
    * src/sim/economy/founding.ts as the in-game year reaches each one. Always empty on a random map. */
   pendingCityFoundings: PendingCityFounding[];
+  /** This game's goal set (SPEC §11) — a region's hand-authored set, or a generated one for a
+   * random map. Fixed for the game's lifetime; see src/sim/goals/generate.ts. */
+  goals: Goal[];
+  /** Goal ids whose completion has already been announced (news + celebration dialog) — so
+   * src/sim/economy/goalTracking.ts's daily re-check doesn't re-fire one that's already complete. */
+  goalsCompleted: Set<string>;
+  /** Newly-completed goals not yet shown as a celebration dialog — drained by the UI layer once no
+   * other panel is in the way, same one-shot-queue pattern as `pendingDeliveries`/`pendingNews`. */
+  pendingGoalCelebrations: Goal[];
+  /** Units of each cargo type delivered so far *this* calendar year (SPEC §11's `delivered` goal) —
+   * reset to empty at every year boundary, after `cargoDeliveredBestYear` below has taken its max. */
+  cargoDeliveredThisYear: Partial<Record<CargoType, number>>;
+  /** The most units of each cargo type ever delivered within a single calendar year — a `delivered`
+   * goal checks against `max(cargoDeliveredThisYear, cargoDeliveredBestYear)` so it can complete
+   * either mid-year or from a past year, without needing per-year history. */
+  cargoDeliveredBestYear: Partial<Record<CargoType, number>>;
 }
 
 interface BaseNewGameOptions {
@@ -146,7 +164,7 @@ export function createGameState(options: NewGameOptions): GameState {
     pendingCityFoundings = [];
   }
 
-  return {
+  const state: GameState = {
     seed: options.seed,
     rng,
     map,
@@ -175,5 +193,12 @@ export function createGameState(options: NewGameOptions): GameState {
     mapContentVersion: 0,
     ...(regionId !== undefined ? { regionId } : {}),
     pendingCityFoundings,
+    goals: [],
+    goalsCompleted: new Set(),
+    pendingGoalCelebrations: [],
+    cargoDeliveredThisYear: {},
+    cargoDeliveredBestYear: {},
   };
+  state.goals = createGoalsForNewGame(state, regionId);
+  return state;
 }

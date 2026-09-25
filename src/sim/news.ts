@@ -6,6 +6,7 @@
  */
 import { NEWS_HISTORY_MAX } from "../data/news";
 import type { CityTier } from "../data/cities";
+import type { GoalTier } from "../data/goals";
 import type { GameState } from "./state";
 
 /** A news item's kind-specific data — `keyof` over a union only yields the *common* keys, so this
@@ -18,7 +19,9 @@ export type NewsPayload =
   | { kind: "trafficJam"; tile: number }
   | { kind: "noRoute"; trainId: number; stationId: number }
   | { kind: "cityGrowth"; cityId: number; tier: CityTier }
-  | { kind: "civicInvestment"; cityId: number };
+  | { kind: "civicInvestment"; cityId: number }
+  | { kind: "cityFounded"; cityId: number }
+  | { kind: "goalCompleted"; goalId: string; tier: GoalTier };
 
 export type NewsItem = NewsPayload & { id: number; tick: number };
 

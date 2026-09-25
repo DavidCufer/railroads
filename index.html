@@ -378,6 +378,64 @@
         border-radius: 999px;
         z-index: 6;
       }
+      /* Goals button (SPEC §11, Phase 10) — stacked above News/Trains in the same corner. */
+      .goals-button {
+        position: absolute;
+        right: 8px;
+        bottom: 156px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        min-height: 40px;
+        padding: 0 10px;
+        background: rgba(24, 28, 34, 0.88);
+        border: none;
+        color: #fff;
+        font: 12px sans-serif;
+        border-radius: 999px;
+        z-index: 6;
+      }
+      .goal-card {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 10px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.06);
+        border-left: 4px solid #cd7f32;
+      }
+      .goal-tier-silver {
+        border-left-color: #c0c0c0;
+      }
+      .goal-tier-gold {
+        border-left-color: #f2b544;
+      }
+      .goal-card.goal-complete {
+        background: rgba(91, 194, 122, 0.12);
+      }
+      .goal-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .goal-tier-badge {
+        font: 700 11px sans-serif;
+        text-transform: uppercase;
+        opacity: 0.85;
+        letter-spacing: 0.5px;
+      }
+      .goal-year {
+        font-size: 11px;
+        opacity: 0.7;
+      }
+      .goal-desc {
+        font-size: 13px;
+      }
+      .goal-overdue {
+        font-size: 11px;
+        color: #e05a4f;
+        font-weight: 700;
+      }
       .news-unread-badge {
         display: none;
         align-items: center;
@@ -822,6 +880,7 @@
          order. */
       .train-list-button,
       .news-button,
+      .goals-button,
       .quick-build-toggle {
         background: #181c22;
       }
