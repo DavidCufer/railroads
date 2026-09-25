@@ -2127,3 +2127,82 @@ fire together as designed.
   other phase per CLAUDE.md, same as the last two sessions.
 - Next: **Phase 10 final wrap-up** — PLAN.md checkboxes, a consolidated PROGRESS.md entry, and the
   `Phase 10: Real-world maps and new game screen` commit.
+
+## Phase 10: Real-world maps and the new game screen — final wrap-up
+
+Phase 10 landed across seven sessions/sub-phases (10.1-10.7, each with its own detailed entry
+above): the `tools/mapgen` pipeline, all four SPEC-listed regions, a terrain-fidelity review pass,
+the title/New Game screens, and the goals system. This entry is the consolidated summary
+CLAUDE.md's workflow asks for, plus the honest per-region recognizability assessment the task
+brief specifically asked to be recorded here.
+
+**What shipped:**
+- `tools/mapgen` (Node/TypeScript, `npm run mapgen -- <regionId>`): hand-authored coastline/lake/
+  river/mountain-range/resource-zone polygons per region (Natural Earth's GeoJSON host is blocked
+  by this environment's egress policy — confirmed, not assumed — so the fallback path is the only
+  one implemented; a future session with network access can add the live-fetch path SPEC describes
+  without touching the rest of the pipeline). Elevation blends mountain-feature falloff with noise
+  texture; terrain classification reuses the random generator's own thresholds so the two map kinds
+  agree; rivers/cities/industries all reuse the random generator's placement logic.
+- All four SPEC-listed regions (`us-east`, `gb`, `central-eu`, `us-west`), each with real cities
+  (positions, 1830s-1860s populations, tiers), founding-year cities where real history has them
+  (Chicago, Atlanta, and five in `us-west`), and resource zones matching SPEC's named examples
+  (substituting a couple that fall outside a region's SPEC-fixed lon/lat bounds, documented in each
+  region file's header).
+- A terrain-fidelity review pass (Phase 10.5) that fixed real problems a first look at the overview
+  screenshots caught: `us-west` had no desert at all despite `aridZones` existing in the data model
+  since Phase 10.1, `us-east`'s Appalachians were invisible (a `peakElevation` that never crossed
+  the hills threshold), `central-eu` was missing secondary ranges. Added full-region thumbnail
+  screenshots (`phase-10-<region>-full.png`) specifically so this kind of problem is visible at a
+  glance instead of hiding in an 800×360 crop.
+- Title screen (New Game / Continue-disabled / Settings-placeholder) and a New Game screen (Real
+  World tab with a rendered-from-real-data thumbnail per region; Random tab with every SPEC §4.2
+  option; shared difficulty picker with starting cash shown), both fit to 800×360.
+- A full goals system: SPEC's six data-driven types (one generalized — `connect` takes N cities,
+  not just 2, to fit gb's own 4-city example), a hand-authored bronze/silver/gold set per region,
+  a generated set for random maps, a Goals panel with progress bars, and a celebration dialog +
+  news toast on completion.
+- City foundings actually fire now — the `pendingCityFoundings` plumbing existed since Phase 10.1
+  but had no consumer until Phase 10.7's `founding.ts`.
+
+**Region recognizability — an honest per-region assessment** (from looking at the full-region
+thumbnails in Phase 10.5, still valid — no terrain changed since):
+- **us-east**: the strongest of the four for "does this read as the real place." Great Lakes
+  correctly shaped/positioned, Chesapeake Bay, the Atlantic coast curving from Montreal/Boston down
+  to Savannah, and — after the 10.5 fix — an unmistakable continuous Appalachian band running the
+  full NE-SW diagonal with a visible mountain core, plus distinct Adirondacks/White Mountains hill
+  clusters (subtle at overview zoom, but real in the data).
+- **central-eu**: the other strong result. The Alps read as an obvious, wide, continuous arc
+  separating Italy from the German/Austrian side exactly as SPEC's brief describes, with real snow-
+  cap rendering confirmed at zoom 2. The Carpathian edge hint and Black Forest/Bohemian Forest hill
+  clusters are correct in the data but visually subtle at overview zoom (hills' color reads close
+  to plain green at that scale) — someone not already looking for them could miss them.
+- **us-west**: much improved by the 10.5 fix (a large, correctly-placed desert interior across
+  Nevada/Utah/Arizona/the Mojave, a clearly lake-shaped Great Salt Lake, an unmistakably wide Rocky
+  Mountains band), but the Wasatch Range specifically is honestly still under-visible — it's real
+  mountain elevation immediately next to Salt Lake City (verified by dumping the actual generated
+  terrain grid), but at overview zoom it renders as only a 1-3-tile-wide line easy to miss next to
+  the city label. A geologically accurate shape (the real Wasatch Front is narrow) rendered at a
+  small scale, not a bug, but worth another look if a future session revisits terrain rendering.
+- **gb**: solid and unchanged since Phase 10.2 — reads clearly as Great Britain's outline with
+  Manchester/Liverpool/Leeds/Sheffield/Birmingham in correct relative positions. Wasn't touched by
+  the 10.5 review because it didn't need to be.
+
+**Known carry-overs, not fixed in this phase** (none block Phase 10's own scope; listed here so a
+future session doesn't have to rediscover them):
+- A handful of isolated single-tile "desert" specks in `us-east`/`central-eu`, away from any
+  mountain feature — ordinary moisture-noise variance the random generator has always had, not
+  introduced by this phase's changes (verified: `gb`'s JSON, untouched by the 10.5 fixes, has none;
+  `central-eu`'s specks predate its own new hill features).
+- The Wasatch Range's low overview-zoom visibility, above.
+- `npm run build`'s >500KB main-chunk warning (all four regions' JSON statically imported) —
+  explicitly deferred to Phase 12 (Performance and release hardening) since fixing it means making
+  the region-loading path async, which ripples into the New Game screen this phase just built.
+- No live Natural Earth fetch path (network-blocked in this environment) — the hand-authored
+  fallback is the only path implemented; SPEC's fetch-based pipeline step is still open for a
+  future session with different network access.
+- "Load" isn't a separate main-menu entry yet (see the PLAN.md deviation note) — there's nothing to
+  load until Phase 11 ships saves.
+
+- Final `npm run check` (283 unit tests) and `npm run e2e` (53 specs) both green on the commit this
+  entry ships with.

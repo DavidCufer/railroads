@@ -266,13 +266,15 @@ SPEC: §6.2, §8.2 (industry dynamics), §8.3 (growth, civic investment)
 ## Phase 10 — Real-world maps and the new game screen
 SPEC: §4.3, §4.4, §11
 
-- [ ] `tools/mapgen` pipeline (Node script, `npm run mapgen -- <regionId>`), with a Natural Earth download + cache; hand-authored fallback polygons if the network is blocked (record which was used in PROGRESS.md).
-- [ ] Region definitions for `us-east`, `gb`, `central-eu`, `us-west` (cities with real coordinates and start tiers, mountain features, resource zones, founding years for cities founded after the start year).
-- [ ] Generated JSON committed under `src/data/regions/`; the loader turns it into `GameState`.
-- [ ] Cities with a founding year appear when that year arrives.
-- [ ] New game screen: Real World tab (cards with thumbnails) + Random tab (all options) + difficulty.
-- [ ] Goals system (data-driven goal types), per-region goal sets, generated goals for random maps, Goals panel, celebration dialog.
-- [ ] Title/main menu screen: New Game, Continue, Load, Settings.
+- [x] `tools/mapgen` pipeline (Node script, `npm run mapgen -- <regionId>`), with a Natural Earth download + cache; hand-authored fallback polygons if the network is blocked (record which was used in PROGRESS.md).
+- [x] Region definitions for `us-east`, `gb`, `central-eu`, `us-west` (cities with real coordinates and start tiers, mountain features, resource zones, founding years for cities founded after the start year).
+- [x] Generated JSON committed under `src/data/regions/`; the loader turns it into `GameState`.
+- [x] Cities with a founding year appear when that year arrives.
+- [x] New game screen: Real World tab (cards with thumbnails) + Random tab (all options) + difficulty.
+- [x] Goals system (data-driven goal types), per-region goal sets, generated goals for random maps, Goals panel, celebration dialog.
+- [x] Title/main menu screen: New Game, Continue, Settings. **Deviation**: no separate "Load" entry —
+      there's no save system yet (Phase 11), so Continue is a single disabled placeholder rather than
+      a real Continue/Load split; Phase 11 adds both once saves exist.
 
 **Tests:** each region loads; city positions are within ±1 tile of their projected lat/lon; key cities are on land; the goal evaluators.
 **E2E:** screenshot of each region at overview zoom → `docs/screenshots/phase-10-<region>.png`. Eyeball these for recognizability and note any issues.
