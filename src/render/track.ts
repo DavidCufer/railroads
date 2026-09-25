@@ -269,14 +269,14 @@ export class TrackRenderer {
     edge: TrackEdge,
     scale: number,
   ): void {
-    const wireOffset = (edge.double ? 9 : 6) * scale;
+    const wireOffset = (edge.double ? 20 : 16) * scale;
     const wx1 = x1 + perpX * wireOffset;
     const wy1 = y1 + perpY * wireOffset;
     const wx2 = x2 + perpX * wireOffset;
     const wy2 = y2 + perpY * wireOffset;
 
     ctx.strokeStyle = CATENARY_WIRE_COLOR;
-    ctx.lineWidth = Math.max(0.5, 0.6 * scale);
+    ctx.lineWidth = Math.max(0.8, 0.9 * scale);
     ctx.beginPath();
     ctx.moveTo(wx1, wy1);
     ctx.lineTo(wx2, wy2);
@@ -288,7 +288,7 @@ export class TrackRenderer {
     const spacing = 9 * scale;
     const steps = Math.max(1, Math.round(len / spacing));
     ctx.strokeStyle = CATENARY_POLE_COLOR;
-    ctx.lineWidth = Math.max(1, 1 * scale);
+    ctx.lineWidth = Math.max(1, 1.3 * scale);
     for (let s = 0; s <= steps; s++) {
       const t = s / steps;
       const bx = x1 + dx * t;

@@ -50,8 +50,8 @@ export const GHOST_BLOCKED_COLOR = "#E05A4F";
 export const GHOST_BULLDOZE_COLOR = "#E05A4F";
 export const GHOST_UPGRADE_COLOR = "#4F86B5";
 export const GHOST_ELECTRIFY_COLOR = "#F2B544";
-export const CATENARY_POLE_COLOR = "#8A8F98";
-export const CATENARY_WIRE_COLOR = "#C9CDD3";
+export const CATENARY_POLE_COLOR = "#565B63";
+export const CATENARY_WIRE_COLOR = "#B8BDC4";
 
 /** Station catchment preview overlay (SPEC §6.1: "tiles tinted" while choosing a station site). */
 export const STATION_CATCHMENT_FILL = "rgba(242, 181, 68, 0.22)";

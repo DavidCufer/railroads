@@ -673,6 +673,7 @@ function main(): void {
             a: number;
             b: number;
             double: boolean;
+            electrified: boolean;
             bridge: string | null;
             cost: number;
           }>;
@@ -694,6 +695,7 @@ function main(): void {
           } | null;
           runDays: (n: number) => void;
           buildTrackPath: (path: number[]) => { ok: boolean; reason?: string };
+          electrifyTrackPath: (path: number[]) => { ok: boolean; reason?: string };
           buildStation: (tile: number, type: StationType) => { ok: boolean; reason?: string };
           buyTrain: (
             stationId: number,
@@ -771,6 +773,7 @@ function main(): void {
           a: e.a,
           b: e.b,
           double: e.double,
+          electrified: e.electrified,
           bridge: e.bridge,
           cost: e.cost,
         })),
@@ -798,6 +801,11 @@ function main(): void {
       },
       buildTrackPath: (path) => {
         const result = buildTrack(state, path);
+        if (result.ok) invalidateAlongPath(path);
+        return result.ok ? { ok: true } : { ok: false, reason: result.reason };
+      },
+      electrifyTrackPath: (path) => {
+        const result = electrifyTrack(state, path);
         if (result.ok) invalidateAlongPath(path);
         return result.ok ? { ok: true } : { ok: false, reason: result.reason };
       },
