@@ -1,8 +1,8 @@
 /**
  * Train UI (SPEC §7, PLAN Phase 6): the Buy Train dialog (loco list, car picker, tap-the-map
  * orders editor), the per-train management panel (status/orders/consist/sell), and the train list.
- * Bodies scroll and the action row stays pinned via `.panel-actions`' sticky CSS (see index.html;
- * carried over from the Phase 5 review's overflow fix) so everything still fits an 800×360 view.
+ * Bodies scroll and the action row stays pinned as `openPanel`'s `footer` (see src/ui/panel.ts),
+ * a real flex sibling outside the scrollport, so everything still fits an 800×360 view.
  */
 import { CARGO, CARGO_TYPES, type CargoType } from "../data/cargo";
 import { locomotiveById, locomotivesAvailableIn, type LocomotiveDef } from "../data/trains";
@@ -243,8 +243,8 @@ export function openBuyTrainPanel(
       h("div", { className: "panel-section-title" }, strings.trains.orders),
       ordersListEl,
       pickBtn,
-      h("div", { className: "panel-actions" }, buyBtn, cancelBtn),
     ],
+    footer: [buyBtn, cancelBtn],
     onClose: () => {
       picking = false;
       handlers.cancelPickStationOnMap();
@@ -283,29 +283,23 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
     ];
 
     const sellPlan = computeSellTrainPlan(state, trainId);
-    body.push(
-      h(
-        "div",
-        { className: "panel-actions" },
-        h(
-          "button",
-          {
-            className: "panel-action-build train-sell-btn",
-            onClick: () => {
-              const result = sellTrain(state, trainId);
-              if (!result.ok) {
-                showToast(container, strings.build.reasons[result.reason], "warn");
-                return;
-              }
-              closePanel();
-            },
-          },
-          `${strings.trains.sell} (+${formatMoney(sellPlan.refund)})`,
-        ),
-      ),
+    const sellBtn = h(
+      "button",
+      {
+        className: "panel-action-build train-sell-btn",
+        onClick: () => {
+          const result = sellTrain(state, trainId);
+          if (!result.ok) {
+            showToast(container, strings.build.reasons[result.reason], "warn");
+            return;
+          }
+          closePanel();
+        },
+      },
+      `${strings.trains.sell} (+${formatMoney(sellPlan.refund)})`,
     );
 
-    openPanel(container, { title: train.name, body });
+    openPanel(container, { title: train.name, body, footer: [sellBtn] });
   };
 
   render();

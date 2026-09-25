@@ -203,13 +203,7 @@
         flex: 1 1 auto;
         min-height: 0;
         overflow-y: auto;
-        /* Extra bottom padding reserves room so the sticky `.panel-actions` bar (below, still
-           nested inside `.panel-body` by every caller) never visually overlaps the last row(s) of
-           content — sticky positioning clamps the bar to *this* scrollport's bottom even when
-           total content is only barely taller than the panel. 66px = .panel-actions' own rendered
-           height (10px+12px padding + the 44px button row) — keep this and its `margin-bottom`
-           below in sync if that ever changes. */
-        padding: 12px 14px 66px;
+        padding: 12px 14px;
         display: flex;
         flex-direction: column;
         gap: 10px;
@@ -286,15 +280,13 @@
       .panel-actions {
         display: flex;
         gap: 8px;
-        /* Pinned to the bottom of `.panel-body`'s own scroll area (it's nested inside `.panel-body`
-           by every caller, as the last item of the body list) so the confirm/build/sell button is
-           always reachable on a short viewport instead of requiring a scroll past the rest of the
-           panel body (Phase 5 review carry-over: the New Station panel's Build button could get
-           cut off at 800×360). The negative margins reclaim `.panel-body`'s own padding so the bar
-           spans edge-to-edge. */
-        position: sticky;
-        bottom: 0;
-        margin: 8px -14px -66px;
+        /* A real flex sibling of `.panel-body`, outside its scrollport (Phase 7.1 review carry-
+           over — see the `footer` doc comment on `PanelOptions` in src/ui/panel.ts for why the
+           previous `position: sticky` approach, nested inside `.panel-body`, could render the
+           button mid-scroll and overlap later rows instead of sitting at the panel's bottom on
+           tall content). `flex: 0 0 auto` keeps it at its natural height always outside
+           `.panel-body`'s shrinkable flex space, matching `.panel-header` above. */
+        flex: 0 0 auto;
         padding: 10px 14px 12px;
         background: rgba(24, 28, 34, 0.97);
         box-shadow: 0 -6px 10px -6px rgba(0, 0, 0, 0.4);

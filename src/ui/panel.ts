@@ -16,6 +16,14 @@ let currentPanel: {
 export interface PanelOptions {
   title: string;
   body: Node[];
+  /** A pinned action row (e.g. Build/Cancel, Buy/Cancel, Sell, Yearly Report) rendered as its own
+   * flex sibling *outside* `.panel-body`'s scrollport — never scrolls, never overlaps body content
+   * (Phase 7.1 review carry-over: passing these buttons as the last item of `body` and relying on
+   * `.panel-actions`' own `position: sticky` to fake pinning had the same flaw the header fix below
+   * addresses — sticky only "sticks" once scrolled *past* its natural flow position, so on a panel
+   * whose content is much taller than the viewport it could render mid-scroll, overlapping later
+   * rows instead of sitting at the bottom; see docs/screenshots/phase-7-finance-panel.png). */
+  footer?: Node[];
   /** Called when this panel closes — including via its own ✕ button, the Android back button, or
    * a later `openPanel` call replacing it, not just an explicit `closePanel()` call — so a caller
    * with side state tied to the panel being open (e.g. Station mode's catchment overlay) can
@@ -28,9 +36,7 @@ export function openPanel(container: HTMLElement, options: PanelOptions): void {
   closePanel();
 
   const close = (): void => closePanel();
-  const root = h(
-    "div",
-    { className: "panel" },
+  const children = [
     h(
       "div",
       { className: "panel-header" },
@@ -42,7 +48,11 @@ export function openPanel(container: HTMLElement, options: PanelOptions): void {
       ),
     ),
     h("div", { className: "panel-body" }, ...options.body),
-  );
+  ];
+  if (options.footer && options.footer.length > 0) {
+    children.push(h("div", { className: "panel-actions" }, ...options.footer));
+  }
+  const root = h("div", { className: "panel" }, ...children);
   container.appendChild(root);
   // Force a reflow so the slide-in transition plays instead of jumping straight to open.
   void root.offsetWidth;

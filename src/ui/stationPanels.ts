@@ -193,12 +193,8 @@ export function openStationPlacementPanel(
 
   openPanel(container, {
     title: strings.station.newStationTitle,
-    body: [
-      h("div", { className: "station-type-picker" }, ...typeButtons),
-      statsEl,
-      economyEl,
-      h("div", { className: "panel-actions" }, buildBtn, cancelBtn),
-    ],
+    body: [h("div", { className: "station-type-picker" }, ...typeButtons), statsEl, economyEl],
+    footer: [buildBtn, cancelBtn],
     onClose: () => callbacks.onClose(),
   });
 

@@ -159,22 +159,20 @@ export function openFinancePanel(container: HTMLElement, state: GameState): void
     body.push(h("div", { className: "panel-section-title" }, strings.finance.lastYear));
     body.push(...ledgerRows(state.finance.lastYear));
 
-    body.push(
-      h(
-        "div",
-        { className: "panel-actions" },
-        h(
-          "button",
-          {
-            className: "panel-action-build",
-            onClick: () => openYearlyReport(container, state),
-          },
-          strings.finance.yearlyReport,
-        ),
-      ),
+    const yearlyReportBtn = h(
+      "button",
+      {
+        className: "panel-action-build",
+        onClick: () => openYearlyReport(container, state),
+      },
+      strings.finance.yearlyReport,
     );
 
-    openPanel(container, { title: strings.finance.title, body });
+    openPanel(container, {
+      title: strings.finance.title,
+      body,
+      footer: [yearlyReportBtn],
+    });
     drawChart(canvas, state.finance.netWorthHistory);
   };
 
