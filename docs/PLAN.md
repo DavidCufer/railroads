@@ -281,6 +281,32 @@ SPEC: §4.3, §4.4, §11
 
 ---
 
+## Phase 10.1 — Real-world terrain breadth (review findings on Phase 10)
+SPEC: §4.3
+
+Review of docs/screenshots/phase-10-*-full.png: maps are recognizable (coasts, lakes, cities, Great Basin desert), but
+mountain ranges are drawn as 1–3-tile stripes, so they don't read as ranges and barely matter for gameplay (grades,
+costs). Rivers aren't visible at overview zoom.
+
+- [ ] Mountain features become broad bands with a core + falloff: core width (mountain) and a wider hills margin,
+      with noise-jittered edges and elevation peaking along the ridge line. Targets (in tiles, roughly real-world
+      widths at each region's scale): Appalachians ~10–16 wide (Blue Ridge/Allegheny ridges as mountain cores, the rest
+      hills), Rockies ~20–40 wide covering most of Colorado/Wyoming/Idaho/W Montana with multiple parallel ranges,
+      Sierra Nevada ~6–10, Cascades ~6–8, Wasatch ~4–6, Alps ~15–25 (Switzerland/Tyrol/Carinthia mostly mountains,
+      snow on the highest core), Carpathians/Bohemian Forest/Black Forest as hills bands, Pennines/Scottish
+      Highlands/Welsh mountains as hills with mountain cores.
+- [ ] Add a few missing lakes: Lake Geneva, Lake Constance, Lake Balaton, Lake Champlain, Lake Tahoe (if not already
+      from Natural Earth).
+- [ ] Draw major rivers at overview zoom (< 0.5×) as thin blue lines (Mississippi, Ohio, Hudson, Potomac, Columbia,
+      Colorado, Rhine, Danube, Elbe, Po, Thames, Severn...), since those guide where players build.
+- [ ] Regenerate the region JSON (keep it deterministic and < 300 KB each), regenerate the four full-region
+      thumbnails and the New Game card thumbnails, look at them, and describe honestly in PROGRESS.md.
+- [ ] Keep every existing test green (region load, city-on-land, goals).
+
+**Accept:** in each full-region thumbnail, the named ranges are visibly broad bands and major rivers are visible.
+
+---
+
 ## Phase 11 — Save/load, settings, polish
 SPEC: §13, §10 (remaining UI), §3
 
