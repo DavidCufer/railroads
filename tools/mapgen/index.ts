@@ -10,11 +10,13 @@ import path from "node:path";
 import { buildRegion } from "./build";
 import { usEast } from "./regions/us-east";
 import { gb } from "./regions/gb";
+import { centralEu } from "./regions/central-eu";
 import type { RegionDef } from "./regionDef";
 
 const REGIONS: Record<string, RegionDef> = {
   "us-east": usEast,
   gb: gb,
+  "central-eu": centralEu,
 };
 
 function main(): void {

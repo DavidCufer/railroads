@@ -1731,3 +1731,48 @@ the gb load/screenshot test.
 
 - `npm run check` (246 unit tests) and the full `npm run e2e` (40 specs) both green.
 - Next: **central-eu region** (Phase 10.3).
+
+## Phase 10.3 — central-eu region
+
+**central-eu** (bounds fixed by SPEC's table: 5…20 lon, 44…54 lat; grid **142×144**, matching
+`(15°·cos(49°))/10° ≈ 0.98 ≈ 142/144`). Mostly landlocked — the only coastline in bounds is the
+northern Adriatic near Venice/Trieste, carved as a `lakes` polygon kept south/west of both cities so
+they stay coastal-but-on-land. 25 SPEC-listed cities, no founding-year cities (all existed by 1840).
+Every city landed within 0.7 tiles of its projected position on the first try this time — the
+snap-distance check written for gb's Cardiff bug caught nothing to fix here.
+
+**The Alps** are one continuous ridge (SPEC's own example elevation, 9) arcing from the western Alps
+near Turin through Switzerland, South Tyrol/Innsbruck, and the Austrian Alps to the Julian Alps near
+Ljubljana — `radiusTiles: 11` gives it real breadth without swallowing Innsbruck, Salzburg, Zurich,
+or Ljubljana (all snap to non-mountain terrain, verified). A wide (1400×1100, not committed)
+inspection screenshot confirms it reads as an obvious, continuous mountain barrier separating
+Italy (Milan/Turin/Venice/Genoa) from the German/Austrian side (Munich/Salzburg/Vienna/Graz), with
+Ljubljana and Zagreb correctly placed near its eastern end approaching the Adriatic, and Trieste
+right on the coast. Danube (Vienna, Budapest) and Rhine (Basel, Strasbourg, Cologne) added as bonus
+rivers for recognizability (not required by the task brief for this region, but cheap given the
+pipeline already exists). Resource zones: Ruhr coal, Silesia coal, Styria iron (Graz).
+
+**Deviation**: the task brief's own example suggests "Vienna/Berlin cities" (not metropolis) — both
+are capped at the city tier's ceiling (150,000) rather than their real ~330-400k 1840 populations,
+following that guidance over strict historical accuracy (their real sizes would otherwise make them
+this region's third and fourth metropolis, on top of already using that tier nowhere here — no city
+in this region reaches metropolis, unlike us-east/gb). Trieste (realistically ~50k by 1840, a
+significant Habsburg free port) is similarly kept at the town tier's ceiling (25,000) per the brief's
+"Trieste town" example.
+
+**Bundle size note**: `npm run build` now warns that the main JS chunk exceeds 500 KB — each
+region's JSON is statically imported (`src/sim/regions/index.ts`) so all shipped regions bundle into
+the app upfront rather than loading on demand. Not fixed now (would mean making `createGameState`'s
+region path async, which ripples into `main.ts`'s `regenerate` and the New Game screen this phase
+still has to build) — left as a candidate for Phase 12 (Performance and release hardening), which
+already covers this kind of thing.
+
+**Screenshots** (`e2e/regions.spec.ts`, 800×360): `phase-10-central-eu-overview.png` (zoom 0.25,
+Frankfurt/Prague/Nuremberg/Munich/Salzburg all correctly relatively positioned).
+`phase-10-central-eu-closeup.png` (zoom 2 on Vienna, the Danube running through it).
+
+**Tests**: `central-eu` added to `tests/mapgen/build.test.ts`'s shared `REGIONS` array and to
+`tests/sim/regions/load.test.ts` and `e2e/regions.spec.ts`, same pattern as gb.
+
+- `npm run check` (254 unit tests) and the full `npm run e2e` (41 specs) both green.
+- Next: **us-west region** (Phase 10.4).

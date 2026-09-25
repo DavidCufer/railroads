@@ -5,11 +5,12 @@ import { buildRegion } from "../../tools/mapgen/build";
 import { project } from "../../tools/mapgen/geo";
 import { usEast } from "../../tools/mapgen/regions/us-east";
 import { gb } from "../../tools/mapgen/regions/gb";
+import { centralEu } from "../../tools/mapgen/regions/central-eu";
 import type { RegionDef } from "../../tools/mapgen/regionDef";
 import { decodeUint8 } from "../../src/sim/regions/codec";
 import { terrainName } from "../../src/sim/map/terrain";
 
-const REGIONS: RegionDef[] = [usEast, gb];
+const REGIONS: RegionDef[] = [usEast, gb, centralEu];
 
 for (const def of REGIONS) {
   describe(`buildRegion(${def.id})`, () => {

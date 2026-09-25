@@ -59,6 +59,17 @@ describe("loadRegion(gb)", () => {
   });
 });
 
+describe("loadRegion(central-eu)", () => {
+  it("produces a GameMap sized to the region with no founding-year cities", () => {
+    const region = getRegion("central-eu");
+    const loaded = loadRegion(region);
+    expect(loaded.map.width).toBe(region.width);
+    expect(loaded.map.height).toBe(region.height);
+    expect(loaded.cities.length).toBe(region.cities.length);
+    expect(loaded.pendingCityFoundings).toEqual([]);
+  });
+});
+
 describe("createGameState with a region", () => {
   it("builds a playable GameState from us-east", () => {
     const state = createGameState({ seed: 1, region: "us-east" });
