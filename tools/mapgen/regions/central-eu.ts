@@ -84,6 +84,41 @@ export const centralEu: RegionDef = {
       peakElevation: 9,
       radiusTiles: 11,
     },
+    {
+      // Only the western Carpathian edge is inside this region's bounds (the range's main arc
+      // continues east past lon 20 into Slovakia/Romania) — a hint of it near the Tatras, north of
+      // Budapest, per the review brief's "Carpathian edge".
+      name: "Carpathians (western edge)",
+      ridge: [
+        [19.2, 48.8],
+        [19.6, 49.2],
+        [20.0, 49.4],
+      ],
+      peakElevation: 7,
+      radiusTiles: 4,
+    },
+    {
+      // SW Germany, near Freiburg/Basel — hills, not a Alps-scale range.
+      name: "Black Forest",
+      ridge: [
+        [8.0, 47.6],
+        [8.2, 48.2],
+        [8.3, 48.6],
+      ],
+      peakElevation: 6,
+      radiusTiles: 3,
+    },
+    {
+      // Czech-German-Austrian border SW of Prague (Šumava) — hills.
+      name: "Bohemian Forest",
+      ridge: [
+        [13.3, 49.7],
+        [13.6, 49.2],
+        [13.9, 48.8],
+      ],
+      peakElevation: 6,
+      radiusTiles: 3,
+    },
   ],
 
   resourceZones: [

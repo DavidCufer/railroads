@@ -179,7 +179,11 @@ export const usEast: RegionDef = {
 
   mountains: [
     {
-      name: "Appalachians",
+      // Review: peakElevation 5 never crossed the hills threshold (6), so the whole range was
+      // invisible — raised to a solid hills-level ridge running the full original AL-to-Maine
+      // extent (a continuous NE-SW band), with a separate higher "core" ridge below adding real
+      // mountain elevation to the PA-to-northern-Georgia stretch specifically.
+      name: "Appalachian Highlands",
       ridge: [
         [-86.8, 33.5],
         [-85.0, 34.8],
@@ -193,8 +197,47 @@ export const usEast: RegionDef = {
         [-71.0, 44.5],
         [-70.0, 45.0],
       ],
-      peakElevation: 5,
+      peakElevation: 6.5,
       radiusTiles: 7,
+    },
+    {
+      // The higher spine (Blue Ridge/Smokies/Alleghenies) — northern Georgia up to Pennsylvania
+      // only, per the review brief. A narrower, higher overlay on top of the broad band above.
+      name: "Appalachian Mountains (Blue Ridge)",
+      ridge: [
+        [-86.8, 33.5],
+        [-85.0, 34.8],
+        [-83.5, 35.6],
+        [-82.5, 37.3],
+        [-80.5, 38.5],
+        [-79.0, 40.0],
+        [-77.5, 41.3],
+      ],
+      peakElevation: 8.5,
+      radiusTiles: 3,
+    },
+    {
+      // Upstate New York, around the real Adirondack Park (~44.0N, -74.0W) — hills, not a
+      // continuation of the main spine.
+      name: "Adirondacks",
+      ridge: [
+        [-74.3, 43.7],
+        [-74.0, 44.3],
+        [-73.8, 44.1],
+      ],
+      peakElevation: 6.5,
+      radiusTiles: 4,
+    },
+    {
+      // New Hampshire, around Mount Washington (~44.27N, -71.30W) — hills.
+      name: "White Mountains",
+      ridge: [
+        [-71.6, 44.0],
+        [-71.3, 44.3],
+        [-71.0, 44.5],
+      ],
+      peakElevation: 6.5,
+      radiusTiles: 3,
     },
   ],
 

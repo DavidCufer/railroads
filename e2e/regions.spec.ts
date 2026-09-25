@@ -153,6 +153,50 @@ test.describe("Phase 10 — real-world regions", () => {
     expect(consoleErrors).toEqual([]);
   });
 
+  // Full-region thumbnails: the existing overview screenshots above are a phone-viewport *crop* of
+  // the middle of each region (a Medium/Large map is always bigger than 800x360 shows at any zoom).
+  // These render each whole region into one PNG each, at the minimum zoom (0.25x, MIN_ZOOM), in a
+  // viewport sized to fit the entire map — so a reviewer can judge overall recognizability and
+  // terrain fidelity in one image instead of stitching crops together.
+  const FULL_REGIONS: Array<{ id: string; width: number; height: number }> = [
+    { id: "us-east", width: 160, height: 142 },
+    { id: "gb", width: 112, height: 144 },
+    { id: "central-eu", width: 142, height: 144 },
+    { id: "us-west", width: 136, height: 144 },
+  ];
+  const TILE_SIZE = 32;
+  const MIN_ZOOM = 0.25;
+
+  for (const region of FULL_REGIONS) {
+    test(`${region.id} full-region thumbnail`, async ({ page }) => {
+      const consoleErrors: string[] = [];
+      page.on("console", (msg) => {
+        if (msg.type() === "error") consoleErrors.push(msg.text());
+      });
+      page.on("pageerror", (err) => consoleErrors.push(err.message));
+
+      const viewport = {
+        width: Math.ceil(region.width * TILE_SIZE * MIN_ZOOM) + 40,
+        height: Math.ceil(region.height * TILE_SIZE * MIN_ZOOM) + 40,
+      };
+      await page.setViewportSize(viewport);
+      await page.goto("/?debug=1");
+      await page.waitForFunction(() => window.__game !== undefined);
+
+      await page.evaluate((id) => window.__game?.regenerate({ seed: 1, region: id }), region.id);
+
+      await page.evaluate((zoom) => window.__game?.camera.setZoom(zoom), MIN_ZOOM);
+      await page.evaluate(
+        ({ w, h }) => window.__game?.camera.setCenter((w * 32) / 2, (h * 32) / 2),
+        { w: region.width, h: region.height },
+      );
+      await page.waitForTimeout(500);
+      await page.screenshot({ path: `docs/screenshots/phase-10-${region.id}-full.png` });
+
+      expect(consoleErrors).toEqual([]);
+    });
+  }
+
   test("Chicago is absent from the city list before 1833 and founded news fires once its year arrives", async ({
     page,
   }) => {

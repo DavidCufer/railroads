@@ -56,14 +56,21 @@ export const usWest: RegionDef = {
   ],
 
   lakes: [
-    // Great Salt Lake, just northwest of Salt Lake City.
+    // Great Salt Lake, just northwest of Salt Lake City — a rounder, elongated N-S polygon (more
+    // vertices than a first pass, which read as a thin rectangle at overview zoom).
     [
-      [-112.5, 41.7],
-      [-112.2, 41.6],
-      [-112.1, 41.2],
-      [-112.3, 40.9],
-      [-112.6, 41.0],
-      [-112.7, 41.4],
+      [-112.55, 41.75],
+      [-112.3, 41.72],
+      [-112.15, 41.55],
+      [-112.05, 41.3],
+      [-112.1, 41.05],
+      [-112.25, 40.85],
+      [-112.45, 40.78],
+      [-112.65, 40.85],
+      [-112.8, 41.05],
+      [-112.85, 41.3],
+      [-112.78, 41.55],
+      [-112.65, 41.68],
     ],
   ],
 
@@ -93,6 +100,8 @@ export const usWest: RegionDef = {
       radiusTiles: 5,
     },
     {
+      // Colorado/Wyoming/Idaho/Montana per the review brief — extended north from the original
+      // Idaho endpoint into Montana (SPEC's regional table's north edge, lat 49).
       name: "Rocky Mountains",
       ridge: [
         [-105.3, 36.3],
@@ -101,6 +110,8 @@ export const usWest: RegionDef = {
         [-106.3, 41.0],
         [-107.5, 43.0],
         [-113.0, 45.5],
+        [-113.8, 47.0],
+        [-113.5, 48.6],
       ],
       peakElevation: 9,
       radiusTiles: 8,
@@ -115,6 +126,41 @@ export const usWest: RegionDef = {
       ],
       peakElevation: 7,
       radiusTiles: 4,
+    },
+    {
+      // The Wasatch Front, just east of Salt Lake City (review: the SLC area read as flat plains
+      // with no mountains at all). Kept narrow (radiusTiles 3) and centered ~0.25° east of SLC's
+      // own longitude so the city itself lands in the valley, not on the ridge.
+      name: "Wasatch Range",
+      ridge: [
+        [-111.85, 39.0],
+        [-111.7, 40.0],
+        [-111.6, 40.9],
+        [-111.75, 41.7],
+      ],
+      peakElevation: 8,
+      radiusTiles: 4,
+    },
+  ],
+
+  // Great Basin / American Southwest desert (review: Salt Lake City's surroundings read as green
+  // plains — should be mostly desert). Covers Nevada, Utah, Arizona, and the SE California desert,
+  // staying west of the Rockies' main ridge and east of the Sierra Nevada / coastal California and
+  // Pacific Northwest so those stay non-desert (elevation still wins inside high mountain ranges
+  // regardless of this moisture penalty, so the Rockies/Wasatch/Sierra peaks stay mountain/hills).
+  aridZones: [
+    {
+      polygon: [
+        [-120.3, 42.0],
+        [-111.0, 42.0],
+        [-107.5, 41.0],
+        [-105.5, 37.0],
+        [-105.0, 32.0],
+        [-114.5, 32.0],
+        [-116.3, 33.0],
+        [-118.3, 35.3],
+        [-120.3, 39.0],
+      ],
     },
   ],
 

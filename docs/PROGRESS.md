@@ -1817,3 +1817,121 @@ unchanged in kind from Phase 10.3's note (still deferred to Phase 12).
 
 - `npm run check` (262 unit tests) and the full `npm run e2e` (42 specs) both green.
 - Next: **Title/main menu + New Game screen** (Phase 10.5).
+
+## Phase 10.5 — Region terrain fidelity fixes (review carry-over)
+
+A review of the four committed overview screenshots (Phase 10.1-10.4) found real problems, not
+nitpicks: **us-west's Salt Lake City surroundings rendered as flat green plains** (no aridZones had
+ever been wired into any region — `aridZones` existed in `RegionDef`'s type since Phase 10.1 but no
+region actually used it), the Great Salt Lake polygon read as a thin rectangle (6 vertices, not
+round enough), and there was no Wasatch Range feature at all. **us-east's Appalachians were
+essentially invisible**: the single ridge's `peakElevation: 5` never crossed the hills threshold
+(6) established by `TERRAIN_THRESHOLDS.hillsElevation` in `src/data/mapGen.ts`, so the "band" only
+ever showed up as scattered lucky noise, not a continuous feature. **central-eu** was closer (the
+Alps were already right, `peakElevation: 9`/`radiusTiles: 11`) but had no Carpathian, Black Forest,
+or Bohemian Forest hint at all.
+
+**Fixes** (`tools/mapgen/regions/{us-west,us-east,central-eu}.ts`):
+- **us-west**: added an `aridZones` polygon covering the Great Basin/Utah/Nevada/Arizona/SE
+  California desert (pulling moisture down inside it per `build.ts`'s existing `-0.65` arid
+  penalty — this logic already existed, it was just never invoked by any region), staying west of
+  the Rockies' main ridge and clear of the coastal strip/Central Valley/Pacific Northwest so those
+  stay non-desert. Added a **Wasatch Range** mountain feature (`peakElevation: 8, radiusTiles: 4`)
+  positioned so Salt Lake City itself (nudged onto the valley floor) stays outside the hills
+  threshold while the immediately adjacent tiles read clearly as mountain — verified by dumping the
+  actual generated terrain/elevation grid around SLC's tile (a throwaway inspection script, not
+  committed) rather than eyeballing a screenshot alone. Extended the Rocky Mountains ridge north
+  into Montana (the task brief specifically named Colorado/Wyoming/Idaho/**Montana**; the old ridge
+  stopped at Idaho, lat 45.5). Redrew the Great Salt Lake as a 12-vertex rounded oval instead of the
+  original 6-vertex shape.
+- **us-east**: split the single `peakElevation: 5` ridge into a broad **"Appalachian Highlands"**
+  band at `peakElevation: 6.5` (solidly hills-level, running the full original Alabama-to-Maine
+  extent) plus a narrower, higher **"Appalachian Mountains (Blue Ridge)"** core ridge at
+  `peakElevation: 8.5, radiusTiles: 3` covering only the Georgia-to-Pennsylvania stretch the task
+  brief called out, so the mountain-level tiles concentrate where they belong instead of smearing
+  the whole range. Added two small standalone hill clusters, **Adirondacks** (upstate NY,
+  `peakElevation: 6.5`) and **White Mountains** (NH, `peakElevation: 6.5`), rather than trying to
+  stretch the main ridge polyline up to cover them (they're geologically separate ranges, not a
+  continuation of the Appalachian spine).
+- **central-eu**: added a short **Carpathians (western edge)** hint near the Tatras (only the
+  range's western tip falls inside this region's fixed lon-20 eastern edge — the brief itself calls
+  it "Carpathian **edge**"), plus **Black Forest** and **Bohemian Forest** hill clusters
+  (`peakElevation: 6` each) at their real locations (SW Germany near Freiburg/Basel; the Czech
+  border SW of Prague).
+- All three regions' JSON regenerated (`npm run mapgen -- <id>`); determinism, size-budget,
+  city-anchor-not-on-mountain/water, and snap-distance tests in `tests/mapgen/build.test.ts` still
+  pass unchanged for all four regions (262 unit tests total, same count as Phase 10.4 — no test
+  needed adding since the existing per-region checks already cover "did a city get swallowed by a
+  new mountain/desert feature").
+
+**Verified with data, not just screenshots**: wrote a throwaway Node script (not committed) that
+decodes a region's committed JSON and prints a terrain/elevation grid around a given lon/lat, since
+overview-zoom screenshots compress a lot of detail into very few pixels (at zoom 0.25, one tile is
+8px) — confirmed the Appalachian cross-section is a clean hills-with-a-mountain-core band, the
+Adirondacks/White Mountains are distinct hill clusters, the Alps hit elevation 9 (confirmed snow
+triangles actually render there at zoom 2, in an uncommitted closeup), the Wasatch produces real
+mountain elevation immediately next to (not on top of) Salt Lake City's tile, and us-west's
+Nevada/Utah/Arizona interior is desert while the coastal strip and Pacific Northwest stay green.
+
+**Full-region thumbnails** (new, `e2e/regions.spec.ts`): each region is genuinely bigger than an
+800×360 phone viewport can show even at the renderer's minimum zoom (0.25×), so every existing
+`phase-10-<region>-overview.png` is a *crop* of the map's geometric middle, not the whole thing —
+useful for judging city/label rendering but not for judging overall recognizability. Added four new
+tests that set the Playwright viewport to exactly fit each region's full extent at 0.25× zoom (e.g.
+us-east's 160×142 tiles → a 1320×1176 viewport) and screenshot the whole map in one shot:
+`docs/screenshots/phase-10-{us-east,gb,central-eu,us-west}-full.png`. `gb` wasn't on the review's
+list of terrain problems (its screenshots already looked right in Phase 10.2) but got a full
+thumbnail too for consistency, and its JSON is confirmed byte-identical after a rebuild (no
+unintended change).
+
+**Looked at all four full-region thumbnails**:
+- **us-west**: exactly the fix that was needed — a large tan desert interior across Nevada/Utah/
+  Arizona/the Mojave, green only near the coast, Central Valley, and the Pacific Northwest/Sierra
+  foothills as intended. The Rockies read as an unmistakably wide, continuous brown-grey diagonal
+  band from the Colorado border up into Wyoming/Montana. The Sierra Nevada and Cascades are both
+  visible as distinct bands. The Wasatch is real in the data (verified above) but, honestly, reads
+  as only a thin 1-3-tile-wide grey line right next to Salt Lake City at this zoom — easy to miss at
+  a glance, not "obviously a mountain range" the way the Rockies are. That's a reasonably accurate
+  shape for the real (quite narrow) Wasatch Front, but flagged here rather than oversold. The Great
+  Salt Lake now reads clearly as a rounded lake, not a rectangle.
+- **us-east**: the Appalachians are now an unmistakable continuous tan-khaki band running the full
+  NE-SW diagonal from north of Pittsburgh down past Nashville's longitude, with a visibly darker
+  mountain core along it — this is the clearest win of the four. Washington's label is correctly
+  suppressed next to Baltimore's (dot kept) at overview zoom, confirming the declutter fix below
+  works on the exact case the review named. Adirondacks/White Mountains are present in the data
+  (verified above) but sit near the very top edge of this region's thumbnail and are subtle at this
+  scale — real, but not a headline feature of the image the way the main Appalachian band is.
+- **central-eu**: this is the strongest result of the four — the Alps read as an obvious, wide,
+  continuous grey-brown arc from Basel through Innsbruck to Graz and on to Ljubljana/Zagreb,
+  clearly separating Italy from the German/Austrian side exactly as the brief described, and a
+  zoom-2 closeup (uncommitted) confirms snow triangles render at the peak. The Carpathian edge hint
+  and Black Forest/Bohemian Forest hill clusters are real in the data but visually subtle at
+  overview zoom — hills' color (`#A9A46A`) reads fairly close to plain green at this scale, so
+  someone not already looking for them could miss them. They satisfy "verify ... Carpathian edge,
+  Bohemian/Black Forest hills" as data-level features rather than as bold visual landmarks.
+- **gb**: unchanged from Phase 10.2 (no fixes needed here); still reads correctly as Great Britain's
+  outline with Manchester/Liverpool/Leeds/Sheffield/Birmingham in correct relative positions.
+
+**Known, not fixed here**: a handful of isolated single-tile "desert" specks appear in us-east and
+central-eu away from any mountain feature (e.g. a couple of tiles near lon -80, lat 38.5 in
+us-east) — these come from the region generator's ordinary moisture noise occasionally dropping
+below the desert threshold on its own, the same mechanism the random map generator has always had;
+not introduced by this session's aridZones/mountain changes (verified: gb's JSON, which nothing in
+this session touched, is byte-identical, and central-eu had these specks even though its only new
+features are hills, not aridZones). Cosmetic, rare, and out of this review's scope.
+
+**Label declutter** (`src/render/labels.ts`): `drawCityLabels` now sorts cities largest-tier-then-
+population first before drawing, and tracks each successfully-drawn label's screen rect (reusing
+the existing `ReservedScreenRect`/`intersectsReserved` machinery already used for floating-UI
+avoidance) so a later, smaller city's label that would overlap an already-drawn one is skipped —
+its dot marker (at overview zoom) still draws, so the city doesn't disappear, only its text does.
+Confirmed on the us-east full thumbnail: Baltimore's label draws, Washington's dot draws right next
+to it with no label, no overlapping text.
+
+- `npm run check` (262 unit tests, unchanged) and the full `npm run e2e` (46 specs, +4 for the new
+  full-region thumbnails) both green. Reverted unrelated screenshot churn from every other phase
+  (`git checkout -- docs/screenshots/phase-{0,1,1.1,3,4,5,6,7,8,9}-*.png`) per CLAUDE.md — the label
+  sort change re-ran every e2e spec that draws a city label, but only the Phase 10 regions
+  actually needed their screenshots to change.
+- Next: **Title/main menu + New Game screen** (Phase 10.6, renumbered — Phase 10.5 was this
+  terrain-fidelity fix).

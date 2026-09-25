@@ -25,6 +25,13 @@ const TIER_WEIGHT: Record<CityTier, string> = {
   metropolis: "800",
 };
 
+const TIER_RANK: Record<CityTier, number> = {
+  village: 0,
+  town: 1,
+  city: 2,
+  metropolis: 3,
+};
+
 /** World-px centroid of a city's footprint tiles (not just its anchor tile). */
 export function cityWorldCenter(city: City, mapWidth: number): { x: number; y: number } {
   let sx = 0;
@@ -48,7 +55,15 @@ export function drawCityLabels(
 ): void {
   const overview = camera.zoom < OVERVIEW_ZOOM_THRESHOLD;
 
-  for (const city of cities) {
+  // Largest-city-first so a small town near a metropolis loses the overlap, not the other way
+  // around (SPEC §4.1 declutter — e.g. Washington/Baltimore at low zoom).
+  const drawOrder = [...cities].sort((a, b) => {
+    const tierDiff = TIER_RANK[b.tier] - TIER_RANK[a.tier];
+    return tierDiff !== 0 ? tierDiff : b.population - a.population;
+  });
+  const drawnLabelRects: ReservedScreenRect[] = [];
+
+  for (const city of drawOrder) {
     // Overview declutter: only show town-tier-or-above labels when zoomed far out.
     if (overview && city.tier === "village") continue;
 
@@ -80,17 +95,20 @@ export function drawCityLabels(
     const labelY = screen.y + (overview ? cityDotRadius(city.tier) + 3 : fontPx * 0.4);
 
     const halfWidth = ctx.measureText(city.name).width / 2 + 4;
+    const box: ReservedScreenRect = {
+      x0: screen.x - halfWidth,
+      y0: labelY,
+      x1: screen.x + halfWidth,
+      y1: labelY + fontPx * 1.2,
+    };
     if (
-      intersectsReserved(
-        reserved,
-        screen.x - halfWidth,
-        labelY,
-        screen.x + halfWidth,
-        labelY + fontPx * 1.2,
-      )
+      intersectsReserved(reserved, box.x0, box.y0, box.x1, box.y1) ||
+      intersectsReserved(drawnLabelRects, box.x0, box.y0, box.x1, box.y1)
     ) {
+      // Skip the label but keep the dot already drawn above, so the city is still marked.
       continue;
     }
+    drawnLabelRects.push(box);
 
     ctx.lineWidth = Math.max(2, fontPx * 0.22);
     ctx.strokeStyle = "rgba(10, 12, 16, 0.75)";
