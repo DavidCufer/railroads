@@ -1226,3 +1226,163 @@ Append one entry per phase/session: date, phase, what was built, key files, know
   going through a real in-game flow that doesn't exist yet.
 - `npm run check` and `npm run e2e` both green (190 unit tests, 26 e2e specs).
 - Next: **Phase 8 — Eras and technology**.
+
+## 2026-09-25 — Phase 8: Eras and technology
+
+Delivered autonomously (background session; see CLAUDE.md's "push early and often" — pushed to
+`main` after each coherent, green step rather than in one batch).
+
+**Carry-over fix from the Phase 7.1 review (before starting Phase 8 proper).** The Finance panel's
+"Yearly Report" footer button (`docs/screenshots/phase-7-finance-panel.png`, flagged in this
+session's brief) still rendered mid-panel, overlapping later ledger rows, instead of pinned at the
+bottom. Root cause: `.panel-actions` was still nested *inside* the scrolling `.panel-body`, relying
+on `position: sticky` to fake staying put — the exact same class of bug the Phase 7.1 header fix
+addressed, just not carried over to the footer. `position: sticky` only "sticks" once scrolled
+*past* its natural flow position; on a panel whose content is much taller than the viewport
+(Finance's ledger + chart), it painted at whatever pixel offset the current scroll happened to
+imply, visually overlapping later siblings rather than sitting at the true bottom. Fixed by giving
+`openPanel` (`src/ui/panel.ts`) a `footer` option rendered as a real flex sibling of `.panel-body`,
+outside its scrollport — the same fix pattern as the header, this time applied consistently.
+Updated all four callers (Finance, New Station, Buy Train, Train panel). Re-verified all seven
+panels at 800×360; screenshots below confirm the fix (`phase-8-finance-panel-fixed.png`).
+
+**Year-gated availability.** `locomotivesAvailableIn`/`buyableLocomotivesIn` (`src/data/trains.ts`)
+— the latter is new, further excluding steam once phased out (see below), and is what the Buy
+Train and Replace Locomotive pickers actually list now (previously the buy dialog could still show
+a steam model post-1960 that would always fail to buy — a real gap this phase's testing surfaced
+and fixed). Track/station era gates (electrification from 1905, bridge types by era, station
+improvement eras) were already in place from earlier phases' data tables; this phase only added
+Electrify's own gate.
+
+**Electrify mode** (`src/sim/commands.ts` `computeElectrifyPlan`/`electrifyTrack`,
+`src/sim/track/cost.ts` `electrifyCost`): drags along existing track — single *or* double, unlike
+Double mode which only extends single track — via a new `existingAnyTrack` pathfind option
+(`src/sim/track/pathfind.ts`). Era-gated from 1905 inside the command/plan (like Track mode's
+bridge types), not by disabling the toolbar button, so the UI layout already matched SPEC before
+this phase and just needed enabling. Electric-loco routing was **already implemented** from an
+earlier phase (`src/sim/trains/route.ts`'s `RouteOptions.electric` filters non-electrified edges) —
+this phase added the "Route not electrified" UI diagnostic: `isElectrificationOnlyBlocker` re-runs
+the A* search once with the electrification constraint dropped, so the train panel can tell "stuck
+because this specific line isn't wired" apart from a genuinely disconnected network.
+
+**Catenary rendering** (`src/render/track.ts`): poles + wire on electrified edges, only at
+zoom ≥ ~0.75 (the `tiesStyle` cached-raster path; at lower zoom track collapses to one plain line,
+too small to read poles on). First pass was geometrically correct but visually invisible — the
+poles' 6–9px offset landed right in among the tie marks (tie half-length ≈4.2px) instead of
+clearing them, so the light-gray line blended into the busy tie/rail pattern and didn't read at any
+screenshot resolution. Confirmed this diagnosis with a throwaway 5×-exaggerated render (clearly
+visible), then dialed back to a legible-but-normal 16/20px single/double offset, thickened both
+lines slightly, and darkened the palette colors for contrast against grass
+(`GHOST_ELECTRIFY_COLOR`/`CATENARY_POLE_COLOR`/`CATENARY_WIRE_COLOR` in `src/render/palette.ts`).
+
+**Breakdowns & aging** (`src/sim/trains/breakdown.ts`, `src/sim/trains/movement.ts`,
+`src/sim/finance/ledger.ts`): monthly roll per SPEC §7.6's exact formula (base chance by
+reliability × age factor × 0.5 Engine Shed service discount × difficulty multiplier). A new
+`"broken"` train status freezes movement (keeps held blocks, so it still occupies its block like a
+real stalled train) for a randomized 2–5 day repair, $5k era-scaled cost charged immediately,
+pushes a `breakdown` news item. Obsolescence (+50% maintenance past 25 years, steam +50% past
+1955 — the *higher* of the two applies, not both multiplied) and the 1960 steam phase-out
+(`STEAM_PHASE_OUT_YEAR`) are in `computeBuyTrainPlan`/`buyTrain`/`monthlyFinanceStep`. **Replace
+Locomotive** (`computeReplaceLocoPlan`/`replaceLocomotive`): 30% trade-in of the old loco's current
+era-adjusted price, −3%/year of age, 10% floor; keeps cars/orders, resets the train's age/service
+clock to the new locomotive's. UI: a "Replace" button on the train panel opens a picker
+(`openReplaceLocoPanel` in `src/ui/trainPanels.ts`).
+
+**Water Tower** (`src/data/stations.ts` `WATER_TOWER_COST`, `computeWaterTowerPlan`/
+`buildWaterTower` in `src/sim/commands.ts`): buildable from the station panel. Steam locomotives
+accumulate `tilesSinceWaterTower`; past 40 tiles without a refill stop they lose 20% speed
+(`computeTargetSpeed`'s new `conditionFactor` in `src/sim/trains/movement.ts`) until they next stop
+at a station that has one. Diesel/electric never accumulate this at all. This is the one piece of
+SPEC §6.2's improvement roster pulled into this phase — the rest (Hotel, Warehouse, Post Office,
+...) stays Phase 9's job as PLAN already scoped it.
+
+**Wooden bridge washouts** (`src/sim/track/washout.ts`): rolled once per wooden bridge edge at
+each year boundary, 1%/year (`WOODEN_BRIDGE_WASHOUT_CHANCE_PER_YEAR`, already defined in
+`src/data/track.ts` from an earlier phase in preparation for this one). Removes the edge, reduces
+`capitalInvested` (same net-worth treatment as bulldozing), bumps `trackVersion` so affected trains
+reroute — `stepTrain`'s existing "track destroyed under the train mid-journey" recovery (added for
+bulldoze) already handles a train caught on a just-washed-out edge without any changes needed.
+Pushes a `washout` news item.
+
+**News system** (`src/sim/news.ts`, `src/ui/newsPanel.ts`): `GameState.news` capped at
+`NEWS_HISTORY_MAX` (200, oldest dropped first), a `pendingNews` queue drained once per frame for
+toasts (same pattern as `pendingDeliveries`), and `newsReadUpTo` for the unread badge. Kinds:
+`newLocomotive`, `breakdown`, `washout`, `trafficJam`, `noRoute` — the last two replace the ad-hoc
+`Set`-based "stuck train" toast tracking that lived directly in `main.ts` since Phase 6/7; it's now
+sim-driven (pushed at the exact status transition inside `movement.ts`) and covers a case that
+ad-hoc code never did (no-route, not just traffic jams). A bottom-right News button (SPEC §10.1,
+stacked above the existing Trains button) shows an unread-count badge; opening the panel marks
+everything read. `formatNewsItem` resolves current train/station names from live state at display
+time rather than baking text in at push time, so a renamed/sold train's older news still reads
+sensibly (falls back to "?").
+
+**Real bug this phase's testing caught and fixed**: the yearly "new locomotive" news + yearly
+report tech card originally fired a full year late — it checked the year that had just *ended*
+(`year - 1` at the boundary) rather than the year the calendar had just rolled *into*, so a model
+was already purchasable for an entire year before the player was ever told about it. Screenshot
+evidence in the session's own long-run test caught this immediately (expected 1905, got 1906).
+Fixed in `src/sim/tick.ts` (`newlyAvailableLocomotives` now keyed by the year that just started)
+and `src/ui/yearlyReport.ts` (the tech section now looks up `year + 1` relative to the report's own
+`year` variable, since the report's ledger data and its tech section are one calendar year apart in
+this scheme — documented inline since it's easy to get backwards again).
+
+**"New!" badges & yearly report tech section**: any locomotive within `NEW_LOCOMOTIVE_BADGE_YEARS`
+(3, a judgment call — SPEC doesn't specify a window) of its intro year gets a badge in the Buy
+Train/Replace Locomotive pickers. The yearly report gets a "New technology" section listing every
+model introduced in the year it's reporting on it (year+1 relative to the ledger, per the above).
+
+**SPEC deviation, `src/data/cargo.ts`**: `passengers.baseRate` 1,400 → 1,650 (+18%). The new
+monthly breakdown roll draws from the same shared seeded RNG stream as industry/city growth
+(`monthlyIndustryStep` already did before this phase); adding any new monthly `nextFloat` consumer
+shifts every subsequent probabilistic draw for the rest of a run, even on ticks where the
+breakdown itself doesn't fire. This knocked `tests/sim/balance.test.ts`'s fixed-seed passenger
+route and passenger/freight-ratio checks (both un-touched by breakdowns directly) outside their
+Phase 7.1-tuned $80k–$200k / 1×–2.5× windows, purely from city growth landing slightly differently
+for that one seed. Retuned the constant (not the formula, not the test's target range) per this
+repo's own documented convention in that test file for exactly this situation, verified against
+all seven balance tests plus the rest of the suite.
+
+**Tests** (`npm run check`: 206 unit tests, all green): `tests/sim/trains/eras.test.ts` (era
+availability, steam phase-out at/past 1960, trade-in value including the age floor, a statistical
+test of the breakdown formula's reliability-base-chance and Engine-Shed discount, the Electrify
+command's era gate and idempotent re-drag), `tests/sim/trains/route.test.ts` (added
+`isElectrificationOnlyBlocker` cases), and `tests/sim/longRun.test.ts` — a synthetic two-train
+freight route ticked hour-by-hour from 1830 to 1961 (~2.7s wall-clock; "8× speed" just means many
+ticks per real second at the UI level, the sim's own granularity is always 1 tick = 1 hour per
+SPEC §3) asserting: never throws; every diesel/electric model's news fires in its exact SPEC §7.7
+intro year (checked against an unbounded test-side news log, decoupled from `state.news`'s own
+200-item cap); steam is live-rejected past 1960 via `buyTrain`/`computeBuyTrainPlan` on the
+actually-evolved state; and both `state.news` and `state.finance.netWorthHistory` stay within
+their caps across 131 years, rather than growing unbounded.
+
+**Screenshots** (`e2e/eras.spec.ts`, all reviewed at 800×360):
+- `phase-8-electrified-line-zoom2.png`: Electrify mode's real drag+confirm UX (not a debug
+  shortcut) on a built line, then an Early Electric loco running on it at zoom 2 — catenary poles
+  visible below the track, pantograph mark on the loco.
+- `phase-8-diesel-train-zoom2.png`: a Streamliner Diesel at zoom 2, its colored hood-unit shape
+  clearly distinct from steam/electric (no catenary needed/rendered — correct, track isn't
+  electrified).
+- `phase-8-breakdown-indicator.png`: a deterministically-forced breakdown (the probabilistic monthly
+  roll itself is covered by `eras.test.ts`'s statistical tests, not screenshot-suitable) — 🔧 icon
+  over the stalled train, the "Train 1 has broken down and is being repaired" toast, and the News
+  button's unread badge all visible together.
+- `phase-8-news-panel.png`: opened from that same breakdown, showing the history list.
+- `phase-8-yearly-report-tech.png`: the exact 1905 boundary — both Pacific 4-6-2 (Steam) and Early
+  Electric intro that year, so two tech cards render; confirms the year-boundary timing fix above
+  (title correctly reads "1904 Year in Review" while announcing 1905's new tech, per the
+  report/announcement offset documented in `yearlyReport.ts`).
+- `phase-8-finance-panel-fixed.png`: the panel-footer fix from the top of this entry, re-verified.
+
+**Debug hooks added** (`src/main.ts`, `e2e/gameWindow.ts`, test-only): `electrifyTrackPath`
+(mirrors the existing `buildTrackPath`) and `electrified` on `getTrackEdges()`.
+
+**Known issues / deferred**: city-growth news (SPEC's news list mentions it) isn't emitted — no
+city growth model exists yet; that's explicitly Phase 9's job per PLAN.md, and this phase's news
+`kind` union can just grow a `cityGrowth` variant when it lands. Station improvements beyond Water
+Tower (Hotel, Warehouse, Post Office, Cold Storage, Freight Yard, Livestock Pens) are unbuilt,
+also Phase 9's job per PLAN.md's own phase boundary — Water Tower was pulled forward only because
+the steam speed-penalty rule is explicitly in this phase's scope. `NEW_LOCOMOTIVE_BADGE_YEARS = 3`
+and the news history cap of 200 are both judgment calls where SPEC doesn't give a number.
+
+- `npm run check` and `npm run e2e` both green (206 unit tests, 31 e2e specs).
+- Next: **Phase 9 — Upgrades and growth**.

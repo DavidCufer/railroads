@@ -237,13 +237,13 @@ UI fixes:
 ## Phase 8 — Eras and technology
 SPEC: §3, §5.3 (era-gated bridges, electrification), §7.6, §7.7, §9.5
 
-- [ ] Year-gated availability everywhere (locos, bridges, electrification, cargo types like oil/fuel, improvements).
-- [ ] Electrify mode + electric-loco route constraints + catenary rendering.
-- [ ] Breakdowns, aging, obsolescence, steam phase-out rules; Replace Loco with trade-in.
-- [ ] Water tower rule for steam.
-- [ ] News system: messages (new tech, breakdowns, washouts, jams, city growth) → toasts + a News panel with history and an unread badge.
-- [ ] Wooden bridge washout events.
-- [ ] "New!" badges in the buy dialog; a technology section in the yearly report.
+- [x] Year-gated availability everywhere (locos, bridges, electrification, cargo types like oil/fuel, improvements).
+- [x] Electrify mode + electric-loco route constraints + catenary rendering.
+- [x] Breakdowns, aging, obsolescence, steam phase-out rules; Replace Loco with trade-in.
+- [x] Water tower rule for steam.
+- [x] News system: messages (new tech, breakdowns, washouts, jams, city growth) → toasts + a News panel with history and an unread badge. (City growth messages are Phase 9's job — no growth model exists yet.)
+- [x] Wooden bridge washout events.
+- [x] "New!" badges in the buy dialog; a technology section in the yearly report.
 
 **Tests:** availability by year, breakdown probability formula, trade-in value, steam can't be bought after 1960, electric locos refuse non-electrified routes.
 
