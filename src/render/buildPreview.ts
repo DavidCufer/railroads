@@ -8,11 +8,12 @@ import {
   GHOST_BLOCKED_COLOR,
   GHOST_BUILDABLE_COLOR,
   GHOST_BULLDOZE_COLOR,
+  GHOST_ELECTRIFY_COLOR,
   GHOST_UPGRADE_COLOR,
 } from "./palette";
 import { directionIndex, directionSteps } from "../sim/track/graph";
 
-export type BuildMode = "track" | "double" | "bulldoze";
+export type BuildMode = "track" | "double" | "electrify" | "bulldoze";
 
 export interface GhostPreview {
   mode: BuildMode;
@@ -32,6 +33,7 @@ function modeColor(mode: BuildMode, ok: boolean): string {
   if (!ok) return GHOST_BLOCKED_COLOR;
   if (mode === "bulldoze") return GHOST_BULLDOZE_COLOR;
   if (mode === "double") return GHOST_UPGRADE_COLOR;
+  if (mode === "electrify") return GHOST_ELECTRIFY_COLOR;
   return GHOST_BUILDABLE_COLOR;
 }
 

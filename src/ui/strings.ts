@@ -58,6 +58,7 @@ export const strings = {
     },
     confirmBuild: "Build",
     confirmUpgrade: "Upgrade",
+    confirmElectrify: "Electrify",
     confirmBulldoze: "Bulldoze",
     cancel: "✕",
     bridgeWood: "Wood bridge",
@@ -126,8 +127,6 @@ export const strings = {
       unloadOnly: "Unload only",
       passThrough: "Pass through",
     },
-    trafficJam: (name: string) =>
-      `Traffic jam near ${name} — consider double track or more stations`,
   },
   finance: {
     title: "Finance",
@@ -161,6 +160,21 @@ export const strings = {
   yearlyReport: {
     title: (year: number) => `${year} Year in Review`,
     close: "Close",
+    newTechnology: "New technology",
+  },
+  news: {
+    title: "News",
+    button: "News",
+    empty: "No news yet.",
+    kinds: {
+      newLocomotive: (locoName: string) => `New locomotive available: ${locoName}`,
+      breakdown: (trainName: string) => `${trainName} has broken down and is being repaired`,
+      washout: (nearName: string) => `A wooden bridge near ${nearName} has washed out`,
+      trafficJam: (nearName: string) =>
+        `Traffic jam near ${nearName} — consider double track or more stations`,
+      noRoute: (trainName: string, stationName: string) =>
+        `${trainName} has no route to ${stationName}`,
+    },
   },
   debug: {
     regenerate: "New seed",

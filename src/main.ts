@@ -33,7 +33,9 @@ import {
   buyTrain,
   computeBuildPlan,
   computeBulldozePlan,
+  computeElectrifyPlan,
   computeUpgradePlan,
+  electrifyTrack,
   refreshStationEconomy,
   repayLoan,
   sellTrain,
@@ -42,6 +44,7 @@ import {
   upgradeTrack,
   type BuildPlan,
   type BulldozePlan,
+  type ElectrifyPlan,
   type UpgradePlan,
 } from "./sim/commands";
 import { INDUSTRIES, type IndustryType } from "./data/industries";
@@ -60,6 +63,7 @@ import { advanceOneHour } from "./sim/tick";
 import type { TrainOrder } from "./sim/trains/types";
 import { openBuyTrainPanel, openTrainListPanel, openTrainPanel } from "./ui/trainPanels";
 import { createTrainListButton } from "./ui/toolbar";
+import { createNewsButton, formatNewsItem, openNewsPanel } from "./ui/newsPanel";
 import { openFinancePanel } from "./ui/financePanel";
 import { openYearlyReport } from "./ui/yearlyReport";
 import { isPanelOpen } from "./ui/panel";
@@ -83,7 +87,7 @@ interface DragState {
   /** Last tile the path was extended to, so onMove can skip recomputing A* for sub-tile jitter. */
   lastGoalTile: number;
   bridgeOverride: BridgeType | null;
-  plan: BuildPlan | UpgradePlan | BulldozePlan;
+  plan: BuildPlan | UpgradePlan | ElectrifyPlan | BulldozePlan;
   cost: number;
   ok: boolean;
 }
@@ -159,9 +163,9 @@ function main(): void {
     ghost = null;
     stationPickHandler = null;
     floatingLabels = [];
-    stuckTrainsNotified.clear();
     hideConfirmBar();
     hideDragCostLabel();
+    newsButton.refreshBadge(state);
     setTool("info");
   }
 
@@ -285,13 +289,17 @@ function main(): void {
   function planFor(
     mode: BuildMode,
     path: number[],
-  ): { plan: BuildPlan | UpgradePlan | BulldozePlan; cost: number; ok: boolean } {
+  ): { plan: BuildPlan | UpgradePlan | ElectrifyPlan | BulldozePlan; cost: number; ok: boolean } {
     if (mode === "track") {
       const plan = computeBuildPlan(state, path, dragState?.bridgeOverride ?? undefined);
       return { plan, cost: plan.cost, ok: plan.valid };
     }
     if (mode === "double") {
       const plan = computeUpgradePlan(state, path);
+      return { plan, cost: plan.cost, ok: plan.valid };
+    }
+    if (mode === "electrify") {
+      const plan = computeElectrifyPlan(state, path);
       return { plan, cost: plan.cost, ok: plan.valid };
     }
     const plan = computeBulldozePlan(state, path);
@@ -378,7 +386,9 @@ function main(): void {
         ? buildTrack(state, path, bridgeOverride ?? undefined)
         : mode === "double"
           ? upgradeTrack(state, path)
-          : bulldoze(state, path);
+          : mode === "electrify"
+            ? electrifyTrack(state, path)
+            : bulldoze(state, path);
 
     if (!result.ok) {
       showToast(ui, strings.build.reasons[result.reason], "warn");
@@ -418,6 +428,12 @@ function main(): void {
       if (dragState.mode === "double") {
         path = findBuildPath(state.map, start, goal, currentYear(), {
           existingTrackOnly: state.trackGraph,
+        });
+      } else if (dragState.mode === "electrify") {
+        // SPEC §5.2: "drag along existing track (single or double)" — unlike Double mode, both
+        // are valid to traverse here.
+        path = findBuildPath(state.map, start, goal, currentYear(), {
+          existingAnyTrack: state.trackGraph,
         });
       } else if (dragState.mode === "bulldoze") {
         // Bulldozing traces the raw tiles the finger passes over — no pathfinding, just remove
@@ -482,31 +498,14 @@ function main(): void {
     toolbar.setActive(tool);
     cancelDrag();
     if (stationPlacementOpen) closePanel();
-    // Track/Double/Bulldoze are drag-to-build; Station and Info are tap-driven (SPEC §6.1's
-    // placement flow is a tap + panel, not a drag).
-    const isDragBuildMode = tool === "track" || tool === "double" || tool === "bulldoze";
+    // Track/Double/Electrify/Bulldoze are drag-to-build; Station and Info are tap-driven (SPEC
+    // §6.1's placement flow is a tap + panel, not a drag).
+    const isDragBuildMode =
+      tool === "track" || tool === "double" || tool === "electrify" || tool === "bulldoze";
     cameraInput.setBuildMode(isDragBuildMode, isDragBuildMode ? buildHandlers : null);
   }
 
   const fps = new FpsCounter();
-
-  const stuckTrainsNotified = new Set<number>();
-
-  /** Nearest built station to `tile` by straight-line tile distance — for the "Traffic jam near X"
-   * news toast (SPEC §7.5), which names a place, not the stuck train itself. */
-  function nearestStationName(tile: number): string {
-    const width = state.map.width;
-    const tx = tile % width;
-    const ty = Math.floor(tile / width);
-    let best: { name: string; d: number } | null = null;
-    for (const s of state.stations) {
-      const sx = s.tile % width;
-      const sy = Math.floor(s.tile / width);
-      const d = Math.hypot(sx - tx, sy - ty);
-      if (!best || d < best.d) best = { name: s.name, d };
-    }
-    return best?.name ?? "?";
-  }
 
   /** One in-game hour of simulation — shared by the real-time game loop and the `runDays` debug
    * hook (SPEC/PLAN Phase 6 e2e tests drive the sim directly instead of waiting on wall-clock). */
@@ -528,21 +527,16 @@ function main(): void {
       state.pendingDeliveries.length = 0;
     }
 
-    if (isYearBoundary(state.ticks) && !isPanelOpen()) {
-      openYearlyReport(ui, state);
+    if (state.pendingNews.length > 0) {
+      for (const item of state.pendingNews) {
+        showToast(ui, formatNewsItem(state, item), "warn");
+      }
+      state.pendingNews.length = 0;
+      newsButton.refreshBadge(state);
     }
 
-    for (const train of state.trains) {
-      if (train.status === "stuck") {
-        if (!stuckTrainsNotified.has(train.id)) {
-          stuckTrainsNotified.add(train.id);
-          const nearTile = train.route[train.routeIndex] ?? train.route[0];
-          const name = nearTile !== undefined ? nearestStationName(nearTile) : "?";
-          showToast(ui, strings.trains.trafficJam(name), "warn");
-        }
-      } else {
-        stuckTrainsNotified.delete(train.id);
-      }
+    if (isYearBoundary(state.ticks) && !isPanelOpen()) {
+      openYearlyReport(ui, state);
     }
   }
 
@@ -624,6 +618,10 @@ function main(): void {
         camera.y = train.renderToY * TILE_SIZE;
       }
     });
+  });
+  const newsButton = createNewsButton(ui, () => {
+    openNewsPanel(ui, state);
+    newsButton.refreshBadge(state);
   });
 
   loop.start();

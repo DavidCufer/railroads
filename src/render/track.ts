@@ -8,6 +8,8 @@
 import { Camera, OVERVIEW_ZOOM_THRESHOLD, TILE_SIZE } from "./camera";
 import {
   BRIDGE_COLORS,
+  CATENARY_POLE_COLOR,
+  CATENARY_WIRE_COLOR,
   JUNCTION_DOT_COLOR,
   SHARP_TURN_MARKER_COLOR,
   TIE_COLOR,
@@ -183,6 +185,9 @@ export class TrackRenderer {
 
     if (edge.bridge) {
       this.drawBridge(ctx, x1, y1, x2, y2, perpX, perpY, edge, scale);
+      if (edge.electrified && tiesStyle) {
+        this.drawCatenary(ctx, x1, y1, x2, y2, perpX, perpY, edge, scale);
+      }
       return;
     }
 
@@ -243,6 +248,55 @@ export class TrackRenderer {
       drawRailPair(perpX * gap, perpY * gap);
     } else {
       drawRailPair(0, 0);
+    }
+
+    if (edge.electrified) this.drawCatenary(ctx, x1, y1, x2, y2, perpX, perpY, edge, scale);
+  }
+
+  /** Catenary poles + wire on electrified track (SPEC §7.7: "electric... requires electrified
+   * track", rendered so it reads distinctly at zoom ≥ 1) — a thin wire line offset from the
+   * centerline, with short perpendicular pole ticks at regular intervals connecting it back to the
+   * track. Only called from the `tiesStyle` (zoom ≥ 0.75) rendering path; at lower zoom buckets the
+   * track itself collapses to a single plain line, too small to read poles on top of anyway. */
+  private drawCatenary(
+    ctx: CanvasRenderingContext2D,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    perpX: number,
+    perpY: number,
+    edge: TrackEdge,
+    scale: number,
+  ): void {
+    const wireOffset = (edge.double ? 9 : 6) * scale;
+    const wx1 = x1 + perpX * wireOffset;
+    const wy1 = y1 + perpY * wireOffset;
+    const wx2 = x2 + perpX * wireOffset;
+    const wy2 = y2 + perpY * wireOffset;
+
+    ctx.strokeStyle = CATENARY_WIRE_COLOR;
+    ctx.lineWidth = Math.max(0.5, 0.6 * scale);
+    ctx.beginPath();
+    ctx.moveTo(wx1, wy1);
+    ctx.lineTo(wx2, wy2);
+    ctx.stroke();
+
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len = Math.hypot(dx, dy) || 1;
+    const spacing = 9 * scale;
+    const steps = Math.max(1, Math.round(len / spacing));
+    ctx.strokeStyle = CATENARY_POLE_COLOR;
+    ctx.lineWidth = Math.max(1, 1 * scale);
+    for (let s = 0; s <= steps; s++) {
+      const t = s / steps;
+      const bx = x1 + dx * t;
+      const by = y1 + dy * t;
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(bx + perpX * wireOffset, by + perpY * wireOffset);
+      ctx.stroke();
     }
   }
 

@@ -63,6 +63,7 @@ export interface ConfirmBarOptions {
 const CONFIRM_LABEL: Record<BuildMode, string> = {
   track: strings.build.confirmBuild,
   double: strings.build.confirmUpgrade,
+  electrify: strings.build.confirmElectrify,
   bulldoze: strings.build.confirmBulldoze,
 };
 

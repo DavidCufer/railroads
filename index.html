@@ -354,6 +354,45 @@
         border-radius: 999px;
         z-index: 6;
       }
+      /* News (SPEC §10.1: "News button with unread badge") — stacked above the Trains button in
+         the same bottom-right corner. */
+      .news-button {
+        position: absolute;
+        right: 8px;
+        bottom: 108px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        min-height: 40px;
+        padding: 0 10px;
+        background: rgba(24, 28, 34, 0.88);
+        border: none;
+        color: #fff;
+        font: 12px sans-serif;
+        border-radius: 999px;
+        z-index: 6;
+      }
+      .news-unread-badge {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        border-radius: 999px;
+        background: #e05a4f;
+        color: #fff;
+        font: 700 10px sans-serif;
+      }
+      .news-unread-badge.visible {
+        display: inline-flex;
+      }
+      .news-item {
+        padding: 6px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        line-height: 1.35;
+      }
+
       .train-loco-list,
       .train-orders-list {
         display: flex;
