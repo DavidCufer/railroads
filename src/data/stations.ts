@@ -64,8 +64,87 @@ export const STATION_UPGRADE_ORDER: readonly StationType[] = ["depot", "station"
 /** Cargo acceptance threshold to "accept" a cargo at a station (SPEC §6.3: "like RRT"). */
 export const STATION_ACCEPTANCE_THRESHOLD = 8;
 
-/** Water Tower improvement (SPEC §6.2): steam era, refills steam locomotives stopping here. The
- * rest of §6.2's improvement roster (Post Office, Hotel, Warehouse, ...) is Phase 9's job — this
- * one is pulled forward because the steam speed-penalty rule (SPEC §7.6-adjacent, "water towers")
- * is explicitly in Phase 8's scope. */
+/** Water Tower improvement (SPEC §6.2): steam era, refills steam locomotives stopping here. Built
+ * via `buildWaterTower`/`hasWaterTower` (Phase 8) rather than the generic `improvements` list below
+ * — it predates this phase and several call sites already key off that boolean directly. */
 export const WATER_TOWER_COST = 8_000;
+
+/** The rest of SPEC §6.2's improvement roster (Water Tower and Engine Shed keep their own bespoke
+ * fields/commands from earlier phases — see `Station.hasEngineShed`/`hasWaterTower`). Each is
+ * buildable once per station via the generic `buildImprovement` command (src/sim/commands.ts). */
+export const STATION_IMPROVEMENT_TYPES = [
+  "postOffice",
+  "hotel",
+  "warehouse",
+  "coldStorage",
+  "freightYard",
+  "livestockPens",
+] as const;
+
+export type StationImprovementType = (typeof STATION_IMPROVEMENT_TYPES)[number];
+
+export interface StationImprovementDef {
+  id: StationImprovementType;
+  name: string;
+  cost: number;
+  /** Year this improvement becomes buildable — undefined means "always" (SPEC §6.2). */
+  availableYear?: number;
+  description: string;
+}
+
+export const STATION_IMPROVEMENTS: Record<StationImprovementType, StationImprovementDef> = {
+  postOffice: {
+    id: "postOffice",
+    name: "Post Office",
+    cost: 25_000,
+    description: "Mail supply +50%; mail revenue +25% for mail loaded here.",
+  },
+  hotel: {
+    id: "hotel",
+    name: "Hotel",
+    cost: 50_000,
+    description:
+      "Passenger revenue +25% for passengers delivered here; +20% city growth contribution.",
+  },
+  warehouse: {
+    id: "warehouse",
+    name: "Warehouse",
+    cost: 30_000,
+    description: "Storage ×2; waiting cargo doesn't decay.",
+  },
+  coldStorage: {
+    id: "coldStorage",
+    name: "Cold Storage",
+    cost: 40_000,
+    availableYear: 1880,
+    description: "Food/livestock waiting here don't decay; their revenue +15% when loaded here.",
+  },
+  freightYard: {
+    id: "freightYard",
+    name: "Freight Yard",
+    cost: 60_000,
+    availableYear: 1870,
+    description: "Loading/unloading 2× faster.",
+  },
+  livestockPens: {
+    id: "livestockPens",
+    name: "Livestock Pens",
+    cost: 12_000,
+    description: "Required to load livestock at this station.",
+  },
+};
+
+/** Mail supply multiplier from a Post Office (SPEC §6.2). */
+export const POST_OFFICE_MAIL_SUPPLY_MULT = 1.5;
+/** Revenue multiplier for mail loaded at a Post Office station. */
+export const POST_OFFICE_MAIL_REVENUE_MULT = 1.25;
+/** Revenue multiplier for passengers delivered (unloaded) at a Hotel station. */
+export const HOTEL_PASSENGER_REVENUE_MULT = 1.25;
+/** City growth contribution multiplier for passengers/mail delivered at a Hotel station. */
+export const HOTEL_GROWTH_CONTRIBUTION_MULT = 1.2;
+/** Storage capacity multiplier from a Warehouse. */
+export const WAREHOUSE_STORAGE_MULT = 2;
+/** Revenue multiplier for food/livestock loaded at a Cold Storage station. */
+export const COLD_STORAGE_REVENUE_MULT = 1.15;
+/** Loading/unloading speed multiplier from a Freight Yard (applied on top of station-type mult). */
+export const FREIGHT_YARD_LOAD_SPEED_MULT = 0.5;

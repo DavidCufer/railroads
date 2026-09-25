@@ -50,6 +50,27 @@ export interface IndustryDef {
  * is a reasonable buffer). */
 export const INDUSTRY_INPUT_STORAGE_CAP = 240;
 
+// --- Industry dynamics (SPEC §8.2, Phase 9) -----------------------------------------------------
+// Applies only to raw (terrain-placed) producers — Coal Mine, Iron Mine, Logging Camp, Farm,
+// Ranch, Oil Well. "Served" is approximated from a covering station's `StationCargoPile.waitingDays`
+// for that cargo (src/sim/economy/industryDynamics.ts) rather than a literal rolling 12-month
+// pickup log, to avoid new per-industry-per-month bookkeeping: a station that's actively drawing a
+// pile down keeps resetting `waitingDays` to 0 on every load, so a low value already means "picked
+// up recently" and a high one means "sitting unclaimed" — see that module's own doc comment.
+export const INDUSTRY_SERVED_WAITING_DAYS_THRESHOLD = 12;
+export const INDUSTRY_GROWTH_CHANCE_PER_MONTH = 0.03;
+export const INDUSTRY_SHRINK_CHANCE_PER_MONTH = 0.01;
+export const INDUSTRY_GROWTH_STEP = 1.2;
+export const INDUSTRY_SHRINK_STEP = 0.8;
+export const INDUSTRY_GROWTH_MULT_MIN = 0.5;
+export const INDUSTRY_GROWTH_MULT_MAX = 3;
+
+/** Chance per month that a new raw-producer industry appears somewhere on the map (SPEC §8.2). */
+export const NEW_INDUSTRY_CHANCE_PER_MONTH = 0.005;
+/** Tiles within this radius of a city are preferred spawn sites ("higher near served cities" —
+ * approximated as "near any city", see `industryDynamics.ts`'s doc comment). */
+export const NEW_INDUSTRY_CITY_BIAS_RADIUS = 20;
+
 export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
   coalMine: {
     id: "coalMine",

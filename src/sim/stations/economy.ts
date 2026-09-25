@@ -12,10 +12,15 @@
  */
 import { CARGO_TYPES, type CargoType } from "../../data/cargo";
 import { INDUSTRIES } from "../../data/industries";
-import { STATION_ACCEPTANCE_THRESHOLD, STATION_TYPE_DEFS } from "../../data/stations";
+import {
+  POST_OFFICE_MAIL_SUPPLY_MULT,
+  STATION_ACCEPTANCE_THRESHOLD,
+  STATION_TYPE_DEFS,
+} from "../../data/stations";
 import { cityTileAcceptance, cityTileSupply } from "../economy/cityStats";
 import type { City, Industry, IndustryEconomyState } from "../economy/types";
 import type { GameMap } from "../map/types";
+import { hasImprovement } from "./improvements";
 import { stationCatchmentTiles } from "./placement";
 import type { Station } from "./types";
 import type { StationType } from "../../data/stations";
@@ -127,6 +132,13 @@ export function computeStationEconomies(
     }
   }
 
+  // Post Office (SPEC §6.2): +50% mail supply at that station specifically.
+  for (const station of stations) {
+    if (!hasImprovement(station, "postOffice")) continue;
+    const economy = result.get(station.id) as StationEconomy;
+    if (economy.supply.mail) economy.supply.mail *= POST_OFFICE_MAIL_SUPPLY_MULT;
+  }
+
   // Round supply once, after all splitting/summing, to avoid compounding rounding error.
   for (const economy of result.values()) {
     for (const cargo of Object.keys(economy.supply) as CargoType[]) {
@@ -158,6 +170,7 @@ export function previewStationEconomy(
     name: "",
     hasEngineShed: false,
     hasWaterTower: false,
+    improvements: [],
   };
   const computed = computeStationEconomies(
     map,

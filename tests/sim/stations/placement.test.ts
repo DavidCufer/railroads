@@ -58,7 +58,15 @@ describe("canPlaceStationAt", () => {
 describe("stationAtTile", () => {
   it("finds the station occupying a tile, if any", () => {
     const stations: Station[] = [
-      { id: 0, tile: 5, type: "depot", name: "A", hasEngineShed: true, hasWaterTower: false },
+      {
+        id: 0,
+        tile: 5,
+        type: "depot",
+        name: "A",
+        hasEngineShed: true,
+        hasWaterTower: false,
+        improvements: [],
+      },
     ];
     expect(stationAtTile(stations, 5)?.name).toBe("A");
     expect(stationAtTile(stations, 6)).toBeUndefined();

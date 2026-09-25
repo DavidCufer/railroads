@@ -18,6 +18,10 @@ function stationName(state: GameState, stationId: number): string {
   return state.stations.find((s) => s.id === stationId)?.name ?? "?";
 }
 
+function cityName(state: GameState, cityId: number): string {
+  return state.cities.find((c) => c.id === cityId)?.name ?? "?";
+}
+
 /** Nearest built station to `tile` by straight-line tile distance — used to name a place for
  * tile-anchored news (traffic jams, washouts) that don't reference a specific station. */
 function nearestStationName(state: GameState, tile: number): string {
@@ -49,6 +53,13 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
         trainName(state, item.trainId),
         stationName(state, item.stationId),
       );
+    case "cityGrowth":
+      return strings.news.kinds.cityGrowth(
+        cityName(state, item.cityId),
+        strings.city.tierNames[item.tier],
+      );
+    case "civicInvestment":
+      return strings.news.kinds.civicInvestment(cityName(state, item.cityId));
   }
 }
 

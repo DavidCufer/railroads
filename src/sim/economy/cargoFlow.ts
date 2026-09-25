@@ -10,7 +10,7 @@ import {
   WAITING_DECAY_RATE_PER_DAY,
   waitingDecayThresholdDays,
 } from "../../data/cargo";
-import { STATION_TYPE_DEFS } from "../../data/stations";
+import { cargoDecayExempt, stationStorageCap } from "../stations/improvements";
 import { DAYS_PER_MONTH } from "../time";
 import type { GameState, StationCargoPile } from "../state";
 
@@ -26,7 +26,7 @@ export function accrueDailyCargo(state: GameState): void {
       pile = {};
       state.stationCargo.set(station.id, pile);
     }
-    const cap = STATION_TYPE_DEFS[station.type].storagePerCargo;
+    const cap = stationStorageCap(station);
 
     for (const cargo of CARGO_TYPES) {
       const monthly = economy.supply[cargo] ?? 0;
@@ -36,7 +36,10 @@ export function accrueDailyCargo(state: GameState): void {
 
       if (entry.amount > DECAY_FLOOR) {
         entry.waitingDays++;
-        if (entry.waitingDays > waitingDecayThresholdDays(cargo)) {
+        if (
+          !cargoDecayExempt(station, cargo) &&
+          entry.waitingDays > waitingDecayThresholdDays(cargo)
+        ) {
           entry.amount *= 1 - WAITING_DECAY_RATE_PER_DAY;
           if (entry.amount <= DECAY_FLOOR) entry.amount = 0;
         }

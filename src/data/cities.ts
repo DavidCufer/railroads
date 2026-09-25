@@ -31,6 +31,38 @@ export const CITY_MIN_SPACING = 8;
 export const CITY_PASSENGER_SUPPLY_DIVISOR = 650;
 export const CITY_MAIL_SUPPLY_DIVISOR = 1_400;
 
+// --- Growth & Civic Investment (SPEC §8.3, Phase 9) --------------------------------------------
+
+/** Absolute population ceiling, regardless of accumulated growth points — the top of the
+ * Metropolis range above, and what keeps growth bounded over an arbitrarily long game. */
+export const CITY_POPULATION_CAP = CITY_TIER_DEFS.metropolis.maxPop;
+
+/** Each growth step needs `population * this` accumulated points — scales with size so bigger
+ * cities need proportionally more delivered cargo to keep growing (self-limiting: growth rate
+ * naturally slows as a city gets bigger, rather than compounding into a runaway). */
+export const CITY_GROWTH_THRESHOLD_FACTOR = 8;
+
+/** Population multiplier applied per growth step once `points` crosses the threshold. */
+export const CITY_GROWTH_STEP_FRACTION = 0.05;
+
+/** Growth steps applied in a single month are capped (a huge one-off score dump, e.g. from Civic
+ * Investment, shouldn't be able to loop indefinitely in one tick). */
+export const CITY_GROWTH_MAX_STEPS_PER_MONTH = 4;
+
+/** An unserved city (SPEC §8.3: "unserved cities grow very slowly") still accrues growth points
+ * from a slow population-proportional baseline — 0.2%/year, applied monthly. */
+export const CITY_UNSERVED_BASELINE_GROWTH_PER_YEAR = 0.002;
+
+/** A city counts as "served" this month once its accumulated delivery score (SPEC §8.3's
+ * growthScore — passengers+mail delivered, ×3 for food/goods/fuel) clears this floor. */
+export const CITY_SERVED_SCORE_THRESHOLD = 1;
+
+/** Civic Investment (SPEC §8.3): cost $100k × tier rank (1-4), once per 5 years per city, +15%
+ * population and a one-off growth tick. */
+export const CIVIC_INVESTMENT_COST_PER_TIER = 100_000;
+export const CIVIC_INVESTMENT_COOLDOWN_YEARS = 5;
+export const CIVIC_INVESTMENT_POP_BOOST = 0.15;
+
 export type CityCount = "few" | "normal" | "many";
 
 /** Target number of cities per 1,000 map tiles, by the "city count" option. */

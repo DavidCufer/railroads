@@ -34,4 +34,25 @@ export interface IndustryEconomyState {
   /** This month's actual production capacity per produced cargo — what
    * src/sim/stations/economy.ts distributes to covering stations as daily supply. */
   monthlyOutput: Partial<Record<CargoType, number>>;
+  /** Industry dynamics multiplier (SPEC §8.2, Phase 9), only meaningful for raw (terrain-placed)
+   * producers — clamped to [0.5, 3] by src/sim/economy/industryDynamics.ts. Undefined/absent means
+   * 1 (never grown or shrunk yet). */
+  growthMult?: number;
+}
+
+/** Per-city growth accumulator (SPEC §8.3, Phase 9), keyed by `City.id` in
+ * `GameState.cityGrowth` — see src/sim/economy/cityGrowth.ts. */
+export interface CityGrowthState {
+  /** Accumulated "growth points" toward the next population step — never reset, only drawn down
+   * when a step fires (src/sim/economy/cityGrowth.ts's `applyMonthlyGrowth`). */
+  points: number;
+  /** Raw delivered-cargo score accumulated so far *this* month (SPEC §8.3's growthScore inputs),
+   * drained into `points` at the month boundary — see `accrueCityGrowthScore`. */
+  monthlyScore: number;
+  /** Sim tick of this city's last Civic Investment (SPEC §8.3: "once per 5 years per city"),
+   * or undefined if it's never had one. */
+  lastCivicInvestmentTick?: number;
+  /** Whether last month's accumulated score cleared `CITY_SERVED_SCORE_THRESHOLD` — used only for
+   * the City panel's growth trend arrow (SPEC §10.2), not the growth math itself. */
+  lastServed?: boolean;
 }

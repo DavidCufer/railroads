@@ -2,7 +2,7 @@
 import { createRng, type RngState } from "./rng";
 import { generateMap, type MapGenOptions } from "./map/generate";
 import type { GameMap } from "./map/types";
-import type { City, Industry, IndustryEconomyState } from "./economy/types";
+import type { City, CityGrowthState, Industry, IndustryEconomyState } from "./economy/types";
 import { initIndustryEconomy } from "./economy/processing";
 import { DEFAULT_START_YEAR } from "../data/mapGen";
 import { DEFAULT_DIFFICULTY, DIFFICULTY, type Difficulty } from "../data/finance";
@@ -78,6 +78,13 @@ export interface GameState {
   /** Highest `NewsItem.id` the player has seen (News panel opened) — items with a higher id are
    * "unread" (SPEC §10.1's unread badge). */
   newsReadUpTo: number;
+  /** Per-city growth accumulator (SPEC §8.3, Phase 9), keyed by `City.id` — see
+   * src/sim/economy/cityGrowth.ts. */
+  cityGrowth: Map<number, CityGrowthState>;
+  /** Bumped whenever a city's footprint grows or a new industry spawns — the terrain chunk cache
+   * (src/render/terrain.ts) is only ever invalidated per-tile, not polled every frame, so the UI
+   * layer diffs this against its own last-seen value to know when to invalidate. */
+  mapContentVersion: number;
 }
 
 export interface NewGameOptions extends MapGenOptions {
@@ -120,5 +127,7 @@ export function createGameState(options: NewGameOptions): GameState {
     nextNewsId: 0,
     pendingNews: [],
     newsReadUpTo: -1,
+    cityGrowth: new Map(),
+    mapContentVersion: 0,
   };
 }

@@ -10,6 +10,21 @@ export const strings = {
     pause: "Pause",
     menu: "Menu",
   },
+  menu: {
+    title: "Menu",
+    overlays: "Overlays",
+    overlayNames: {
+      catchments: "All catchments",
+      cargoHeatmap: "Cargo supply heatmap",
+      trackType: "Track type colors",
+      trainProfit: "Train profit colors",
+    },
+    cargoHeatmapPrompt: "Cargo",
+    miniMap: "Mini-map",
+  },
+  miniMap: {
+    label: "Map",
+  },
   toolbar: {
     track: "Track",
     double: "Double",
@@ -27,6 +42,12 @@ export const strings = {
       city: "City",
       metropolis: "Metropolis",
     },
+    growthTrend: "Growth",
+    growing: "Growing ▲",
+    stagnant: "Stagnant ▬",
+    civicInvestment: "Civic Investment",
+    civicInvestmentDesc: "+15% population and an immediate growth tick",
+    civicInvestmentCooldown: (years: number) => `Available again in ${years}y`,
   },
   industry: {
     produces: "Produces",
@@ -55,6 +76,9 @@ export const strings = {
       "invalid-orders": "Orders need 2-8 valid stations",
       "invalid-loan-amount": "Amount must be a multiple of $100k",
       "credit-limit-exceeded": "That would exceed your credit limit",
+      "invalid-city": "That city doesn't exist",
+      "city-not-connected": "Connect this city by rail first",
+      "civic-investment-cooldown": "Civic Investment is on cooldown here",
     },
     confirmBuild: "Build",
     confirmUpgrade: "Upgrade",
@@ -92,6 +116,16 @@ export const strings = {
     upgradeToPrefix: "Upgrade to ",
     build: "Build",
     cancel: "✕",
+    improvements: "Improvements",
+    improvementNames: {
+      postOffice: "Post Office",
+      hotel: "Hotel",
+      warehouse: "Warehouse",
+      coldStorage: "Cold Storage",
+      freightYard: "Freight Yard",
+      livestockPens: "Livestock Pens",
+    },
+    improvementAvailableFrom: (year: number) => `Available from ${year}`,
   },
   trains: {
     buyTitle: "Buy Train",
@@ -181,6 +215,9 @@ export const strings = {
         `Traffic jam near ${nearName} — consider double track or more stations`,
       noRoute: (trainName: string, stationName: string) =>
         `${trainName} has no route to ${stationName}`,
+      cityGrowth: (cityName: string, tierName: string) =>
+        `${cityName} has grown into a ${tierName}!`,
+      civicInvestment: (cityName: string) => `Civic Investment boosts growth in ${cityName}`,
     },
   },
   debug: {

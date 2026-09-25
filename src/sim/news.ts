@@ -5,6 +5,7 @@
  * formats the text (CLAUDE.md: user-facing strings live in ui/strings.ts, not here).
  */
 import { NEWS_HISTORY_MAX } from "../data/news";
+import type { CityTier } from "../data/cities";
 import type { GameState } from "./state";
 
 /** A news item's kind-specific data — `keyof` over a union only yields the *common* keys, so this
@@ -15,7 +16,9 @@ export type NewsPayload =
   | { kind: "breakdown"; trainId: number }
   | { kind: "washout"; tile: number }
   | { kind: "trafficJam"; tile: number }
-  | { kind: "noRoute"; trainId: number; stationId: number };
+  | { kind: "noRoute"; trainId: number; stationId: number }
+  | { kind: "cityGrowth"; cityId: number; tier: CityTier }
+  | { kind: "civicInvestment"; cityId: number };
 
 export type NewsItem = NewsPayload & { id: number; tick: number };
 

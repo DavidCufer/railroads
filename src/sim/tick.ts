@@ -7,6 +7,8 @@
 import { LOCOMOTIVES } from "../data/trains";
 import { refreshStationEconomy } from "./commands";
 import { accrueDailyCargo } from "./economy/cargoFlow";
+import { monthlyCityGrowthStep } from "./economy/cityGrowth";
+import { monthlyIndustryDynamicsStep } from "./economy/industryDynamics";
 import { monthlyIndustryStep } from "./economy/processing";
 import { monthlyFinanceStep, yearlyFinanceRollover } from "./finance/ledger";
 import { pushNews } from "./news";
@@ -32,6 +34,11 @@ export function advanceOneHour(state: GameState): void {
 
   if (isMonthBoundary(state.ticks)) {
     monthlyIndustryStep(state);
+    // Industry dynamics reads this month's `stationCargo` waitingDays (before accrual's next
+    // pass touches it again) and may change a raw producer's growthMult or spawn a new industry —
+    // either way the next line's refresh needs to run after it, same reasoning as monthlyIndustryStep.
+    monthlyIndustryDynamicsStep(state);
+    monthlyCityGrowthStep(state);
     // Processed cargo's supply figures just changed (monthlyOutput), so the cached per-station
     // supply/accept map needs refreshing before tomorrow's accrual reads it.
     refreshStationEconomy(state);

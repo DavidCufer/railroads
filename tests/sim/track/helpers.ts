@@ -73,6 +73,8 @@ export function makeTestState(map: GameMap, overrides: Partial<GameState> = {}):
     nextNewsId: 0,
     pendingNews: [],
     newsReadUpTo: -1,
+    cityGrowth: new Map(),
+    mapContentVersion: 0,
     ...overrides,
   };
 }

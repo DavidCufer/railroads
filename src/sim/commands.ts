@@ -10,9 +10,25 @@
  */
 import { DIFFICULTY, LOAN_INCREMENT } from "../data/finance";
 import { BULLDOZE_REFUND_FRACTION, ELECTRIFICATION_ERA, type BridgeType } from "../data/track";
-import { STATION_UPGRADE_ORDER, WATER_TOWER_COST, type StationType } from "../data/stations";
+import {
+  STATION_IMPROVEMENTS,
+  STATION_TYPE_DEFS,
+  STATION_UPGRADE_ORDER,
+  WATER_TOWER_COST,
+  type StationImprovementType,
+  type StationType,
+} from "../data/stations";
+import {
+  CITY_TIERS,
+  CIVIC_INVESTMENT_COOLDOWN_YEARS,
+  CIVIC_INVESTMENT_COST_PER_TIER,
+  CIVIC_INVESTMENT_POP_BOOST,
+} from "../data/cities";
 import { calendarFromTicks } from "./time";
 import type { GameState } from "./state";
+import { applyCivicInvestmentGrowth, getOrCreateCityGrowth } from "./economy/cityGrowth";
+import type { City } from "./economy/types";
+import { pushNews } from "./news";
 import { directionIndex } from "./track/graph";
 import {
   doubleUpgradeCost,
@@ -23,7 +39,7 @@ import {
   type PathStep,
 } from "./track/cost";
 import type { TrackEdge } from "./track/types";
-import { canPlaceStationAt, stationAtTile } from "./stations/placement";
+import { canPlaceStationAt, stationAtTile, stationCatchmentTiles } from "./stations/placement";
 import { stationCost, stationUpgradeCost } from "./stations/cost";
 import { defaultStationName } from "./stations/naming";
 import { computeStationEconomies } from "./stations/economy";
@@ -62,7 +78,10 @@ export type CommandReasonCode =
   | "invalid-train"
   | "invalid-orders"
   | "invalid-loan-amount"
-  | "credit-limit-exceeded";
+  | "credit-limit-exceeded"
+  | "invalid-city"
+  | "city-not-connected"
+  | "civic-investment-cooldown";
 
 export type CommandResult = { ok: true; cost: number } | { ok: false; reason: CommandReasonCode };
 
@@ -326,6 +345,7 @@ export function buildStation(state: GameState, tile: number, type: StationType):
     name,
     hasEngineShed: state.stations.length === 0,
     hasWaterTower: false,
+    improvements: [],
   };
   state.stations.push(station);
   state.cash -= cost;
@@ -408,6 +428,109 @@ export function buildWaterTower(state: GameState, stationId: number): CommandRes
   state.cash -= plan.cost;
   state.finance.capitalInvested += plan.cost;
   addExpense(state, "construction", plan.cost);
+  return { ok: true, cost: plan.cost };
+}
+
+export interface ImprovementBuildPlan {
+  cost: number;
+  valid: boolean;
+}
+
+/** Prices building `type` at `stationId` (SPEC §6.2's remaining improvement roster: Post Office,
+ * Hotel, Warehouse, Cold Storage, Freight Yard, Livestock Pens — Engine Shed/Water Tower keep their
+ * own bespoke commands above), without mutating state. */
+export function computeImprovementPlan(
+  state: GameState,
+  stationId: number,
+  type: StationImprovementType,
+): ImprovementBuildPlan {
+  const station = state.stations.find((s) => s.id === stationId);
+  if (!station || station.improvements.includes(type)) return { cost: 0, valid: false };
+  const def = STATION_IMPROVEMENTS[type];
+  const year = costContext(state).year;
+  if (def.availableYear !== undefined && year < def.availableYear) {
+    return { cost: 0, valid: false };
+  }
+  return { cost: def.cost * eraInflation(year), valid: true };
+}
+
+/** Builds improvement `type` at `stationId`, once per station (SPEC §6.2). */
+export function buildImprovement(
+  state: GameState,
+  stationId: number,
+  type: StationImprovementType,
+): CommandResult {
+  const station = state.stations.find((s) => s.id === stationId);
+  if (!station) return { ok: false, reason: "invalid-station-name" };
+  if (station.improvements.includes(type)) return { ok: false, reason: "already-improved" };
+  const plan = computeImprovementPlan(state, stationId, type);
+  if (!plan.valid) return { ok: false, reason: "not-era-available" };
+  if (plan.cost > state.cash) return { ok: false, reason: "cant-afford" };
+
+  station.improvements.push(type);
+  state.cash -= plan.cost;
+  state.finance.capitalInvested += plan.cost;
+  addExpense(state, "construction", plan.cost);
+  // Post Office changes this station's mail supply figure (SPEC §6.2) — refresh so it's reflected
+  // before tomorrow's cargo accrual reads it.
+  refreshStationEconomy(state);
+  return { ok: true, cost: plan.cost };
+}
+
+// --- Cities (SPEC §8.3) -------------------------------------------------------------------------
+
+/** A city counts as "connected by rail" (SPEC §8.3's Civic Investment gate) once some built
+ * station's catchment covers at least one of its footprint tiles — the same coverage concept SPEC
+ * §6.3 already uses for supply/acceptance splitting. */
+function cityIsRailConnected(state: GameState, city: City): boolean {
+  const cityTiles = new Set(city.tiles);
+  for (const station of state.stations) {
+    const radius = STATION_TYPE_DEFS[station.type].catchmentRadius;
+    for (const tile of stationCatchmentTiles(state.map, station.tile, radius)) {
+      if (cityTiles.has(tile)) return true;
+    }
+  }
+  return false;
+}
+
+export interface CivicInvestmentPlan {
+  cost: number;
+  valid: boolean;
+}
+
+/** Prices a Civic Investment in `cityId` (SPEC §8.3: "$100k × tier, once per 5 years per city"),
+ * without mutating state. Tier rank is 1 (Village) through 4 (Metropolis). */
+export function computeCivicInvestmentPlan(state: GameState, cityId: number): CivicInvestmentPlan {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city) return { cost: 0, valid: false };
+  if (!cityIsRailConnected(state, city)) return { cost: 0, valid: false };
+  const growth = state.cityGrowth.get(cityId);
+  if (growth?.lastCivicInvestmentTick !== undefined) {
+    const yearsSince =
+      (state.ticks - growth.lastCivicInvestmentTick) / (HOURS_PER_DAY * DAYS_PER_YEAR);
+    if (yearsSince < CIVIC_INVESTMENT_COOLDOWN_YEARS) return { cost: 0, valid: false };
+  }
+  const tierRank = CITY_TIERS.indexOf(city.tier) + 1;
+  const cost = CIVIC_INVESTMENT_COST_PER_TIER * tierRank * eraInflation(costContext(state).year);
+  return { cost, valid: true };
+}
+
+/** Civic Investment (SPEC §8.3): the player pays into a connected city for +15% population and a
+ * one-off growth tick (footprint/tier updates included), "the upgrading cities lever". */
+export function civicInvestment(state: GameState, cityId: number): CommandResult {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city) return { ok: false, reason: "invalid-city" };
+  if (!cityIsRailConnected(state, city)) return { ok: false, reason: "city-not-connected" };
+  const plan = computeCivicInvestmentPlan(state, cityId);
+  if (!plan.valid) return { ok: false, reason: "civic-investment-cooldown" };
+  if (plan.cost > state.cash) return { ok: false, reason: "cant-afford" };
+
+  applyCivicInvestmentGrowth(state, city, CIVIC_INVESTMENT_POP_BOOST);
+  getOrCreateCityGrowth(state, cityId).lastCivicInvestmentTick = state.ticks;
+  state.cash -= plan.cost;
+  state.finance.capitalInvested += plan.cost;
+  addExpense(state, "construction", plan.cost);
+  pushNews(state, { kind: "civicInvestment", cityId });
   return { ok: true, cost: plan.cost };
 }
 

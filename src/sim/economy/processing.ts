@@ -76,7 +76,13 @@ export function monthlyIndustryStep(state: GameState): void {
     const def = INDUSTRIES[industry.type];
     const econ = getOrCreateIndustryEconomy(state, industry.id);
     if (Object.keys(def.consumes).length === 0) {
-      econ.monthlyOutput = { ...def.produces };
+      // Raw (terrain-placed) producers scale with industry dynamics' growth/shrink multiplier
+      // (SPEC §8.2, Phase 9); Port has no `consumes` either but isn't terrain-placed, so it's
+      // untouched by dynamics and `growthMult` stays undefined for it.
+      const mult = def.placement.kind === "terrain" ? (econ.growthMult ?? 1) : 1;
+      econ.monthlyOutput = Object.fromEntries(
+        Object.entries(def.produces).map(([cargo, amount]) => [cargo, amount * mult]),
+      );
       continue;
     }
     const { output, consumed } = processIndustryMonth(def, econ.inputStock);

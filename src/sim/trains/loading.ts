@@ -7,7 +7,12 @@
 import { CARGO, CARLOAD_UNITS, MIN_REVENUE_DISTANCE_TILES, type CargoType } from "../../data/cargo";
 import { DIFFICULTY, eraInflation } from "../../data/finance";
 import { INDUSTRIES } from "../../data/industries";
-import { STATION_TYPE_DEFS } from "../../data/stations";
+import {
+  COLD_STORAGE_REVENUE_MULT,
+  HOTEL_PASSENGER_REVENUE_MULT,
+  POST_OFFICE_MAIL_REVENUE_MULT,
+  STATION_TYPE_DEFS,
+} from "../../data/stations";
 import {
   DEFAULT_FULL_LOAD_MAX_WAIT_DAYS,
   MIN_LOADING_TICKS,
@@ -15,11 +20,13 @@ import {
   TICKS_PER_CAR_HANDLED,
 } from "../../data/trains";
 import { addRevenue } from "../finance/ledger";
+import { accrueCityGrowthScore } from "../economy/cityGrowth";
 import { getOrCreateIndustryEconomy } from "../economy/processing";
 import { calendarFromTicks, HOURS_PER_DAY } from "../time";
 import type { GameState, StationCargoPile } from "../state";
 import type { Station } from "../stations/types";
-import { stationCatchmentTiles } from "../stations/placement";
+import { hasImprovement, stationLoadSpeedMult } from "../stations/improvements";
+import { stationAtTile, stationCatchmentTiles } from "../stations/placement";
 import { tileXY } from "./geometry";
 import type { Train, TrainOrder } from "./types";
 
@@ -60,6 +67,9 @@ function planLoadUnload(
   if (order.rule !== "unloadOnly") {
     train.cars.forEach((car, i) => {
       if (car.loaded || unload.includes(i)) return;
+      // Livestock Pens (SPEC §6.2): required to *load* livestock at this station (unaffected for
+      // unloading/delivering it elsewhere).
+      if (car.cargoType === "livestock" && !hasImprovement(station, "livestockPens")) return;
       const available = pile?.[car.cargoType]?.amount ?? 0;
       if (available < CARLOAD_UNITS) return;
       if (!acceptedAtAnotherStop(state, train, car.cargoType)) return;
@@ -80,7 +90,7 @@ function computeDwellTicks(
   const overlength = train.cars.length > STATION_TYPE_DEFS[station.type].maxTrainLength;
   const perCar =
     TICKS_PER_CAR_HANDLED *
-    STATION_TYPE_DEFS[station.type].loadSpeedMult *
+    stationLoadSpeedMult(station) *
     (overlength ? OVERLENGTH_SLOWDOWN_MULT : 1);
   return Math.max(MIN_LOADING_TICKS, Math.round(handled * perCar));
 }
@@ -136,10 +146,31 @@ function applyUnload(state: GameState, train: Train, station: Station, carIndex:
 
   if (distanceTiles >= MIN_REVENUE_DISTANCE_TILES) {
     const days = (state.ticks - (car.loadedTick ?? state.ticks)) / HOURS_PER_DAY;
-    const revenue = computeRevenue(state, cargo, distanceTiles, days);
+    let revenue = computeRevenue(state, cargo, distanceTiles, days);
+
+    // Post Office/Cold Storage (SPEC §6.2): bonus depends on where the cargo was *loaded*, not
+    // where it's being delivered.
+    const loadedStation =
+      car.loadedTile !== undefined ? stationAtTile(state.stations, car.loadedTile) : undefined;
+    if (cargo === "mail" && loadedStation && hasImprovement(loadedStation, "postOffice")) {
+      revenue *= POST_OFFICE_MAIL_REVENUE_MULT;
+    }
+    if (
+      (cargo === "food" || cargo === "livestock") &&
+      loadedStation &&
+      hasImprovement(loadedStation, "coldStorage")
+    ) {
+      revenue *= COLD_STORAGE_REVENUE_MULT;
+    }
+    // Hotel (SPEC §6.2): bonus depends on where it's *delivered* — this station.
+    if (cargo === "passengers" && hasImprovement(station, "hotel")) {
+      revenue *= HOTEL_PASSENGER_REVENUE_MULT;
+    }
+
     state.cash += revenue;
     addRevenue(state, cargo, revenue);
     state.pendingDeliveries.push({ stationId: station.id, cargoType: cargo, revenue });
+    accrueCityGrowthScore(state, station, cargo, CARLOAD_UNITS);
   }
 
   car.loaded = false;
