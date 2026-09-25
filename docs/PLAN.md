@@ -287,6 +287,7 @@ SPEC: §13, §10 (remaining UI), §3
 - [ ] Settings screen (units, quick build, sound, grid, UI scale).
 - [ ] First-game hints: a lightweight, dismissible tip sequence (build track → station → train → earn), not a blocking tutorial.
 - [ ] Optional WebAudio sounds (whistle, chug, cash ding), off by default if they're annoying.
+- [ ] Visual polish from reviews: station improvement icons are tiny at zoom 2 (make each improvement a clearly visible small building/sign next to the station); cities still look like grids of rectangles — add varied roof shapes/sizes, slight rotation jitter, and green gaps/trees between blocks.
 - [ ] Smooth coastlines/lake shores (true marching-squares contour instead of per-tile steps; carry-over from the Phase 2 review).
 - [ ] UI pass on a phone-sized viewport (800×360): no overlapping panels, 44 px targets, readable text.
 
