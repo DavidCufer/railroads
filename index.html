@@ -152,12 +152,24 @@
         box-shadow: -4px 0 16px rgba(0, 0, 0, 0.35);
         transform: translateX(100%);
         transition: transform 0.2s ease;
-        overflow-y: auto;
         font: 13px sans-serif;
         /* Above the quick-build toggle (z-index 6), which otherwise floats over a panel's own
            bottom-right content (e.g. Station mode's in-panel Build/Cancel row) on a short
            viewport where the panel's content reaches near the screen bottom. */
         z-index: 10;
+        /* Fixed header + pinned footer, scrolling body (Phase 7.1 review fix): `.panel` is a flex
+           column so `.panel-header` and `.panel-actions` sit at their natural size outside any
+           scrollport, and only `.panel-body` (flex:1, min-height:0, its own overflow-y below)
+           scrolls. Previously `.panel` itself was the *only* scroll container and the header used
+           `position:sticky` to fake staying put — sticky doesn't remove an element from the
+           document, so scrolled-past body rows could still paint through/over the "pinned" header
+           (confirmed: e.g. the finance panel's "Credit limit" row landing visually on top of the
+           "Finance" title after `scrollIntoView`, docs/screenshots/phase-7-finance-panel.png).
+           Giving the header its own non-scrolling box makes that overlap structurally impossible
+           instead of relying on stacking order. */
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
       }
       .panel.panel-open {
         transform: translateX(0);
@@ -168,9 +180,8 @@
         justify-content: space-between;
         padding: 12px 14px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-        position: sticky;
-        top: 0;
         background: inherit;
+        flex: 0 0 auto;
       }
       .panel-title {
         font-size: 16px;
@@ -186,16 +197,32 @@
         font-size: 14px;
       }
       .panel-body {
-        /* Extra bottom padding reserves room so the sticky `.panel-actions` bar (below) never
-           visually overlaps the last row(s) of content — sticky positioning clamps the bar to the
-           scrollport bottom even when total content is only barely taller than the panel, which
-           without this buffer could otherwise render the bar on top of the preceding row instead
-           of below it. 66px = .panel-actions' own rendered height (10px+12px padding + the 44px
-           button row) — keep this and its `margin-bottom` below in sync if that ever changes. */
+        /* The panel's only scrolling region now (see `.panel` above) — `flex:1` fills whatever
+           space `.panel-header`/`.panel-actions` don't take, `min-height:0` lets it actually
+           shrink below its content's natural height instead of overflowing the flex column. */
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        /* Extra bottom padding reserves room so the sticky `.panel-actions` bar (below, still
+           nested inside `.panel-body` by every caller) never visually overlaps the last row(s) of
+           content — sticky positioning clamps the bar to *this* scrollport's bottom even when
+           total content is only barely taller than the panel. 66px = .panel-actions' own rendered
+           height (10px+12px padding + the 44px button row) — keep this and its `margin-bottom`
+           below in sync if that ever changes. */
         padding: 12px 14px 66px;
         display: flex;
         flex-direction: column;
         gap: 10px;
+      }
+      /* Flexbox footgun: a flex item with non-visible overflow (e.g. `.train-car-picker`'s own
+         `overflow-y:auto`) has an *automatic minimum size of 0* per the flexbox spec, so once
+         `.panel-body` became height-constrained (above) instead of growing to fit its content, the
+         browser shrank such children all the way to 0 height to make everything else fit — every
+         car/loco/order chip picker silently disappeared (still "visible", just 0px tall) instead of
+         `.panel-body` scrolling like it's supposed to. `.panel-body`'s children should never shrink
+         below their natural/capped size; overflow is `.panel-body`'s own job. */
+      .panel-body > * {
+        flex-shrink: 0;
       }
       .panel-row {
         display: flex;
@@ -259,11 +286,12 @@
       .panel-actions {
         display: flex;
         gap: 8px;
-        /* Pinned to the bottom of the panel's own scroll area (same sticky trick `.panel-header`
-           uses at the top) so the confirm/build/sell button is always reachable on a short
-           viewport instead of requiring a scroll past the rest of the panel body (Phase 5 review
-           carry-over: the New Station panel's Build button could get cut off at 800×360). The
-           negative margins reclaim `.panel-body`'s own padding so the bar spans edge-to-edge. */
+        /* Pinned to the bottom of `.panel-body`'s own scroll area (it's nested inside `.panel-body`
+           by every caller, as the last item of the body list) so the confirm/build/sell button is
+           always reachable on a short viewport instead of requiring a scroll past the rest of the
+           panel body (Phase 5 review carry-over: the New Station panel's Build button could get
+           cut off at 800×360). The negative margins reclaim `.panel-body`'s own padding so the bar
+           spans edge-to-edge. */
         position: sticky;
         bottom: 0;
         margin: 8px -14px -66px;

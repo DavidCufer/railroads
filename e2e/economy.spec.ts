@@ -194,8 +194,10 @@ test.describe("Phase 7 — cargo flow and economy", () => {
     await page.waitForTimeout(300);
     await expect(page.locator(".cargo-bar-row")).toHaveCount(1);
     await expect(page.locator(".cargo-bar-label")).toHaveText("Coal");
-    // Waiting cargo is the panel's last section — scroll down so it's actually in frame.
-    await page.locator(".panel").evaluate((el) => {
+    // Waiting cargo is the panel's last section — scroll down so it's actually in frame. Only
+    // `.panel-body` scrolls (Phase 7.1: `.panel` itself became a plain flex column with a fixed
+    // header/footer around it, see index.html).
+    await page.locator(".panel-body").evaluate((el) => {
       el.scrollTop = el.scrollHeight;
     });
     await page.waitForTimeout(50);
@@ -257,7 +259,14 @@ test.describe("Phase 7 — cargo flow and economy", () => {
     await buildLineWithStations(page, 70, 80, ROW_Y);
 
     await page.evaluate(() => window.__game!.runDays(360)); // exactly one year
-    await page.waitForTimeout(100);
+    // 300ms, not 100ms: the panel slides in over a 0.2s CSS transition (`.panel`'s
+    // `transition: transform 0.2s ease` in index.html) — 100ms wasn't enough to let it finish
+    // sliding fully into view, so the screenshot below used to catch it mid-slide, still
+    // partially off the right edge of the 800px viewport (Phase 7.1 review: caught while
+    // checking every panel screenshot at 800×360 — the ledger row *values*, right-aligned near
+    // the panel's own right edge, were rendering past x=800 and invisible in the screenshot,
+    // while the labels near the left edge of the panel were still on-screen).
+    await page.waitForTimeout(300);
 
     await expect(page.locator(".panel-title")).toHaveText("1848 Year in Review");
     await expect(page.locator(".yearly-report-headline")).toBeVisible();

@@ -21,6 +21,18 @@ export function isLabelExpired(label: FloatingLabel, nowMs: number): boolean {
   return nowMs - label.startMs > DURATION_MS;
 }
 
+/** Phase 7.1 review: dark cargo colors (coal `#2A2A2A`, wood, ...) as label fill, over a dark
+ * stroke halo, was unreadable against almost any terrain (docs/screenshots/phase-7-delivery-
+ * label.png). Cargo colors light enough to read on their own stay cargo-colored (still useful for
+ * "what got delivered" at a glance); anything darker falls back to bold white. */
+function labelFillColor(cargoColor: string): string {
+  const r = parseInt(cargoColor.slice(1, 3), 16);
+  const g = parseInt(cargoColor.slice(3, 5), 16);
+  const b = parseInt(cargoColor.slice(5, 7), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance < 0.45 ? "#FFFFFF" : cargoColor;
+}
+
 export function drawDeliveryLabels(
   ctx: CanvasRenderingContext2D,
   camera: Camera,
@@ -46,13 +58,13 @@ export function drawDeliveryLabels(
 
     ctx.save();
     ctx.globalAlpha = 1 - t;
-    ctx.font = "700 13px sans-serif";
+    ctx.font = "700 15px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "rgba(10, 10, 10, 0.65)";
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
     ctx.strokeText(label.text, screen.x, y);
-    ctx.fillStyle = label.color;
+    ctx.fillStyle = labelFillColor(label.color);
     ctx.fillText(label.text, screen.x, y);
     ctx.restore();
   }

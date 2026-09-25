@@ -258,8 +258,9 @@ test.describe("Phase 6 — Trains", () => {
     await expect(page.locator(".train-order-row")).toHaveCount(2);
     await expect(page.locator(".panel-action-build")).toBeEnabled();
     // Clicking the Coal car button auto-scrolled the panel to bring it into view; scroll back to
-    // the top so the screenshot shows the locomotive picker too, not just the lower half.
-    await page.locator(".panel").evaluate((el) => {
+    // the top so the screenshot shows the locomotive picker too, not just the lower half. Only
+    // `.panel-body` scrolls (Phase 7.1: see index.html).
+    await page.locator(".panel-body").evaluate((el) => {
       el.scrollTop = 0;
     });
     await page.waitForTimeout(50);
@@ -278,8 +279,9 @@ test.describe("Phase 6 — Trains", () => {
     await page.waitForTimeout(300);
     await expect(page.locator(".panel-title")).toHaveText(trains[0]!.name);
     // Scroll to the bottom so the screenshot shows the full orders list above the pinned Sell
-    // button (this panel's content is slightly taller than the 800×360 viewport).
-    await page.locator(".panel").evaluate((el) => {
+    // button (this panel's content is slightly taller than the 800×360 viewport). Only
+    // `.panel-body` scrolls (Phase 7.1: see index.html).
+    await page.locator(".panel-body").evaluate((el) => {
       el.scrollTop = el.scrollHeight;
     });
     await page.waitForTimeout(50);
