@@ -674,3 +674,16 @@ localization (English only, but keep strings in one `strings.ts` file for later)
     tunable constants `CITY_PASSENGER_SUPPLY_DIVISOR = 650` / `CITY_MAIL_SUPPLY_DIVISOR = 1400`
     (`src/data/cities.ts`, used by `src/sim/economy/cityStats.ts`), replacing the hardcoded 250/800.
   See PROGRESS.md's Phase 7.1 entry for the measured before/after balance table.
+- [Phase 11] §10.1's "all tap targets ≥ 44 CSS px" is met for every primary/frequently-tapped
+  control (top bar, panel close, toolbar, segmented pickers, save-slot/hint-card buttons, ...) but
+  not for the small wrapped pill chips in dense pickers — cargo car/loco order rule chips
+  (`.train-car-add-btn`/`.train-car-chip`, `.train-order-rule-btn`/`.train-order-remove-btn`) and
+  the ☰ menu's cargo-heatmap picker (`.menu-cargo-btn`) — where up to 13 chips wrap in a small
+  scrollable strip; bumping those to 44px each would either force a lot more scrolling in an
+  already-scrollable area or force a redesign of those pickers, out of scope for this phase's pass.
+  Noted as a known carry-over rather than silently left inconsistent.
+- [Phase 11] `GameState.stationEconomy` (a pure cache recomputed from map/cities/industries/
+  stations/industryEconomy — see `src/sim/stations/economy.ts`) isn't persisted in a save; the load
+  path recomputes it via `computeStationEconomies` right after deserializing, which is exactly what
+  every normal-play code path already does whenever those inputs change, so this doesn't skip a
+  save round-trip test.

@@ -2333,3 +2333,161 @@ Known carry-overs, not fixed in this phase:
 - No automated test asserts mountain band *width* in tiles (the PLAN's targets were verified by eye
   against the regenerated screenshots this session, plus a scratch script during tuning, not a
   committed test) — a regression here would only be caught by another visual review pass.
+
+## 2026-09-25 — Phase 11: Save/load, settings, polish
+
+- **Save/load** (`src/save/`, new directory): `serialize.ts`/`format.ts` convert `GameState` <->
+  a plain-JSON `SerializedGameStateV1` — `GameMap`'s typed arrays are base64-packed losslessly
+  (`typedArray.ts`, a full-precision byte-view codec, unlike `sim/regions/codec.ts`'s deliberately
+  lossy fixed-point Int16 used for the much size-budget-constrained committed region JSON), every
+  `Map`/`Set` field becomes a plain array of entries, and `TrackGraph` becomes its edge list
+  (rebuilt via `new TrackGraph()` + `addEdge`). `GameState.stationEconomy` is the one field
+  deliberately *not* persisted — it's a pure cache of map/cities/industries/stations/
+  industryEconomy (`src/sim/stations/economy.ts`'s own doc comment says as much), so the load path
+  just recomputes it the same way every other code path already does when those inputs change.
+  `migrate.ts` is the version-chain scaffold (`migrateSaveFile` walks a raw parsed save forward one
+  version at a time to `CURRENT_SAVE_VERSION`); since v1 is the first real format, `SaveFileV0Fixture`/
+  `migrateV0toV1` are a deliberately-fake "previous format" (renamed `money`->`cash` field, missing
+  the goals/per-year-cargo/mapContentVersion fields) that exists purely to prove the scaffold itself
+  works end to end, per the PLAN brief's explicit test ask. `db.ts` is a tiny native-IndexedDB
+  wrapper (one object store, one record per slot, keyed by slot id) — no dependency added. `index.ts`
+  is the public surface: `autosave` (round-robins `auto-0..2` via a localStorage cursor, not
+  "oldest timestamp wins"), `saveToSlot`/`loadSlot`/`deleteSlot`/`listSaveSlots`/`latestSaveSlot`.
+- **Tests** (`tests/save/*.test.ts`, 7 new, all pure/DOM-free per CLAUDE.md): a round-trip
+  determinism test against a hand-built fixture that deliberately exercises every special field
+  kind — typed arrays, `TrackGraph`, every `Map`/`Set` field, a real-world region id, a mid-route
+  train (non-empty `blockPenalties` `Map`, `heldBlocks`, in-progress `edgeProgress`), an outstanding
+  loan, goals/`goalsCompleted`, and news — asserting `deserializeGameState(JSON.parse(JSON.stringify(
+  serializeGameState(state))))` is deep-equal to the original; a second test drives a *real* small
+  freight-route scenario (reusing `tests/sim/longRun.test.ts`'s proven scenario-building pattern)
+  forward 200 in-game days two ways — continuously, and split by a save/load round trip partway
+  through the train's route — and asserts the two trajectories' cash/finance/train/stationCargo/
+  industryEconomy/news end up identical; a migration test proves the v0->v1 fixture actually gets
+  rewritten (not just passed through). This is the headline test PLAN called out, and it's green.
+- **UI wiring** (`src/main.ts`, `src/ui/saveLoadScreen.ts`, `src/ui/titleScreen.ts`): autosave
+  fires on every in-game month boundary (`isMonthBoundary(state.ticks)` in `tickOnce`, fire-and-
+  forget) and on backgrounding — both `@capacitor/app`'s `pause` event and the web/PWA
+  `visibilitychange` equivalent, whichever fires first wins (skipped under `?debug=1` so e2e tests
+  never touch IndexedDB unexpectedly). `renderSaveLoadScreen` is one shared renderer for both
+  directions: Load (title screen's "Load Game", or the in-game ☰ menu... actually only reachable
+  from the title screen this phase, see Known issues) lists all 8 slots (3 auto + 5 manual) with
+  name/company-date/cash/map per slot, Load + Delete buttons on any occupied one; Save (in-game ☰
+  menu only, `openSaveScreen`) lists the 5 manual slots, prompts for a name via `window.prompt`
+  (same lightweight pattern as the existing `window.confirm` exit dialog), Save/Overwrite + Delete.
+  Continue on the title screen calls `latestSaveSlot()` on mount and loads it directly. `main.ts`
+  factored the old `regenerate()` body into a shared `applyState(newState)` so a freshly-generated
+  map and a loaded save go through identically thorough rewiring (camera, every renderer's
+  `setMap`, drag/ghost/panel state reset) — a save/load bug can't silently diverge from a New Game
+  one by skipping a reset step one path remembered and the other didn't.
+- **Settings screen** (`src/ui/settings.ts`, `src/ui/settingsScreen.ts`, replaces the Phase 10
+  placeholder): units (km/h vs mph, a new `formatSpeed()` used everywhere a loco/train speed is
+  shown), quick build (reads/writes the *same* pre-existing `QUICK_BUILD_STORAGE_KEY` from
+  `toolbar.ts` rather than a second source of truth), sound, show grid, UI scale — all in
+  localStorage under one `railroads.settings` key (quick build stays separate, unchanged since
+  Phase 4). Reachable from the title screen and, new, the in-game ☰ menu (`openSettingsOverlay`,
+  a full-screen overlay reusing the title screen's own `.title-screen` look over the live game).
+  UI scale applies via a `--ui-scale` CSS custom property on `#ui`, scaling from the top-left with
+  compensating `width`/`height: calc(100% / var(--ui-scale))` so the scaled box still exactly
+  covers the viewport instead of leaving a gap or overflowing it. Grid draws as a new, cheap,
+  viewport-clipped overlay (`drawGridOverlay`, `src/render/overlays.ts`) skipped below zoom 0.5.
+- **First-game hints** (`src/ui/hints.ts`): a 4-step card (`strings.hints.steps`) shown once per
+  browser (a `railroads.hintsSeen` localStorage flag), Skip/Got it/Start playing buttons, floats
+  bottom-center and never intercepts map/toolbar input underneath it. Shown after a *new* game
+  starts (skipped under `?debug=1`, and never on a loaded save — a loaded game obviously isn't a
+  first game).
+- **Sound** (`src/ui/sound.ts`): three procedural WebAudio synths (`whistle`/`chug`/`cashDing`,
+  simple oscillator+gain-envelope tones, no audio files, matching the "all graphics procedural"
+  ethos extended to audio) — off by default, `initSound(enabled)` called once at startup and again
+  on every Settings change. Wired at two points: `playSound("whistle")` on a successful train
+  purchase (`trainPanels.ts`), `playSound("cashDing")` on a delivery (`main.ts`'s `tickOnce`,
+  alongside the existing floating `+$` label). `chug` exists as a synth but has no trigger point
+  yet — noted below.
+- **Visual polish** (`src/render/terrain.ts`, `cities.ts`, `stations.ts`):
+  - **Coastlines/lake shores**: replaced the per-tile diagonal-corner gradient blend
+    (`drawCornerBlend`, Phase 1.1/Phase 2-review vintage) with a real marching-squares contour.
+    `cornerWaterness(gx, gy)` averages the up-to-4 tiles sharing a grid corner point — the
+    standard dual-grid input, and the reason a straight coastline lands exactly on the 0.5
+    threshold at every corner along it (2 of the 4 sharing tiles are water, 2 aren't). Each land
+    tile bordering water gets the true, linearly-interpolated water polygon for its corner cut
+    filled (a generic corner-walk polygon extraction, `marchingSquaresPolygon`, equivalent to the
+    standard 16-case lookup table without hand-writing all 16 cases) plus a soft blurred stroke
+    along the actual contour; water tiles get the mirror-image land polygon, colored from the
+    nearest real land neighbor. `drawEdgeBlend`'s jittered-blob approach is kept only for non-
+    water terrain-pair borders (forest/plain/desert/hills/etc.), which weren't in scope.
+  - **City roofs** (`drawCityRoofs`): every building now gets a small rotation jitter (±~9°) and a
+    gable ridge line (reads as a pitched roof, not a flat colored box); roughly 1 in 6 dense-block
+    slots opens into a gap — sometimes with a small tree circle — instead of every roof touching
+    its neighbor, so a city reads as separated, slightly-irregular buildings with green breathing
+    room rather than a rectangle grid.
+  - **Station improvements** (`drawImprovementMarker`/`drawImprovementMarkers`): nearly doubled in
+    size (radius factor 0.09 -> 0.17 of tile size, spacing 0.24 -> 0.44), moved further from the
+    platform, and given a soft ground shadow, so each reads as its own small building/sign next to
+    the station instead of a row of barely-visible colored specks.
+- **Phone UI pass at 800×360**:
+  - Bumped every clearly-primary/frequently-tapped control that was under 44 CSS px up to 44px:
+    top-bar buttons (cash, pause/speed, ☰ — all fit the bar's own fixed 44px height exactly, so
+    this doesn't grow the bar), panel close ✕, the New Game screen's tabs/segmented pickers/dice
+    button (now used by the Settings screen too), the floating Trains/News/Goals buttons, the loco
+    list's buttons in the Buy Train dialog, and this phase's own new save-slot/hint-card buttons.
+    Areas that already scroll (`.new-game-content`, `.settings-content`, the loco/orders lists)
+    just need a bit more scrolling now, never overlap — verified by screenshot (New Game random
+    tab, Buy Train dialog) after the change. Left the small wrapped pill chips in dense pickers
+    (car/loco cargo chips, order rule chips, the ☰ menu's cargo-heatmap picker) under 44px — see
+    the new SPEC Deviations entry.
+  - Added a regression test (`e2e/smoke.spec.ts`, second test) that loads the real production
+    build (this suite always runs against `npm run build && npm run preview`, not the dev server)
+    without `?debug=1`, plays through to a live game, and asserts `#debug-overlay`/`#debug-controls`
+    don't exist in the DOM and `window.__game` is `undefined` — concretely proving the dev FPS
+    overlay, seed/size dev controls, and debug hook never reach a real player (or the APK, which
+    packages this same build), not just "the code has an `if (DEBUG)` guard".
+- **Screenshots — looked at every one of these** (all at 800×360 unless noted):
+  - `phase-11-load-screen.png`: 3 autosave + 5 manual slots, "My Save" shows its name, map
+    ("Random map"), year, cash, and a real save timestamp; Load/Delete on the occupied slot only.
+  - `phase-11-settings.png`: all 5 settings fit without scrolling, mph/grid-on/Normal-scale toggle
+    states all read clearly against the dark background.
+  - `phase-11-hint.png`: the hint card floats above the toolbar/Quick-build toggle without
+    covering the map, toolbar, or top bar — genuinely non-blocking.
+  - `phase-11-city-closeup-zoom1.5.png` and the Phase 3/us-east closeups at zoom 2
+    (`phase-3-city-closeup.png`, `phase-10-us-east-closeup.png`): both show visibly separated
+    building clusters with small green-gap trees dotted through them (easiest to see in the
+    us-east/New York closeup, which is dense enough to make the gaps read clearly) instead of a
+    solid rectangle block.
+  - `phase-1.1-closeup-zoom2.png` and `phase-4-water-bridge.png`: smooth, continuously-curved
+    coastlines with no pixel-stair-stepping, both at the coastline itself and around a small
+    lake/inlet.
+  - `phase-9-station-improvements-zoom2.png`: a shed (engine shed), an envelope (post office), and
+    a pale block (cold storage — visible on a different station in the same test) are each clearly
+    a distinct small icon next to the station now, not a row of dots.
+  - `phase-11-no-debug-overlay.png`: a real (non-debug) game view — top bar, toolbar, floating
+    buttons, and the first-game hint card all visible, with genuinely nothing dev-only on screen
+    (no fps/tick text, no seed/size dropdown).
+  - Kept every regenerated screenshot from running the full e2e suite (both the render-change pass
+    and the CSS 44px-target pass) except the ones provably unaffected by this phase's own code —
+    the zoom-0.25/"overview"-bucket renders (`phase-1-zoom-0.25.png`, `phase-3-overview.png`,
+    every `phase-10-<region>-overview.png`/`-full.png`), which `TerrainRenderer` genuinely never
+    routes through the new coastline/city code for (`overview = bucket === 0.25` short-circuits to
+    the old flat-fill style) — per CLAUDE.md's screenshot-ownership rule, reverted those
+    specifically rather than churning them on pure per-run decoration-jitter/timing noise.
+- **Tests**: `npm run check` (290 unit tests, 7 new in `tests/save/`) and `npm run e2e` (59
+  specs, 3 new: `e2e/saveLoad.spec.ts`, `e2e/hints.spec.ts`, plus the new smoke test) both green.
+- Known issues / deviations (also recorded in SPEC.md):
+  - 44px tap targets: met for every primary control, not for the dense wrapped-chip pickers (car/
+    loco cargo chips, order rule chips, cargo-heatmap picker) — see the SPEC Deviations entry for
+    why those were left as a carry-over rather than force-widened.
+  - `GameState.stationEconomy` isn't part of the persisted save format (recomputed on load instead)
+    — also in SPEC Deviations, with the reasoning (it's a pure cache everywhere else already).
+  - Sound's `chug` synth exists (`src/ui/sound.ts`) but has no trigger wired up yet — `whistle`
+    (buy train) and `cashDing` (delivery) cover the two clearest one-shot moments; a satisfying
+    *periodic* chug tied to a moving train would need per-train playback state (so trains don't all
+    chug in a cacophony) that felt like scope creep for a phase already this large — worth a follow-
+    up if sound gets more attention later.
+  - Load Game isn't reachable from the in-game ☰ menu (only Save Game and Settings are) — a player
+    can only load a different save by returning to the title screen. SPEC/PLAN's own framing
+    ("Load menu shows slot name...", the title/main menu screen owning Continue/Load) reads as a
+    title-screen feature, so this was in-scope-as-specified, but an in-game "switch save" shortcut
+    would be a reasonable follow-up.
+  - UI scale (Small/Normal/Large) is implemented as a CSS transform on `#ui` with compensating
+    box size — verified visually at Normal only this session (no code path makes Small/Large
+    behave differently in kind, just the scale factor, so this is a reasonably safe bet, but worth
+    an eyeball check at the two extremes if UI scale ever becomes a support question).
+- Next: **Phase 12 — Performance and release hardening**.

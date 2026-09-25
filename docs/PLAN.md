@@ -310,14 +310,14 @@ costs). Rivers aren't visible at overview zoom.
 ## Phase 11 — Save/load, settings, polish
 SPEC: §13, §10 (remaining UI), §3
 
-- [ ] Save serialization with versioning + a migration scaffold; IndexedDB storage; 3 rotating autosaves + 5 manual slots; autosave on app pause.
-- [ ] Load screen with slot details; Continue = latest save.
-- [ ] Settings screen (units, quick build, sound, grid, UI scale).
-- [ ] First-game hints: a lightweight, dismissible tip sequence (build track → station → train → earn), not a blocking tutorial.
-- [ ] Optional WebAudio sounds (whistle, chug, cash ding), off by default if they're annoying.
-- [ ] Visual polish from reviews: station improvement icons are tiny at zoom 2 (make each improvement a clearly visible small building/sign next to the station); cities still look like grids of rectangles — add varied roof shapes/sizes, slight rotation jitter, and green gaps/trees between blocks.
-- [ ] Smooth coastlines/lake shores (true marching-squares contour instead of per-tile steps; carry-over from the Phase 2 review).
-- [ ] UI pass on a phone-sized viewport (800×360): no overlapping panels, 44 px targets, readable text.
+- [x] Save serialization with versioning + a migration scaffold; IndexedDB storage; 3 rotating autosaves + 5 manual slots; autosave on app pause.
+- [x] Load screen with slot details; Continue = latest save.
+- [x] Settings screen (units, quick build, sound, grid, UI scale).
+- [x] First-game hints: a lightweight, dismissible tip sequence (build track → station → train → earn), not a blocking tutorial.
+- [x] Optional WebAudio sounds (whistle, chug, cash ding), off by default if they're annoying.
+- [x] Visual polish from reviews: station improvement icons are tiny at zoom 2 (make each improvement a clearly visible small building/sign next to the station); cities still look like grids of rectangles — add varied roof shapes/sizes, slight rotation jitter, and green gaps/trees between blocks.
+- [x] Smooth coastlines/lake shores (true marching-squares contour instead of per-tile steps; carry-over from the Phase 2 review).
+- [x] UI pass on a phone-sized viewport (800×360): no overlapping panels, 44 px targets, readable text.
 
 **Tests:** a save → load round-trip produces deep-equal state, and continuing the simulation afterwards gives identical results to never saving; migration from a fake v0 fixture.
 

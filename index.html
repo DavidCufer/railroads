@@ -77,7 +77,8 @@
         color: #f2b544;
         background: none;
         border: none;
-        min-height: 32px;
+        /* SPEC §10.1: tap targets >= 44 CSS px (Phase 11 phone UI pass). */
+        min-height: 44px;
         padding: 0 6px;
       }
       .top-bar .date {
@@ -95,7 +96,9 @@
         border: none;
         color: #fff;
         min-width: 36px;
-        min-height: 32px;
+        /* SPEC §10.1: tap targets >= 44 CSS px — matches the top bar's own fixed height exactly,
+           so this doesn't grow the bar or push anything else (Phase 11 phone UI pass). */
+        min-height: 44px;
         border-radius: 6px;
         font: inherit;
       }
@@ -197,8 +200,9 @@
         font-weight: 700;
       }
       .panel-close {
-        width: 32px;
-        height: 32px;
+        /* SPEC §10.1: tap targets >= 44 CSS px (Phase 11 phone UI pass). */
+        width: 44px;
+        height: 44px;
         border-radius: 6px;
         border: none;
         background: rgba(255, 255, 255, 0.08);
@@ -336,7 +340,8 @@
       .station-improvement-btn,
       .city-civic-investment-btn {
         width: 100%;
-        min-height: 40px;
+        /* SPEC §10.1: tap targets >= 44 CSS px (Phase 11 phone UI pass). */
+        min-height: 44px;
         border-radius: 8px;
         border: none;
         background: #4f86b5;
@@ -360,7 +365,8 @@
         display: flex;
         align-items: center;
         gap: 4px;
-        min-height: 40px;
+        /* SPEC §10.1: tap targets >= 44 CSS px (Phase 11 phone UI pass). */
+        min-height: 44px;
         padding: 0 10px;
         background: rgba(24, 28, 34, 0.88);
         border: none;
@@ -378,7 +384,8 @@
         display: flex;
         align-items: center;
         gap: 4px;
-        min-height: 40px;
+        /* SPEC §10.1: tap targets >= 44 CSS px (Phase 11 phone UI pass). */
+        min-height: 44px;
         padding: 0 10px;
         background: rgba(24, 28, 34, 0.88);
         border: none;
@@ -395,7 +402,8 @@
         display: flex;
         align-items: center;
         gap: 4px;
-        min-height: 40px;
+        /* SPEC §10.1: tap targets >= 44 CSS px (Phase 11 phone UI pass). */
+        min-height: 44px;
         padding: 0 10px;
         background: rgba(24, 28, 34, 0.88);
         border: none;
@@ -485,7 +493,9 @@
         color: #fff;
         font: 12px sans-serif;
         text-align: left;
-        min-height: 40px;
+        /* SPEC §10.1: tap targets >= 44 CSS px (Phase 11 phone UI pass) — the list scrolls
+           (`.train-loco-list`'s own overflow-y), so a taller row is fine. */
+        min-height: 44px;
       }
       .train-loco-btn.active {
         background: #f2b544;
@@ -574,7 +584,8 @@
         color: #fff;
       }
       .train-pick-station-btn {
-        min-height: 40px;
+        /* SPEC §10.1: tap targets >= 44 CSS px (Phase 11 phone UI pass). */
+        min-height: 44px;
         border-radius: 8px;
         border: 1px dashed rgba(255, 255, 255, 0.35);
         background: rgba(255, 255, 255, 0.06);
@@ -785,7 +796,8 @@
       }
       .finance-loan-btn {
         flex: 1;
-        min-height: 40px;
+        /* SPEC §10.1: tap targets >= 44 CSS px (Phase 11 phone UI pass). */
+        min-height: 44px;
         border-radius: 8px;
         border: 1px solid rgba(255, 255, 255, 0.15);
         background: rgba(255, 255, 255, 0.06);
@@ -995,7 +1007,8 @@
       }
       .new-game-tab {
         flex: 1;
-        min-height: 30px;
+        /* SPEC §10.1: tap targets >= 44 CSS px (Phase 11 phone UI pass). */
+        min-height: 44px;
         border-radius: 8px;
         border: none;
         background: rgba(255, 255, 255, 0.06);
@@ -1082,7 +1095,10 @@
         gap: 4px;
       }
       .segmented-btn {
-        min-height: 26px;
+        /* SPEC §10.1: tap targets >= 44 CSS px (Phase 11 phone UI pass) — the option rows around
+           these scroll (`.new-game-content`/`.settings-content` are already `overflow-y: auto`),
+           so a taller button just means a bit more scrolling, never overlap. */
+        min-height: 44px;
         padding: 0 10px;
         border-radius: 6px;
         border: 1px solid rgba(255, 255, 255, 0.15);
@@ -1106,8 +1122,9 @@
         font: 13px sans-serif;
       }
       .dice-btn {
-        min-width: 32px;
-        min-height: 30px;
+        /* SPEC §10.1: tap targets >= 44 CSS px (Phase 11 phone UI pass). */
+        min-width: 44px;
+        min-height: 44px;
         border-radius: 6px;
         border: none;
         background: rgba(255, 255, 255, 0.08);
@@ -1130,7 +1147,8 @@
       }
       .new-game-back-btn,
       .new-game-start-btn {
-        min-height: 40px;
+        /* SPEC §10.1: tap targets >= 44 CSS px (Phase 11 phone UI pass). */
+        min-height: 44px;
         border-radius: 8px;
         border: none;
         font: 700 14px sans-serif;
@@ -1264,8 +1282,9 @@
         flex: 0 0 auto;
       }
       .save-slot-btn {
-        min-height: 36px;
-        min-width: 36px;
+        /* SPEC §10.1: tap targets >= 44 CSS px (Phase 11 phone UI pass). */
+        min-height: 44px;
+        min-width: 44px;
         padding: 0 10px;
         border-radius: 6px;
         border: 1px solid rgba(255, 255, 255, 0.15);
@@ -1312,7 +1331,8 @@
         gap: 8px;
       }
       .hint-card-btn {
-        min-height: 32px;
+        /* SPEC §10.1: tap targets >= 44 CSS px (Phase 11 phone UI pass). */
+        min-height: 44px;
         padding: 0 12px;
         border-radius: 6px;
         border: none;

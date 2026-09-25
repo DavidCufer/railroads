@@ -127,5 +127,10 @@ test.describe("Phase 3 — cities and industries", () => {
     await page.evaluate(() => window.__game?.camera.setZoom(2));
     await page.waitForTimeout(350);
     await page.screenshot({ path: "docs/screenshots/phase-3-city-closeup.png" });
+
+    // Phase 11 visual-polish review: the same city at zoom 1.5, the brief's other requested scale.
+    await page.evaluate(() => window.__game?.camera.setZoom(1.5));
+    await page.waitForTimeout(350);
+    await page.screenshot({ path: "docs/screenshots/phase-11-city-closeup-zoom1.5.png" });
   });
 });
