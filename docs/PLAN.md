@@ -252,12 +252,12 @@ SPEC: §3, §5.3 (era-gated bridges, electrification), §7.6, §7.7, §9.5
 ## Phase 9 — Upgrades and growth
 SPEC: §6.2, §8.2 (industry dynamics), §8.3 (growth, civic investment)
 
-- [ ] All station improvements with their effects wired into the economy and train logic.
-- [ ] City growth model, footprint expansion (new tiles re-rendered), tier changes with news.
-- [ ] Civic Investment command + button in the City panel.
-- [ ] Industry growth/shrink/new-industry spawning.
-- [ ] Overlays: all catchments, cargo supply heatmap, track type colors, train profit colors.
-- [ ] Mini-map.
+- [x] All station improvements with their effects wired into the economy and train logic.
+- [x] City growth model, footprint expansion (new tiles re-rendered), tier changes with news.
+- [x] Civic Investment command + button in the City panel.
+- [x] Industry growth/shrink/new-industry spawning.
+- [x] Overlays: all catchments, cargo supply heatmap, track type colors, train profit colors.
+- [x] Mini-map.
 
 **Tests:** each improvement's effect (table-driven), city growth threshold crossing, civic investment cooldown, industry dynamics bounds (0.5×–3×).
 

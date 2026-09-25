@@ -1386,3 +1386,194 @@ and the news history cap of 200 are both judgment calls where SPEC doesn't give 
 
 - `npm run check` and `npm run e2e` both green (206 unit tests, 31 e2e specs).
 - Next: **Phase 9 — Upgrades and growth**.
+
+## 2026-09-25 — Phase 9: Upgrades and growth
+
+Delivered autonomously (background session, CLAUDE.md's "push early and often" — pushed to `main`
+after each coherent, green step). Confirmed PROGRESS.md/`main` were at Phase 8 before starting.
+
+**Station improvements** (SPEC §6.2's remaining roster — Engine Shed/Water Tower already existed
+from Phases 6/8 with their own bespoke fields). `src/data/stations.ts` adds
+`STATION_IMPROVEMENT_TYPES`/`STATION_IMPROVEMENTS` (cost, era gate, description) and the per-effect
+multiplier constants; `Station.improvements: StationImprovementType[]` (`src/sim/stations/types.ts`)
+holds which ones are built. One generic command, `buildImprovement`/`computeImprovementPlan`
+(`src/sim/commands.ts`), handles all six — era-gated (Cold Storage 1880, Freight Yard 1870),
+once-per-station, refreshes station economy afterward (Post Office changes supply). Effects, each
+wired at its actual point of use rather than as a side lookup table:
+- **Post Office**: +50% mail supply (`stations/economy.ts`, a final pass after the normal
+  supply/split computation); +25% mail revenue *for mail loaded there* (`trains/loading.ts`
+  `applyUnload` looks up the car's `loadedTile`'s station, not the delivering one).
+- **Hotel**: +25% passenger revenue *delivered there* (the unloading station, not loaded-at); +20%
+  city growth contribution for passengers/mail delivered there (see growth section below).
+- **Warehouse**: storage ×2 and exempts everything from waiting-cargo decay.
+- **Cold Storage**: exempts food/livestock from decay; +15% revenue for food/livestock *loaded
+  there*.
+- **Freight Yard**: halves the loading/unloading dwell multiplier (on top of the station type's own).
+- **Livestock Pens**: gates the "auto"/"fullLoad" loading loop in `planLoadUnload` — without it,
+  livestock cars simply never enter the load list at that station (unloading elsewhere is
+  unaffected).
+`src/sim/stations/improvements.ts` centralizes the three effects (storage cap, decay exemption, load
+speed) that other modules (`cargoFlow.ts`, `loading.ts`) need to query rather than duplicating
+`station.improvements.includes(...)` checks everywhere.
+
+**City growth** (SPEC §8.3). New `src/sim/economy/cityGrowth.ts`: `accrueCityGrowthScore` is called
+from `loading.ts`'s `applyUnload` on every delivery of passengers/mail/food/goods/fuel, splitting the
+score across whichever cities the delivering station's catchment covers (the same coverage concept
+§6.3 already uses for supply/acceptance splitting) — passengers/mail weight 1×, food/goods/fuel 3×,
+per SPEC's formula, with Hotel's +20% applied to the passengers/mail term only. `monthlyCityGrowthStep`
+(called from `tick.ts` at the month boundary) folds that score (or, if under
+`CITY_SERVED_SCORE_THRESHOLD`, a slow population-proportional baseline — SPEC's "0.2%/year") into a
+running `points` balance; once `points` crosses `population × CITY_GROWTH_THRESHOLD_FACTOR`, it fires
+a growth step: population ×= 1.05, one new footprint tile (BFS one ring out from the existing
+footprint, deterministic via the game's own seeded RNG — same style as map-gen's own footprint
+grower in `economy/cities.ts`, but mutating the live map instead of a throwaway `claimed` array), and
+a tier check (`maybeAdvanceTier`, never downgrades) that pushes a `cityGrowth` news item on a bump —
+`"<city> has grown into a <tier>!"` per the review's exact wording. The threshold scaling with
+population is what keeps growth bounded without an explicit decay (a bigger city needs
+proportionally more delivered cargo to keep growing); `CITY_POPULATION_CAP` (metropolis's own max,
+400k) is a hard backstop regardless. **Civic Investment** (`computeCivicInvestmentPlan`/
+`civicInvestment` in `commands.ts`): validates the city is "connected by rail" (some station's
+catchment covers one of its tiles — same coverage concept again), costs
+`$100k × tier rank (1-4) × eraInflation`, once per `CIVIC_INVESTMENT_COOLDOWN_YEARS` (5) per city,
+applies +15% population + one growth-step's worth of footprint/tier check, and pushes its own news
+item. City panel (`ui/infoPanels.ts`) now shows a growth trend row (from `CityGrowthState.lastServed`)
+and a Civic Investment button with a live cost or a "`Available again in Ny`" countdown.
+
+**Judgment call / retuning**: `CITY_GROWTH_THRESHOLD_FACTOR` started at `8` (a size-scaled but
+otherwise made-up number) and turned out to be wildly unreachable — the long-run test's single
+one-car passenger shuttle only accrues on the order of a few hundred growth points a year, so a
+40,000-population city's first threshold (320,000 points) would've taken over two millennia.
+Retuned to `0.05` by working backward from "a single modest passenger route should visibly grow a
+city at least a little over a full 1830-1960 game" (see the long-run test below) rather than any
+principled derivation — SPEC gives no target growth rate, so this is a pure judgment call, and a
+network with many more trains/cars feeding a city will grow it correspondingly faster (and cap out
+at the metropolis ceiling sooner), which seems like the right shape even if the exact constant is a
+guess.
+
+**Industry dynamics** (SPEC §8.2), `src/sim/economy/industryDynamics.ts`, called from `tick.ts`
+right after `monthlyIndustryStep`. Growth/shrink only applies to the six raw (terrain-placed)
+producers SPEC names (Coal/Iron Mine, Logging Camp, Farm, Ranch, Oil Well) — processors and Port
+already track delivered inputs directly. **Deviation**: SPEC's "served ≥50% of output picked up
+over the last 12 months" would need a new rolling per-industry pickup log; instead this reuses
+`StationCargoPile.waitingDays`, which a covering station already resets to 0 on every load
+(`trains/loading.ts` `applyLoad`) and otherwise climbs unbounded (an unserved pile sits pinned near
+its storage cap forever — see `cargoFlow.ts` — so nothing else ever resets it), checked against a
+`INDUSTRY_SERVED_WAITING_DAYS_THRESHOLD` (12) *this* month rather than a trailing 12-month window.
+Simpler, no new state, same underlying idea ("is something actively drawing this pile down"), and
+covered by `tests/sim/economy/industryDynamics.test.ts`'s bounds test running 500 simulated months
+both ways. Served → 3%/month chance to multiply `growthMult` by 1.2 (capped at 3×); unserved → 1%/month
+×0.8 (floored at 0.5×) — `processing.ts`'s raw-producer branch now scales `produces` by this before
+handing it to `stationEconomy` as monthly supply. New-industry spawning: 0.5%/month, picks a random
+terrain-placeable type valid for the current year, scans the whole map for a legal empty tile
+(respecting the same same-type spacing map-gen placement uses), and — **deviation** — biases toward
+"near any city" rather than SPEC's "near *served* cities", since served-city status is this same
+month's own city-growth pass and depending on its ordering felt fragile; "near a city" is a
+reasonable proxy and much simpler.
+
+**Overlays** (SPEC §10.2), `src/render/overlays.ts`, toggled from a new ☰ menu
+(`src/ui/menuPanel.ts`) — pure client-side presentation state in `main.ts` (`OverlayState`), not
+`GameState`, matching every other UI-only toggle (`quickBuild`, `currentTool`) already in this
+codebase:
+- **All catchments**: tints every built station's catchment (reusing `stationCatchmentTiles`, the
+  same helper the single-station placement preview already used).
+- **Cargo supply heatmap**: pick a cargo from a chip row; tints each station's catchment by its
+  `supply[cargo]`, using that cargo's own color (same palette waiting-cargo bars/delivery labels use).
+- **Track type colors**: flat single/double/electrified line colors, independent of (and more
+  visible at low zoom than) the normal track renderer's own subtler tie/catenary rendering.
+- **Train profit colors**: no full per-train P&L exists (attributing track/station upkeep to
+  individual trains would need a lot more bookkeeping), so this is a deliberate proxy — a new
+  `Train.lifetimeRevenue` (accumulated on every delivery) divided by the train's age in days, compared
+  against its locomotive's daily maintenance cost. Green/red/neutral, neutral for anything under 30
+  days old (too new to judge). Drawn as a colored ring under the train sprite.
+
+**Mini-map** (SPEC §10.1), `src/render/minimap.ts`: drawn directly into the main game canvas in
+screen space rather than a separate DOM canvas. A small offscreen bitmap (terrain water/land +
+city-tile tint + track lines) is cached and only rebuilt when `trackVersion`/`mapContentVersion`
+change, not every frame; the viewport rectangle and station dots redraw per frame (both cheap).
+Tap-to-jump is handled in `main.ts`'s existing `handleTap` (checked first, before train-hit-testing
+or station taps). **Placement fix caught by its own screenshot**: initially placed at `left:8px`
+bottom-left, the same column the build toolbar (`left:8px`, full height top-to-bottom on this game's
+short landscape viewport) already occupies — `docs/screenshots/phase-9-station-improvements-zoom2.png`'s
+first draft showed the mini-map drawn right on top of the toolbar's Bulldoze/Info buttons. Moved to
+start past the toolbar's ~56px column (`left:68px`, matching the existing debug seed/size controls'
+own "clear of the toolbar" convention) — confirmed clear in the final screenshots.
+
+**Carry-over fixes from the Phase 8 review**:
+- Floating bottom-right buttons (News/Trains/Quick-build) showing through/on top of open panels
+  (`phase-8-finance-panel-fixed.png`'s faint "News"/"Trains" text bleeding through the panel's 0.92-
+  alpha background): now hidden outright (`display:none` via a `.floating-hidden` class) whenever
+  `isPanelOpen()`, checked once per render frame in `main.ts`, rather than relying on z-index/opacity
+  to fully occlude them. Also gave them a fully solid background (`#181c22`) instead of the
+  translucent one, removing the underlying bleed-through mechanism too.
+- Station label rendering under the News button (`phase-8-electrified-line-zoom2.png`): station/city
+  labels (`render/stations.ts`, `render/labels.ts`) now take a `reserved: ReservedScreenRect[]`
+  param (new `render/reservedRects.ts`) and skip drawing entirely — measuring the label's actual text
+  width first — if its bounding box would intersect a reserved rect. `main.ts` computes those rects
+  each frame from the floating buttons' and mini-map's real `getBoundingClientRect()`/`screenRect()`,
+  so it stays correct as buttons show/hide rather than a hardcoded corner box.
+
+**Station graphics** (`src/render/stations.ts`): each active improvement (plus Engine Shed/Water
+Tower) now draws a small distinct marker (envelope for Post Office, a peaked-roof block for Hotel, a
+barn shape for Warehouse, a snowflake-dotted box for Cold Storage, paired siding lines for Freight
+Yard, a fenced square for Livestock Pens, a tank-on-a-stalk for Water Tower, a shed+wheel for Engine
+Shed) in a row below the station building, from zoom ≥ 1 — confirmed legible in
+`phase-9-station-improvements-zoom2.png`.
+
+**Debug hooks added** (`src/main.ts`, `e2e/gameWindow.ts`, test-only): `buildImprovement`,
+`civicInvestment`, `getCityGrowth`, `getOverlayState`/`setOverlay`/`setHeatmapCargo`,
+`getMiniMapRect`/`tapMiniMap`, `camera.getCenter`; `getStations()` now also reports
+`hasWaterTower`/`improvements`. `debugPlaceIndustry`/`debugPlaceCity` now bump
+`mapContentVersion` — without it, a debug-injected industry/city sat outside the terrain chunk cache
+until something else happened to invalidate it and silently didn't render (caught by the city-growth
+screenshot test's own "before" shot initially showing no city at all).
+
+**A pre-existing e2e flake found and fixed while testing this phase**: `economy.spec.ts`'s "train
+panel shows the current load of each car" clicked a train at its snapshotted tile position after a
+couple of real-time waits (camera centering, panel-open timing) — with the sim clock still ticking at
+1x during those waits, a fast train could drift just far enough to slip outside `findTrainAt`'s hit
+radius, an intermittent miss unrelated to what the test actually checks. This phase's own changes
+happened to shift timing just enough to make it fail consistently rather than intermittently, which
+is what surfaced it. Fixed by pausing the sim (`setSpeed(0)`) before locating/clicking the train,
+rather than skipping or loosening the test.
+
+**Tests** (`npm run check`: 224 unit tests, all green): `tests/sim/stations/improvements.test.ts`
+(each improvement's effect, era gating, cost table), `tests/sim/economy/cityGrowth.test.ts`
+(threshold crossing with footprint+tier+news, the population cap, score attribution/splitting, Civic
+Investment's connection gate/cost/cooldown), `tests/sim/economy/industryDynamics.test.ts` (growthMult
+bounds under 500 simulated months of sustained growth and sustained shrink, and new-industry
+spawning). `tests/sim/balance.test.ts` gained a Phase 9 guard: a fully-improved coal route (every
+applicable improvement on both stations, 1880 so era-gated ones qualify) earns more than the
+unimproved baseline but stays within 1.5× its two-year profit — passes with real margin.
+`tests/sim/longRun.test.ts` extended with a served two-city passenger shuttle running the full
+1830-1961 span: both cities' population grows >15% and their footprint grows beyond the starting 4
+tiles, while staying at/under the metropolis population cap and keeping `cityGrowth` map size sane —
+"grows when served, stays bounded" as the review asked for.
+
+**Screenshots** (`e2e/upgrades.spec.ts`, all reviewed at 800×360):
+- `phase-9-station-improvements-zoom2.png`: a station with 5 improvements built, each marker legible
+  in a row below the platform.
+- `phase-9-city-before-growth.png` / `-after-growth.png`: a village-tier city (a handful of small
+  roofs) before, the same city after a forced growth tick — visibly larger footprint, "Town" tier,
+  and the "Ashtown has grown into a Town!" toast + unread News badge both caught in the after shot.
+- `phase-9-city-panel-civic-investment.png`: the City panel's Tier/Population/Growth rows and the
+  Civic Investment section.
+- `phase-9-city-civic-investment-cooldown.png`: same panel right after investing — population up
+  50k→58k, cash down by the ~$552k charged, and the toast + the button now showing its cooldown
+  instead of a price (the reviewer's "clear feedback" ask).
+- `phase-9-minimap.png` / `-after-jump.png`: the mini-map bottom-left, clear of the toolbar; a
+  corner-tap moved the camera to the opposite side of the map (the after shot happens to land near
+  the map edge — expected, since the tap targeted the mini-map's own far corner).
+- `phase-9-overlay-{catchments,cargoHeatmap,trackType,trainProfit}.png`: each overlay individually
+  toggled and screenshotted; the heatmap test places a real coal mine so there's nonzero supply to
+  actually tint (a supply-less "coal" car alone, as first tried, correctly renders nothing).
+- `phase-9-finance-panel-buttons-hidden.png`: confirms the News/Trains/Quick-build buttons are gone
+  (not just faded) while the Finance panel is open.
+
+**Known issues / deferred**: `CITY_GROWTH_THRESHOLD_FACTOR`, the industry-dynamics served-window
+simplification, and the "near any city" spawn bias are all judgment calls flagged above where SPEC
+under-specifies exact numbers/behavior — revisit if playtesting says growth feels too fast/slow.
+Civic Investment's cost is charged to the `construction` ledger category for lack of a better fit
+(SPEC's ledger categories don't have a dedicated "civic" bucket).
+
+- `npm run check` and `npm run e2e` both green (224 unit tests, 37 e2e specs).
+- Next: **Phase 10 — Real-world maps and the new game screen**.
