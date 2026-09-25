@@ -51,6 +51,34 @@ function renderColorFor(map: GameMap, x: number, y: number): string {
   return terrainColorFor(map, idx);
 }
 
+/**
+ * Extracts the polygon of a single marching-squares cell's corners (walked in order) that lies on
+ * one side of `threshold`, linearly interpolating the crossing point on every edge whose two
+ * corners straddle it. This is the general (not 16-case-lookup) form of the same computation:
+ * walking the corners in order, keeping a corner when it's on the wanted side and inserting an
+ * interpolated point wherever the wanted side changes, produces exactly the same result as the
+ * standard case table for a single quad. Used by `TerrainRenderer.drawCoastlineContour`.
+ */
+function marchingSquaresPolygon(
+  corners: ReadonlyArray<{ x: number; y: number; v: number }>,
+  threshold: number,
+  side: "ge" | "lt",
+): Array<{ x: number; y: number }> {
+  const wanted = (v: number): boolean => (side === "ge" ? v >= threshold : v < threshold);
+  const out: Array<{ x: number; y: number }> = [];
+  for (let i = 0; i < corners.length; i++) {
+    const cur = corners[i] as { x: number; y: number; v: number };
+    const next = corners[(i + 1) % corners.length] as { x: number; y: number; v: number };
+    const curWanted = wanted(cur.v);
+    if (curWanted) out.push({ x: cur.x, y: cur.y });
+    if (curWanted !== wanted(next.v)) {
+      const t = (threshold - cur.v) / (next.v - cur.v);
+      out.push({ x: cur.x + (next.x - cur.x) * t, y: cur.y + (next.y - cur.y) * t });
+    }
+  }
+  return out;
+}
+
 function chunkCacheKey(cx: number, cy: number, bucket: ZoomBucket, overview: boolean): string {
   return `${bucket}|${overview ? "o" : "f"}|${cx}|${cy}`;
 }
@@ -253,7 +281,7 @@ export class TerrainRenderer {
     }
 
     this.drawEdgeBlend(ctx, mapX, mapY, px, py, size);
-    this.drawCornerBlend(ctx, mapX, mapY, px, py, size);
+    this.drawCoastlineContour(ctx, mapX, mapY, px, py, size, terrain === "water");
 
     const cityId = this.map.cityId[idx] as number;
     const industryIdx = this.map.industryId[idx] as number;
@@ -320,6 +348,9 @@ export class TerrainRenderer {
       const nIdx = tileIndex(this.map, nx, ny);
       const nTerrain = terrainName(this.map.terrain[nIdx] as number);
       if (nTerrain === terrain) continue;
+      // Water/land edges are the true marching-squares contour (drawCoastlineContour) now, not a
+      // jittered blob wash — skip so the two don't double up.
+      if (terrain === "water" || nTerrain === "water") continue;
       const nColor = renderColorFor(this.map, nx, ny);
 
       for (let i = 0; i < blobCount; i++) {
@@ -339,59 +370,105 @@ export class TerrainRenderer {
   }
 
   /**
-   * Softens a diagonal-only coastline corner (this tile and its diagonal neighbor disagree about
-   * being water, but both orthogonal neighbors agree with the diagonal) — the case the cardinal
-   * edge blend above can't reach, otherwise the pixel-grid corner shows through.
+   * "Water-ness" (0..1) of the grid corner at (gx, gy) — the average of the up-to-4 tiles sharing
+   * that corner point. This is the standard dual-grid input for marching squares: along a straight
+   * coastline every corner sits at exactly 0.5 (2 of the 4 sharing tiles are water, 2 aren't), so
+   * thresholding at 0.5 and linearly interpolating along each tile edge reproduces the true
+   * coastline geometry instead of the tile grid's own pixel-stepped boundary. Off-map tiles count
+   * as land (a map edge isn't itself a coastline unless a real water tile makes it one).
    */
-  private drawCornerBlend(
+  private cornerWaterness(gx: number, gy: number): number {
+    let sum = 0;
+    for (const [dx, dy] of [
+      [-1, -1],
+      [0, -1],
+      [-1, 0],
+      [0, 0],
+    ] as const) {
+      const tx = gx + dx;
+      const ty = gy + dy;
+      if (
+        inBounds(this.map, tx, ty) &&
+        (this.map.terrain[tileIndex(this.map, tx, ty)] as number) === WATER_ID
+      ) {
+        sum += 1;
+      }
+    }
+    return sum / 4;
+  }
+
+  /**
+   * Marching-squares coastline (SPEC §10.3 / Phase 2 & 11 review carry-over: "smooth coastlines
+   * ... true marching-squares contour instead of per-tile steps"). Every land tile bordering water
+   * gets the true, continuously-interpolated water polygon for its corner cut filled and feathered
+   * on top of its base color (and the mirror image for a water tile bordering land) — a real
+   * geometric contour line instead of jittered gradient blobs approximating one.
+   */
+  private drawCoastlineContour(
     ctx: CanvasRenderingContext2D,
     mapX: number,
     mapY: number,
     px: number,
     py: number,
     size: number,
+    isWater: boolean,
   ): void {
-    const idx = tileIndex(this.map, mapX, mapY);
-    const isWater = (this.map.terrain[idx] as number) === WATER_ID;
-    const corners: Array<{ dx: number; dy: number; cx: number; cy: number }> = [
-      { dx: -1, dy: -1, cx: 0, cy: 0 },
-      { dx: 1, dy: -1, cx: size, cy: 0 },
-      { dx: -1, dy: 1, cx: 0, cy: size },
-      { dx: 1, dy: 1, cx: size, cy: size },
+    const c00 = this.cornerWaterness(mapX, mapY);
+    const c10 = this.cornerWaterness(mapX + 1, mapY);
+    const c11 = this.cornerWaterness(mapX + 1, mapY + 1);
+    const c01 = this.cornerWaterness(mapX, mapY + 1);
+    const minC = Math.min(c00, c10, c11, c01);
+    const maxC = Math.max(c00, c10, c11, c01);
+    // Uniform corners (deep inland or open water) — no coastline through this tile, nothing to do.
+    if (maxC < 0.5 || minC >= 0.5) return;
+
+    const corners = [
+      { x: 0, y: 0, v: c00 },
+      { x: size, y: 0, v: c10 },
+      { x: size, y: size, v: c11 },
+      { x: 0, y: size, v: c01 },
     ];
+    // On a land tile, cut out the water polygon (>= threshold); on a water tile, cut out the land
+    // polygon (< threshold) — same corner field, the complementary side of the same contour.
+    const polygon = marchingSquaresPolygon(corners, 0.5, isWater ? "lt" : "ge");
+    if (polygon.length < 3) return;
 
-    for (const corner of corners) {
-      const dnx = mapX + corner.dx;
-      const dny = mapY + corner.dy;
-      const onx = mapX + corner.dx;
-      const ony = mapY;
-      const omx = mapX;
-      const omy = mapY + corner.dy;
-      if (
-        !inBounds(this.map, dnx, dny) ||
-        !inBounds(this.map, onx, ony) ||
-        !inBounds(this.map, omx, omy)
-      ) {
-        continue;
-      }
-      const diagIsWater = (this.map.terrain[tileIndex(this.map, dnx, dny)] as number) === WATER_ID;
-      if (diagIsWater === isWater) continue;
-      const o1Water = (this.map.terrain[tileIndex(this.map, onx, ony)] as number) === WATER_ID;
-      const o2Water = (this.map.terrain[tileIndex(this.map, omx, omy)] as number) === WATER_ID;
-      if (o1Water !== diagIsWater || o2Water !== diagIsWater) continue; // a full edge, not a bare corner
+    const fillColor = isWater ? this.landNeighborColor(mapX, mapY) : WATER_SHALLOW_COLOR;
 
-      const color = diagIsWater ? WATER_SHALLOW_COLOR : renderColorFor(this.map, mapX, mapY);
-      const r = size * 0.34;
-      const cx = px + corner.cx;
-      const cy = py + corner.cy;
-      const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-      gradient.addColorStop(0, withAlpha(color, 0.32));
-      gradient.addColorStop(1, withAlpha(color, 0));
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.fill();
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(px + (polygon[0] as { x: number }).x, py + (polygon[0] as { y: number }).y);
+    for (let i = 1; i < polygon.length; i++) {
+      ctx.lineTo(px + (polygon[i] as { x: number }).x, py + (polygon[i] as { y: number }).y);
     }
+    ctx.closePath();
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+
+    // Soft blurred stroke along the true contour so the boundary feathers instead of showing a
+    // hard edge between the polygon fill and this tile's own base color.
+    ctx.shadowColor = withAlpha(fillColor, 0.5);
+    ctx.shadowBlur = size * 0.22;
+    ctx.strokeStyle = withAlpha(fillColor, 0.35);
+    ctx.lineWidth = size * 0.1;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /** Picks a representative land color for a water tile's coastline patch — the first non-water
+   * 8-neighbor found, in a fixed scan order (deterministic, not random, so the same tile always
+   * blends toward the same color across re-renders). Falls back to plain in the (unreachable in
+   * practice, since this is only called when the tile has at least one land corner) case none is
+   * found. */
+  private landNeighborColor(mapX: number, mapY: number): string {
+    for (const [dx, dy] of DIRS8) {
+      const nx = mapX + dx;
+      const ny = mapY + dy;
+      if (!inBounds(this.map, nx, ny)) continue;
+      const nIdx = tileIndex(this.map, nx, ny);
+      if ((this.map.terrain[nIdx] as number) !== WATER_ID) return terrainColorFor(this.map, nIdx);
+    }
+    return TERRAIN_COLORS.plain;
   }
 
   private drawDecoration(

@@ -96,11 +96,13 @@ function activeImprovements(station: Station): StationMarkerType[] {
   return list;
 }
 
-/** A tiny distinct-shaped marker per improvement type, small enough to sit in a row beside the
- * station building without dominating it, but clear enough at zoom >= 1 to tell at a glance which
- * improvements a station has (SPEC §6.2, Phase 9 review: "should visibly change the station
- * graphic"). Only drawn from zoom 1 up — below that the whole station icon itself is barely a few
- * px, and these would just be noise. */
+/** A distinct-shaped marker per improvement type — each reads as its own small building or sign
+ * next to the station, not a dot (SPEC §6.2, Phase 9 review: "should visibly change the station
+ * graphic"; Phase 11 review: "clearly visible small building/sign next to the station" — the
+ * original markers were legible only as colored specks at zoom 2). A soft ground shadow under
+ * every marker gives it the same "sits on the ground" weight as the station building itself.
+ * Only drawn from zoom 1 up — below that the whole station icon itself is barely a few px, and
+ * these would just be noise. */
 function drawImprovementMarker(
   ctx: CanvasRenderingContext2D,
   type: StationMarkerType,
@@ -109,6 +111,12 @@ function drawImprovementMarker(
   r: number,
 ): void {
   const color = STATION_IMPROVEMENT_COLORS[type] ?? "#B8BDC4";
+
+  ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + r * 0.75, r * 0.7, r * 0.22, 0, 0, Math.PI * 2);
+  ctx.fill();
+
   ctx.fillStyle = color;
   switch (type) {
     case "waterTower":
@@ -199,10 +207,10 @@ function drawImprovementMarkers(
   const improvements = activeImprovements(station);
   if (improvements.length === 0 || size < TILE_SIZE * 0.6) return;
   const cx = px + size / 2;
-  const rowY = py + size * 0.78;
-  const r = size * 0.09;
-  const spacing = size * 0.24;
-  const perRow = 4;
+  const rowY = py + size * 0.98;
+  const r = size * 0.17;
+  const spacing = size * 0.44;
+  const perRow = 3;
   improvements.forEach((type, i) => {
     const row = Math.floor(i / perRow);
     const col = i % perRow;

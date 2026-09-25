@@ -1,15 +1,25 @@
 /**
  * City building rendering (SPEC §10.3): denser toward the footprint's center so a city reads as a
  * town with a core rather than scattered dots. Above a closeness threshold a tile draws as a
- * dense downtown "block" — rows of roofs butted together along street lines, like row houses;
- * below it, a handful of separate small houses with visible gaps (Phase 3/5 reviews: the original
- * single scattered-roofs layout read as sparse dots even at the core). Drawn per footprint tile,
- * baked into the terrain chunk cache alongside the other per-tile decorations.
+ * dense downtown "block" — rows of roofs along street lines, like row houses; below it, a handful
+ * of separate small houses with visible gaps (Phase 3/5 reviews: the original single scattered-
+ * roofs layout read as sparse dots even at the core). Phase 11 review: even the dense block still
+ * read as a flat grid of axis-aligned rectangles — every building now gets a small rotation
+ * jitter, an occasional small gap (green tile showing through, sometimes with a tiny tree) instead
+ * of every roof touching its neighbor, and a gable ridge line so roofs read as pitched, not flat
+ * colored boxes. Drawn per footprint tile, baked into the terrain chunk cache alongside the other
+ * per-tile decorations.
  */
 import type { CityTier } from "../data/cities";
 import { CITY_ROOF_COLORS, CITY_ROOF_SHADOW, CITY_WALL_COLOR } from "./palette";
 
 const STREET_COLOR = "rgba(214, 206, 184, 0.55)";
+const TREE_COLOR = "#4A7A3E";
+const TREE_SHADOW = "#3A6230";
+const GABLE_LINE_COLOR = "rgba(0, 0, 0, 0.22)";
+/** Max rotation jitter per building, radians (~9°) — enough to read as "not a perfect grid"
+ * without buildings visibly overlapping their neighbors. */
+const MAX_ROOF_ROTATION = 0.16;
 
 /** Row/building count and tallness at the dense end, by tier — a village never gets the "block"
  * treatment (it has no downtown), the higher tiers do, more so at higher tiers. */
@@ -23,8 +33,72 @@ const TIER_DENSITY: Record<
   metropolis: { rows: 3, buildingsPerRow: 4, tallChance: 0.45, blockAt: 0.4 },
 };
 
-/** Dense downtown block: rows of roofs spanning the full tile width, touching (no gaps) —
- * reads as a solid built-up block rather than individual houses. */
+/** One building, centered at (cx, cy), with a small rotation jitter and a gable ridge line down
+ * its long axis so it reads as a small pitched-roof house rather than a flat colored rectangle. */
+function drawRoof(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  w: number,
+  h: number,
+  color: string,
+  tall: boolean,
+  size: number,
+): void {
+  const angle = (Math.random() - 0.5) * 2 * MAX_ROOF_ROTATION;
+  const shadowOffset = size * (tall ? 0.05 : 0.025);
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+
+  ctx.fillStyle = CITY_ROOF_SHADOW;
+  ctx.fillRect(-w / 2 + shadowOffset, -h / 2 + shadowOffset, w, h);
+
+  if (tall) {
+    const wallH = h * 0.6;
+    ctx.fillStyle = CITY_WALL_COLOR;
+    ctx.fillRect(-w / 2, -h / 2 - wallH, w, wallH);
+  }
+
+  ctx.fillStyle = color;
+  ctx.fillRect(-w / 2, -h / 2, w, h);
+
+  // Gable ridge line (roof shape, not just a flat box) — along whichever axis is longer, so it
+  // reads as a real pitched roofline rather than an arbitrary diagonal.
+  ctx.strokeStyle = GABLE_LINE_COLOR;
+  ctx.lineWidth = Math.max(0.6, size * 0.014);
+  ctx.beginPath();
+  if (w >= h) {
+    ctx.moveTo(-w / 2, 0);
+    ctx.lineTo(w / 2, 0);
+  } else {
+    ctx.moveTo(0, -h / 2);
+    ctx.lineTo(0, h / 2);
+  }
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+/** A tiny tree (matching the forest decoration's look, scaled down) — used to fill a gap between
+ * buildings so a block's gaps read as "green space", not just an accidental hole. */
+function drawGapTree(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number): void {
+  const r = size * (0.07 + Math.random() * 0.04);
+  ctx.fillStyle = TREE_SHADOW;
+  ctx.beginPath();
+  ctx.arc(cx + r * 0.25, cy + r * 0.25, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = TREE_COLOR;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** Dense downtown block: rows of roofs spanning the tile width. Most buildings sit edge to edge
+ * (still reads as built-up, not sparse) but a fraction of slots open up into a small gap — the
+ * underlying green tile shows through, occasionally with a small tree — so the block isn't one
+ * unbroken rectangle grid. */
 function drawDenseBlock(
   ctx: CanvasRenderingContext2D,
   px: number,
@@ -44,25 +118,28 @@ function drawDenseBlock(
 
     let x = px;
     for (let i = 0; i < count; i++) {
-      const w = ((weights[i] as number) / totalWeight) * size;
-      const h = rowH * (0.8 + Math.random() * 0.18);
-      const ry = rowY + (rowH - h);
-      const tall = tallChance > 0 && Math.random() < tallChance;
-      const shadowOffset = size * (tall ? 0.05 : 0.02);
+      const slotW = ((weights[i] as number) / totalWeight) * size;
 
-      ctx.fillStyle = CITY_ROOF_SHADOW;
-      ctx.fillRect(x + shadowOffset, ry + shadowOffset, w, h);
-
-      if (tall) {
-        const wallH = h * 0.6;
-        ctx.fillStyle = CITY_WALL_COLOR;
-        ctx.fillRect(x, ry - wallH, w, wallH);
+      // ~1 in 6 slots opens into a gap instead of a building (Phase 11 review: "green gaps ...
+      // instead of rectangle grids"). Never the very first slot of a row, so a row still visibly
+      // fronts the street on its left edge.
+      if (i > 0 && Math.random() < 0.16) {
+        if (Math.random() < 0.5) {
+          drawGapTree(ctx, x + slotW / 2, rowY + rowH / 2, size);
+        }
+        x += slotW;
+        continue;
       }
 
+      const gap = slotW * 0.06;
+      const w = slotW - gap;
+      const h = rowH * (0.78 + Math.random() * 0.18);
+      const ry = rowY + (rowH - h);
+      const tall = tallChance > 0 && Math.random() < tallChance;
       const color = CITY_ROOF_COLORS[(i + r + Math.floor(x)) % CITY_ROOF_COLORS.length] as string;
-      ctx.fillStyle = color;
-      ctx.fillRect(x, ry, w, h);
-      x += w;
+
+      drawRoof(ctx, x + w / 2, ry + h / 2, w, h, color, tall, size);
+      x += slotW;
     }
   }
 
@@ -108,27 +185,21 @@ function drawScatteredHouses(
     ctx.stroke();
   }
 
+  // A small tree or two in the open ground around the houses — plenty of green space at the
+  // sparse edge already, this just makes it read as deliberate yard/greenery, not empty tile.
+  if (Math.random() < 0.5) {
+    drawGapTree(ctx, px + Math.random() * size, py + Math.random() * size, size);
+  }
+
   for (let i = 0; i < roofs; i++) {
     const w = size * (0.14 + Math.random() * 0.1);
     const h = size * (0.12 + Math.random() * 0.08);
     const rx = px + Math.random() * (size - w);
     const ry = py + Math.random() * (size - h);
     const tall = tileTallChance > 0 && Math.random() < tileTallChance;
-    const shadowOffset = size * (tall ? 0.06 : 0.03);
-
-    ctx.fillStyle = CITY_ROOF_SHADOW;
-    ctx.fillRect(rx + shadowOffset, ry + shadowOffset, w, h);
-
-    if (tall) {
-      // A taller block reads as a short wall face above its roof line.
-      const wallH = h * 0.7;
-      ctx.fillStyle = CITY_WALL_COLOR;
-      ctx.fillRect(rx, ry - wallH, w, wallH);
-    }
-
     const color = CITY_ROOF_COLORS[(i + Math.floor(rx + ry)) % CITY_ROOF_COLORS.length] as string;
-    ctx.fillStyle = color;
-    ctx.fillRect(rx, ry, w, h);
+
+    drawRoof(ctx, rx + w / 2, ry + h / 2, w, h, color, tall, size);
   }
 }
 
