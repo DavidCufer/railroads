@@ -189,3 +189,19 @@ export function findTrainRoute(
   path.reverse();
   return path;
 }
+
+/** True if `options.electric`'s route fails *only* because of missing electrification — i.e. a
+ * route exists once that one constraint is dropped (SPEC §7.3's "clear reason in the UI: 'Route
+ * not electrified'", PLAN Phase 8). Used by the train panel to distinguish that from a genuinely
+ * disconnected network, which shows the generic "No route" message instead. */
+export function isElectrificationOnlyBlocker(
+  mapWidth: number,
+  graph: TrackGraph,
+  start: number,
+  goal: number,
+  options: RouteOptions,
+): boolean {
+  if (!options.electric) return false;
+  if (findTrainRoute(mapWidth, graph, start, goal, options) !== null) return false;
+  return findTrainRoute(mapWidth, graph, start, goal, { ...options, electric: false }) !== null;
+}

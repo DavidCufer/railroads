@@ -7,6 +7,7 @@ import { ledgerExpenses, ledgerNetProfit, ledgerRevenue } from "../data/finance"
 import { netWorth } from "../sim/finance/ledger";
 import type { GameState } from "../sim/state";
 import { calendarFromTicks } from "../sim/time";
+import { newlyAvailableLocomotives } from "../sim/tick";
 import { h } from "./h";
 import { openPanel } from "./panel";
 import { strings } from "./strings";
@@ -48,6 +49,25 @@ export function openYearlyReport(container: HTMLElement, state: GameState): void
     row(strings.finance.cash, formatMoney(state.cash)),
     row(strings.finance.netWorth, formatMoney(netWorth(state))),
   ];
+
+  const newLocos = newlyAvailableLocomotives(state, year);
+  if (newLocos.length > 0) {
+    body.push(h("div", { className: "panel-section-title" }, strings.yearlyReport.newTechnology));
+    for (const loco of newLocos) {
+      body.push(
+        h(
+          "div",
+          { className: "yearly-report-tech-card" },
+          h("span", { className: "train-loco-new-badge" }, strings.trains.newBadge),
+          h(
+            "span",
+            null,
+            `${loco.name} (${strings.trains.locoTypes[loco.type]}) — ${loco.maxSpeedKmh} km/h · ${loco.maxCars} cars · ${formatMoney(loco.cost)}`,
+          ),
+        ),
+      );
+    }
+  }
 
   openPanel(container, { title: strings.yearlyReport.title(year), body });
 }

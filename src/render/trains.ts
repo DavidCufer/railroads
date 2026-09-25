@@ -253,7 +253,15 @@ function drawStatusIcon(
   size: number,
   train: Train,
 ): void {
-  if (train.status === "waitingForBlock" || train.status === "waitingForStation") {
+  if (train.status === "broken") {
+    // Breakdown indicator (SPEC §7.6, PLAN Phase 8 screenshot ask) — distinct from the ⚠ used for
+    // stuck/no-route so a glance at the map tells "under repair" apart from "needs the player's
+    // attention to fix the network".
+    ctx.font = `${Math.max(10, size * 0.4)}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillText("🔧", x, y - size * 0.35);
+  } else if (train.status === "waitingForBlock" || train.status === "waitingForStation") {
     ctx.fillStyle = TRAIN_SIGNAL_WAIT_COLOR;
     ctx.beginPath();
     ctx.arc(x, y - size * 0.45, size * 0.09, 0, Math.PI * 2);

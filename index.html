@@ -322,6 +322,7 @@
         box-sizing: border-box;
       }
       .station-upgrade-btn,
+      .station-water-tower-btn,
       .station-buy-train-btn {
         width: 100%;
         min-height: 40px;
@@ -332,7 +333,8 @@
         font: 700 13px sans-serif;
         margin-top: 4px;
       }
-      .station-upgrade-btn:disabled {
+      .station-upgrade-btn:disabled,
+      .station-water-tower-btn:disabled {
         background: #5a5f57;
         color: rgba(255, 255, 255, 0.5);
       }
@@ -423,6 +425,25 @@
       .train-loco-stats {
         opacity: 0.75;
         white-space: nowrap;
+      }
+      .yearly-report-tech-card {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.06);
+        font: 12px sans-serif;
+      }
+      .train-loco-new-badge {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 1px 6px;
+        border-radius: 999px;
+        background: #5bc27a;
+        color: #0c2013;
+        font: 700 10px sans-serif;
+        vertical-align: middle;
       }
       .train-car-picker {
         display: flex;
@@ -704,6 +725,11 @@
         opacity: 0.35;
       }
       .finance-bankrupt-warning {
+        color: #e05a4f;
+        font-weight: 700;
+        font-size: 12px;
+      }
+      .train-route-warning {
         color: #e05a4f;
         font-weight: 700;
         font-size: 12px;

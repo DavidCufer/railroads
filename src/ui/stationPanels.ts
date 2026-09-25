@@ -10,8 +10,10 @@ import { STATION_ACCEPTANCE_THRESHOLD, STATION_TYPES, STATION_TYPE_DEFS } from "
 import type { StationType } from "../data/stations";
 import {
   buildStation,
+  buildWaterTower,
   computeStationBuildPlan,
   computeStationUpgradePlan,
+  computeWaterTowerPlan,
   renameStation,
   upgradeStation,
 } from "../sim/commands";
@@ -258,6 +260,30 @@ export function openStationPanel(
           ),
         );
       }
+    }
+
+    if (station.hasWaterTower) {
+      body.push(h("div", { className: "panel-row" }, `💧 ${strings.station.waterTowerBuilt}`));
+    } else {
+      const waterTowerPlan = computeWaterTowerPlan(state, stationId);
+      body.push(
+        h(
+          "button",
+          {
+            className: "station-water-tower-btn",
+            disabled: waterTowerPlan.cost > state.cash,
+            onClick: () => {
+              const result = buildWaterTower(state, stationId);
+              if (!result.ok) {
+                showToast(container, strings.build.reasons[result.reason], "warn");
+                return;
+              }
+              render();
+            },
+          },
+          `${strings.station.buildWaterTower} (${formatMoney(waterTowerPlan.cost)})`,
+        ),
+      );
     }
 
     if (nextType) {

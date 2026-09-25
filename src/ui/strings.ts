@@ -86,6 +86,8 @@ export const strings = {
     waitingCargo: "Waiting cargo",
     waitingCargoNone: "Nothing waiting.",
     engineShedFree: "Free Engine Shed",
+    waterTowerBuilt: "Water Tower",
+    buildWaterTower: "Build Water Tower",
     rename: "Name",
     upgradeToPrefix: "Upgrade to ",
     build: "Build",
@@ -107,6 +109,7 @@ export const strings = {
     addStop: "+ Add stop (tap a station)",
     tapAStation: "Tap a station on the map…",
     trainsButton: "Trains",
+    newBadge: "New!",
     locoTypes: {
       steam: "Steam",
       diesel: "Diesel",
@@ -127,6 +130,10 @@ export const strings = {
       unloadOnly: "Unload only",
       passThrough: "Pass through",
     },
+    routeNotElectrified: "Route not electrified ⚡",
+    replace: "Replace",
+    replaceTitle: "Replace Locomotive",
+    tradeInCredit: "Trade-in credit",
   },
   finance: {
     title: "Finance",

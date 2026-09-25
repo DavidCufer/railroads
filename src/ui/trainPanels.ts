@@ -5,17 +5,26 @@
  * a real flex sibling outside the scrollport, so everything still fits an 800×360 view.
  */
 import { CARGO, CARGO_TYPES, type CargoType } from "../data/cargo";
-import { locomotiveById, locomotivesAvailableIn, type LocomotiveDef } from "../data/trains";
+import {
+  locomotiveById,
+  locomotivesAvailableIn,
+  NEW_LOCOMOTIVE_BADGE_YEARS,
+  STEAM_PHASE_OUT_YEAR,
+  type LocomotiveDef,
+} from "../data/trains";
 import {
   buyTrain,
   computeBuyTrainPlan,
+  computeReplaceLocoPlan,
   computeSellTrainPlan,
+  replaceLocomotive,
   sellTrain,
   setOrders,
 } from "../sim/commands";
 import type { GameState } from "../sim/state";
 import { calendarFromTicks } from "../sim/time";
-import type { LoadingRule, TrainCar, TrainOrder } from "../sim/trains/types";
+import { getTrainRuntime, isElectrificationOnlyBlocker } from "../sim/trains";
+import type { LoadingRule, Train, TrainCar, TrainOrder } from "../sim/trains/types";
 import { chipTextColor, row } from "./infoPanels";
 import { h } from "./h";
 import { closePanel, openPanel } from "./panel";
@@ -27,6 +36,34 @@ const LOADING_RULES: readonly LoadingRule[] = ["auto", "fullLoad", "unloadOnly",
 
 function currentYear(state: GameState): number {
   return calendarFromTicks(state.startYear, state.ticks).year;
+}
+
+/** SPEC §7.3: "clear reason in the UI: 'Route not electrified'" — checked only when the train is
+ * actually stuck with no route and its locomotive is electric; a route that fails for any other
+ * reason (a genuinely disconnected network, a wooden bridge too weak for it) falls back to the
+ * plain "No route ⚠" status text instead. */
+function electrifiedRouteBlocked(state: GameState, train: Train, loco: LocomotiveDef): boolean {
+  if (train.status !== "noRoute" || loco.type !== "electric") return false;
+  const order = train.orders[train.currentOrderIndex];
+  const targetStation = order && state.stations.find((s) => s.id === order.stationId);
+  if (!targetStation) return false;
+  const runtime = getTrainRuntime(state);
+  const start = train.route[train.routeIndex];
+  if (start === undefined) return false;
+  return isElectrificationOnlyBlocker(
+    state.map.width,
+    state.trackGraph,
+    start,
+    targetStation.tile,
+    {
+      weightClass: loco.weightClass,
+      electric: true,
+      incomingDirection: train.direction,
+      stationTiles: runtime.stationTiles,
+      blockPenalties: train.blockPenalties,
+      edgeToBlock: runtime.partition.edgeToBlock,
+    },
+  );
 }
 
 /** A car chip showing its current load (SPEC §10.2's "current load" in the train panel) — solid
@@ -106,6 +143,8 @@ export function openBuyTrainPanel(
             "span",
             { className: "train-loco-name" },
             `${loco.name} (${strings.trains.locoTypes[loco.type]})`,
+            loco.introYear + NEW_LOCOMOTIVE_BADGE_YEARS >= year &&
+              h("span", { className: "train-loco-new-badge" }, strings.trains.newBadge),
           ),
           h(
             "span",
@@ -263,6 +302,15 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
 
     const body: Node[] = [
       row(strings.trains.status, strings.trains.statusNames[train.status]),
+      ...(loco && electrifiedRouteBlocked(state, train, loco)
+        ? [
+            h(
+              "div",
+              { className: "panel-row train-route-warning" },
+              strings.trains.routeNotElectrified,
+            ),
+          ]
+        : []),
       row(strings.trains.locomotive, loco?.name ?? "?"),
       row(strings.trains.speed, `${Math.round(train.speed)} km/h`),
       h("div", { className: "panel-section-title" }, strings.trains.consist),
@@ -298,11 +346,82 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
       },
       `${strings.trains.sell} (+${formatMoney(sellPlan.refund)})`,
     );
+    const replaceBtn = h(
+      "button",
+      {
+        className: "panel-action-cancel train-replace-btn",
+        onClick: () => openReplaceLocoPanel(container, state, trainId),
+      },
+      strings.trains.replace,
+    );
 
-    openPanel(container, { title: train.name, body, footer: [sellBtn] });
+    openPanel(container, { title: train.name, body, footer: [replaceBtn, sellBtn] });
   };
 
   render();
+}
+
+/** Opens the locomotive picker for `trainId`'s "Replace Locomotive" action (SPEC §7.6: pay the new
+ * loco's price minus a trade-in credit for the old one, keep cars and orders). Tapping a model
+ * replaces immediately (no separate confirm bar, matching the Station upgrade button's flow). */
+function openReplaceLocoPanel(container: HTMLElement, state: GameState, trainId: number): void {
+  const year = currentYear(state);
+  const available = locomotivesAvailableIn(year).filter(
+    (l) => l.type !== "steam" || year <= STEAM_PHASE_OUT_YEAR,
+  );
+
+  const list = h("div", { className: "train-loco-list" });
+  list.replaceChildren(
+    ...available.map((loco) => {
+      const plan = computeReplaceLocoPlan(state, trainId, loco.id);
+      const btn = h(
+        "button",
+        {
+          className: "train-loco-btn",
+          disabled: !plan.valid || plan.netCost > state.cash,
+          onClick: () => {
+            const result = replaceLocomotive(state, trainId, loco.id);
+            if (!result.ok) {
+              showToast(container, strings.build.reasons[result.reason], "warn");
+              return;
+            }
+            openTrainPanel(container, state, trainId);
+          },
+        },
+        h(
+          "span",
+          { className: "train-loco-name" },
+          `${loco.name} (${strings.trains.locoTypes[loco.type]})`,
+          loco.introYear + NEW_LOCOMOTIVE_BADGE_YEARS >= year &&
+            h("span", { className: "train-loco-new-badge" }, strings.trains.newBadge),
+        ),
+        h(
+          "span",
+          { className: "train-loco-stats" },
+          plan.valid
+            ? `${formatMoney(plan.netCost)} (${strings.trains.tradeInCredit} ${formatMoney(plan.tradeInValue)})`
+            : "—",
+        ),
+      );
+      return btn;
+    }),
+  );
+
+  const cancelBtn = h(
+    "button",
+    {
+      className: "panel-action-cancel",
+      "aria-label": strings.ui.close,
+      onClick: () => openTrainPanel(container, state, trainId),
+    },
+    strings.station.cancel,
+  );
+
+  openPanel(container, {
+    title: strings.trains.replaceTitle,
+    body: [list],
+    footer: [cancelBtn],
+  });
 }
 
 /** Opens the train list; tapping a row focuses the camera on that train (via `onFocus`) and opens
