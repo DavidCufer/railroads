@@ -186,3 +186,44 @@ export function drawTrainProfitOverlay(
   }
   ctx.restore();
 }
+
+/** Tile-boundary grid (SPEC §13's "show grid" setting) — thin lines over the visible viewport
+ * only, so it stays cheap regardless of map size. Skipped below the overview zoom bucket, where
+ * individual tiles are too small to usefully outline. */
+export function drawGridOverlay(
+  ctx: CanvasRenderingContext2D,
+  camera: Camera,
+  viewportW: number,
+  viewportH: number,
+  mapWidth: number,
+  mapHeight: number,
+): void {
+  if (camera.zoom < 0.5) return;
+  const topLeft = camera.screenToWorld(0, 0, viewportW, viewportH);
+  const bottomRight = camera.screenToWorld(viewportW, viewportH, viewportW, viewportH);
+  const x0 = Math.max(0, Math.floor(topLeft.x / TILE_SIZE));
+  const y0 = Math.max(0, Math.floor(topLeft.y / TILE_SIZE));
+  const x1 = Math.min(mapWidth, Math.ceil(bottomRight.x / TILE_SIZE));
+  const y1 = Math.min(mapHeight, Math.ceil(bottomRight.y / TILE_SIZE));
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = x0; x <= x1; x++) {
+    const sx = camera.worldToScreen(x * TILE_SIZE, 0, viewportW, viewportH).x;
+    const sTop = camera.worldToScreen(0, y0 * TILE_SIZE, viewportW, viewportH).y;
+    const sBottom = camera.worldToScreen(0, y1 * TILE_SIZE, viewportW, viewportH).y;
+    ctx.moveTo(sx + 0.5, sTop);
+    ctx.lineTo(sx + 0.5, sBottom);
+  }
+  for (let y = y0; y <= y1; y++) {
+    const sy = camera.worldToScreen(0, y * TILE_SIZE, viewportW, viewportH).y;
+    const sLeft = camera.worldToScreen(x0 * TILE_SIZE, 0, viewportW, viewportH).x;
+    const sRight = camera.worldToScreen(x1 * TILE_SIZE, 0, viewportW, viewportH).x;
+    ctx.moveTo(sLeft, sy + 0.5);
+    ctx.lineTo(sRight, sy + 0.5);
+  }
+  ctx.stroke();
+  ctx.restore();
+}

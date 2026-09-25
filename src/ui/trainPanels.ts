@@ -30,6 +30,8 @@ import { closePanel, openPanel } from "./panel";
 import { strings } from "./strings";
 import { formatMoney } from "./format";
 import { showToast } from "./toast";
+import { playSound } from "./sound";
+import { formatSpeed, loadSettings } from "./settings";
 
 const LOADING_RULES: readonly LoadingRule[] = ["auto", "fullLoad", "unloadOnly", "passThrough"];
 
@@ -148,7 +150,7 @@ export function openBuyTrainPanel(
           h(
             "span",
             { className: "train-loco-stats" },
-            `${loco.maxSpeedKmh} km/h · ${loco.maxCars} cars · ${formatMoney(loco.cost)}`,
+            `${formatSpeed(loco.maxSpeedKmh, loadSettings().units)} · ${loco.maxCars} cars · ${formatMoney(loco.cost)}`,
           ),
         ),
       ),
@@ -261,6 +263,7 @@ export function openBuyTrainPanel(
       showToast(container, strings.build.reasons[bought.reason], "warn");
       return;
     }
+    playSound("whistle");
     const train = state.trains[state.trains.length - 1];
     if (train) {
       const result = setOrders(state, train.id, orders);
@@ -311,7 +314,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
           ]
         : []),
       row(strings.trains.locomotive, loco?.name ?? "?"),
-      row(strings.trains.speed, `${Math.round(train.speed)} km/h`),
+      row(strings.trains.speed, formatSpeed(train.speed, loadSettings().units)),
       h("div", { className: "panel-section-title" }, strings.trains.consist),
       h(
         "div",

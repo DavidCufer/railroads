@@ -24,13 +24,27 @@ test.describe("Phase 10 — title screen and New Game screen", () => {
     expect(consoleErrors).toEqual([]);
   });
 
-  test("Settings placeholder opens and can go back", async ({ page }) => {
+  test("Settings screen opens, toggles persist, and Back returns to the title menu", async ({
+    page,
+  }) => {
     await page.setViewportSize(PHONE_VIEWPORT);
     await page.goto("/");
     await page.getByRole("button", { name: "Settings" }).click();
-    await expect(page.locator(".settings-placeholder")).toBeVisible();
+    await expect(page.locator(".settings-screen")).toBeVisible();
+    await expect(page.getByText("Speed units")).toBeVisible();
+
+    await page.getByRole("button", { name: "mph" }).click();
+    await page.getByText("Show tile grid").click();
+    await page.screenshot({ path: "docs/screenshots/phase-11-settings.png" });
+
     await page.getByRole("button", { name: "Back" }).click();
     await expect(page.locator(".title-menu")).toBeVisible();
+
+    const stored = await page.evaluate(() => window.localStorage.getItem("railroads.settings"));
+    expect(stored).not.toBeNull();
+    const settings = JSON.parse(stored as string) as { units: string; grid: boolean };
+    expect(settings.units).toBe("mph");
+    expect(settings.grid).toBe(true);
   });
 
   test("New Game screen: Real World tab shows region cards, Random tab shows generator options", async ({

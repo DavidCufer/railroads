@@ -35,6 +35,8 @@ export interface MenuPanelHandlers {
   getOverlayState: () => OverlayState;
   onToggle: (key: OverlayToggle) => void;
   onSetHeatmapCargo: (cargo: CargoType) => void;
+  onSaveGame: () => void;
+  onOpenSettings: () => void;
 }
 
 export function openMenuPanel(container: HTMLElement, handlers: MenuPanelHandlers): void {
@@ -55,6 +57,17 @@ export function openMenuPanel(container: HTMLElement, handlers: MenuPanelHandler
       );
 
     const body: Node[] = [
+      h("div", { className: "panel-section-title" }, strings.menu.game),
+      h(
+        "button",
+        { className: "menu-toggle-btn", onClick: handlers.onSaveGame },
+        strings.menu.saveGame,
+      ),
+      h(
+        "button",
+        { className: "menu-toggle-btn", onClick: handlers.onOpenSettings },
+        strings.menu.settings,
+      ),
       h("div", { className: "panel-section-title" }, strings.menu.overlays),
       toggleBtn("catchments", strings.menu.overlayNames.catchments),
       toggleBtn("cargoHeatmap", strings.menu.overlayNames.cargoHeatmap),

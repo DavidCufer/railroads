@@ -12,6 +12,7 @@ import { h } from "./h";
 import { openPanel } from "./panel";
 import { strings } from "./strings";
 import { formatMoney } from "./format";
+import { formatSpeed, loadSettings } from "./settings";
 
 function row(label: string, value: string): HTMLElement {
   return h(
@@ -65,7 +66,7 @@ export function openYearlyReport(container: HTMLElement, state: GameState): void
           h(
             "span",
             null,
-            `${loco.name} (${strings.trains.locoTypes[loco.type]}) — ${loco.maxSpeedKmh} km/h · ${loco.maxCars} cars · ${formatMoney(loco.cost)}`,
+            `${loco.name} (${strings.trains.locoTypes[loco.type]}) — ${formatSpeed(loco.maxSpeedKmh, loadSettings().units)} · ${loco.maxCars} cars · ${formatMoney(loco.cost)}`,
           ),
         ),
       );

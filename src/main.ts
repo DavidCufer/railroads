@@ -75,7 +75,7 @@ import { spanTilesBetween, validBridgeTypes } from "./sim/track/cost";
 import { canPlaceStationAt, stationAtTile, stationCatchmentTiles } from "./sim/stations";
 import { terrainId } from "./sim/map/terrain";
 import { inBounds, tileIndex } from "./sim/map/grid";
-import { calendarFromTicks, isYearBoundary } from "./sim/time";
+import { calendarFromTicks, isMonthBoundary, isYearBoundary } from "./sim/time";
 import type { MapSizeName, Roughness, WaterLevel } from "./data/mapGen";
 import type { Difficulty } from "./data/finance";
 import type { RegionId } from "./sim/regions";
@@ -93,6 +93,14 @@ import { createGoalsButton, openGoalCelebration, openGoalsPanel } from "./ui/goa
 import { isPanelOpen } from "./ui/panel";
 import { formatMoney } from "./ui/format";
 import { openTitleScreen } from "./ui/titleScreen";
+import { autosave } from "./save";
+import { App } from "@capacitor/app";
+import { loadSettings, type Settings } from "./ui/settings";
+import { renderSettingsScreen } from "./ui/settingsScreen";
+import { renderSaveLoadScreen } from "./ui/saveLoadScreen";
+import { drawGridOverlay } from "./render/overlays";
+import { showFirstGameHints } from "./ui/hints";
+import { initSound, playSound } from "./ui/sound";
 
 const RIVER_ID = terrainId("river");
 const WATER_ID = terrainId("water");
@@ -149,6 +157,7 @@ function main(): void {
 
   let currentTool: ToolId = "info";
   let quickBuild = false;
+  let settings: Settings = loadSettings();
   let overlayState: OverlayState = defaultOverlayState();
   let dragState: DragState | null = null;
   let ghost: GhostPreview | null = null;
@@ -181,9 +190,11 @@ function main(): void {
     trackRenderer.invalidateTiles(touched);
   }
 
-  function regenerate(options: NewGameOptions): void {
-    currentOptions = options;
-    state = createGameState(options);
+  /** Common wiring for "the live GameState object changed out from under every renderer/input
+   * handler" — a brand-new random/region map (`regenerate`) and a loaded save (`loadGame`) both
+   * need every one of these resets, so a save/load bug can't silently diverge from a New Game one. */
+  function applyState(newState: GameState): void {
+    state = newState;
     camera.setMapSize(state.map.width, state.map.height);
     terrainRenderer.setMap(state.map, state.cities, state.industries);
     trackRenderer.setMap(state.map.width, state.map.height, state.trackGraph);
@@ -197,6 +208,22 @@ function main(): void {
     hideDragCostLabel();
     newsButton.refreshBadge(state);
     setTool("info");
+  }
+
+  function regenerate(options: NewGameOptions): void {
+    currentOptions = options;
+    applyState(createGameState(options));
+    if (!DEBUG) showFirstGameHints(ui);
+  }
+
+  /** A save loaded from the title screen/Load screen (SPEC §13) — unlike `regenerate`, the map
+   * isn't being freshly generated, so `currentOptions` is only a best-effort guess (only used by
+   * the `?debug=1`-only regenerate control, never reachable from a real loaded game). */
+  function loadGame(loaded: GameState): void {
+    currentOptions = loaded.regionId
+      ? { seed: loaded.seed, region: loaded.regionId }
+      : { seed: loaded.seed, size: "medium", waterLevel: "normal", roughness: "normal" };
+    applyState(loaded);
   }
 
   function startStationPlacement(tile: number): void {
@@ -544,12 +571,57 @@ function main(): void {
     cameraInput.setBuildMode(isDragBuildMode, isDragBuildMode ? buildHandlers : null);
   }
 
+  /** Applies everything about `settings` that isn't just "read it when needed" — the UI-scale CSS
+   * variable and WebAudio init/mute state. Called once at startup and again on every change from
+   * the Settings screen (SPEC §13: units/quick build/sound/grid are read live where they're used;
+   * only these two need an explicit push). */
+  function applySettings(): void {
+    ui.style.setProperty("--ui-scale", String(settings.uiScale));
+    initSound(settings.sound);
+  }
+  applySettings();
+
+  /** Mounts a full-screen overlay (matching the title screen's own look) above the live game —
+   * used for the in-game ☰ menu's Settings and Save Game entries, both of which reuse the same
+   * screens the title screen shows pre-game. */
+  function openFullScreenOverlay(render: (close: () => void) => Node): void {
+    const overlay = document.createElement("div");
+    overlay.className = "title-screen";
+    const close = (): void => overlay.remove();
+    overlay.appendChild(render(close));
+    ui.appendChild(overlay);
+  }
+
+  function openSettingsOverlay(): void {
+    openFullScreenOverlay((close) =>
+      renderSettingsScreen({
+        onBack: close,
+        onChange: (newSettings, newQuickBuild) => {
+          settings = newSettings;
+          quickBuild = newQuickBuild;
+          quickBuildToggle.classList.toggle("active", newQuickBuild);
+          applySettings();
+        },
+      }),
+    );
+  }
+
+  function openSaveScreen(): void {
+    openFullScreenOverlay((close) => renderSaveLoadScreen({ mode: "save", onBack: close, state }));
+  }
+
   const fps = new FpsCounter();
 
   /** One in-game hour of simulation — shared by the real-time game loop and the `runDays` debug
    * hook (SPEC/PLAN Phase 6 e2e tests drive the sim directly instead of waiting on wall-clock). */
   function tickOnce(): void {
     advanceOneHour(state);
+
+    // SPEC §13: autosave monthly (rotating 3 slots). Fire-and-forget — a failed autosave (e.g.
+    // IndexedDB unavailable in a private-browsing context) shouldn't interrupt play.
+    if (isMonthBoundary(state.ticks)) {
+      void autosave(state).catch(() => {});
+    }
 
     if (state.pendingDeliveries.length > 0) {
       const now = performance.now();
@@ -563,6 +635,7 @@ function main(): void {
           startMs: now,
         });
       }
+      playSound("cashDing");
       state.pendingDeliveries.length = 0;
     }
 
@@ -606,6 +679,9 @@ function main(): void {
       const renderStart = performance.now();
       terrainRenderer.draw(ctx, camera, viewportW, viewportH, now);
       trackRenderer.draw(ctx, camera, viewportW, viewportH);
+      if (settings.grid) {
+        drawGridOverlay(ctx, camera, viewportW, viewportH, state.map.width, state.map.height);
+      }
       if (overlayState.trackType) {
         drawTrackTypeOverlay(ctx, camera, viewportW, viewportH, state.map.width, state.trackGraph);
       }
@@ -719,6 +795,8 @@ function main(): void {
         onSetHeatmapCargo: (cargo) => {
           overlayState = { ...overlayState, heatmapCargo: cargo };
         },
+        onSaveGame: () => openSaveScreen(),
+        onOpenSettings: () => openSettingsOverlay(),
       }),
   });
   const toolbar = createToolbar(ui, (tool) => setTool(tool));
@@ -743,10 +821,25 @@ function main(): void {
   loop.start();
   initBackButton();
 
-  // Title/New Game screen (PLAN Phase 10): skipped under `?debug=1` so the game stays immediately
-  // interactive for every existing e2e test and debug tool, which all assume that.
+  // Autosave on app pause (SPEC §13), both the Capacitor native-app event and the web/PWA
+  // equivalent — whichever fires first wins, the other is a harmless duplicate write to the same
+  // rotating slot. Skipped under `?debug=1` so e2e tests never touch IndexedDB unexpectedly.
   if (!DEBUG) {
-    openTitleScreen(ui, { onStart: (options) => regenerate(options) });
+    App.addListener("pause", () => {
+      void autosave(state).catch(() => {});
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) void autosave(state).catch(() => {});
+    });
+  }
+
+  // Title/New Game screen (PLAN Phase 10/11): skipped under `?debug=1` so the game stays
+  // immediately interactive for every existing e2e test and debug tool, which all assume that.
+  if (!DEBUG) {
+    openTitleScreen(ui, {
+      onStart: (options) => regenerate(options),
+      onLoad: (loaded) => loadGame(loaded),
+    });
   }
 
   let debugOverlay: HTMLDivElement | null = null;

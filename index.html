@@ -39,6 +39,15 @@
         padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
           env(safe-area-inset-left);
         box-sizing: border-box;
+        /* UI scale setting (SPEC §13, Phase 11): scale from the top-left, compensating width/
+           height so the scaled box still exactly covers the viewport instead of leaving a gap
+           (scale < 1) or overflowing it (scale > 1) — `inset: 0` alone can't do that since a CSS
+           transform doesn't participate in layout/reflow. */
+        --ui-scale: 1;
+        width: calc(100% / var(--ui-scale));
+        height: calc(100% / var(--ui-scale));
+        transform: scale(var(--ui-scale));
+        transform-origin: top left;
       }
       #ui > * {
         pointer-events: auto;
@@ -1135,6 +1144,187 @@
         flex: 1;
         background: #5bc27a;
         color: #0c2013;
+      }
+
+      /* Settings screen (SPEC §13, Phase 11) — reuses .new-game-* layout/segmented-btn styles. */
+      .settings-screen {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .settings-content {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .settings-toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        min-height: 44px;
+        padding: 6px 4px;
+        border: none;
+        background: none;
+        color: #fff;
+        text-align: left;
+      }
+      .settings-toggle-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .settings-toggle-label {
+        font-size: 13px;
+      }
+      .settings-toggle-desc {
+        font-size: 11px;
+        opacity: 0.65;
+      }
+      .settings-toggle-row .switch {
+        flex: 0 0 auto;
+        width: 36px;
+        height: 20px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.2);
+        position: relative;
+      }
+      .settings-toggle-row .switch::after {
+        content: "";
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #fff;
+        transition: left 0.15s ease;
+      }
+      .settings-toggle-row.active .switch {
+        background: #f2b544;
+      }
+      .settings-toggle-row.active .switch::after {
+        left: 18px;
+      }
+      .settings-back-btn {
+        flex: 1;
+      }
+
+      /* Save/Load screen (SPEC §13, Phase 11). */
+      .save-load-screen {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .save-slot-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .save-slot-empty-msg {
+        opacity: 0.7;
+        font-size: 13px;
+        padding: 12px 4px;
+        text-align: center;
+      }
+      .save-slot-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .save-slot-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      .save-slot-name {
+        font: 700 13px sans-serif;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .save-slot-detail {
+        font-size: 11px;
+        opacity: 0.75;
+      }
+      .save-slot-empty .save-slot-name {
+        opacity: 0.5;
+      }
+      .save-slot-actions {
+        display: flex;
+        gap: 6px;
+        flex: 0 0 auto;
+      }
+      .save-slot-btn {
+        min-height: 36px;
+        min-width: 36px;
+        padding: 0 10px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+        font: 700 12px sans-serif;
+      }
+      .save-slot-btn-primary {
+        background: #4f86b5;
+        border-color: #4f86b5;
+      }
+      .save-slot-btn-danger {
+        background: rgba(224, 90, 79, 0.25);
+        border-color: rgba(224, 90, 79, 0.4);
+      }
+      .save-slot-btn:disabled {
+        opacity: 0.35;
+      }
+
+      /* First-game hints (SPEC/PLAN Phase 11): a small dismissible card, never blocking input. */
+      .hint-card {
+        position: absolute;
+        left: 50%;
+        bottom: 64px;
+        transform: translateX(-50%);
+        max-width: min(90vw, 420px);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: rgba(24, 28, 34, 0.94);
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 10px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+        z-index: 24;
+        font: 13px sans-serif;
+      }
+      .hint-card-text {
+        line-height: 1.4;
+      }
+      .hint-card-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+      .hint-card-btn {
+        min-height: 32px;
+        padding: 0 12px;
+        border-radius: 6px;
+        border: none;
+        font: 700 12px sans-serif;
+      }
+      .hint-card-btn-skip {
+        background: rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.8);
+      }
+      .hint-card-btn-next {
+        background: #f2b544;
+        color: #1e2a38;
       }
     </style>
   </head>
