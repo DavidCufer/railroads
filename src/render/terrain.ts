@@ -22,9 +22,16 @@ import { DIRS8, inBounds, tileIndex } from "../sim/map/grid";
 import { terrainId, terrainName, type Terrain } from "../sim/map/terrain";
 import type { GameMap } from "../sim/map/types";
 import type { City, Industry } from "../sim/economy/types";
+import { ChunkCache } from "./chunkCache";
 
 const CHUNK_TILES = 16;
 type ZoomBucket = 1 | 0.5 | 0.25;
+
+/** Comfortably above a Large map's full chunk count at every zoom bucket at once (192x128 /
+ * 16 tiles/chunk = 12x8 = 96 chunks/bucket x 3 buckets = 288), so ordinary play on the biggest
+ * supported map essentially never evicts — this is a backstop against unbounded growth over a
+ * long session of panning around, not a budget tuned to force eviction in normal play. */
+const TERRAIN_CHUNK_CACHE_MAX = 350;
 
 const WATER_ID = terrainId("water");
 const RIVER_ID = terrainId("river");
@@ -105,7 +112,7 @@ interface CityCenter {
 }
 
 export class TerrainRenderer {
-  private cache = new Map<string, HTMLCanvasElement>();
+  private cache = new ChunkCache<HTMLCanvasElement>(TERRAIN_CHUNK_CACHE_MAX);
   private map: GameMap;
   private cities: readonly City[];
   private industries: readonly Industry[];
@@ -139,6 +146,12 @@ export class TerrainRenderer {
   refreshContent(): void {
     this.cache.clear();
     this.computeCityCenters();
+  }
+
+  /** Number of chunk canvases currently cached (bounded by `TERRAIN_CHUNK_CACHE_MAX`) — exposed
+   * for the Phase 12 memory-bounds e2e test. */
+  get cacheSize(): number {
+    return this.cache.size;
   }
 
   /** Precomputes each city's footprint centroid and its farthest tile's distance from it, so

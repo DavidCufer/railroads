@@ -988,6 +988,13 @@ function main(): void {
           setHeatmapCargo: (cargo: CargoType) => void;
           getMiniMapRect: () => { x: number; y: number; width: number; height: number };
           tapMiniMap: (x: number, y: number) => void;
+          /** Test-only (Phase 12 memory-bounds spec): current chunk-cache sizes, bounded by
+           * TERRAIN_CHUNK_CACHE_MAX/TRACK_CHUNK_CACHE_MAX regardless of how much of the map the
+           * camera has visited this session. */
+          getChunkCacheStats: () => { terrainChunks: number; trackChunks: number };
+          getFloatingLabelCount: () => number;
+          getNewsCount: () => number;
+          getNetWorthHistoryCount: () => number;
         };
       }
     ).__game = {
@@ -1331,6 +1338,13 @@ function main(): void {
       },
       getMiniMapRect: () => miniMapRenderer.screenRect(window.innerHeight),
       tapMiniMap: (x, y) => handleTap(x, y),
+      getChunkCacheStats: () => ({
+        terrainChunks: terrainRenderer.cacheSize,
+        trackChunks: trackRenderer.cacheSize,
+      }),
+      getFloatingLabelCount: () => floatingLabels.length,
+      getNewsCount: () => state.news.length,
+      getNetWorthHistoryCount: () => state.finance.netWorthHistory.length,
     };
   }
 }

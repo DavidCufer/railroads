@@ -158,6 +158,10 @@ export interface GameWindow {
   setHeatmapCargo: (cargo: string) => void;
   getMiniMapRect: () => { x: number; y: number; width: number; height: number };
   tapMiniMap: (x: number, y: number) => void;
+  getChunkCacheStats: () => { terrainChunks: number; trackChunks: number };
+  getFloatingLabelCount: () => number;
+  getNewsCount: () => number;
+  getNetWorthHistoryCount: () => number;
 }
 
 declare global {

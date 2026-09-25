@@ -18,9 +18,13 @@ import {
 import { hasSharpJunction } from "../sim/track/turn";
 import type { TrackGraph } from "../sim/track/graph";
 import type { TrackEdge } from "../sim/track/types";
+import { ChunkCache } from "./chunkCache";
 
 const CHUNK_TILES = 16;
 type ZoomBucket = 1 | 0.5 | 0.25;
+
+/** Same rationale/sizing as TerrainRenderer's cap (Phase 12 memory-bounds backstop). */
+const TRACK_CHUNK_CACHE_MAX = 350;
 
 function pickBucket(zoom: number): ZoomBucket {
   if (zoom >= 0.75) return 1;
@@ -55,7 +59,7 @@ function edgeBBox(edge: TrackEdge, mapWidth: number): EdgeBBox {
 }
 
 export class TrackRenderer {
-  private cache = new Map<string, HTMLCanvasElement>();
+  private cache = new ChunkCache<HTMLCanvasElement>(TRACK_CHUNK_CACHE_MAX);
   private mapWidth: number;
   private mapHeight: number;
   private graph: TrackGraph;
@@ -83,6 +87,12 @@ export class TrackRenderer {
       const cy = Math.floor(y / CHUNK_TILES);
       for (const bucket of buckets) this.cache.delete(chunkCacheKey(cx, cy, bucket));
     }
+  }
+
+  /** Number of chunk canvases currently cached (bounded by `TRACK_CHUNK_CACHE_MAX`) — exposed for
+   * the Phase 12 memory-bounds e2e test. */
+  get cacheSize(): number {
+    return this.cache.size;
   }
 
   draw(ctx: CanvasRenderingContext2D, camera: Camera, viewportW: number, viewportH: number): void {
