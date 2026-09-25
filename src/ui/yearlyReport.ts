@@ -50,7 +50,10 @@ export function openYearlyReport(container: HTMLElement, state: GameState): void
     row(strings.finance.netWorth, formatMoney(netWorth(state))),
   ];
 
-  const newLocos = newlyAvailableLocomotives(state, year);
+  // Tech announcements key off the year that just *started* (src/sim/tick.ts pushes their news at
+  // the same boundary, the moment a model actually becomes purchasable), not the reported `year`
+  // above (the one whose ledger this report is summarizing) — these are one apart.
+  const newLocos = newlyAvailableLocomotives(state, year + 1);
   if (newLocos.length > 0) {
     body.push(h("div", { className: "panel-section-title" }, strings.yearlyReport.newTechnology));
     for (const loco of newLocos) {

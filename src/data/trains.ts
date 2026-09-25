@@ -316,6 +316,15 @@ export function locomotivesAvailableIn(year: number): LocomotiveDef[] {
   return LOCOMOTIVES.filter((l) => l.introYear <= year);
 }
 
+/** `locomotivesAvailableIn`, further excluding steam once it's phased out (SPEC §7.6: "steam
+ * models can't be bought after 1960") — what the Buy Train / Replace Locomotive pickers should
+ * list, since every model on this list is actually purchasable at `year`. */
+export function buyableLocomotivesIn(year: number): LocomotiveDef[] {
+  return locomotivesAvailableIn(year).filter(
+    (l) => l.type !== "steam" || year <= STEAM_PHASE_OUT_YEAR,
+  );
+}
+
 export function locomotiveById(id: string): LocomotiveDef | undefined {
   return LOCOMOTIVES.find((l) => l.id === id);
 }

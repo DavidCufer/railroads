@@ -16,12 +16,12 @@ import { monthlyBreakdownStep } from "./trains/breakdown";
 import { yearlyWashoutStep } from "./track/washout";
 import { stepTrains } from "./trains";
 
-/** Locomotives newly available in the year that just ended (SPEC §7.7: "when a new model becomes
- * available: news message + card in the yearly report"). Excludes anything already available at
- * the scenario's start year, since those were never "announced" — the player just had them from
- * day one. Exported for the yearly report's technology section. */
-export function newlyAvailableLocomotives(state: GameState, endedYear: number) {
-  return LOCOMOTIVES.filter((l) => l.introYear === endedYear && l.introYear !== state.startYear);
+/** Locomotives newly available in `year` (SPEC §7.7: "when a new model becomes available: news
+ * message + card in the yearly report"). Excludes anything already available at the scenario's
+ * start year, since those were never "announced" — the player just had them from day one.
+ * Exported for the yearly report's technology section. */
+export function newlyAvailableLocomotives(state: GameState, year: number) {
+  return LOCOMOTIVES.filter((l) => l.introYear === year && l.introYear !== state.startYear);
 }
 
 export function advanceOneHour(state: GameState): void {
@@ -40,8 +40,11 @@ export function advanceOneHour(state: GameState): void {
   }
 
   if (isYearBoundary(state.ticks)) {
-    const endedYear = calendarFromTicks(state.startYear, state.ticks).year - 1;
-    for (const loco of newlyAvailableLocomotives(state, endedYear)) {
+    // The calendar has just rolled into this new year (SPEC §7.7: announce as soon as a model
+    // "becomes available" — it's already purchasable the instant the year turns, so the
+    // announcement fires here too, not a year later once that year's own report comes around).
+    const year = calendarFromTicks(state.startYear, state.ticks).year;
+    for (const loco of newlyAvailableLocomotives(state, year)) {
       pushNews(state, { kind: "newLocomotive", locoId: loco.id });
     }
     yearlyWashoutStep(state);

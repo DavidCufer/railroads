@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TrackGraph } from "../../../src/sim/track/graph";
-import { findTrainRoute } from "../../../src/sim/trains/route";
+import { findTrainRoute, isElectrificationOnlyBlocker } from "../../../src/sim/trains/route";
 import { addEdge, addStraightLine, tile } from "./helpers";
 
 const WIDTH = 20;
@@ -148,5 +148,64 @@ describe("findTrainRoute", () => {
     addStraightLine(g, WIDTH, 5, 7, 5);
     const route = findTrainRoute(WIDTH, g, tile(WIDTH, 0, 0), tile(WIDTH, 5, 5), baseOptions());
     expect(route).toBeNull();
+  });
+});
+
+describe("isElectrificationOnlyBlocker", () => {
+  it("is true when a route exists once electrification is dropped (PLAN Phase 8)", () => {
+    const g = new TrackGraph();
+    addStraightLine(g, WIDTH, 0, 3, 0); // none of it electrified
+    const blocked = isElectrificationOnlyBlocker(
+      WIDTH,
+      g,
+      tile(WIDTH, 0, 0),
+      tile(WIDTH, 3, 0),
+      baseOptions({ electric: true }),
+    );
+    expect(blocked).toBe(true);
+  });
+
+  it("is false once the route is fully electrified (no longer blocked at all)", () => {
+    const g = new TrackGraph();
+    addStraightLine(g, WIDTH, 0, 3, 0, {});
+    for (let x = 0; x < 3; x++) {
+      const edge = g.getEdge(tile(WIDTH, x, 0), tile(WIDTH, x + 1, 0));
+      if (edge) edge.electrified = true;
+    }
+    const blocked = isElectrificationOnlyBlocker(
+      WIDTH,
+      g,
+      tile(WIDTH, 0, 0),
+      tile(WIDTH, 3, 0),
+      baseOptions({ electric: true }),
+    );
+    expect(blocked).toBe(false);
+  });
+
+  it("is false when the network is genuinely disconnected (not just unelectrified)", () => {
+    const g = new TrackGraph();
+    addStraightLine(g, WIDTH, 0, 2, 0);
+    addStraightLine(g, WIDTH, 5, 7, 5);
+    const blocked = isElectrificationOnlyBlocker(
+      WIDTH,
+      g,
+      tile(WIDTH, 0, 0),
+      tile(WIDTH, 5, 5),
+      baseOptions({ electric: true }),
+    );
+    expect(blocked).toBe(false);
+  });
+
+  it("is false for a non-electric loco (nothing to blame on electrification)", () => {
+    const g = new TrackGraph();
+    addStraightLine(g, WIDTH, 0, 3, 0);
+    const blocked = isElectrificationOnlyBlocker(
+      WIDTH,
+      g,
+      tile(WIDTH, 0, 0),
+      tile(WIDTH, 3, 0),
+      baseOptions({ electric: false }),
+    );
+    expect(blocked).toBe(false);
   });
 });

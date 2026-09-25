@@ -6,10 +6,9 @@
  */
 import { CARGO, CARGO_TYPES, type CargoType } from "../data/cargo";
 import {
+  buyableLocomotivesIn,
   locomotiveById,
-  locomotivesAvailableIn,
   NEW_LOCOMOTIVE_BADGE_YEARS,
-  STEAM_PHASE_OUT_YEAR,
   type LocomotiveDef,
 } from "../data/trains";
 import {
@@ -98,7 +97,7 @@ export function openBuyTrainPanel(
   handlers: BuyTrainHandlers,
 ): void {
   const year = currentYear(state);
-  const available = locomotivesAvailableIn(year);
+  const available = buyableLocomotivesIn(year);
   let selectedLoco: LocomotiveDef | undefined = available[available.length - 1];
   let cars: CargoType[] = [];
   const orders: TrainOrder[] = [];
@@ -366,9 +365,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
  * replaces immediately (no separate confirm bar, matching the Station upgrade button's flow). */
 function openReplaceLocoPanel(container: HTMLElement, state: GameState, trainId: number): void {
   const year = currentYear(state);
-  const available = locomotivesAvailableIn(year).filter(
-    (l) => l.type !== "steam" || year <= STEAM_PHASE_OUT_YEAR,
-  );
+  const available = buyableLocomotivesIn(year);
 
   const list = h("div", { className: "train-loco-list" });
   list.replaceChildren(
