@@ -9,6 +9,9 @@ on:
 jobs:
   build-release:
     runs-on: ubuntu-latest
+    # `secrets` can't be used in a step-level `if:`, so expose "is a keystore configured" via env.
+    env:
+      HAS_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -41,7 +44,7 @@ jobs:
       # this secret.
       - name: Decode signing keystore
         id: keystore
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        if: env.HAS_KEYSTORE == 'true'
         run: |
           KEYSTORE_PATH="$RUNNER_TEMP/release.keystore.jks"
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$KEYSTORE_PATH"
