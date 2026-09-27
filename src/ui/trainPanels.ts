@@ -68,6 +68,23 @@ function electrifiedRouteBlocked(state: GameState, train: Train, loco: Locomotiv
   );
 }
 
+/** SPEC §7.5: "the train panel says what they are waiting for" — names the station a
+ * `waitingForBlock`/`waitingForStation` train is trying to reach next, falling back to the plain
+ * status label when there's nothing to name (e.g. a target station just got bulldozed). */
+function statusText(state: GameState, train: Train): string {
+  const targetName =
+    train.waitingForStationId !== undefined
+      ? state.stations.find((s) => s.id === train.waitingForStationId)?.name
+      : undefined;
+  if (targetName && train.status === "waitingForBlock") {
+    return strings.trains.waitingForLineClear(targetName);
+  }
+  if (targetName && train.status === "waitingForStation") {
+    return strings.trains.waitingForPlatform(targetName);
+  }
+  return strings.trains.statusNames[train.status];
+}
+
 /** A car chip showing its current load (SPEC §10.2's "current load" in the train panel) — solid
  * cargo color when loaded, dimmed and labeled "Empty" otherwise. */
 function carChip(car: TrainCar): HTMLElement {
@@ -306,6 +323,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
 
     const isProblemStatus =
       train.status === "noRoute" || train.status === "stuck" || train.status === "broken";
+    const isWaiting = train.status === "waitingForBlock" || train.status === "waitingForStation";
     const body: Node[] = [
       h(
         "div",
@@ -313,9 +331,10 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
         h("span", { className: "label" }, strings.trains.status),
         h(
           "span",
-          { className: isProblemStatus ? "train-route-warning" : "" },
+          { className: isProblemStatus ? "train-route-warning" : isWaiting ? "train-waiting" : "" },
           isProblemStatus ? icon("warning", "icon-sm") : null,
-          strings.trains.statusNames[train.status],
+          isWaiting ? icon("signal", "icon-sm") : null,
+          statusText(state, train),
         ),
       ),
       ...(loco && electrifiedRouteBlocked(state, train, loco)
@@ -460,7 +479,7 @@ export function openTrainListPanel(
               },
             },
             h("span", null, t.name),
-            h("span", { className: "train-list-status" }, strings.trains.statusNames[t.status]),
+            h("span", { className: "train-list-status" }, statusText(state, t)),
           ),
         );
 

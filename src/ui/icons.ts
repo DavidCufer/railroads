@@ -4,10 +4,12 @@
  * into `h()`-built trees like any other node; `cargoIcon()` builds the tinted-tile cargo pictogram
  * (STYLE §5: icon in the full cargo color, on a tile tinted at 25% opacity).
  *
- * A few icons (check, warning, wrench, water, trophy, arrowUp, arrowFlat, shed, edit) extend
+ * A few icons (check, warning, wrench, water, trophy, arrowUp, arrowFlat, shed, edit, signal) extend
  * STYLE §5's named tool list — that list covers the toolbar; these replace the remaining emoji
  * found elsewhere in the UI (status text, station badges, the goal-celebration dialog), per §1's
  * "no emoji in the UI" rule. Small, documented deviation per CLAUDE.md/STYLE.md's own instructions.
+ * `signal` matches the map's waiting-train dot (SPEC §7.5: "a small red signal icon") for the Train
+ * panel's waiting-reason row.
  */
 import { CARGO, type CargoType } from "../data/cargo";
 
@@ -40,7 +42,8 @@ export type IconName =
   | "arrowUp"
   | "arrowFlat"
   | "shed"
-  | "edit";
+  | "edit"
+  | "signal";
 
 const STROKE =
   'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
@@ -75,6 +78,7 @@ const ICONS: Record<IconName, string> = {
   arrowFlat: `<svg viewBox="0 0 24 24" ${STROKE}><line x1="4" y1="12" x2="20" y2="12"/></svg>`,
   shed: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M3 11 L12 4 L21 11 V20 H3 Z"/><line x1="12" y1="4" x2="12" y2="20"/></svg>`,
   edit: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M4 20l1-4.5L15.5 5 19 8.5 8.5 19 4 20z"/><line x1="13.5" y1="6.5" x2="17" y2="10"/></svg>`,
+  signal: `<svg viewBox="0 0 24 24" ${STROKE}><circle cx="12" cy="12" r="6" fill="currentColor" stroke="none"/></svg>`,
 };
 
 /** Builds a `<span class="icon">` wrapping the named icon's inline SVG markup. */

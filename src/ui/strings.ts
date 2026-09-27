@@ -167,6 +167,12 @@ export const strings = {
       passThrough: "Pass through",
     },
     routeNotElectrified: "Route not electrified",
+    /** SPEC §7.5: "the train panel says what they are waiting for." Only shown while `status` is
+     * `waitingForBlock`/`waitingForStation` and the train has an actual target to name — falls
+     * back to the plain `statusNames` label otherwise (e.g. right after a reroute attempt, before
+     * a fresh target is known). */
+    waitingForLineClear: (station: string) => `Waiting for line clear to ${station}`,
+    waitingForPlatform: (station: string) => `Waiting for platform at ${station}`,
     replace: "Replace",
     replaceTitle: "Replace Locomotive",
     tradeInCredit: "Trade-in credit",

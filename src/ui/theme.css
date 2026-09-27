@@ -924,6 +924,18 @@ button.chip {
   align-items: center;
   gap: var(--gap-1);
 }
+/** A waiting-for-line-clear/platform train (SPEC §7.5) — same red as the map's signal dot, but not
+ * bold like a real warning, since waiting for a moment is normal traffic, not a problem. */
+.train-waiting {
+  color: var(--signal);
+  display: flex;
+  align-items: center;
+  gap: var(--gap-1);
+}
+.train-waiting .icon {
+  width: 10px;
+  height: 10px;
+}
 
 /* ---------- toasts (STYLE §3) ---------- */
 
