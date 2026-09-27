@@ -3077,3 +3077,189 @@ in-brief).
   check was thrown away rather than committed as a new spec, since an existing spec already covers
   the civic-investment button's behavior — only its *visual wrap* needed a one-off look).
 - Next: nothing scheduled.
+
+## 2026-09-27 — Phase 15: Play-test fixes (signaling, consist editing, train drawing)
+
+The player's first real play-test found a train stuck ⚠ forever at a Depot on a single-track line
+shared with a second train, plus several smaller UI/rendering issues. Landed in 4 pushed steps
+(signaling rewrite, waiting-reason text, consist editing, drawing/layout fixes) per the session
+brief; this entry covers all of them together.
+
+**Root cause of the reported deadlock**: the old per-block reservation model let a train physically
+enter and wait inside the block *just before* a full station, off in the open line. If the train
+already in that station wanted to leave in the direction of the waiting train's approach block, its
+exit was blocked by that same waiter — a classic head-on deadlock neither train's timeout logic
+could resolve, because each was individually "making progress" (successfully holding one block)
+right up until the moment it tried to advance into the other's.
+
+**Signaling rewrite** (SPEC §7.5, rewritten; `src/sim/trains/movement.ts` is essentially a full
+rewrite, `blocks.ts`/`types.ts` extended, `route.ts` untouched):
+- **The fix, precisely**: a train never leaves a station until it has atomically reserved *every*
+  block of its path up to the *next* station on its route (`tryEnterSection`, replacing the old
+  one-block-at-a-time `tryEnterBlock`) — including the capacity check on that destination station.
+  Since the whole path-to-next-station is checked *before* departure, a train that can't get all the
+  way through simply never leaves its current platform — it can no longer end up parked mid-line.
+  This one change is the actual deadlock fix; everything else below is what SPEC's rewrite needed to
+  make that safe and non-regressive.
+- **Sections span junctions, not stations**: scanning `train.route` forward from the departure node,
+  the first station tile found (whether or not it's the train's actual next order stop) ends the
+  reservation batch. A junction along the way doesn't end it — matches "junctions are not waiting
+  points." Reaching a station tile that *isn't* the final route node (a through-station) is handled
+  by the exact same code path as a real departure: `holdsBlockFor` is false for the fresh block
+  starting there (a station is always a block boundary), so `tryEnterSection` fires again
+  immediately, before the loop's next iteration would otherwise just keep advancing. If it succeeds
+  the train never visibly pauses; if not, it parks there exactly like any other waiting station stop
+  (and now legitimately counts toward that station's slot occupancy).
+- **Same-direction sharing**: rule 1 (no opposing occupant) only checks direction, never occupant
+  *count* — any number of same-direction trains can hold overlapping parts of a section. A new
+  continuous check, `leaderAheadTooClose` (run every tick, not just at block entry, unlike the old
+  double-track-only spacing check), caps a train's target speed to 0 whenever a same-direction
+  occupant of its current block is less than `MIN_SPACING_TILES` (2) ahead — this is the "keep
+  spacing and brake" behavior, and it now applies on single track too, not just double.
+- **Tail-based release**: `HeldBlock` no longer stores a live `distanceInto` counter; instead each
+  entry records `enteredAtDistance` (an absolute mark against a new, never-reset `train.
+  distanceTraveled` accumulator) and `lengthTiles`. A block is dropped from the front of
+  `heldBlocks` once `distanceTraveled - trainLengthTiles(train)` (physical consist length, from the
+  same `LOCO_LENGTH_TILES`/`CAR_LENGTH_TILES` STYLE §7 constants the renderer uses) has passed its
+  far end — so a following train, or opposing traffic once the direction is fully clear, can reuse
+  the *already-passed* part of a long section without waiting for the whole thing to empty. Using
+  one monotonic, never-reset distance counter (rather than resetting per-section) was the key
+  simplification that avoided a whole class of off-by-one bugs where a lingering tail entry from the
+  *previous* section would otherwise need special-casing at every section boundary.
+- **Station slots**: Depot/Station/Terminal capacity raised from 1/2/4 to 2/3/5
+  (`src/data/stations.ts`) per the rewritten spec — the minimum of 2 is what actually lets a Depot
+  act as a passing loop at all, which was the ingredient the old capacity-1 Depot in the report was
+  missing. Occupancy counts a train physically parked at the station (no active outbound
+  reservation) plus any train whose *committed* `sectionTargetStationId` names it — a train merely
+  *attempting* a reservation (and failing) never counts against the target it failed to reach, which
+  would otherwise be a self-inflicted permanent deadlock.
+- **Safety net**: `DEADLOCK_REROUTE_DAYS`/`DEADLOCK_STUCK_DAYS` raised 5/10 → 10/20 per the revised
+  SPEC text. Found and fixed a real bug here while writing the new tests: `waitingForBlock` and
+  `waitingForStation` are different status *strings*, and the old, shared `setStatus` helper resets
+  `waitTicks` (the clock these timeouts count against) whenever the status string changes — so a
+  train denied for a *different* reason on consecutive ticks (line blocked, then the moment that
+  clears the platform turns out full, etc.) could flip between the two indefinitely without the
+  clock ever reaching either threshold. Added `setWaitingStatus`, used only for these two statuses,
+  which only resets the clock when the train wasn't already in *either* waiting state.
+- **Save version bumped 1 → 2** (`src/save/format.ts`/`migrate.ts`): `Train`'s reservation shape
+  changed (`HeldBlock.distanceInto` → `enteredAtDistance`/`lengthTiles`, plus the new
+  `distanceTraveled`/`sectionTargetStationId`/`waitingForStationId`/`pendingConsist` fields). The old
+  v1 shape is frozen as `SerializedTrainV1`/`SerializedHeldBlockV1` (independent of the live `Train`
+  type) purely so `migrateV1toV2` has something concrete to convert from. Migration just drops every
+  train's in-flight reservation state (`heldBlocks: []`, `distanceTraveled: 0`) — none of it means
+  anything under the new model, and every train re-reserves its next section fresh on its first tick
+  after load regardless, so there's nothing worth trying to translate.
+- **Tests**: `tests/sim/trains/movement.test.ts`'s three pre-existing traffic scenarios (single-track
+  shuttle, congested 4-train line, double-track opposing) encoded the *old* invariant "a block is
+  never held by more than one distinct train" — no longer true by design once same-direction sharing
+  is allowed. Replaced with `opposingDirectionCollision` (a block held by more than one *direction*
+  at once — every block has exactly two possible entry directions, so this is the real invariant
+  that must never break) and retitled the tests to say what they actually now assert; the congested-
+  line test's `maxWaitStreak` bound also moved from the old `10 * 24` to `DEADLOCK_STUCK_DAYS * 24`.
+  New `tests/sim/trains/signaling.test.ts` covers everything PLAN asked for by name: the exact
+  reported shape (two trains, genuinely opposite directions — one bought fresh while the other is
+  already mid-journey back, since both starting from the same shed station otherwise begin in the
+  same direction — 2 in-game years, asserting on completed "loading" stops as a stand-in for
+  "keeps earning" since this synthetic single-row map has no cargo economy to pay real revenue);
+  3 same-direction trains sharing one section never see `waitingForBlock` (measured only up to the
+  point the first one would complete the trip and turn around, which is a separate, real
+  opposing-traffic scenario the middle-station test covers); a middle station letting opposite-
+  direction trains actually overlap in motion, not just take turns waiting for the whole line;
+  a lone train (nothing to brake behind, no breakdown) never sitting at speed 0 mid-block; a
+  Depot's 2-slot capacity never exceeded by 3 contending trains; and a save/load round trip taken
+  mid-section producing identical results to never saving. All of the old regression tests
+  (`movement.test.ts`, `blocks.test.ts`, `route.test.ts`, `loading.test.ts`) stay green, updated only
+  where they encoded the old per-block rule as above.
+
+**Train panel waiting-reason text** (SPEC §7.5's "the train panel says what they are waiting for"):
+`train.waitingForStationId` is set on every reservation attempt (success or failure) — purely
+descriptive, nothing in the sim reads it back — so the panel and train list can show "Waiting for
+line clear to X" / "Waiting for platform at X" (`src/ui/strings.ts`) with a small red signal dot
+(new `signal` icon, matching the map's own waiting-train indicator) instead of the generic
+"Waiting (block)"/"Waiting (station)" label.
+
+**Edit consist on an existing train** (`computeEditConsistPlan`/`editConsist`/`reconcileConsist` in
+`src/sim/commands.ts`; UI in `src/ui/trainPanels.ts`'s new `openEditConsistPanel`):
+- `reconcileConsist` matches the new car list against the train's current cars by cargo type, in
+  order (greedy, oldest-unmatched-first) — a car that persists keeps its existing load rather than
+  being treated as sold-and-instantly-rebought; a new-list entry with nothing left to match is
+  charged full car price; an old car nothing matched is refunded `CONSIST_EDIT_REFUND_FRACTION`
+  (50%) and has its cargo dropped.
+- Cash changes hands immediately when the command runs, whichever branch it takes — only the
+  *physical* car swap (and any resulting cargo drop) is deferred when the train isn't at a station,
+  via `train.pendingConsist = { cars, removedLoaded }`, installed by `applyPendingConsist` (in
+  loading.ts, called from `arriveAtStation`) the moment the train next stops anywhere. This was a
+  deliberate simplification over deferring payment too — SPEC only specifies the price, not when
+  cash moves, and charging on command keeps `editConsist` consistent with every other command in the
+  file (`buyTrain`, `replaceLocomotive`) rather than needing its own special-cased ledger timing.
+  Noting it here as a SPEC-compatible design choice, not a literal deviation.
+- Dropped cargo reuses the normal paid-delivery path (`dropCarCargo` in loading.ts, factored out of
+  `applyUnload` via a shared `settleUnload`) when the current/arrival station accepts that cargo, or
+  just clears the load with no revenue when it doesn't — matches "counts as unloaded without payment
+  unless accepted there" exactly.
+- Found and fixed a real bug while testing this: the "is this train at a station right now" check
+  originally looked up the station via the train's *current order*, which doesn't exist yet for a
+  train bought but never given orders (`train.status` is still `"loading"`, but `train.orders` is
+  empty) — such a train could never get an immediate edit, always falling into the queued branch.
+  Fixed to key off the train's actual position (`route[routeIndex]`) instead.
+- Train panel restyled: the old lone "Replace" footer button became a 2-column action grid
+  ("Edit cars" + "Replace"), per PLAN's "2-column grid style" ask; Sell is now the only footer
+  action. A "Changes apply at next station" caption (new `.train-consist-pending` style) shows
+  under the consist chips whenever `pendingConsist` is set, and again inside the editor itself when
+  the train isn't currently at a stop.
+- Tests: `tests/sim/trains/consist.test.ts` (pricing math, load-preserving reconciliation,
+  immediate-vs-queued application, both accepted/wasted cargo-drop outcomes, era/max-cars
+  validation) plus an e2e test (`e2e/trains.spec.ts`) driving the real UI end to end.
+
+**Train drawing fixes** (STYLE §7, `src/render/trains.ts`):
+- The steam loco's chimney and dome previously drew as small rectangles offset well outside the
+  boiler's own width (`-w * 0.85`), which is exactly why they read as "sticking out sideways" —
+  redrawn as two circles (chimney near the front, the smaller dome just behind it) both centered
+  on `y = 0`, the boiler's actual centerline in this direction-of-travel-aligned local space, each
+  with a thin lighter rim. Smoke puffs now originate from that same centerline point and drift
+  straight back/up instead of from the old offset spot.
+- Vehicles ~20% larger (`LOCO_LENGTH_TILES` 0.5→0.6, `CAR_LENGTH_TILES` 0.25→0.3 in
+  `src/data/trains.ts` — these aren't just render constants, the signaling rewrite's tail-length
+  math above also reads them, so both got the same bump for free; the renderer's own local
+  `VEHICLE_WIDTH_TILES`/`CAR_DRAW_LEN_TILES` scaled the same ~20%) and the coupler gap tightened
+  from 2px to ~1px at zoom 1 (`VEHICLE_GAP_TILES`), both still scaling with zoom as before since
+  they're tile-space constants converted to screen pixels at draw time, not fixed pixel values.
+- Verified by screenshotting a loco at zoom 1 (`phase-15-steam-zoom1.png` etc.) — previously this
+  would have been the smaller, harder-to-read size the play-test complained about.
+
+**Station supply bubble pictograms**: root-caused rather than guessed at. `stationSupplyBubbles.ts`
+(added in Phase 14) already tried to draw a pictogram inside each bubble via `cargoIconDataUrl` and
+`drawImage`, gated on `img.complete && img.naturalWidth > 0` — but `cargoIconDataUrl` built its
+`<svg>` markup without an `xmlns` attribute. That's fine when the same markup is inserted via
+`innerHTML` into an existing HTML document (a browser infers the SVG namespace for inline content),
+but loading it standalone as an `<img src>` data URI — which is what feeding it to canvas
+`drawImage` requires — needs well-formed, namespaced XML; without it the image silently fails to
+decode, `naturalWidth` never becomes truthy, and only the plain background circle (ordinary canvas
+arcs, unaffected) ever drew. Confirmed the failure directly (a minimal repro in a browser context:
+the same markup rejects with an `img.onerror` event without `xmlns`, resolves fine with it) before
+fixing `cargoIconDataUrl` to add it.
+
+**Bottom-right button overlap**: `.quick-build-toggle` and `.train-list-button` both sat at
+`right: 8px; bottom: 8px` — literally the same corner, so the round Trains button always sat on top
+of the Quick build toggle's label (confirmed visually: the toggle read as "Quic" with a black circle
+over the rest). The Trains/News/Goals buttons are always created unconditionally at game start, so
+rather than hide any of them, moved `.quick-build-toggle` to `bottom: 176px`, just above all three
+(they're always present, stacked at 8/64/120px, each 48px tall: 120+48+8). New e2e regression test
+(`e2e/upgrades.spec.ts`) asserts no bounding-box overlap between the toggle and any of the three
+buttons at both 800×360 and a real phone ratio (890×400).
+
+**Screenshots — looked at all of them**: `phase-15-steam-zoom1.png`/`-diesel-zoom1.png`/
+`-electric-zoom1.png` (each loco on a straight run into a 45° bend at zoom 1 — chimney/dome read as
+small centered dots, not sideways nubs, and the whole consist is legible at this size now);
+`phase-15-trains-passing-middle-station.png` (two steam trains, one on each side of "Oakbarwood
+Crossing 2", genuinely passing each other rather than one waiting the whole line out);
+`phase-15-waiting-reason.png` (Train 2's panel reads "Waiting for line clear to Oakbarwood Crossing
+2" with the red signal dot, next to the plain Status row above it); `phase-15-consist-editor.png`
+(the add/remove car picker, seeded and mid-edit); `phase-15-bottom-right-buttons.png` (Quick build's
+label fully legible, clear of all three round buttons). All read correctly as intended.
+
+**Deviations from the SPEC/PLAN text**: none beyond the cash-timing note on `editConsist` above
+(a compatible design choice, not a behavior change from what's specified).
+
+- Next: nothing scheduled — this closes out the play-test punch list. Future ideas remain at the
+  bottom of `docs/PLAN.md`.
