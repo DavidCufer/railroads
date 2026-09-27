@@ -92,8 +92,9 @@ function drawStationIcon(
  * it rather than contradicting them. `dirIndex` is the touching double edge's own canonical
  * direction (not "away from this station"), the same convention `track.ts` offsets from, so
  * rotating by its heading here lands "+local y" on the same physical side as the diverging track.
- * An island platform sits in the gap between the two tracks; the building sits beyond the far
- * (diverging) one, so nothing is drawn on top of either rail (PLAN: "never under the rails"). */
+ * Both the platform and the building sit beyond the diverging track's own outer rail (not squeezed
+ * into the narrow gap between the two tracks, which the 0.28-tile spacing leaves no room to read
+ * cleanly) — PLAN: "never under the rails". */
 function drawPassingLoopStationIcon(
   ctx: CanvasRenderingContext2D,
   type: StationType,
@@ -115,18 +116,21 @@ function drawPassingLoopStationIcon(
   const laneSpacing = size * DOUBLE_TRACK_SPACING_TILES;
   const platformLen = size * platform;
 
-  // Island platform, centered in the gap between the through (y=0) and diverging (y=laneSpacing)
-  // tracks — thin enough to clear both tracks' own rail gauge.
-  const islandH = Math.min(size * 0.09, laneSpacing * 0.6);
-  ctx.fillStyle = STATION_PLATFORM_COLOR;
-  ctx.fillRect(-platformLen / 2, laneSpacing / 2 - islandH / 2, platformLen, islandH);
+  // Clearance past the diverging track's own outer rail/tie extent (matches `track.ts`'s
+  // `tieHalfLenTiles`, 4.2/32 tile) plus a small visible gap, so nothing here ever touches a rail.
+  const trackClearance = size * 0.16;
 
-  // Building beyond the diverging track's own outer rail — clearly beside, never under either
-  // track. Roof peak points further outward (away from the tracks), same silhouette as the
-  // single-track icon just translated/rotated onto this side.
+  // Platform strip beyond the diverging track.
+  const platformNear = laneSpacing + trackClearance;
+  const platformH = size * 0.12;
+  ctx.fillStyle = STATION_PLATFORM_COLOR;
+  ctx.fillRect(-platformLen / 2, platformNear, platformLen, platformH);
+
+  // Building beyond the platform, roof peak pointing further outward — same silhouette as the
+  // single-track icon, just translated/rotated onto this side of the passing loop.
   const buildW = size * building;
   const buildH = size * building * 0.72;
-  const buildingNear = laneSpacing + size * 0.14;
+  const buildingNear = platformNear + platformH + size * 0.05;
   for (let i = 0; i < roofCount; i++) {
     const offset = roofCount > 1 ? (i - (roofCount - 1) / 2) * buildW * 0.9 : 0;
     const bx = offset - buildW / 2;

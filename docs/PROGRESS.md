@@ -3391,3 +3391,152 @@ two new Phase 16 screenshot tests and the pre-existing suite) both green.
 
 - Next: nothing scheduled — this closes out the second play-test's punch list. Future ideas remain
   at the bottom of `docs/PLAN.md`.
+
+## 2026-09-27 — Phase 16.1: Double track at stations and turnouts (play-test 3)
+
+Third play-test (Ljubljana, Trieste, 1840): where double track meets a station, the two tracks
+pinched to a point right at the station tile (a visible "kink"), ties crossed in a messy fan there,
+and a curve near a station could draw a fillet arc through the station's own tile. Root cause: the
+Phase 16 turnout model tapers a double edge's diverging track to 0 exactly at whichever node has no
+*other* double edge — true for a plain mid-line transition (where the pinch point is just the
+single track's own line, correct), but wrong at a station, which should show a full-width passing
+loop across its own tile regardless of what the far side is. Render-only throughout, per PLAN's
+brief — `src/sim/**` (movement, block reservation) is untouched; every existing sim/render test
+stayed green with no changes.
+
+**Shared geometry** (`src/render/trackPath.ts`):
+- `TURNOUT_EASE_TILES` raised from 1 to 1.5 tiles (PLAN's "≥ 1.5 tiles" — applies to every
+  single↔double transition, station-adjacent or mid-line, since both share the one easing function).
+- `isPassingLoopStation(graph, node, stationTiles)`: true iff `node` is a station tile with some
+  double edge touching it. A double edge's own taper flags (in both `track.ts` and `trains.ts`) now
+  also check `!stationTiles.has(node)` directly — a station never pinches a touching double edge's
+  spacing to 0 at itself, independent of `hasDoubleNeighborAt`'s existing "some other double edge"
+  check, which is what actually produced the reported kink (a station between one double edge and
+  one single edge previously read as "no other double edge here" and tapered to 0 right at the tile).
+- `stationApproachOffsetAt(distanceFromStart, edgeLength, approachAtStart, approachAtEnd)`: the
+  displaced turnout. Mirrors `doubleTrackOffsetAt`'s shape but inverted — full spacing right at a
+  passing-loop station's end of a *single*-track edge, decaying to 0 over `TURNOUT_EASE_TILES`
+  moving away from it — so the merge back to single track happens on the single-track side, past the
+  station tile, not pinching at the tile itself. Reasoned through (and verified with the new unit
+  tests) that this needs no extra sign-flip logic despite living on a different edge than the double
+  one: `TrackEdge.a < b` always, so a straight line's edges all share the same canonical `direction`
+  (the compass direction from the numerically lower tile to the higher one), which is exactly the
+  "+90°" convention every offset in this file is drawn relative to — so the ghost track's "+" side
+  automatically lines up with the real double edge's own diverging rail at the shared node, with no
+  extra bookkeeping about which literal edge is on which side of the station.
+
+**Track renderer** (`src/render/track.ts`):
+- Never resolves a fillet partner at a station's own node (`partnerA`/`partnerB` short-circuit to
+  `null` when `stationTiles.has(edge.a/b)`) — "the station tile is always straight" (PLAN). Since
+  `canPlaceStationAt` (existing, unchanged) already refuses to place a station on a bend tile itself
+  (only a straight-through or dead-end tile), this only ever matters for a station one tile back from
+  a bend — confirmed by a new e2e screenshot that such a station's own tile stays straight while the
+  curve starts cleanly past it.
+- `drawEdge` now computes one `secondaryOffsetAt` function per edge, station-aware, covering three
+  cases with the *same* rail/tie-drawing code (no separate branch to keep in sync): a genuine double
+  edge (existing behavior, station-aware taper), a single edge with a passing-loop station at one or
+  both ends (the new ghost approach), or neither (plain single track, unchanged). This is also what
+  satisfies PLAN's "ties drawn once" bullet — the shared widening-tie call was already written
+  generically enough to take whichever offset function applies, so the ghost approach reuses it
+  as-is rather than adding a second tie code path that could disagree with the first.
+
+**Train renderer** (`src/render/trains.ts`): `laneOffsetTiles` and `curvedRouteSample` both gained a
+`stationTiles` parameter (optional, defaulting to empty, so the existing Phase 16 unit tests didn't
+need touching) and apply the identical two rules — no taper at a station node, no fillet through
+one — so a train's lane visually lines up with the rail the track renderer actually draws all the
+way up to the platform, instead of sliding back onto the centerline just before arrival like the
+track used to. `drawTrains` now takes the live station-tile set and threads it through.
+
+**Station icon** (`src/render/stations.ts`): `drawStations` now checks
+`graph.edgesAt(station.tile).some(e => e.double)` and, when true, draws a new
+`drawPassingLoopStationIcon` instead of the plain single-track one — two parallel platform-track
+rails (matching `track.ts`'s own through/diverging offsets exactly, so the icon never contradicts
+the rails drawn under it) with the platform and building both positioned beyond the diverging
+track's own outer rail. **Went through one real iteration here, not just written and assumed
+correct**: a first version put a thin "island platform" in the ~9px gap between the two tracks and
+the building just past the diverging track's tie extent — looked, per CLAUDE.md, at the actual
+screenshot before calling it done, and it read as a confusing brown smear overlapping the ties
+rather than a clean building. Wrote a throwaway debug spec (bright-colored markers at known local
+coordinates, deleted after) and sampled the PNG's raw pixels column-by-column to confirm the
+geometry math was already correct — the rotation, the origin, the offsets all landed exactly where
+computed — the problem was purely that "beyond the diverging track" left only a few px of daylight
+before the building, indistinguishable at these colors and this zoom. Fixed by dropping the
+between-tracks island platform entirely and pushing *both* the platform strip and the building a
+fixed clearance (`size * 0.16`, past the diverging track's own `tieHalfLenTiles` reach) beyond the
+outer rail — re-screenshotted and this time it reads as a clear building beside two distinct tracks.
+`dirIndex` for the rotation is the touching double edge's own canonical `direction` (not "away from
+this station", which can flip 180° depending on which end the station sits at) — same reasoning as
+the sign-convention note above, needed so the icon's "+local y" always lands on the same physical
+side as `track.ts`'s own diverging offset regardless of which side of the station the double edge is on.
+
+**`main.ts` wiring**: a `stationTiles: ReadonlySet<number>` is now maintained alongside `state`,
+recomputed via `refreshStationTiles()` on every path that adds a station (`buildStation`'s success
+case and the debug stress-network builder — there's no bulldoze-station command, so build is the
+only place this set changes) and handed to `TrackRenderer.setStations` (which busts its chunk cache,
+same pattern as `invalidateTiles`), plus `drawStations`/`drawTrains` each frame.
+
+**Deviation**: PLAN's own "curves adjacent to stations" bullet talks about a fillet arc overlapping
+a station tile, which reads as if a station could sit *at* a bend — it can't (`canPlaceStationAt`
+requires a straight-through or dead-end tile, unchanged, pre-existing). Interpreted this as "no
+fillet through a station's own node, and no fillet bleeds into a station one tile away from a
+bend" — the latter was already geometrically impossible before this phase (the fillet's own tangent
+length, ~0.497 tile, is shorter than any real edge's minimum 1-tile length), so the actual fix here
+is entirely the "no fillet at the station's own node" rule, covering the case that previously *was*
+reachable (a station literally on what would otherwise be a bend node — since a bend needs two
+tiles' worth of direction change, both of its nodes are non-straight and neither was ever a legal
+station tile either, so this case turned out to be unreachable too; the rule is still correctly in
+place and tested, just belt-and-suspenders against a future change to fillet geometry or placement
+rules).
+
+**Tests**:
+- `tests/render/trackPath.test.ts`: `isPassingLoopStation` (true only for an actual station tile a
+  double edge touches) and `stationApproachOffsetAt` (full spacing right at the approach end(s),
+  decaying to 0 by `TURNOUT_EASE_TILES`, larger of the two sides on a short edge with both ends
+  approaching).
+- `tests/render/trainLanes.test.ts`: a reverse-direction train's lane separation at a passing-loop
+  station stays at the full `DOUBLE_TRACK_SPACING_TILES` right at the station node (contrasted
+  directly against the same setup with an empty station set, which still pinches to 0 — demonstrates
+  this is actually the station-awareness fix, not a general widening); and a route through a real
+  45°-bend junction (the same geometry `trackPath.test.ts`'s own chaining test uses) reaches the
+  exact tile center when that node is marked a station, instead of the fillet-trimmed point it
+  reaches without one.
+- `npm run check`: typecheck, lint, and 334 unit tests (5 new) — all green, no existing test changed.
+
+**Screenshots — looked at them critically against the player's complaint** (new
+`e2e/phase16-1.spec.ts`, `docs/screenshots/phase-16-1-*.png`):
+- `phase-16-1-station-straight.png` (+ a `-zoom1.5` variant): a station sitting between two fully
+  double edges. Two rails clearly pass through the tile at their full, non-tapered spacing (the "no
+  pinch" fix — though since both neighbors are already double, `hasDoubleNeighborAt` alone would
+  actually have already avoided a taper here even before this phase; this shot mainly confirms the
+  new passing-loop icon reads cleanly, a small brown building with a peaked roof sitting clearly
+  beside, not on, the tracks).
+- `phase-16-1-station-curve.png`: a station one tile back from a 45° bend (the closest a station can
+  legally sit to one). The station's own tile is flat/straight; the curve begins visibly only in the
+  next tile over, with no rail bleeding into the station tile and no crossed ties at the join.
+- `phase-16-1-station-single-double.png`: the scenario the play-test screenshots actually showed —
+  single track running into a station, double track starting on the far side. The single line stays
+  a single thin line right up to and through the station tile (matching the through track's own
+  unbroken line — no visible pinch or kink *at* the station), and the second track eases in smoothly
+  over the following tiles once clear of the station.
+- `phase-16-1-mid-line-transition.png`: an ordinary transition away from any station, now easing
+  over the full 1.5 tiles instead of 1 — reads as a longer, gentler S-curve than the old Phase 16
+  screenshots of the same kind of transition (those weren't recaptured here, since this phase doesn't
+  own them, but the geometry change is the same one shown in this shot).
+- `phase-16-1-two-trains-at-station.png`: two steam locos, bought from the same depot (the only
+  station with an Engine Shed — the first one ever built — so both trains necessarily start there;
+  the second wasn't dispatched until the first had already reached the far depot and turned back, to
+  get a genuine opposite-direction meeting rather than two trains bunched up going the same way),
+  both dwelling ("auto" load rule) at the double-touching middle station at once. They render on
+  visibly separate parallel lanes rather than stacked on one centerline.
+- All five read as intended on inspection; the rest of a full `npm run e2e` pass's incidental
+  screenshot diffs (unrelated phases whose track/train renders shifted slightly, mostly fps/tick
+  counter text) were reverted per CLAUDE.md's "commit screenshot changes only for the phase that owns
+  them" — including Phase 16's own two turnout screenshots, even though the longer ease value does
+  visibly affect them; left for whichever future session next touches Phase 16's own files to
+  recapture.
+
+**Tests**: `npm run check` (typecheck, lint, 334 unit tests) and `npm run e2e` (86/86, including the
+five new Phase 16.1 screenshot tests and the entire pre-existing suite) both green.
+
+- Next: nothing scheduled — this closes out the third play-test's punch list. Future ideas remain at
+  the bottom of `docs/PLAN.md`.

@@ -468,17 +468,17 @@ Player screenshots (Ljubljana, Trieste, 1840): where double track meets a statio
 in a sharp kink right at the station tile, ties cross over each other in a messy fan, and on curves near stations
 the rails overlap. It "looks weird".
 
-- [ ] **Stations on double track are passing loops**: if any double-track edge touches a station tile, draw the
+- [x] **Stations on double track are passing loops**: if any double-track edge touches a station tile, draw the
       station with **two parallel platform tracks** straight through the station tile (lane spacing as elsewhere),
       the platform/building beside them (never under the rails). Trains stop on their own lane's platform.
-- [ ] **Double → single transitions happen outside the station**: when a station has double track on one side and
+- [x] **Double → single transitions happen outside the station**: when a station has double track on one side and
       single on the other, draw the turnout on the *single* side, starting at the station edge and completing over
       ≥ 1.5 tiles with a smooth S-curve (no kink). Same for single↔double transitions mid-line.
-- [ ] **Ties drawn once**: in turnouts and where the two tracks converge, draw one shared set of ties spanning both
+- [x] **Ties drawn once**: in turnouts and where the two tracks converge, draw one shared set of ties spanning both
       rails (lengthening gradually), never two sets crossing each other.
-- [ ] **Curves adjacent to stations**: if a fillet arc would overlap the station tile, start the arc after the
+- [x] **Curves adjacent to stations**: if a fillet arc would overlap the station tile, start the arc after the
       station edge (the station tile is always straight).
-- [ ] Trains follow the drawn geometry exactly (lane offsets ease through the turnout; no vehicle drawn off the rails).
+- [x] Trains follow the drawn geometry exactly (lane offsets ease through the turnout; no vehicle drawn off the rails).
 **Screenshots (look at them critically and compare with the player's complaint):** a double-track line entering a
 station straight, on a curve, a station with double on one side and single on the other, a mid-line
 single↔double transition, and two trains stopped side by side at a double-track station — zoom 1.5 and 2.
