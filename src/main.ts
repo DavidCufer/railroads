@@ -158,6 +158,16 @@ function main(): void {
   const trackRenderer = new TrackRenderer(state.map.width, state.map.height, state.trackGraph);
   const miniMapRenderer = new MiniMapRenderer(state.map);
   let lastMapContentVersion = state.mapContentVersion;
+  /** Station tiles (PLAN Phase 16.1) — a double edge never tapers, and no fillet arc is drawn,
+   * through one of these (see `track.ts`/`trains.ts`). Recomputed whenever a station is built
+   * (the only way this set changes — there's no bulldoze-station command) and handed to both the
+   * cached track renderer (which needs to bust its chunk cache on a change) and the per-frame
+   * station/train renderers. */
+  let stationTiles: ReadonlySet<number> = new Set();
+  function refreshStationTiles(): void {
+    stationTiles = new Set(state.stations.map((s) => s.tile));
+    trackRenderer.setStations(stationTiles);
+  }
   const cameraInput = new CameraInput(canvas, camera, () => ({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -206,6 +216,7 @@ function main(): void {
     camera.setMapSize(state.map.width, state.map.height);
     terrainRenderer.setMap(state.map, state.cities, state.industries);
     trackRenderer.setMap(state.map.width, state.map.height, state.trackGraph);
+    refreshStationTiles();
     miniMapRenderer.setMap(state.map);
     lastMapContentVersion = state.mapContentVersion;
     dragState = null;
@@ -721,7 +732,15 @@ function main(): void {
           overlayState.heatmapCargo,
         );
       }
-      drawStations(ctx, camera, viewportW, viewportH, state.map.width, state.stations);
+      drawStations(
+        ctx,
+        camera,
+        viewportW,
+        viewportH,
+        state.map.width,
+        state.stations,
+        state.trackGraph,
+      );
       drawStationSupplyBubbles(ctx, camera, viewportW, viewportH, state);
       if (overlayState.trainProfit) {
         drawTrainProfitOverlay(ctx, camera, viewportW, viewportH, state.trains, state.ticks);
@@ -736,6 +755,7 @@ function main(): void {
         state.trains,
         alpha,
         now,
+        stationTiles,
       );
       if (ghost) drawBuildPreview(ctx, camera, viewportW, viewportH, state.map.width, ghost);
       if (stationPreview) {
@@ -1127,6 +1147,7 @@ function main(): void {
       },
       buildStation: (tile, type) => {
         const result = buildStation(state, tile, type);
+        if (result.ok) refreshStationTiles();
         return result.ok ? { ok: true } : { ok: false, reason: result.reason };
       },
       buyTrain: (stationId, locoModelId, cars) => {
@@ -1301,6 +1322,7 @@ function main(): void {
 
         if (edgesAdded > 0 || stationIds.length > 0) state.trackVersion++;
         refreshStationEconomy(state);
+        refreshStationTiles();
         return { edges: edgesAdded, stations: stationIds.length, stationIds };
       },
       debugSpawnStressTrains: (count) => {

@@ -79,13 +79,17 @@ function laneOffsetTiles(
   b: number,
   path: EdgePath,
   distanceAlongPath: number,
+  stationTiles: ReadonlySet<number>,
 ): number {
   const edge = graph.getEdge(a, b);
   if (!edge?.double) return 0;
   const throughDirection = a === edge.a; // traveling a->b matches the edge's own canonical a->b
   if (throughDirection) return 0;
-  const taperAtA = !hasDoubleNeighborAt(graph, edge.a, edge.b);
-  const taperAtB = !hasDoubleNeighborAt(graph, edge.b, edge.a);
+  // PLAN Phase 16.1: a station never pinches a touching double edge's taper to 0 at itself (see
+  // `track.ts`'s matching taper flags) — a train stays in its own lane all the way up to the
+  // platform instead of sliding back onto the centerline just before arriving.
+  const taperAtA = !hasDoubleNeighborAt(graph, edge.a, edge.b) && !stationTiles.has(edge.a);
+  const taperAtB = !hasDoubleNeighborAt(graph, edge.b, edge.a) && !stationTiles.has(edge.b);
   // `path` runs b->a here (reversed from canonical a->b), so distance from *canonical* start (a of
   // the edge, i.e. this path's own end) is the remainder.
   const distanceFromCanonicalStart = path.length - distanceAlongPath;
@@ -111,19 +115,24 @@ export function curvedRouteSample(
   route: readonly number[],
   idx: number,
   progress: number,
+  stationTiles: ReadonlySet<number> = new Set(),
 ): Sample {
   const a = route[idx] as number;
   const b = route[idx + 1] as number;
   const dirAB = directionBetween(a, b, mapWidth);
-  const partnerA = routePartnerDir(mapWidth, a, dirAB, route[idx - 1]);
-  const partnerB = routePartnerDir(mapWidth, b, (dirAB + 4) % 8, route[idx + 2]);
+  // PLAN Phase 16.1: never fillet at a station's own node (matches `track.ts`'s drawn geometry —
+  // "the station tile is always straight").
+  const partnerA = stationTiles.has(a) ? null : routePartnerDir(mapWidth, a, dirAB, route[idx - 1]);
+  const partnerB = stationTiles.has(b)
+    ? null
+    : routePartnerDir(mapWidth, b, (dirAB + 4) % 8, route[idx + 2]);
   const path = buildEdgeGeometry(mapWidth, a, b, partnerA, partnerB);
   const [ax, ay] = tileXY(a, mapWidth);
   const [bx, by] = tileXY(b, mapWidth);
   const straightLen = Math.hypot(bx - ax, by - ay);
   const distanceAlongPath = progress * straightLen;
   const sample = path.pointAt(distanceAlongPath);
-  const lane = laneOffsetTiles(graph, a, b, path, distanceAlongPath);
+  const lane = laneOffsetTiles(graph, a, b, path, distanceAlongPath, stationTiles);
   if (lane === 0) return sample;
   const perpX = -Math.sin(sample.angle);
   const perpY = Math.cos(sample.angle);
@@ -139,6 +148,7 @@ function sampleBehindHead(
   graph: TrackGraph,
   train: Train,
   distanceBehind: number,
+  stationTiles: ReadonlySet<number>,
 ): Sample {
   let idx = train.routeIndex;
   const firstB = train.route[idx + 1];
@@ -169,7 +179,7 @@ function sampleBehindHead(
     return { x: x + 0.5, y: y + 0.5, angle: DIR_ANGLE[Math.max(train.direction, 0)] as number };
   }
   const progress = Math.max(0, Math.min(1, (coveredOnEdge - remaining) / edgeLen));
-  return curvedRouteSample(mapWidth, graph, train.route, idx, progress);
+  return curvedRouteSample(mapWidth, graph, train.route, idx, progress, stationTiles);
 }
 
 /** Fraction (0..1, clamped) of the way from tile `a` to tile `b` that world point `(x, y)`
@@ -536,6 +546,7 @@ export function drawTrains(
   trains: readonly Train[],
   alpha: number,
   nowMs: number,
+  stationTiles: ReadonlySet<number>,
 ): void {
   const size = TILE_SIZE * camera.zoom;
   for (const train of trains) {
@@ -554,7 +565,14 @@ export function drawTrains(
       // do while keeping the existing smooth sub-tick interpolation (`alpha`).
       const progressStart = progressAlongEdge(mapWidth, a, b, train.renderFromX, train.renderFromY);
       const progress = lerp(progressStart, train.edgeProgress, alpha);
-      const sample = curvedRouteSample(mapWidth, graph, train.route, train.routeIndex, progress);
+      const sample = curvedRouteSample(
+        mapWidth,
+        graph,
+        train.route,
+        train.routeIndex,
+        progress,
+        stationTiles,
+      );
       headTileX = sample.x;
       headTileY = sample.y;
       angle = sample.angle;
@@ -579,7 +597,7 @@ export function drawTrains(
         VEHICLE_GAP_TILES +
         i * (CAR_DRAW_LEN_TILES + VEHICLE_GAP_TILES) +
         CAR_DRAW_LEN_TILES / 2;
-      const sample = sampleBehindHead(mapWidth, graph, train, distanceBehind);
+      const sample = sampleBehindHead(mapWidth, graph, train, distanceBehind, stationTiles);
       const screen = worldToScreenScaled(camera, sample.x, sample.y, viewportW, viewportH);
       const car = train.cars[i];
       drawCar(

@@ -46,8 +46,10 @@ export const FILLET_TANGENT_TILES = FILLET_RADIUS_TILES / Math.tan(HALF_INTERIOR
 export const DOUBLE_TRACK_SPACING_TILES = 0.28;
 
 /** How far (in tiles) a single↔double turnout's diverging track eases in/out — SPEC §5.1: "a
- * gentle S-curve over ~1 tile". */
-export const TURNOUT_EASE_TILES = 1;
+ * gentle S-curve over ~1 tile", bumped to PLAN Phase 16.1's "≥ 1.5 tiles" (play-test 3: the
+ * original 1-tile ease read as a "kink" right next to a station; the same easing function is used
+ * for every single↔double transition, station-adjacent or mid-line, so both got longer). */
+export const TURNOUT_EASE_TILES = 1.5;
 
 /** The diverging ("second") track's lateral offset (tiles, 0..`DOUBLE_TRACK_SPACING_TILES`) at
  * `distanceFromStart` along a double edge of total length `edgeLength` (both in tiles, along the
@@ -90,6 +92,47 @@ export function hasDoubleNeighborAt(
     if (graph.getEdge(node, neighbor)?.double) return true;
   }
   return false;
+}
+
+/** PLAN Phase 16.1 (play-test 3: "where double track meets a station, the two tracks pinch
+ * together in a sharp kink right at the station tile"): true if `node` is a station tile with at
+ * least one double-track edge touching it. Such a station is a passing loop — drawn with both
+ * tracks at full spacing straight through the tile (`stationTiles.has(node)` alone is enough to
+ * suppress a double edge's own taper at that end, regardless of `hasDoubleNeighborAt`, since a
+ * station never pinches). The turnout this displaces is drawn instead on whichever single-track
+ * edge leaves the station on the other side — see `stationApproachOffsetAt`. */
+export function isPassingLoopStation(
+  graph: TrackGraph,
+  node: number,
+  stationTiles: ReadonlySet<number>,
+): boolean {
+  return stationTiles.has(node) && graph.edgesAt(node).some((e) => e.double);
+}
+
+/** The "ghost" continuation of a passing-loop station's second track a short way onto a
+ * single-track edge leaving it (rails/ties only — there is no second lane a train can actually use
+ * here, since the edge itself isn't double; ordinary single-track routing applies the moment a
+ * train leaves the station). PLAN Phase 16.1: "draw the turnout on the *single* side, starting at
+ * the station edge and completing over ≥ 1.5 tiles with a smooth S-curve". Mirrors
+ * `doubleTrackOffsetAt`'s taper shape but inverted — full spacing right at the station end(s),
+ * decaying to 0 over `TURNOUT_EASE_TILES` — so the station's own full-width passing loop merges
+ * smoothly into the single line beyond it instead of pinching at the station tile itself. */
+export function stationApproachOffsetAt(
+  distanceFromStart: number,
+  edgeLength: number,
+  approachAtStart: boolean,
+  approachAtEnd: boolean,
+): number {
+  const taperLen = Math.min(TURNOUT_EASE_TILES, edgeLength / 2);
+  let factor = 0;
+  if (approachAtStart) {
+    factor = Math.max(factor, taperLen > 0 ? 1 - distanceFromStart / taperLen : 0);
+  }
+  if (approachAtEnd) {
+    const distanceFromEnd = edgeLength - distanceFromStart;
+    factor = Math.max(factor, taperLen > 0 ? 1 - distanceFromEnd / taperLen : 0);
+  }
+  return DOUBLE_TRACK_SPACING_TILES * Math.max(0, Math.min(1, factor));
 }
 
 export interface Point {

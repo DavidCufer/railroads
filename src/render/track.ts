@@ -12,6 +12,11 @@
  * bend to smooth, so it stays a plain pointed corner, matching its existing red marker. Bridges
  * are a single straight structural span (SPEC §5.1 deviation, see `src/sim/track/types.ts`) and
  * never bend at their own ends, though an approach track curving into one is drawn normally.
+ *
+ * PLAN Phase 16.1 (play-test 3): a station tile never bends (no fillet at its own node) and never
+ * pinches a touching double edge's taper to 0 at itself — see `trackPath.ts`'s
+ * `isPassingLoopStation`/`stationApproachOffsetAt` for how the displaced single↔double turnout
+ * moves onto the single-track side instead.
  */
 import { Camera, OVERVIEW_ZOOM_THRESHOLD, TILE_SIZE } from "./camera";
 import {
@@ -32,6 +37,8 @@ import {
   doubleTrackOffsetAt,
   hasDoubleNeighborAt,
   isFilletBend,
+  isPassingLoopStation,
+  stationApproachOffsetAt,
   type EdgePath,
   type PathPiece,
   type PathSample,
@@ -137,6 +144,10 @@ export class TrackRenderer {
   private mapWidth: number;
   private mapHeight: number;
   private graph: TrackGraph;
+  /** Station tiles (PLAN Phase 16.1) — a double edge never tapers at one of these, and a fillet
+   * arc is never drawn through one (the station tile is always straight). Chunk canvases are
+   * cached, so this needs its own setter that busts the cache, same as `setMap`/`invalidateTiles`. */
+  private stationTiles: ReadonlySet<number> = new Set();
 
   constructor(mapWidth: number, mapHeight: number, graph: TrackGraph) {
     this.mapWidth = mapWidth;
@@ -148,6 +159,16 @@ export class TrackRenderer {
     this.mapWidth = mapWidth;
     this.mapHeight = mapHeight;
     this.graph = graph;
+    this.stationTiles = new Set();
+    this.cache.clear();
+  }
+
+  /** Call whenever the set of built stations changes (a station build is the only thing that adds
+   * one — SPEC has no bulldoze-station command). Stations are rare events, so simply dropping the
+   * whole chunk cache is fine (no need to track exactly which chunks a station's approach geometry
+   * reaches). */
+  setStations(stationTiles: ReadonlySet<number>): void {
+    this.stationTiles = stationTiles;
     this.cache.clear();
   }
 
@@ -294,31 +315,51 @@ export class TrackRenderer {
     }
 
     const dirAB = edge.direction;
-    const partnerA = this.findFilletPartnerDir(edge.a, edge.b, dirAB);
-    const partnerB = this.findFilletPartnerDir(edge.b, edge.a, (dirAB + 4) % 8);
+    // PLAN Phase 16.1 ("the station tile is always straight"): never fillet a bend at a station's
+    // own node — a train platform reads as one clean straight run through the tile, whatever angle
+    // the track happens to meet it at.
+    const partnerA = this.stationTiles.has(edge.a)
+      ? null
+      : this.findFilletPartnerDir(edge.a, edge.b, dirAB);
+    const partnerB = this.stationTiles.has(edge.b)
+      ? null
+      : this.findFilletPartnerDir(edge.b, edge.a, (dirAB + 4) % 8);
     const centerline = buildEdgeGeometry(this.mapWidth, edge.a, edge.b, partnerA, partnerB);
 
     const railColor = TRACK_COLOR;
     ctx.lineCap = "round";
+    const centerlineLen = centerline.length;
 
     // PLAN Phase 16 (play-test 2): a double edge's two tracks are no longer symmetric offsets of a
     // shared centerline — one ("through") *is* the centerline exactly, the other ("diverging")
     // eases out to `DOUBLE_TRACK_SPACING_TILES` away from it. That's what lets a single↔double
     // transition taper smoothly instead of splaying: the through track needs no special handling at
     // all (it's already the single track's own line), only the diverging one ramps in `offsetAt`.
-    const taperAtA = edge.double && !hasDoubleNeighborAt(this.graph, edge.a, edge.b);
-    const taperAtB = edge.double && !hasDoubleNeighborAt(this.graph, edge.b, edge.a);
-    const centerlineLen = centerline.length;
-    const offsetAt = (d: number): number =>
-      doubleTrackOffsetAt(d, centerlineLen, taperAtA, taperAtB);
+    // PLAN Phase 16.1: a station never pinches this taper to 0 at its own end — see
+    // `isPassingLoopStation`'s doc comment for where the displaced taper goes instead.
+    let secondaryOffsetAt: ((d: number) => number) | null = null;
+    if (edge.double) {
+      const taperAtA =
+        !hasDoubleNeighborAt(this.graph, edge.a, edge.b) && !this.stationTiles.has(edge.a);
+      const taperAtB =
+        !hasDoubleNeighborAt(this.graph, edge.b, edge.a) && !this.stationTiles.has(edge.b);
+      secondaryOffsetAt = (d) => doubleTrackOffsetAt(d, centerlineLen, taperAtA, taperAtB);
+    } else {
+      const approachAtA = isPassingLoopStation(this.graph, edge.a, this.stationTiles);
+      const approachAtB = isPassingLoopStation(this.graph, edge.b, this.stationTiles);
+      if (approachAtA || approachAtB) {
+        secondaryOffsetAt = (d) =>
+          stationApproachOffsetAt(d, centerlineLen, approachAtA, approachAtB);
+      }
+    }
 
     if (!tiesStyle) {
       ctx.strokeStyle = railColor;
       ctx.lineWidth = Math.max(1, (edge.double ? 2.4 : 1.6) * scale);
       tracePieceList(ctx, centerline.pieces, originX, originY, px);
       ctx.stroke();
-      if (edge.double) {
-        this.drawVariableOffsetLine(ctx, centerline, offsetAt, originX, originY, px);
+      if (secondaryOffsetAt) {
+        this.drawVariableOffsetLine(ctx, centerline, secondaryOffsetAt, originX, originY, px);
       }
       if (edge.electrified)
         this.drawCatenaryOnPath(ctx, centerline, edge, originX, originY, px, scale);
@@ -336,10 +377,13 @@ export class TrackRenderer {
     tracePieceList(ctx, centerline.offset(railGapTiles).pieces, originX, originY, px);
     ctx.stroke();
 
-    if (edge.double) {
-      // Diverging track's own two rails, at the through track's rail gap either side of its
+    if (secondaryOffsetAt) {
+      const offsetAt = secondaryOffsetAt;
+      // Second track's own two rails, at the through track's rail gap either side of its
       // (variable) own offset — sampled directly rather than via `EdgePath.offset`, which only
-      // supports one constant offset for a whole edge.
+      // supports one constant offset for a whole edge. Same code path whether this is a genuine
+      // double edge or a single edge's ghost approach into a passing-loop station (Phase 16.1) —
+      // the latter just never gets a train lane, since the edge itself isn't double.
       this.drawVariableOffsetLine(
         ctx,
         centerline,
@@ -358,9 +402,9 @@ export class TrackRenderer {
       );
 
       // One shared, widening tie per sample (SPEC §5.1: "shared ballast bed") — spans from the
-      // through track's own outer rail to the diverging track's own (growing) outer rail, so it
-      // reads as one normal-width tie right at a single-track transition and widens into a shared
-      // double-width tie further into the double section.
+      // through track's own outer rail to the second track's own (growing) outer rail, so it reads
+      // as one normal-width tie right at a single-track transition and widens into a shared
+      // double-width tie further into the double section (or the station's own passing loop).
       this.drawTies(
         ctx,
         centerline,

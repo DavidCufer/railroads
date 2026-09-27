@@ -106,3 +106,100 @@ describe("curvedRouteSample: double-track lane offset", () => {
     expect(Math.hypot(midway.x - throughMidway.x, midway.y - throughMidway.y)).toBeGreaterThan(0.1);
   });
 });
+
+/** PLAN Phase 16.1 (play-test 3: "the two tracks pinch together in a sharp kink right at the
+ * station tile"): a double edge ending at a station must NOT taper down to 0 at the station —
+ * unlike the plain mid-line transition case above, which pinches to 0 exactly at the shared node. */
+describe("curvedRouteSample: passing-loop stations (Phase 16.1)", () => {
+  it("keeps full lane separation right at a station, instead of pinching to 0 there", () => {
+    const mapWidth = 5;
+    const graph = new TrackGraph();
+    // D(0) =double= S(1) -single- N(2); S is a station with double track on one side.
+    graph.addEdge({
+      a: 0,
+      b: 1,
+      direction: EAST,
+      double: true,
+      electrified: false,
+      bridge: null,
+      bridgeSpan: [],
+      cost: 0,
+    });
+    graph.addEdge({
+      a: 1,
+      b: 2,
+      direction: EAST,
+      double: false,
+      electrified: false,
+      bridge: null,
+      bridgeSpan: [],
+      cost: 0,
+    });
+    const stationTiles = new Set([1]);
+
+    // The reverse-direction (diverging-lane) train arriving at the station, on the double edge.
+    const atStation = curvedRouteSample(mapWidth, graph, [1, 0], 0, 0, stationTiles);
+    const throughAtStation = curvedRouteSample(mapWidth, graph, [0, 1], 0, 1, stationTiles);
+    const separation = Math.hypot(
+      atStation.x - throughAtStation.x,
+      atStation.y - throughAtStation.y,
+    );
+    expect(separation).toBeCloseTo(DOUBLE_TRACK_SPACING_TILES, 6);
+
+    // Without station awareness (the pre-16.1 behavior, an empty station set), the same point
+    // pinches to 0 — demonstrating this is actually the station, not just a generally-wider taper.
+    const atStationNoStation = curvedRouteSample(mapWidth, graph, [1, 0], 0, 0);
+    const throughNoStation = curvedRouteSample(mapWidth, graph, [0, 1], 0, 1);
+    expect(
+      Math.hypot(
+        atStationNoStation.x - throughNoStation.x,
+        atStationNoStation.y - throughNoStation.y,
+      ),
+    ).toBeCloseTo(0, 6);
+  });
+});
+
+describe("curvedRouteSample: no fillet through a station tile (Phase 16.1)", () => {
+  it("draws straight through a station even at what would otherwise be a 45° fillet bend", () => {
+    // Same junction geometry as trackPath.test.ts's own chaining test: edge (5,6) direction E,
+    // edge (6,27) direction SE, W=20 — a valid 45°-bend partner at node 6.
+    const mapWidth = 20;
+    const graph = new TrackGraph();
+    graph.addEdge({
+      a: 5,
+      b: 6,
+      direction: EAST,
+      double: false,
+      electrified: false,
+      bridge: null,
+      bridgeSpan: [],
+      cost: 0,
+    });
+    graph.addEdge({
+      a: 6,
+      b: 27,
+      direction: 1, // SE
+      double: false,
+      electrified: false,
+      bridge: null,
+      bridgeSpan: [],
+      cost: 0,
+    });
+
+    const bent = curvedRouteSample(mapWidth, graph, [5, 6, 27], 0, 1);
+    const straightThroughStation = curvedRouteSample(
+      mapWidth,
+      graph,
+      [5, 6, 27],
+      0,
+      1,
+      new Set([6]),
+    );
+
+    // Without the station, the route fillets and arrives short of tile 6's exact center.
+    expect(Math.hypot(bent.x - 6.5, bent.y - 0.5)).toBeGreaterThan(0.01);
+    // With node 6 marked a station, no fillet is drawn there — the route reaches the tile center.
+    expect(straightThroughStation.x).toBeCloseTo(6.5, 6);
+    expect(straightThroughStation.y).toBeCloseTo(0.5, 6);
+  });
+});

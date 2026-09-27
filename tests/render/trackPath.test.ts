@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
   buildEdgeGeometry,
+  DOUBLE_TRACK_SPACING_TILES,
   FILLET_RADIUS_TILES,
   FILLET_TANGENT_TILES,
   halfFillet,
   isFilletBend,
+  isPassingLoopStation,
   pointOnPiece as pointOnPieceForTest,
+  stationApproachOffsetAt,
+  TURNOUT_EASE_TILES,
 } from "../../src/render/trackPath";
+import { TrackGraph } from "../../src/sim/track/graph";
+import type { TrackEdge } from "../../src/sim/track/types";
 
 function angleOf(dx: number, dy: number): number {
   return Math.atan2(dy, dx);
@@ -148,6 +154,64 @@ describe("buildEdgeGeometry", () => {
     const start = path.pointAt(0);
     expect(start.x).toBeCloseTo(0.5, 9);
     expect(start.y).toBeCloseTo(2.5, 9);
+  });
+});
+
+const EAST = 0;
+
+function edge(a: number, b: number, double: boolean): TrackEdge {
+  return {
+    a,
+    b,
+    direction: EAST,
+    double,
+    electrified: false,
+    bridge: null,
+    bridgeSpan: [],
+    cost: 0,
+  };
+}
+
+describe("isPassingLoopStation (PLAN Phase 16.1)", () => {
+  it("is true only for a station tile that a double edge actually touches", () => {
+    const graph = new TrackGraph();
+    graph.addEdge(edge(0, 1, true));
+    graph.addEdge(edge(1, 2, false));
+    expect(isPassingLoopStation(graph, 1, new Set([1]))).toBe(true);
+    // Same tile, but not a station: no passing loop to draw.
+    expect(isPassingLoopStation(graph, 1, new Set())).toBe(false);
+    // A station with no double edge touching it at all: plain single-track station.
+    expect(isPassingLoopStation(graph, 2, new Set([2]))).toBe(false);
+  });
+});
+
+describe("stationApproachOffsetAt (PLAN Phase 16.1)", () => {
+  it("starts at full spacing right at the station end and decays to 0 over TURNOUT_EASE_TILES", () => {
+    const edgeLength = 4;
+    expect(stationApproachOffsetAt(0, edgeLength, true, false)).toBeCloseTo(
+      DOUBLE_TRACK_SPACING_TILES,
+      6,
+    );
+    expect(stationApproachOffsetAt(TURNOUT_EASE_TILES, edgeLength, true, false)).toBeCloseTo(0, 6);
+    expect(stationApproachOffsetAt(TURNOUT_EASE_TILES / 2, edgeLength, true, false)).toBeCloseTo(
+      DOUBLE_TRACK_SPACING_TILES / 2,
+      6,
+    );
+    // Beyond the ease distance, fully merged (never negative/overshooting).
+    expect(stationApproachOffsetAt(edgeLength, edgeLength, true, false)).toBeCloseTo(0, 6);
+  });
+
+  it("is symmetric for the far ('end') side and takes the larger of the two on a short edge", () => {
+    const edgeLength = 1; // shorter than TURNOUT_EASE_TILES, so both ends' ease clamps to length/2
+    expect(stationApproachOffsetAt(0, edgeLength, false, true)).toBeCloseTo(0, 6);
+    expect(stationApproachOffsetAt(edgeLength, edgeLength, false, true)).toBeCloseTo(
+      DOUBLE_TRACK_SPACING_TILES,
+      6,
+    );
+    // Approach from both ends on a short edge: never less than either side alone would give.
+    const both = stationApproachOffsetAt(edgeLength / 2, edgeLength, true, true);
+    const startOnly = stationApproachOffsetAt(edgeLength / 2, edgeLength, true, false);
+    expect(both).toBeGreaterThanOrEqual(startOnly);
   });
 });
 

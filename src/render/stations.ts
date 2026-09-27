@@ -6,6 +6,8 @@
 import type { StationImprovementType, StationType } from "../data/stations";
 import type { CityTier } from "../data/cities";
 import type { City } from "../sim/economy/types";
+import { DIRS8 } from "../sim/map/grid";
+import type { TrackGraph } from "../sim/track/graph";
 import { Camera, TILE_SIZE } from "./camera";
 import { cityWorldCenter, measureTextWidthCached } from "./labels";
 import {
@@ -16,6 +18,7 @@ import {
   STATION_PLATFORM_COLOR,
 } from "./palette";
 import type { Station } from "../sim/stations/types";
+import { DOUBLE_TRACK_SPACING_TILES } from "./trackPath";
 import { intersectsReserved, type ReservedScreenRect } from "./reservedRects";
 
 /** Matches labels.ts's TIER_FONT_PX — used here only to estimate a city label's rendered height,
@@ -80,6 +83,68 @@ function drawStationIcon(
     ctx.closePath();
     ctx.fill();
   }
+}
+
+/** PLAN Phase 16.1 (play-test 3: "stations on double track are passing loops"): draws a station
+ * that has a double-track edge touching it as two parallel platform tracks straight through the
+ * tile instead of one — matching `track.ts`'s own through (offset 0) / diverging
+ * (`DOUBLE_TRACK_SPACING_TILES`) rail pair exactly, so the icon lines up with the rails drawn under
+ * it rather than contradicting them. `dirIndex` is the touching double edge's own canonical
+ * direction (not "away from this station"), the same convention `track.ts` offsets from, so
+ * rotating by its heading here lands "+local y" on the same physical side as the diverging track.
+ * An island platform sits in the gap between the two tracks; the building sits beyond the far
+ * (diverging) one, so nothing is drawn on top of either rail (PLAN: "never under the rails"). */
+function drawPassingLoopStationIcon(
+  ctx: CanvasRenderingContext2D,
+  type: StationType,
+  px: number,
+  py: number,
+  size: number,
+  dirIndex: number,
+): void {
+  const { building, platform, roofCount } = TYPE_SCALE[type];
+  const cx = px + size / 2;
+  const cy = py + size / 2;
+  const [dx, dy] = DIRS8[dirIndex] as readonly [number, number];
+  const angle = Math.atan2(dy, dx);
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+
+  const laneSpacing = size * DOUBLE_TRACK_SPACING_TILES;
+  const platformLen = size * platform;
+
+  // Island platform, centered in the gap between the through (y=0) and diverging (y=laneSpacing)
+  // tracks — thin enough to clear both tracks' own rail gauge.
+  const islandH = Math.min(size * 0.09, laneSpacing * 0.6);
+  ctx.fillStyle = STATION_PLATFORM_COLOR;
+  ctx.fillRect(-platformLen / 2, laneSpacing / 2 - islandH / 2, platformLen, islandH);
+
+  // Building beyond the diverging track's own outer rail — clearly beside, never under either
+  // track. Roof peak points further outward (away from the tracks), same silhouette as the
+  // single-track icon just translated/rotated onto this side.
+  const buildW = size * building;
+  const buildH = size * building * 0.72;
+  const buildingNear = laneSpacing + size * 0.14;
+  for (let i = 0; i < roofCount; i++) {
+    const offset = roofCount > 1 ? (i - (roofCount - 1) / 2) * buildW * 0.9 : 0;
+    const bx = offset - buildW / 2;
+    const by = buildingNear;
+
+    ctx.fillStyle = STATION_BUILDING_COLOR;
+    ctx.fillRect(bx, by, buildW, buildH);
+
+    ctx.fillStyle = STATION_BUILDING_ROOF_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(bx - size * 0.03, by + buildH);
+    ctx.lineTo(bx + buildW / 2, by + buildH + buildH * 0.45);
+    ctx.lineTo(bx + buildW + size * 0.03, by + buildH);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.restore();
 }
 
 /** Marker type drawn beside a station — the six generic improvements plus Engine Shed/Water Tower,
@@ -227,13 +292,19 @@ export function drawStations(
   viewportH: number,
   mapWidth: number,
   stations: readonly Station[],
+  graph: TrackGraph,
 ): void {
   const size = TILE_SIZE * camera.zoom;
   for (const station of stations) {
     const [wx, wy] = tileWorldOrigin(station.tile, mapWidth);
     const s = camera.worldToScreen(wx, wy, viewportW, viewportH);
     if (s.x < -size || s.y < -size || s.x > viewportW + size || s.y > viewportH + size) continue;
-    drawStationIcon(ctx, station.type, s.x, s.y, size);
+    const doubleEdge = graph.edgesAt(station.tile).find((e) => e.double);
+    if (doubleEdge) {
+      drawPassingLoopStationIcon(ctx, station.type, s.x, s.y, size, doubleEdge.direction);
+    } else {
+      drawStationIcon(ctx, station.type, s.x, s.y, size);
+    }
     drawImprovementMarkers(ctx, station, s.x, s.y, size);
   }
 }
