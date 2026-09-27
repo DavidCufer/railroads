@@ -7,7 +7,6 @@
  */
 import { CARGO, CARGO_TYPES, type CargoType } from "../data/cargo";
 import {
-  STATION_ACCEPTANCE_THRESHOLD,
   STATION_IMPROVEMENT_TYPES,
   STATION_IMPROVEMENTS,
   STATION_TYPES,
@@ -28,8 +27,9 @@ import {
 import { previewStationEconomy, type StationEconomy } from "../sim/stations";
 import type { GameState } from "../sim/state";
 import { calendarFromTicks } from "../sim/time";
-import { cargoChip, row } from "./infoPanels";
+import { cargoChip, cargoDemandTile, row } from "./infoPanels";
 import { h } from "./h";
+import { icon } from "./icons";
 import { closePanel, openPanel } from "./panel";
 import { strings } from "./strings";
 import { formatMoney } from "./format";
@@ -39,23 +39,76 @@ function currentYear(state: GameState): number {
   return calendarFromTicks(state.startYear, state.ticks).year;
 }
 
-function economyBody(economy: StationEconomy): Node[] {
+/** A supply chip (STYLE §6: "supplies ... with waiting amounts as a thin bar under each chip") —
+ * the per-month rate as a cargo chip, with a thin waiting-cargo bar underneath when this station
+ * has some of that cargo piled up waiting for pickup. */
+function supplyChipStack(
+  container: HTMLElement,
+  cargo: CargoType,
+  ratePerMonth: number,
+  waiting?: { amount: number; cap: number },
+): HTMLElement {
+  const children: Node[] = [
+    cargoChip(container, cargo, Math.round(ratePerMonth * 10) / 10, strings.station.perMonth),
+  ];
+  if (waiting && waiting.cap > 0) {
+    const pct = Math.max(0, Math.min(100, (waiting.amount / waiting.cap) * 100));
+    children.push(
+      h(
+        "div",
+        { className: "cargo-bar-track mini" },
+        h("div", {
+          className: "cargo-bar-fill",
+          style: { width: `${pct}%`, background: CARGO[cargo].color },
+        }),
+      ),
+    );
+  }
+  return h("div", { className: "supply-chip-stack" }, ...children);
+}
+
+/** Supplies/Demands (STYLE §6): pictogram chips above all actions. `waitingPile`/`waitingCap`
+ * (only known for an already-built station, not the placement preview) attach a thin waiting-
+ * cargo bar under each matching supply chip instead of a separate "Waiting cargo" section. */
+function economyBody(
+  container: HTMLElement,
+  economy: StationEconomy,
+  waitingPile?: Partial<Record<CargoType, { amount: number }>>,
+  waitingCap?: number,
+): Node[] {
   const supplyEntries = (Object.entries(economy.supply) as Array<[CargoType, number]>).filter(
     ([, v]) => v > 0.05,
   );
   const acceptEntries = (Object.entries(economy.acceptPoints) as Array<[CargoType, number]>).sort(
     (a, b) => CARGO_TYPES.indexOf(a[0]) - CARGO_TYPES.indexOf(b[0]),
   );
+  const suppliedCargo = new Set(supplyEntries.map(([c]) => c));
+  const extraWaiting = waitingPile
+    ? CARGO_TYPES.filter((c) => !suppliedCargo.has(c) && (waitingPile[c]?.amount ?? 0) > 0.5)
+    : [];
 
   const body: Node[] = [];
   body.push(h("div", { className: "panel-section-title" }, strings.station.supplies));
   body.push(
-    supplyEntries.length > 0
+    supplyEntries.length > 0 || extraWaiting.length > 0
       ? h(
           "div",
-          { className: "panel-row", style: { flexWrap: "wrap" } },
+          { className: "chip-row" },
           ...supplyEntries.map(([cargo, amount]) =>
-            cargoChip(cargo, Math.round(amount * 10) / 10, strings.station.perMonth),
+            supplyChipStack(
+              container,
+              cargo,
+              amount,
+              waitingCap
+                ? { amount: waitingPile?.[cargo]?.amount ?? 0, cap: waitingCap }
+                : undefined,
+            ),
+          ),
+          ...extraWaiting.map((cargo) =>
+            supplyChipStack(container, cargo, 0, {
+              amount: waitingPile?.[cargo]?.amount ?? 0,
+              cap: waitingCap ?? 1,
+            }),
           ),
         )
       : h("div", { className: "panel-row" }, "—"),
@@ -65,42 +118,12 @@ function economyBody(economy: StationEconomy): Node[] {
     acceptEntries.length > 0
       ? h(
           "div",
-          { className: "panel-row", style: { flexWrap: "wrap" } },
-          ...acceptEntries.map(([cargo, points]) =>
-            cargoChip(cargo, points, "", points < STATION_ACCEPTANCE_THRESHOLD),
-          ),
+          { className: "chip-row" },
+          ...acceptEntries.map(([cargo, points]) => cargoDemandTile(container, cargo, points)),
         )
       : h("div", { className: "panel-row" }, "—"),
   );
   return body;
-}
-
-/** Waiting-cargo bars (SPEC §6.3, §10.2): amount vs. this station type's per-cargo storage cap. */
-function waitingCargoBody(state: GameState, stationId: number, type: StationType): Node[] {
-  const pile = state.stationCargo.get(stationId);
-  const cap = STATION_TYPE_DEFS[type].storagePerCargo;
-  const entries = CARGO_TYPES.filter((c) => (pile?.[c]?.amount ?? 0) > 0.5);
-  if (entries.length === 0) {
-    return [h("div", { className: "panel-row" }, strings.station.waitingCargoNone)];
-  }
-  return entries.map((cargo) => {
-    const amount = pile?.[cargo]?.amount ?? 0;
-    const pct = Math.max(0, Math.min(100, (amount / cap) * 100));
-    return h(
-      "div",
-      { className: "cargo-bar-row" },
-      h("span", { className: "cargo-bar-label" }, CARGO[cargo].name),
-      h(
-        "div",
-        { className: "cargo-bar-track" },
-        h("div", {
-          className: "cargo-bar-fill",
-          style: { width: `${pct}%`, background: CARGO[cargo].color },
-        }),
-      ),
-      h("span", { className: "cargo-bar-value" }, `${Math.round(amount)}/${cap}`),
-    );
-  });
 }
 
 function statsRows(type: StationType): Node[] {
@@ -164,7 +187,7 @@ export function openStationPlacementPanel(
       "aria-label": strings.ui.close,
       onClick: () => closePanel(),
     },
-    strings.station.cancel,
+    icon("close"),
   );
 
   buildBtn.addEventListener("click", () => {
@@ -194,7 +217,7 @@ export function openStationPlacementPanel(
     );
 
     statsEl.replaceChildren(...statsRows(selectedType));
-    economyEl.replaceChildren(...economyBody(economy));
+    economyEl.replaceChildren(...economyBody(container, economy));
     buildBtn.textContent = `${strings.station.build} (${formatMoney(plan.cost)})`;
     buildBtn.disabled = !plan.valid || !affordable;
 
@@ -214,6 +237,8 @@ export function openStationPlacementPanel(
 export interface StationPanelHandlers {
   /** Fired when the player taps "Buy train" — only shown when the station has an Engine Shed. */
   onBuyTrain: () => void;
+  /** Fired when the player taps a train in the panel's Trains list (STYLE §6). */
+  onOpenTrain: (trainId: number) => void;
 }
 
 /** Opens the management panel for an already-built station (Station or Info mode tap). */
@@ -257,21 +282,115 @@ export function openStationPanel(
       ...statsRows(station.type),
     ];
 
-    if (station.hasEngineShed) {
-      body.push(h("div", { className: "panel-row" }, `⚙ ${strings.station.engineShedFree}`));
-      if (handlers) {
-        body.push(
-          h(
+    if (economy) {
+      const pile = state.stationCargo.get(stationId);
+      const cap = STATION_TYPE_DEFS[station.type].storagePerCargo;
+      body.push(...economyBody(container, economy, pile, cap));
+    }
+
+    const servingTrains = state.trains.filter((t) =>
+      t.orders.some((o) => o.stationId === stationId),
+    );
+    body.push(h("div", { className: "panel-section-title" }, strings.trains.listTitle));
+    body.push(
+      servingTrains.length > 0
+        ? h(
+            "div",
+            { className: "train-loco-list" },
+            ...servingTrains.map((t) =>
+              h(
+                "button",
+                {
+                  className: "train-loco-btn",
+                  onClick: () => handlers?.onOpenTrain?.(t.id),
+                },
+                h("span", null, t.name),
+                h("span", { className: "train-loco-stats" }, strings.trains.statusNames[t.status]),
+              ),
+            ),
+          )
+        : h("div", { className: "panel-row" }, strings.trains.none),
+    );
+
+    body.push(h("div", { className: "panel-section-title" }, strings.station.improvements));
+    body.push(
+      h(
+        "div",
+        { className: "action-grid" },
+        ...STATION_IMPROVEMENT_TYPES.map((type) => {
+          const def = STATION_IMPROVEMENTS[type];
+          const built = station.improvements.includes(type);
+          if (built) {
+            return h(
+              "div",
+              { className: "action-btn station-improvement-btn done" },
+              h(
+                "span",
+                { className: "action-btn-label" },
+                icon("check", "icon-sm"),
+                strings.station.improvementNames[type],
+              ),
+            );
+          }
+          const plan = computeImprovementPlan(state, stationId, type);
+          const notYetAvailable = def.availableYear !== undefined && !plan.valid && plan.cost === 0;
+          return h(
             "button",
-            { className: "station-buy-train-btn", onClick: () => handlers.onBuyTrain() },
-            strings.trains.buyTitle,
-          ),
-        );
-      }
+            {
+              className: "action-btn station-improvement-btn",
+              disabled: !plan.valid || plan.cost > state.cash,
+              onClick: () => {
+                const result = buildImprovement(state, stationId, type);
+                if (!result.ok) {
+                  showToast(container, strings.build.reasons[result.reason], "warn");
+                  return;
+                }
+                render();
+              },
+            },
+            h("span", { className: "action-btn-label" }, strings.station.improvementNames[type]),
+            h(
+              "span",
+              { className: "action-btn-detail" },
+              notYetAvailable
+                ? strings.station.improvementAvailableFrom(def.availableYear as number)
+                : formatMoney(plan.cost),
+            ),
+          );
+        }),
+      ),
+    );
+
+    body.push(h("div", { className: "panel-section-title" }, strings.ui.actions));
+    if (station.hasEngineShed && handlers) {
+      body.push(
+        h(
+          "button",
+          { className: "station-buy-train-btn", onClick: () => handlers.onBuyTrain() },
+          icon("trains", "icon-sm"),
+          strings.trains.buyTitle,
+        ),
+      );
+    } else if (station.hasEngineShed) {
+      body.push(
+        h(
+          "div",
+          { className: "icon-row" },
+          icon("shed", "icon-sm"),
+          strings.station.engineShedFree,
+        ),
+      );
     }
 
     if (station.hasWaterTower) {
-      body.push(h("div", { className: "panel-row" }, `💧 ${strings.station.waterTowerBuilt}`));
+      body.push(
+        h(
+          "div",
+          { className: "icon-row" },
+          icon("water", "icon-sm"),
+          strings.station.waterTowerBuilt,
+        ),
+      );
     } else {
       const waterTowerPlan = computeWaterTowerPlan(state, stationId);
       body.push(
@@ -289,40 +408,8 @@ export function openStationPanel(
               render();
             },
           },
+          icon("water", "icon-sm"),
           `${strings.station.buildWaterTower} (${formatMoney(waterTowerPlan.cost)})`,
-        ),
-      );
-    }
-
-    body.push(h("div", { className: "panel-section-title" }, strings.station.improvements));
-    for (const type of STATION_IMPROVEMENT_TYPES) {
-      const def = STATION_IMPROVEMENTS[type];
-      if (station.improvements.includes(type)) {
-        body.push(
-          h("div", { className: "panel-row" }, `✅ ${strings.station.improvementNames[type]}`),
-        );
-        continue;
-      }
-      const plan = computeImprovementPlan(state, stationId, type);
-      const notYetAvailable = def.availableYear !== undefined && !plan.valid && plan.cost === 0;
-      body.push(
-        h(
-          "button",
-          {
-            className: "station-improvement-btn",
-            disabled: !plan.valid || plan.cost > state.cash,
-            onClick: () => {
-              const result = buildImprovement(state, stationId, type);
-              if (!result.ok) {
-                showToast(container, strings.build.reasons[result.reason], "warn");
-                return;
-              }
-              render();
-            },
-          },
-          notYetAvailable
-            ? `${strings.station.improvementNames[type]} — ${strings.station.improvementAvailableFrom(def.availableYear as number)}`
-            : `${strings.station.improvementNames[type]} (${formatMoney(plan.cost)})`,
         ),
       );
     }
@@ -344,15 +431,11 @@ export function openStationPanel(
               render();
             },
           },
+          icon("arrowUp", "icon-sm"),
           `${strings.station.upgradeToPrefix}${strings.station.types[nextType]} (${formatMoney(plan.cost)})`,
         ),
       );
     }
-
-    if (economy) body.push(...economyBody(economy));
-
-    body.push(h("div", { className: "panel-section-title" }, strings.station.waitingCargo));
-    body.push(...waitingCargoBody(state, stationId, station.type));
 
     openPanel(container, { title: station.name, body });
   };

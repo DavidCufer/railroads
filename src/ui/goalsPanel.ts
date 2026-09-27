@@ -8,6 +8,7 @@ import type { Goal } from "../sim/goals/types";
 import type { GameState } from "../sim/state";
 import { describeGoal, goalTargetYear } from "./goalStrings";
 import { h } from "./h";
+import { icon } from "./icons";
 import { closePanel, openPanel } from "./panel";
 import { strings } from "./strings";
 
@@ -33,14 +34,14 @@ function goalCard(state: GameState, status: ReturnType<typeof evaluateGoals>[num
           className: "cargo-bar-fill",
           style: {
             width: `${Math.round(status.progress * 100)}%`,
-            background: status.complete ? "#5bc27a" : "#f2b544",
+            background: status.complete ? "var(--go)" : "var(--brass)",
           },
         }),
       ),
       h(
         "span",
         { className: "cargo-bar-value" },
-        status.complete ? "✓" : `${Math.round(status.progress * 100)}%`,
+        status.complete ? icon("check", "icon-sm") : `${Math.round(status.progress * 100)}%`,
       ),
     ),
     status.overdue ? h("div", { className: "goal-overdue" }, strings.goals.overdue) : null,
@@ -60,7 +61,12 @@ export function openGoalCelebration(container: HTMLElement, state: GameState, go
   openPanel(container, {
     title: strings.celebration.title,
     body: [
-      h("div", { className: "yearly-report-headline good" }, strings.goals.tierNames[goal.tier]),
+      h(
+        "div",
+        { className: "yearly-report-headline good" },
+        icon("trophy"),
+        strings.goals.tierNames[goal.tier],
+      ),
       h("div", { className: "panel-row" }, describeGoal(state, goal)),
     ],
     footer: [
@@ -77,8 +83,7 @@ export function createGoalsButton(container: HTMLElement, onClick: () => void): 
   const btn = h(
     "button",
     { className: "goals-button", "aria-label": strings.goals.button, onClick },
-    h("span", null, "\u{1F3C6}"),
-    h("span", null, strings.goals.button),
+    icon("goals"),
   );
   container.appendChild(btn);
   return btn;

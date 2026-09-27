@@ -5,9 +5,12 @@ import { CIVIC_INVESTMENT_COOLDOWN_YEARS } from "../data/cities";
 import type { Industry } from "../sim/economy/types";
 import { cityAcceptance, citySupply } from "../sim/economy/cityStats";
 import { civicInvestment, computeCivicInvestmentPlan } from "../sim/commands";
+import { stationCatchmentTiles } from "../sim/stations/placement";
+import { STATION_ACCEPTANCE_THRESHOLD, STATION_TYPE_DEFS } from "../data/stations";
 import type { GameState } from "../sim/state";
 import { calendarFromTicks, DAYS_PER_YEAR, HOURS_PER_DAY } from "../sim/time";
 import { h } from "./h";
+import { cargoIcon, icon } from "./icons";
 import { openPanel } from "./panel";
 import { showToast } from "./toast";
 import { strings } from "./strings";
@@ -31,7 +34,10 @@ export function chipTextColor(hex: string): string {
   return luminance > 0.55 ? "#1a1a1a" : "#f4f1e8";
 }
 
+/** A cargo chip: pictogram + amount (STYLE §6) — tapping shows the cargo's full name in a toast,
+ * a lightweight stand-in for STYLE's "small popover with the cargo name and details". */
 export function cargoChip(
+  container: HTMLElement,
   cargo: CargoType,
   amount: number,
   suffix = "",
@@ -39,13 +45,55 @@ export function cargoChip(
 ): HTMLElement {
   const def = CARGO[cargo];
   return h(
-    "span",
+    "button",
     {
       className: `chip${dimmed ? " chip-dim" : ""}`,
-      style: { background: def.color, color: chipTextColor(def.color) },
+      "aria-label": def.name,
+      onClick: () => showToast(container, `${def.name}: ${amount}${suffix}`, "info"),
     },
-    `${def.name} ${amount}${suffix}`,
+    cargoIcon(cargo, "cargo-icon-sm"),
+    `${amount}${suffix}`,
   );
+}
+
+/** A demand tile (STYLE §6): pictogram only, dimmed + a toast with the shortfall when the
+ * station's acceptance points for this cargo are below the unlock threshold. */
+export function cargoDemandTile(
+  container: HTMLElement,
+  cargo: CargoType,
+  points: number,
+): HTMLElement {
+  const def = CARGO[cargo];
+  const met = points >= STATION_ACCEPTANCE_THRESHOLD;
+  return h(
+    "button",
+    {
+      className: `chip${met ? "" : " chip-dim"}`,
+      "aria-label": def.name,
+      onClick: () =>
+        showToast(
+          container,
+          met
+            ? def.name
+            : `${def.name}: needs ${STATION_ACCEPTANCE_THRESHOLD} pts, has ${Math.round(points)}`,
+          met ? "info" : "warn",
+        ),
+    },
+    cargoIcon(cargo, "cargo-icon-sm"),
+  );
+}
+
+/** Stations whose catchment covers at least one of `cityTiles` — the City panel's "Served by"
+ * line (STYLE §6). */
+export function stationsServing(state: GameState, cityTiles: readonly number[]): string[] {
+  const tileSet = new Set(cityTiles);
+  const names: string[] = [];
+  for (const station of state.stations) {
+    const radius = STATION_TYPE_DEFS[station.type].catchmentRadius;
+    const catchment = stationCatchmentTiles(state.map, station.tile, radius);
+    if (catchment.some((t) => tileSet.has(t))) names.push(station.name);
+  }
+  return names;
 }
 
 export function openCityPanel(container: HTMLElement, state: GameState, cityId: number): void {
@@ -58,59 +106,81 @@ export function openCityPanel(container: HTMLElement, state: GameState, cityId: 
     const acceptEntries = Object.entries(accepts) as Array<[CargoType, number]>;
     const growth = state.cityGrowth.get(cityId);
 
+    const growing = !!growth?.lastServed;
+    const served = stationsServing(state, city.tiles);
+
     const body: Node[] = [
-      row(strings.city.tier, strings.city.tierNames[city.tier]),
-      row(strings.city.population, formatPopulation(city.population)),
-      row(
-        strings.city.growthTrend,
-        growth?.lastServed ? strings.city.growing : strings.city.stagnant,
+      h("div", { className: "panel-section-title" }, strings.station.supplies),
+      h(
+        "div",
+        { className: "chip-row" },
+        cargoChip(container, "passengers", supply.passengers),
+        cargoChip(container, "mail", supply.mail),
       ),
-      h("div", { className: "panel-section-title" }, "Supplies (full coverage, per month)"),
+      h("div", { className: "panel-section-title" }, strings.station.accepts),
+      h(
+        "div",
+        { className: "chip-row" },
+        ...acceptEntries.map(([cargo, points]) => cargoDemandTile(container, cargo, points)),
+      ),
+      h("div", { className: "panel-section-title" }, strings.city.servedBy),
       h(
         "div",
         { className: "panel-row" },
-        cargoChip("passengers", supply.passengers),
-        cargoChip("mail", supply.mail),
-      ),
-      h("div", { className: "panel-section-title" }, "Accepts (points, full footprint)"),
-      h(
-        "div",
-        { className: "panel-row", style: { flexWrap: "wrap" } },
-        ...acceptEntries.map(([cargo, points]) => cargoChip(cargo, points)),
+        served.length > 0 ? served.join(" · ") : strings.city.servedByNone,
       ),
     ];
 
     const plan = computeCivicInvestmentPlan(state, cityId);
     const lastTick = growth?.lastCivicInvestmentTick;
     const onCooldown = !plan.valid && lastTick !== undefined;
-    let civicLabel = `${strings.city.civicInvestment} (${formatMoney(plan.cost)})`;
+    let civicDetail = formatMoney(plan.cost);
     if (onCooldown) {
       const yearsSince = (state.ticks - lastTick) / (HOURS_PER_DAY * DAYS_PER_YEAR);
       const yearsLeft = Math.max(0, Math.ceil(CIVIC_INVESTMENT_COOLDOWN_YEARS - yearsSince));
-      civicLabel = `${strings.city.civicInvestment} — ${strings.city.civicInvestmentCooldown(yearsLeft)}`;
+      civicDetail = strings.city.civicInvestmentCooldown(yearsLeft);
     }
-    body.push(h("div", { className: "panel-section-title" }, strings.city.civicInvestment));
-    body.push(h("div", { className: "panel-row" }, strings.city.civicInvestmentDesc));
+    body.push(h("div", { className: "panel-section-title" }, strings.ui.actions));
     body.push(
       h(
-        "button",
-        {
-          className: "city-civic-investment-btn",
-          disabled: !plan.valid || plan.cost > state.cash,
-          onClick: () => {
-            const result = civicInvestment(state, cityId);
-            if (!result.ok) {
-              showToast(container, strings.build.reasons[result.reason], "warn");
-              return;
-            }
-            render();
+        "div",
+        { className: "action-grid" },
+        h(
+          "button",
+          {
+            className: "action-btn city-civic-investment-btn",
+            disabled: !plan.valid || plan.cost > state.cash,
+            onClick: () => {
+              const result = civicInvestment(state, cityId);
+              if (!result.ok) {
+                showToast(container, strings.build.reasons[result.reason], "warn");
+                return;
+              }
+              render();
+            },
           },
-        },
-        civicLabel,
+          h(
+            "span",
+            { className: "action-btn-label" },
+            icon("arrowUp", "icon-sm"),
+            strings.city.civicInvestment,
+          ),
+          h("span", { className: "action-btn-detail" }, civicDetail),
+        ),
       ),
     );
+    body.push(h("div", { className: "panel-row" }, strings.city.civicInvestmentDesc));
 
-    openPanel(container, { title: city.name, body });
+    const growthIcon = icon(growing ? "arrowUp" : "arrowFlat");
+    growthIcon.setAttribute("aria-label", growing ? strings.city.growing : strings.city.stagnant);
+    const subtitle = h(
+      "span",
+      null,
+      `${strings.city.tierNames[city.tier]} · ${formatPopulation(city.population)}`,
+      growthIcon,
+    );
+
+    openPanel(container, { title: city.name, subtitle, body });
   };
 
   render();
@@ -128,8 +198,10 @@ export function openIndustryPanel(container: HTMLElement, industry: Industry): v
     body.push(
       h(
         "div",
-        { className: "panel-row", style: { flexWrap: "wrap" } },
-        ...produces.map(([cargo, amount]) => cargoChip(cargo, amount, strings.industry.perMonth)),
+        { className: "chip-row" },
+        ...produces.map(([cargo, amount]) =>
+          cargoChip(container, cargo, amount, strings.industry.perMonth),
+        ),
       ),
     );
   }
@@ -138,8 +210,10 @@ export function openIndustryPanel(container: HTMLElement, industry: Industry): v
     body.push(
       h(
         "div",
-        { className: "panel-row", style: { flexWrap: "wrap" } },
-        ...consumes.map(([cargo, amount]) => cargoChip(cargo, amount, strings.industry.perMonth)),
+        { className: "chip-row" },
+        ...consumes.map(([cargo, amount]) =>
+          cargoChip(container, cargo, amount, strings.industry.perMonth),
+        ),
       ),
     );
   }

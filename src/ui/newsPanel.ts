@@ -8,6 +8,7 @@ import { markAllNewsRead, unreadNewsCount, type NewsItem } from "../sim/news";
 import type { GameState } from "../sim/state";
 import { describeGoal } from "./goalStrings";
 import { h } from "./h";
+import { icon } from "./icons";
 import { openPanel } from "./panel";
 import { strings } from "./strings";
 
@@ -101,8 +102,7 @@ export function createNewsButton(
   const btn = h(
     "button",
     { className: "news-button", "aria-label": strings.news.button, onClick },
-    h("span", null, "📰"),
-    h("span", null, strings.news.button),
+    icon("news"),
     badge,
   );
   container.appendChild(btn);

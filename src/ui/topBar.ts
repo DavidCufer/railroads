@@ -5,12 +5,13 @@
  */
 import type { GameSpeed } from "../render/loop";
 import { h } from "./h";
+import { icon } from "./icons";
 import { strings } from "./strings";
 import { formatDate, formatMoney } from "./format";
 import type { Calendar } from "../sim/time";
 
 const SPEEDS: GameSpeed[] = [0, 1, 2, 4, 8];
-const SPEED_LABELS: Record<GameSpeed, string> = { 0: "⏸", 1: "1×", 2: "2×", 4: "4×", 8: "8×" };
+const SPEED_LABELS: Record<GameSpeed, string> = { 0: "", 1: "1×", 2: "2×", 4: "4×", 8: "8×" };
 
 export interface TopBarHandlers {
   onSetSpeed: (speed: GameSpeed) => void;
@@ -44,7 +45,7 @@ export function createTopBar(container: HTMLElement, handlers: TopBarHandlers): 
             refreshSpeedButtons();
           },
         },
-        SPEED_LABELS[speed],
+        speed === 0 ? icon("pause", "icon-sm") : SPEED_LABELS[speed],
       );
       speedButtons.set(speed, btn);
       return btn;
@@ -73,7 +74,7 @@ export function createTopBar(container: HTMLElement, handlers: TopBarHandlers): 
         "aria-label": strings.topBar.menu,
         onClick: () => handlers.onOpenMenu(),
       },
-      "☰",
+      icon("menu"),
     ),
   );
   container.appendChild(root);

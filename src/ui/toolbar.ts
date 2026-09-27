@@ -4,17 +4,18 @@
  * as Track mode's own era-gated bridge types, rather than by disabling the button itself.
  */
 import { h } from "./h";
+import { icon, type IconName } from "./icons";
 import { strings } from "./strings";
 
 export type ToolId = "track" | "double" | "electrify" | "station" | "bulldoze" | "info";
 
-const TOOLS: Array<{ id: ToolId; label: string; icon: string; enabled: boolean }> = [
-  { id: "track", label: strings.toolbar.track, icon: "🛤", enabled: true },
-  { id: "double", label: strings.toolbar.double, icon: "≡", enabled: true },
-  { id: "electrify", label: strings.toolbar.electrify, icon: "⚡", enabled: true },
-  { id: "station", label: strings.toolbar.station, icon: "🚉", enabled: true },
-  { id: "bulldoze", label: strings.toolbar.bulldoze, icon: "🛠", enabled: true },
-  { id: "info", label: strings.toolbar.info, icon: "ℹ", enabled: true },
+const TOOLS: Array<{ id: ToolId; label: string; icon: IconName; enabled: boolean }> = [
+  { id: "track", label: strings.toolbar.track, icon: "track", enabled: true },
+  { id: "double", label: strings.toolbar.double, icon: "doubleTrack", enabled: true },
+  { id: "electrify", label: strings.toolbar.electrify, icon: "electrify", enabled: true },
+  { id: "station", label: strings.toolbar.station, icon: "station", enabled: true },
+  { id: "bulldoze", label: strings.toolbar.bulldoze, icon: "bulldoze", enabled: true },
+  { id: "info", label: strings.toolbar.info, icon: "info", enabled: true },
 ];
 
 export interface ToolbarController {
@@ -41,7 +42,7 @@ export function createToolbar(
           onSelect(tool.id);
         },
       },
-      h("span", null, tool.icon),
+      icon(tool.icon),
       h("span", null, tool.label),
     );
     buttonById.set(tool.id, btn);
@@ -90,8 +91,7 @@ export function createTrainListButton(container: HTMLElement, onClick: () => voi
   const btn = h(
     "button",
     { className: "train-list-button", "aria-label": strings.trains.trainsButton, onClick },
-    h("span", null, "🚆"),
-    h("span", null, strings.trains.trainsButton),
+    icon("trains"),
   );
   container.appendChild(btn);
   return btn;

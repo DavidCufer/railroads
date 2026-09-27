@@ -13,6 +13,8 @@ import type { NewGameOptions } from "../sim/state";
 import { renderRegionThumbnail } from "../render/regionThumbnail";
 import { formatMoney } from "./format";
 import { h } from "./h";
+import { icon } from "./icons";
+import { screenHeader } from "./screenHeader";
 import { strings } from "./strings";
 
 type Tab = "realWorld" | "random";
@@ -166,12 +168,13 @@ export function renderNewGameScreen(handlers: NewGameScreenHandlers): HTMLElemen
                 "button",
                 {
                   className: "dice-btn",
+                  "aria-label": s.randomizeSeed,
                   onClick: () => {
                     random.seed = randomSeed();
                     render();
                   },
                 },
-                s.randomizeSeed,
+                icon("dice"),
               ),
             ),
             h(
@@ -262,44 +265,29 @@ export function renderNewGameScreen(handlers: NewGameScreenHandlers): HTMLElemen
 
     const footer = h(
       "div",
-      { className: "new-game-footer" },
-      h(
-        "div",
-        { className: "option-row" },
-        h("span", { className: "option-label" }, s.difficulty),
-        segmented(
-          difficulty,
-          ["easy", "normal", "hard"] as const,
-          (v) => s.difficultyNames[v],
-          (v) => {
-            difficulty = v;
-            render();
-          },
-        ),
+      { className: "new-game-footer new-game-footer-row" },
+      segmented(
+        difficulty,
+        ["easy", "normal", "hard"] as const,
+        (v) => s.difficultyNames[v],
+        (v) => {
+          difficulty = v;
+          render();
+        },
       ),
+      h("span", { className: "starting-cash" }, formatMoney(DIFFICULTY[difficulty].startingCash)),
       h(
-        "div",
-        { className: "option-row" },
-        h("span", { className: "option-label" }, s.startingCash),
-        h("span", { className: "starting-cash" }, formatMoney(DIFFICULTY[difficulty].startingCash)),
-      ),
-      h(
-        "div",
-        { className: "new-game-actions" },
-        h("button", { className: "new-game-back-btn", onClick: handlers.onBack }, s.back),
-        h(
-          "button",
-          {
-            className: "new-game-start-btn",
-            onClick: () => handlers.onStart(currentOptions()),
-          },
-          s.start,
-        ),
+        "button",
+        {
+          className: "new-game-start-btn",
+          onClick: () => handlers.onStart(currentOptions()),
+        },
+        s.start,
       ),
     );
 
     root.replaceChildren(
-      h("div", { className: "new-game-header" }, h("span", null, s.title)),
+      screenHeader(s.title, handlers.onBack),
       tabs,
       h("div", { className: "new-game-content" }, content),
       footer,

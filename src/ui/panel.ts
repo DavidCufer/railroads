@@ -5,6 +5,7 @@
  */
 import { h } from "./h";
 import { pushBackHandler } from "./backButton";
+import { icon } from "./icons";
 import { strings } from "./strings";
 
 let currentPanel: {
@@ -15,6 +16,8 @@ let currentPanel: {
 
 export interface PanelOptions {
   title: string;
+  /** Optional muted line under the title (STYLE §3), e.g. a city's tier/population/growth. */
+  subtitle?: string | Node;
   body: Node[];
   /** A pinned action row (e.g. Build/Cancel, Buy/Cancel, Sell, Yearly Report) rendered as its own
    * flex sibling *outside* `.panel-body`'s scrollport — never scrolls, never overlaps body content
@@ -40,13 +43,19 @@ export function openPanel(container: HTMLElement, options: PanelOptions): void {
     h(
       "div",
       { className: "panel-header" },
-      h("span", { className: "panel-title" }, options.title),
+      h(
+        "div",
+        { className: "panel-header-text" },
+        h("div", { className: "panel-title" }, options.title),
+        options.subtitle ? h("div", { className: "panel-subtitle" }, options.subtitle) : null,
+      ),
       h(
         "button",
         { className: "panel-close", onClick: close, "aria-label": strings.ui.close },
-        "✕",
+        icon("close"),
       ),
     ),
+    h("div", { className: "panel-rule" }),
     h("div", { className: "panel-body" }, ...options.body),
   ];
   if (options.footer && options.footer.length > 0) {

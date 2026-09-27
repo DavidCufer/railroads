@@ -26,6 +26,7 @@ import { getTrainRuntime, isElectrificationOnlyBlocker } from "../sim/trains";
 import type { LoadingRule, Train, TrainCar, TrainOrder } from "../sim/trains/types";
 import { chipTextColor, row } from "./infoPanels";
 import { h } from "./h";
+import { icon } from "./icons";
 import { closePanel, openPanel } from "./panel";
 import { strings } from "./strings";
 import { formatMoney } from "./format";
@@ -118,7 +119,7 @@ export function openBuyTrainPanel(
       "aria-label": strings.ui.close,
       onClick: () => closePanel(),
     },
-    strings.station.cancel,
+    icon("close"),
   );
 
   function stationName(id: number): string {
@@ -189,7 +190,8 @@ export function openBuyTrainPanel(
               render();
             },
           },
-          `${CARGO[c].name} ✕`,
+          CARGO[c].name,
+          icon("close", "icon-sm"),
         ),
       ),
     );
@@ -222,7 +224,7 @@ export function openBuyTrainPanel(
                 render();
               },
             },
-            "✕",
+            icon("close", "icon-sm"),
           ),
         ),
       ),
@@ -302,13 +304,26 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
     if (!train) return;
     const loco = locomotiveById(train.locoModelId);
 
+    const isProblemStatus =
+      train.status === "noRoute" || train.status === "stuck" || train.status === "broken";
     const body: Node[] = [
-      row(strings.trains.status, strings.trains.statusNames[train.status]),
+      h(
+        "div",
+        { className: "panel-row" },
+        h("span", { className: "label" }, strings.trains.status),
+        h(
+          "span",
+          { className: isProblemStatus ? "train-route-warning" : "" },
+          isProblemStatus ? icon("warning", "icon-sm") : null,
+          strings.trains.statusNames[train.status],
+        ),
+      ),
       ...(loco && electrifiedRouteBlocked(state, train, loco)
         ? [
             h(
               "div",
               { className: "panel-row train-route-warning" },
+              icon("warning", "icon-sm"),
               strings.trains.routeNotElectrified,
             ),
           ]
@@ -414,7 +429,7 @@ function openReplaceLocoPanel(container: HTMLElement, state: GameState, trainId:
       "aria-label": strings.ui.close,
       onClick: () => openTrainPanel(container, state, trainId),
     },
-    strings.station.cancel,
+    icon("close"),
   );
 
   openPanel(container, {

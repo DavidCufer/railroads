@@ -195,8 +195,11 @@ test.describe("Phase 5 — stations", () => {
     await expect(page.locator(".panel-title")).toHaveText("Ashtown");
     await expect(page.locator(".station-upgrade-btn")).toContainText("Upgrade to Station");
     await expect(page.locator(".station-name-input")).toHaveValue("Ashtown");
-    // No days have run yet, so nothing has accrued (Phase 7 cargo flow).
-    await expect(page.locator("text=Nothing waiting.")).toBeVisible();
+    // Supplies render as pictogram chips (STYLE §6) with a thin waiting-cargo bar underneath each
+    // one — no days have run yet, so the bars are all at 0%, but the chip stacks themselves (and
+    // the station's demand tiles) should already be there.
+    await expect(page.locator(".supply-chip-stack").first()).toBeVisible();
+    await expect(page.locator(".chip-row").first()).toBeVisible();
 
     await page.screenshot({ path: "docs/screenshots/phase-5-station-panel.png" });
 

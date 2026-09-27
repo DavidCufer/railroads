@@ -333,7 +333,10 @@ function main(): void {
         picked(station.id);
         return;
       }
-      openStationPanel(ui, state, station.id, { onBuyTrain: () => openBuyTrain(station.id) });
+      openStationPanel(ui, state, station.id, {
+        onBuyTrain: () => openBuyTrain(station.id),
+        onOpenTrain: (trainId) => openTrainPanel(ui, state, trainId),
+      });
       return;
     }
 

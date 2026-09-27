@@ -19,6 +19,7 @@ import {
 import type { GameState } from "../sim/state";
 import { formatMoney } from "./format";
 import { h } from "./h";
+import { screenHeader } from "./screenHeader";
 import { strings } from "./strings";
 
 export type SaveLoadMode = "load" | "save";
@@ -148,24 +149,11 @@ export function renderSaveLoadScreen(handlers: SaveLoadScreenHandlers): HTMLElem
     });
 
     root.replaceChildren(
-      h(
-        "div",
-        { className: "new-game-header" },
-        h("span", null, handlers.mode === "load" ? s.loadTitle : s.saveTitle),
-      ),
+      screenHeader(handlers.mode === "load" ? s.loadTitle : s.saveTitle, handlers.onBack),
       h(
         "div",
         { className: "new-game-content" },
         h("div", { className: "save-slot-list" }, ...rows),
-      ),
-      h(
-        "div",
-        { className: "new-game-footer" },
-        h(
-          "button",
-          { className: "new-game-back-btn settings-back-btn", onClick: handlers.onBack },
-          s.back,
-        ),
       ),
     );
   }

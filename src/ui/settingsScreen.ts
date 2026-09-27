@@ -6,6 +6,7 @@
  * to it.
  */
 import { h } from "./h";
+import { screenHeader } from "./screenHeader";
 import { strings } from "./strings";
 import {
   loadSettings,
@@ -75,7 +76,7 @@ export function renderSettingsScreen(handlers: SettingsScreenHandlers): HTMLElem
 
   function render(): void {
     root.replaceChildren(
-      h("div", { className: "new-game-header" }, h("span", null, s.title)),
+      screenHeader(s.title, handlers.onBack),
       h(
         "div",
         { className: "new-game-content settings-content" },
@@ -134,15 +135,6 @@ export function renderSettingsScreen(handlers: SettingsScreenHandlers): HTMLElem
               ),
             ),
           ),
-        ),
-      ),
-      h(
-        "div",
-        { className: "new-game-footer" },
-        h(
-          "button",
-          { className: "new-game-back-btn settings-back-btn", onClick: handlers.onBack },
-          s.back,
         ),
       ),
     );

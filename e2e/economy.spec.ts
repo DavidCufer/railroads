@@ -192,14 +192,17 @@ test.describe("Phase 7 — cargo flow and economy", () => {
     const p = await tileScreenPoint(page, 70, ROW_Y);
     await page.mouse.click(p.x, p.y);
     await page.waitForTimeout(300);
-    await expect(page.locator(".cargo-bar-row")).toHaveCount(1);
-    await expect(page.locator(".cargo-bar-label")).toHaveText("Coal");
-    // Waiting cargo is the panel's last section — scroll down so it's actually in frame. Only
-    // `.panel-body` scrolls (Phase 7.1: `.panel` itself became a plain flex column with a fixed
-    // header/footer around it, see index.html).
-    await page.locator(".panel-body").evaluate((el) => {
-      el.scrollTop = el.scrollHeight;
-    });
+    // Waiting cargo now renders as a thin bar under its matching supply chip (STYLE §6) rather
+    // than a separate labeled row — Coal has accrued, so its chip's bar should show some fill.
+    const coalBar = page
+      .locator(".chip[aria-label='Coal']")
+      .locator("xpath=..")
+      .locator(".cargo-bar-fill");
+    await expect(coalBar).toHaveCount(1);
+    const coalBarWidth = await coalBar.evaluate((el) => (el as HTMLElement).style.width);
+    expect(parseFloat(coalBarWidth)).toBeGreaterThan(0);
+    // Supplies are near the top of the panel now (STYLE §6: above all actions), so no scroll
+    // needed before screenshotting.
     await page.waitForTimeout(50);
     await page.screenshot({ path: "docs/screenshots/phase-7-station-waiting-cargo.png" });
   });

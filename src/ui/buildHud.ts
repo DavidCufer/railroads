@@ -4,6 +4,7 @@
  * (✓ Build($X) / ✕, with a tap-to-cycle bridge-type chip when the path crosses water/a river).
  */
 import { h } from "./h";
+import { icon } from "./icons";
 import { strings } from "./strings";
 import { formatMoney } from "./format";
 import type { BuildMode } from "../render/buildPreview";
@@ -94,7 +95,8 @@ export function showConfirmBar(container: HTMLElement, options: ConfirmBarOption
         disabled: !options.ok,
         onClick: () => options.onConfirm(),
       },
-      `✓ ${CONFIRM_LABEL[options.mode]}`,
+      icon("check", "icon-sm"),
+      CONFIRM_LABEL[options.mode],
     ),
     h(
       "button",
@@ -103,7 +105,7 @@ export function showConfirmBar(container: HTMLElement, options: ConfirmBarOption
         "aria-label": strings.ui.close,
         onClick: () => options.onCancel(),
       },
-      strings.build.cancel,
+      icon("close"),
     ),
   );
 
