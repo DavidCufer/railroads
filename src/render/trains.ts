@@ -19,7 +19,13 @@ import {
   TRAIN_SIGNAL_WAIT_COLOR,
   TRAIN_WARNING_COLOR,
 } from "./palette";
-import { buildEdgeGeometry, isFilletBend } from "./trackPath";
+import {
+  buildEdgeGeometry,
+  doubleTrackOffsetAt,
+  hasDoubleNeighborAt,
+  isFilletBend,
+  type EdgePath,
+} from "./trackPath";
 
 /** DIRS8[i]'s screen-space heading, in radians (grid is screen-aligned: +x right, +y down). */
 const DIR_ANGLE: readonly number[] = DIRS8.map(([dx, dy]) => Math.atan2(dy, dx));
@@ -59,11 +65,49 @@ function routePartnerDir(
   return isFilletBend(nodeAwayDir, otherAwayDir) ? otherAwayDir : null;
 }
 
+/** A train's lateral lane offset (tiles) to apply to a `path.pointAt(...)` sample taken while
+ * traveling from `a` to `b` (in that order — `path`'s own forward direction) — PLAN Phase 16 (play-
+ * test 2: "trains run on the centerline between the two tracks and pass through each other"). 0 on
+ * single track. On double track, one direction rides the "through" track (offset 0, exactly the
+ * track renderer's own centerline) and the other rides the "diverging" track (`track.ts`'s
+ * `offsetAt`), so opposing trains are always on the two different rails actually drawn, easing in/
+ * out over the same turnout the track renderer tapers — see `src/render/trackPath.ts`'s
+ * `doubleTrackOffsetAt` doc comment for why one side needs no taper handling at all. */
+function laneOffsetTiles(
+  graph: TrackGraph,
+  a: number,
+  b: number,
+  path: EdgePath,
+  distanceAlongPath: number,
+): number {
+  const edge = graph.getEdge(a, b);
+  if (!edge?.double) return 0;
+  const throughDirection = a === edge.a; // traveling a->b matches the edge's own canonical a->b
+  if (throughDirection) return 0;
+  const taperAtA = !hasDoubleNeighborAt(graph, edge.a, edge.b);
+  const taperAtB = !hasDoubleNeighborAt(graph, edge.b, edge.a);
+  // `path` runs b->a here (reversed from canonical a->b), so distance from *canonical* start (a of
+  // the edge, i.e. this path's own end) is the remainder.
+  const distanceFromCanonicalStart = path.length - distanceAlongPath;
+  const magnitude = doubleTrackOffsetAt(
+    distanceFromCanonicalStart,
+    path.length,
+    taperAtA,
+    taperAtB,
+  );
+  // `path`'s own forward direction is reversed from canonical, so its perpendicular convention is
+  // negated relative to the canonical centerline's — negate the magnitude to land on the same
+  // world-space "diverging" position the track renderer draws.
+  return -magnitude;
+}
+
 /** Curved (x, y, heading) at `progress` (0..1) along `route[idx] -> route[idx+1]`, following the
  * same fillet geometry the track renderer draws — the neighboring route tiles just before/after
- * this edge (if any) decide whether either end bends. */
-function curvedRouteSample(
+ * this edge (if any) decide whether either end bends. Offsets sideways into this direction's own
+ * lane on double track (see `laneOffsetTiles`). */
+export function curvedRouteSample(
   mapWidth: number,
+  graph: TrackGraph,
   route: readonly number[],
   idx: number,
   progress: number,
@@ -77,7 +121,13 @@ function curvedRouteSample(
   const [ax, ay] = tileXY(a, mapWidth);
   const [bx, by] = tileXY(b, mapWidth);
   const straightLen = Math.hypot(bx - ax, by - ay);
-  return path.pointAt(progress * straightLen);
+  const distanceAlongPath = progress * straightLen;
+  const sample = path.pointAt(distanceAlongPath);
+  const lane = laneOffsetTiles(graph, a, b, path, distanceAlongPath);
+  if (lane === 0) return sample;
+  const perpX = -Math.sin(sample.angle);
+  const perpY = Math.cos(sample.angle);
+  return { x: sample.x + perpX * lane, y: sample.y + perpY * lane, angle: sample.angle };
 }
 
 /** Walks backward from the train's head along its route by `distanceBehind` tiles, returning the
@@ -119,7 +169,7 @@ function sampleBehindHead(
     return { x: x + 0.5, y: y + 0.5, angle: DIR_ANGLE[Math.max(train.direction, 0)] as number };
   }
   const progress = Math.max(0, Math.min(1, (coveredOnEdge - remaining) / edgeLen));
-  return curvedRouteSample(mapWidth, train.route, idx, progress);
+  return curvedRouteSample(mapWidth, graph, train.route, idx, progress);
 }
 
 /** Fraction (0..1, clamped) of the way from tile `a` to tile `b` that world point `(x, y)`
@@ -504,7 +554,7 @@ export function drawTrains(
       // do while keeping the existing smooth sub-tick interpolation (`alpha`).
       const progressStart = progressAlongEdge(mapWidth, a, b, train.renderFromX, train.renderFromY);
       const progress = lerp(progressStart, train.edgeProgress, alpha);
-      const sample = curvedRouteSample(mapWidth, train.route, train.routeIndex, progress);
+      const sample = curvedRouteSample(mapWidth, graph, train.route, train.routeIndex, progress);
       headTileX = sample.x;
       headTileY = sample.y;
       angle = sample.angle;

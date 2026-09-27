@@ -29,6 +29,8 @@ import type { TrackEdge } from "../sim/track/types";
 import { ChunkCache } from "./chunkCache";
 import {
   buildEdgeGeometry,
+  doubleTrackOffsetAt,
+  hasDoubleNeighborAt,
   isFilletBend,
   type EdgePath,
   type PathPiece,
@@ -37,6 +39,11 @@ import {
 
 const CHUNK_TILES = 16;
 type ZoomBucket = 1 | 0.5 | 0.25;
+
+/** Sampling resolution (tiles) for a double edge's diverging track, drawn as a polyline instead of
+ * an `EdgePath` (see `drawVariableOffsetLine`) — fine enough that the polyline reads as smoothly
+ * curved through a fillet at any zoom. */
+const DIVERGING_SAMPLE_SPACING_TILES = 0.12;
 
 /** Same rationale/sizing as TerrainRenderer's cap (Phase 12 memory-bounds backstop). */
 const TRACK_CHUNK_CACHE_MAX = 350;
@@ -292,25 +299,26 @@ export class TrackRenderer {
     const centerline = buildEdgeGeometry(this.mapWidth, edge.a, edge.b, partnerA, partnerB);
 
     const railColor = TRACK_COLOR;
-    // Separation between the two tracks of a double edge — wide enough to read as clearly two
-    // tracks (not one thick one) at zoom 1-1.5, where this is drawn from the cached "tiesStyle"
-    // raster (Phase 4 review: at the old, tighter gap the two rail pairs' inner rails nearly
-    // touched). Only used for `edge.double`; single track never references it. Tile-space (not
-    // pixel) since `EdgePath.offset` works in tile units.
-    const gapTiles = 5 / TILE_SIZE;
     ctx.lineCap = "round";
+
+    // PLAN Phase 16 (play-test 2): a double edge's two tracks are no longer symmetric offsets of a
+    // shared centerline — one ("through") *is* the centerline exactly, the other ("diverging")
+    // eases out to `DOUBLE_TRACK_SPACING_TILES` away from it. That's what lets a single↔double
+    // transition taper smoothly instead of splaying: the through track needs no special handling at
+    // all (it's already the single track's own line), only the diverging one ramps in `offsetAt`.
+    const taperAtA = edge.double && !hasDoubleNeighborAt(this.graph, edge.a, edge.b);
+    const taperAtB = edge.double && !hasDoubleNeighborAt(this.graph, edge.b, edge.a);
+    const centerlineLen = centerline.length;
+    const offsetAt = (d: number): number =>
+      doubleTrackOffsetAt(d, centerlineLen, taperAtA, taperAtB);
 
     if (!tiesStyle) {
       ctx.strokeStyle = railColor;
       ctx.lineWidth = Math.max(1, (edge.double ? 2.4 : 1.6) * scale);
+      tracePieceList(ctx, centerline.pieces, originX, originY, px);
+      ctx.stroke();
       if (edge.double) {
-        tracePieceList(ctx, centerline.offset(-gapTiles).pieces, originX, originY, px);
-        ctx.stroke();
-        tracePieceList(ctx, centerline.offset(gapTiles).pieces, originX, originY, px);
-        ctx.stroke();
-      } else {
-        tracePieceList(ctx, centerline.pieces, originX, originY, px);
-        ctx.stroke();
+        this.drawVariableOffsetLine(ctx, centerline, offsetAt, originX, originY, px);
       }
       if (edge.electrified)
         this.drawCatenaryOnPath(ctx, centerline, edge, originX, originY, px, scale);
@@ -321,37 +329,127 @@ export class TrackRenderer {
     const tieHalfLenTiles = 4.2 / TILE_SIZE;
     const tieSpacingTiles = 7 / TILE_SIZE;
 
-    const drawRailPair = (trackCenterline: EdgePath): void => {
-      ctx.strokeStyle = railColor;
-      ctx.lineWidth = Math.max(1, 1.1 * scale);
-      tracePieceList(ctx, trackCenterline.offset(-railGapTiles).pieces, originX, originY, px);
-      ctx.stroke();
-      tracePieceList(ctx, trackCenterline.offset(railGapTiles).pieces, originX, originY, px);
-      ctx.stroke();
-
-      ctx.strokeStyle = TIE_COLOR;
-      ctx.lineWidth = Math.max(1, 1.4 * scale);
-      const steps = Math.max(1, Math.floor(trackCenterline.length / tieSpacingTiles));
-      for (const sample of sampleEvenly(trackCenterline, steps, originX, originY, px)) {
-        const perpX = -Math.sin(sample.angle);
-        const perpY = Math.cos(sample.angle);
-        const halfLenPx = tieHalfLenTiles * px;
-        ctx.beginPath();
-        ctx.moveTo(sample.lx - perpX * halfLenPx, sample.ly - perpY * halfLenPx);
-        ctx.lineTo(sample.lx + perpX * halfLenPx, sample.ly + perpY * halfLenPx);
-        ctx.stroke();
-      }
-    };
+    ctx.strokeStyle = railColor;
+    ctx.lineWidth = Math.max(1, 1.1 * scale);
+    tracePieceList(ctx, centerline.offset(-railGapTiles).pieces, originX, originY, px);
+    ctx.stroke();
+    tracePieceList(ctx, centerline.offset(railGapTiles).pieces, originX, originY, px);
+    ctx.stroke();
 
     if (edge.double) {
-      drawRailPair(centerline.offset(-gapTiles));
-      drawRailPair(centerline.offset(gapTiles));
+      // Diverging track's own two rails, at the through track's rail gap either side of its
+      // (variable) own offset — sampled directly rather than via `EdgePath.offset`, which only
+      // supports one constant offset for a whole edge.
+      this.drawVariableOffsetLine(
+        ctx,
+        centerline,
+        (d) => offsetAt(d) - railGapTiles,
+        originX,
+        originY,
+        px,
+      );
+      this.drawVariableOffsetLine(
+        ctx,
+        centerline,
+        (d) => offsetAt(d) + railGapTiles,
+        originX,
+        originY,
+        px,
+      );
+
+      // One shared, widening tie per sample (SPEC §5.1: "shared ballast bed") — spans from the
+      // through track's own outer rail to the diverging track's own (growing) outer rail, so it
+      // reads as one normal-width tie right at a single-track transition and widens into a shared
+      // double-width tie further into the double section.
+      this.drawTies(
+        ctx,
+        centerline,
+        (d) => ({ left: -tieHalfLenTiles, right: offsetAt(d) + tieHalfLenTiles }),
+        tieSpacingTiles,
+        originX,
+        originY,
+        px,
+        scale,
+      );
     } else {
-      drawRailPair(centerline);
+      this.drawTies(
+        ctx,
+        centerline,
+        () => ({ left: -tieHalfLenTiles, right: tieHalfLenTiles }),
+        tieSpacingTiles,
+        originX,
+        originY,
+        px,
+        scale,
+      );
     }
 
     if (edge.electrified)
       this.drawCatenaryOnPath(ctx, centerline, edge, originX, originY, px, scale);
+  }
+
+  /** Strokes a smooth polyline tracking `centerline` with a per-distance perpendicular offset that
+   * varies along the edge (`offsetAt`) — used for a double edge's diverging track/rail, which can't
+   * be expressed as one `EdgePath.offset(dist)` call (that only supports a single constant offset
+   * for the whole edge, arcs included). Sampled finely enough (`DIVERGING_SAMPLE_SPACING_TILES`)
+   * that the polyline reads as smoothly curved at any zoom this is drawn at. */
+  private drawVariableOffsetLine(
+    ctx: CanvasRenderingContext2D,
+    centerline: EdgePath,
+    offsetAt: (distance: number) => number,
+    originX: number,
+    originY: number,
+    px: number,
+  ): void {
+    const length = centerline.length;
+    const steps = Math.max(4, Math.ceil(length / DIVERGING_SAMPLE_SPACING_TILES));
+    ctx.beginPath();
+    for (let s = 0; s <= steps; s++) {
+      const d = (s / steps) * length;
+      const sample = centerline.pointAt(d);
+      const off = offsetAt(d);
+      const perpX = -Math.sin(sample.angle);
+      const perpY = Math.cos(sample.angle);
+      const x = (sample.x + perpX * off - originX) * px;
+      const y = (sample.y + perpY * off - originY) * px;
+      if (s === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  /** Draws one tie (perpendicular cross-mark) per `spacingTiles` along `centerline`, each spanning
+   * from `extentAt(d).left` to `extentAt(d).right` (signed perpendicular distances, not necessarily
+   * symmetric — see the "shared ballast bed" comment above `drawEdge`'s double-track branch). */
+  private drawTies(
+    ctx: CanvasRenderingContext2D,
+    centerline: EdgePath,
+    extentAt: (distance: number) => { left: number; right: number },
+    spacingTiles: number,
+    originX: number,
+    originY: number,
+    px: number,
+    scale: number,
+  ): void {
+    ctx.strokeStyle = TIE_COLOR;
+    ctx.lineWidth = Math.max(1, 1.4 * scale);
+    const length = centerline.length;
+    const steps = Math.max(1, Math.floor(length / spacingTiles));
+    for (let s = 0; s <= steps; s++) {
+      const d = (s / steps) * length;
+      const sample = centerline.pointAt(d);
+      const { left, right } = extentAt(d);
+      const perpX = -Math.sin(sample.angle);
+      const perpY = Math.cos(sample.angle);
+      const x0 = (sample.x + perpX * left - originX) * px;
+      const y0 = (sample.y + perpY * left - originY) * px;
+      const x1 = (sample.x + perpX * right - originX) * px;
+      const y1 = (sample.y + perpY * right - originY) * px;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+    }
   }
 
   /** Catenary poles + wire on electrified track (SPEC §7.7: "electric... requires electrified
