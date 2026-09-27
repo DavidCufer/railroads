@@ -88,6 +88,7 @@ export interface GameWindow {
   runDays: (n: number) => void;
   buildTrackPath: (path: number[]) => { ok: boolean; reason?: string };
   electrifyTrackPath: (path: number[]) => { ok: boolean; reason?: string };
+  upgradeTrackPath: (path: number[]) => { ok: boolean; reason?: string };
   buildStation: (tile: number, type: string) => { ok: boolean; reason?: string };
   buyTrain: (
     stationId: number,

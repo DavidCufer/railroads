@@ -942,6 +942,7 @@ function main(): void {
           runDays: (n: number) => void;
           buildTrackPath: (path: number[]) => { ok: boolean; reason?: string };
           electrifyTrackPath: (path: number[]) => { ok: boolean; reason?: string };
+          upgradeTrackPath: (path: number[]) => { ok: boolean; reason?: string };
           buildStation: (tile: number, type: StationType) => { ok: boolean; reason?: string };
           buyTrain: (
             stationId: number,
@@ -1116,6 +1117,11 @@ function main(): void {
       },
       electrifyTrackPath: (path) => {
         const result = electrifyTrack(state, path);
+        if (result.ok) invalidateAlongPath(path);
+        return result.ok ? { ok: true } : { ok: false, reason: result.reason };
+      },
+      upgradeTrackPath: (path) => {
+        const result = upgradeTrack(state, path);
         if (result.ok) invalidateAlongPath(path);
         return result.ok ? { ok: true } : { ok: false, reason: result.reason };
       },

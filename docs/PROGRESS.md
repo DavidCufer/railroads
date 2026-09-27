@@ -3263,3 +3263,131 @@ label fully legible, clear of all three round buttons). All read correctly as in
 
 - Next: nothing scheduled — this closes out the play-test punch list. Future ideas remain at the
   bottom of `docs/PLAN.md`.
+
+## Phase 16: Play-test 2 fixes
+
+Second play-test (Trieste/Ljubljana, 1840) filed two bugs: double track rendered as two full-size
+tracks far apart with awkwardly splayed single↔double transitions, and opposing trains riding the
+shared centerline and passing straight through each other; separately, "I don't understand the
+passenger numbers" — cars only ever loaded a full, cargo-agnostic `CARLOAD_UNITS` (20 abstract
+units), so a small town's real supply (well under a carload) never accumulated enough and passenger
+cars always left empty. Worked Part B (the gameplay bug) first, per CLAUDE.md/PLAN, starting from a
+new regression test that reproduced the bug against the pre-fix code before touching anything.
+
+**Real cargo units + partial loading** (`src/data/cargo.ts`, `src/sim/trains/loading.ts`):
+- Every cargo now has a real per-car `capacity` (passengers 40, mail 30, most freight 20, livestock
+  15, oil/fuel 100) plus a short `unit` word and a full `unitsNoun` phrase for UI text, replacing the
+  one-size-fits-all `CARLOAD_UNITS` as the actual car cap. `TrainCar.loaded` (boolean) became
+  `loadedUnits` (0..capacity).
+- `cargoUnitFactor(cargo) = capacity / 20` (the old flat carload size) scales every table that was
+  tuned in the old abstract-unit scale — `src/data/industries.ts`'s livestock/oil/fuel
+  produces/consumes, `src/data/cities.ts`'s passenger/mail supply divisors, and
+  `stationStorageCap`'s per-cargo waiting-pile cap (`src/sim/stations/improvements.ts`, now takes an
+  optional `cargo` param) — so carloads/month (and carloads of storage) are unchanged from before
+  Phase 16, exactly as PLAN asked. Coal/ore/grain/wood/steel/lumber/food/goods all keep their old
+  20-unit capacity, so their numbers are untouched.
+- Found a real bug while doing this: `processIndustryMonth`'s "any"-recipe industries (Food Plant's
+  grain-or-livestock) summed consumed inputs unit-for-unit toward the shared output cap — fine when
+  every cargo shared one carload size, wrong now that a carload of livestock (15) is smaller than a
+  carload of grain (20). Rewrote it to sum in carload-equivalents (`inputStock[cargo] /
+  CARGO[cargo].capacity`) so a full carload of either input contributes the same output regardless of
+  its real unit count (`tests/sim/economy/processing.test.ts` updated with round-number inputs that
+  exercise this).
+- `planLoadUnload`'s Auto rule now loads any positive amount up to capacity instead of requiring a
+  full carload (the actual bug fix), and `applyLoad` tops up a partially-loaded car on each later
+  attempt rather than only ever filling once — which is what lets "Wait for full load" keep
+  accumulating across its extra-wait days exactly as before, just now able to reach partial-then-full
+  instead of only ever being 0% or 100%.
+- Revenue pays per unit delivered: `computeRevenue` itself is untouched (still "per one full
+  carload", so its own unit tests didn't need to change) — `settleUnload` just scales the result by
+  `loadedUnits / capacity`. City growth score and the `delivered` goal's cargo counter both read a
+  new `carloadEquivalent(cargo, units) = units / cargoUnitFactor(cargo)` instead of the raw units, so
+  a full car of *any* cargo still contributes exactly what it did pre-Phase-16 (a full 100-barrel oil
+  tanker doesn't suddenly count 5× more than a full 20-ton coal hopper toward a city's growth score or
+  a "deliver N carloads" goal) — this is the one piece of Phase 7.1-era balance math that needed an
+  explicit normalization rather than falling out of the capacity tables alone.
+- Save migration v2→v3 (`src/save/migrate.ts`): a v2 car's boolean `loaded` maps to 100%/0% of its
+  cargo's new capacity (a v2 train was always exactly full or empty, so this is lossless); every
+  stored `stationCargo` pile amount and `industryEconomy` inputStock/monthlyOutput figure is
+  rescaled by `cargoUnitFactor` so a loaded save keeps the same carload counts it had before. Needed
+  a frozen `SerializedTrainCarV2` (mirroring the existing `SerializedHeldBlockV1` pattern) since
+  `SerializedTrainV1`/`V2` would otherwise silently pick up the *new* `TrainCar` shape through their
+  `Omit<Train, ...>` definitions once `TrainCar` itself changed.
+- Balance tests (`tests/sim/balance.test.ts`) stayed green with no retuning, as PLAN hoped — partial
+  loading makes cars fill more eagerly but for the same total revenue over time, since the conversion
+  keeps carloads/month identical.
+
+**UI wording** (`src/ui/strings.ts`, `infoPanels.ts`, `stationPanels.ts`, `trainPanels.ts`,
+`main.ts`): every cargo count now says what it means, consistently:
+- City/station Supplies chips: "270 / month" / "94 bags / month" (previously the city panel showed
+  a bare number with no unit or rate at all — the literal complaint — while the station panel used an
+  inconsistent "/mo" abbreviation).
+- Station panel: a new `strings.station.waitingCount` line under each waiting-cargo bar ("20 tons of
+  coal waiting"), so the bar's fill has an actual number next to it. `stationStorageCap` needing a
+  `cargo` argument now meant `economyBody` takes the `Station` itself instead of a single precomputed
+  cap, since each cargo's cap is a different number.
+- Train panel car chips: "Coal 20 / 20 t" / "Passengers 28 / 40" with a small per-car fill bar
+  (reusing the `supply-chip-stack` + `cargo-bar-track.mini` pattern already used for station supply
+  bars); "Empty (Coal)" only when `loadedUnits` is truly 0.
+- Buy Train/Edit Consist car picker: each option's label became `carTypeLabel(cargo)` — the cargo's
+  `carLabel` (e.g. "Passenger car", "Coal hopper" — a new cargo.ts field) plus its capacity ("40
+  seats" for passengers specifically, `capacity + unit` for everything else).
+- Floating delivery label: "+$169 · 22 tons of coal" (`DeliveryEvent` gained an optional `units`
+  field — optional so `SaveFileV1`/`V2`'s already-always-drained `pendingDeliveries` array didn't need
+  its own migration step for one cosmetic field).
+
+**Double-track turnout rendering + per-lane trains** (`src/render/trackPath.ts`, `track.ts`,
+`trains.ts`): re-derived from scratch rather than patched, because the old model (two tracks
+symmetrically offset ±half the spacing from a shared centerline) can't produce a clean turnout at
+all — neither track "is" the single-track line on the other side of a transition, so both would have
+to bend, which is what produced the reported splay. New model: one track ("through") is always
+*exactly* the centerline; the other ("diverging") sits `DOUBLE_TRACK_SPACING_TILES` (0.28 tile, SPEC
+§5.1's number) to one side, eased from 0 up to full spacing over `TURNOUT_EASE_TILES` (1 tile,
+clamped to half the edge) wherever it doesn't continue into another double edge
+(`hasDoubleNeighborAt`, checking the graph — deliberately simpler than the centerline fillet's own
+bend-angle-aware partner search, since any connected double edge reads as "double continues here" for
+tapering purposes). The through track needs no special handling anywhere — it's drawn exactly like a
+plain single track always — only the diverging track's rails/ties are sampled as a polyline with a
+per-point variable offset (`doubleTrackOffsetAt`, shared by the track and train renderers so a
+train's lane always lines up with the rail actually drawn), since `EdgePath.offset(dist)` only
+supports one constant offset for a whole edge (arcs included).
+- Ties: one shared, widening tie per sample (spanning the through track's own outer rail to the
+  diverging track's growing outer rail) instead of two independent full-width tie sets — SPEC §5.1's
+  "shared ballast bed", and incidentally what stops the two tracks' ties from visually colliding at
+  the tighter 0.28-tile spacing (the old symmetric model's ~0.31-tile gap was already this tight; two
+  independent tie sets at 0.28 would have overlapped even more).
+- Trains: `curvedRouteSample` (src/render/trains.ts) now applies a lane offset — 0 (through) for the
+  direction that matches the edge's own canonical `a→b`, the diverging track's offset (sign-flipped
+  to account for its path running the opposite way) for the reverse direction — so opposing trains
+  physically ride the two different rails drawn, easing together at exactly the same turnout the
+  track renderer draws. Render-only, per CLAUDE.md's sim purity rule and PLAN's own note: sim
+  movement/block-reservation is completely untouched.
+- **Deviation**: PLAN's train-lane bullet says "offset from the centerline by half the track
+  spacing" (implying the old symmetric model), but its own turnout bullet requires "one track
+  continues straight on the centerline side" — those two are mutually exclusive (a strictly symmetric
+  ±half-spacing pair has no track that's actually *on* the centerline). Implemented the turnout
+  bullet literally, since a working splay-free turnout is the harder, more load-bearing constraint
+  and the whole point of this rewrite; the train lane offset follows from that (0 or full spacing, not
+  half), which is what actually lines a train up with a real drawn rail rather than the empty space
+  between two half-offset tracks.
+- New `tests/render/trainLanes.test.ts` (render-geometry, no DOM): opposing trains land ≥0.2 tile
+  apart on a double stretch (PLAN's own acceptance number), share the centerline on single track, and
+  ease together (not jump) right at a single↔double transition.
+
+**Screenshots — looked at all of them**: `phase-16-double-track-turnout.png` (two steam trains
+passing side by side through a double-track curve, clearly on separate parallel rails, with the west
+turnout visible at the left edge easing from single to double); `phase-16-single-double-transition.png`
+(a tight close-up on that turnout: single track cleanly forks into two via a short S-curve, no
+splay, no crossing ties); `phase-16-train-panel-fill.png` (a coal car reading "Coal 20 / 20 t" next
+to the still-empty "Empty (Coal)" car); plus re-captured (already-existing, now materially different)
+`phase-3-city-panel.png` ("270 / month" / "94 bags / month" replacing the old bare "135"/"63"),
+`phase-7-station-waiting-cargo.png` ("20 tons of coal waiting" under the bar), and
+`phase-7-delivery-label.png` ("+$169 22 tons of coal"). All read correctly as intended; the rest of
+the e2e suite's screenshot diffs (map-gen/UI layout incidental, not Phase 16 content) were reverted
+per CLAUDE.md's "commit screenshot changes only for the phase that owns them".
+
+**Tests**: `npm run check` (typecheck, lint, 328 unit tests) and `npm run e2e` (81/81, including the
+two new Phase 16 screenshot tests and the pre-existing suite) both green.
+
+- Next: nothing scheduled — this closes out the second play-test's punch list. Future ideas remain
+  at the bottom of `docs/PLAN.md`.

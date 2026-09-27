@@ -423,35 +423,35 @@ Player report (screenshots of Trieste/Ljubljana, 1840):
    reaches 20 → passenger cars always leave empty.
 
 ### A. Double track rendering + lanes
-- [ ] Draw double track as two normal-gauge tracks with realistic spacing: rail gauge and tie length the same as
+- [x] Draw double track as two normal-gauge tracks with realistic spacing: rail gauge and tie length the same as
       single track, track centers ≈ 0.28 tile apart (so the pair is only slightly wider than one track), shared
       ballast bed. Curves: two concentric arcs.
-- [ ] Single↔double transitions: draw a proper turnout — one track continues straight on the centerline side, the
+- [x] Single↔double transitions: draw a proper turnout — one track continues straight on the centerline side, the
       second track diverges with a gentle S-curve over ~1 tile. No splayed/crossing ties.
-- [ ] Trains on double track run in their **own lane**: offset from the centerline by half the track spacing,
+- [x] Trains on double track run in their **own lane**: offset from the centerline by half the track spacing,
       right-hand running per direction of travel (consistent for the whole network); lane offset eases in/out over
       the turnout. Opposing trains on double track visibly pass side by side, never overlap.
-- [ ] Trains on single track stay on the centerline. Stations: trains stop on their lane.
+- [x] Trains on single track stay on the centerline. Stations: trains stop on their lane.
 
 ### B. Real, understandable cargo units + partial loading
-- [ ] Every cargo gets a real unit and per-car capacity in `src/data/cargo.ts`: passengers (people, 40/car),
+- [x] Every cargo gets a real unit and per-car capacity in `src/data/cargo.ts`: passengers (people, 40/car),
       mail (bags, 30/car), coal/ore/grain/wood (tons, 20/car), livestock (head, 15/car), oil/fuel (barrels,
       100/car), steel/lumber/food/goods (tons or crates, 20/car). Convert supply/production rates so that
       *carloads per month stay the same as now* (balance tests must stay green without retuning); convert
       revenue to per-unit (base per carload ÷ capacity).
-- [ ] **Partial loading**: under the Auto rule a car loads whatever is waiting (up to capacity) instead of only
+- [x] **Partial loading**: under the Auto rule a car loads whatever is waiting (up to capacity) instead of only
       full carloads; revenue is paid per unit delivered. "Wait for full load" still waits until full (or max wait).
       Passenger/mail decay stays but trains now pick up what's there.
-- [ ] Re-run the balance tests; if partial loading shifts profits outside the Phase 7.1 targets, tune data
+- [x] Re-run the balance tests; if partial loading shifts profits outside the Phase 7.1 targets, tune data
       tables and record deviations.
-- [ ] UI wording (strings.ts), consistent everywhere:
+- [x] UI wording (strings.ts), consistent everywhere:
       - City panel: "Population 18,400" and under Supplies "Passengers 42 / month", "Mail 13 bags / month".
       - Station panel: Supplies as "per month" + a **Waiting** line per cargo ("12 passengers waiting").
       - Train panel: each car shows cargo + fill, e.g. "Passengers 28 / 40", "Coal 20 / 20 t", "Empty" only when
         truly empty; a small fill bar per car.
       - Buy train / edit consist: show capacity per car type ("Passenger car · 40 seats").
       - Delivery label: "+$1.2k · 28 passengers".
-- [ ] Save migration for the new unit fields; determinism tests stay green.
+- [x] Save migration for the new unit fields; determinism tests stay green.
 
 **Tests:** a small town (≈5 passengers/month) served by a train every ~10 days produces non-empty passenger
 loads and revenue; partial loads pay proportionally; full-load rule still waits; double-track lane offset puts
