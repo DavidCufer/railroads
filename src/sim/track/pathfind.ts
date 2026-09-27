@@ -18,6 +18,14 @@ import { bridgeCost, cheapestBridgeType, isLand, normalEdgeCost, type CostContex
  * making a genuinely-needed turn prohibitively expensive. */
 const TURN_PENALTY_PER_STEP = 2_500;
 
+/** STYLE §7 / PLAN Phase 13: "the A* track preview should penalize two 45° turns in consecutive
+ * tiles (prefer straight runs, then one clean bend)". Charged in addition to `TURN_PENALTY_PER_STEP`
+ * whenever a 45° turn immediately follows another 45° turn (no straight tile between them) — large
+ * enough that a route with one straight run and one clean bend beats an equal-length zig-zag, but
+ * still small enough that a genuinely tight, unavoidable double-bend (e.g. threading between two
+ * close obstacles) remains buildable rather than effectively blocked. */
+const CONSECUTIVE_TURN_PENALTY = 6_000;
+
 /** Max tiles of water/river a single bridge jump is allowed to scan past while searching — the
  * largest span any bridge type can cover (steel, SPEC §5.3). */
 const MAX_BRIDGE_SEARCH_SPAN = 8;
@@ -239,14 +247,21 @@ export function findBuildPath(
     const x = current.tile % map.width;
     const y = Math.floor(current.tile / map.width);
     const currentG = gScore.get(key) ?? Infinity;
+    // Whether the step that brought the search to `current` was itself a 45° turn (i.e. not
+    // straight-through) — used to detect and penalize a second consecutive turn (a zig-zag).
+    const cameIntoCurrent = cameFrom.get(key);
+    const priorDir = cameIntoCurrent ? cameIntoCurrent.dir : -1;
+    const arrivedViaTurn =
+      current.dir >= 0 && priorDir >= 0 && directionSteps(priorDir, current.dir) === 1;
     for (const neighbor of candidateNeighbors(map, current.tile, ctx, options)) {
       const nx = neighbor.tile % map.width;
       const ny = Math.floor(neighbor.tile / map.width);
       if (nx < minX || nx > maxX || ny < minY || ny > maxY) continue;
       const dir = directionIndex(Math.sign(nx - x), Math.sign(ny - y));
-      const turnPenalty =
-        current.dir < 0 ? 0 : directionSteps(current.dir, dir) * TURN_PENALTY_PER_STEP;
-      const tentativeG = currentG + neighbor.cost + turnPenalty;
+      const turnSteps = current.dir < 0 ? 0 : directionSteps(current.dir, dir);
+      const turnPenalty = turnSteps * TURN_PENALTY_PER_STEP;
+      const zigzagPenalty = turnSteps === 1 && arrivedViaTurn ? CONSECUTIVE_TURN_PENALTY : 0;
+      const tentativeG = currentG + neighbor.cost + turnPenalty + zigzagPenalty;
       const nKey = stateKey(neighbor.tile, dir);
       if (tentativeG < (gScore.get(nKey) ?? Infinity)) {
         gScore.set(nKey, tentativeG);

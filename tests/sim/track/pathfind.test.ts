@@ -104,4 +104,27 @@ describe("findBuildPath", () => {
     });
     expect(path).toBeNull();
   });
+
+  it("penalizes two consecutive 45° turns (a zig-zag) over a route with more total turns but none adjacent", () => {
+    // A water maze leaves exactly two viable land routes from (0,0) to (2,3), both starting with
+    // the same (0,0)->(1,1) step then diverging:
+    //   "zig-zag": (1,1)->(2,1)->(3,2)->(2,3)  [dirs E, SE, SW — the SE turn is immediately
+    //     followed by another turn (SW), i.e. two 45° turns back-to-back].
+    //   "clean":   (1,1)->(0,2)->(1,3)->(2,3)  [dirs SW, SE, E — no two turns are adjacent].
+    // These were picked (by exhaustive search over small direction sequences, not by hand) so
+    // that without the zig-zag penalty the zig-zag route is cheaper overall despite its uglier
+    // shape, and with it the clean route wins — i.e. this genuinely exercises
+    // `CONSECUTIVE_TURN_PENALTY`, not just the pre-existing per-turn cost.
+    const map = makeTestMap(["pwww", "wppw", "pwwp", "wppw"]);
+    const path = findBuildPath(map, tileAt(map, 0, 0), tileAt(map, 2, 3), 1830);
+    expect(path).toEqual(
+      [
+        [0, 0],
+        [1, 1],
+        [0, 2],
+        [1, 3],
+        [2, 3],
+      ].map(([x, y]) => tileAt(map, x as number, y as number)),
+    );
+  });
 });

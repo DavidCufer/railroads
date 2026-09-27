@@ -6,10 +6,10 @@
  */
 import { DIRS8 } from "../sim/map/grid";
 import type { TrackGraph } from "../sim/track/graph";
-import { edgeLengthTiles, tileXY } from "../sim/trains/geometry";
+import { directionBetween, edgeLengthTiles, tileXY } from "../sim/trains/geometry";
 import type { Train } from "../sim/trains/types";
-import { CARGO } from "../data/cargo";
-import { CAR_LENGTH_TILES, LOCO_LENGTH_TILES, locomotiveById } from "../data/trains";
+import { CARGO, type CargoType } from "../data/cargo";
+import { LOCO_LENGTH_TILES, locomotiveById } from "../data/trains";
 import { Camera, TILE_SIZE } from "./camera";
 import {
   CAR_EMPTY_COLOR,
@@ -19,9 +19,16 @@ import {
   TRAIN_SIGNAL_WAIT_COLOR,
   TRAIN_WARNING_COLOR,
 } from "./palette";
+import { buildEdgeGeometry, isFilletBend } from "./trackPath";
 
 /** DIRS8[i]'s screen-space heading, in radians (grid is screen-aligned: +x right, +y down). */
 const DIR_ANGLE: readonly number[] = DIRS8.map(([dx, dy]) => Math.atan2(dy, dx));
+
+// --- STYLE §7 vehicle sizing (zoom 1, tile = 32px): "loco 16×7 px... cars 12×7, 2px gaps" -------
+// (Render-only sizing: LOCO_LENGTH_TILES already matches 16px; the rest are local to drawing.)
+const VEHICLE_WIDTH_TILES = 7 / TILE_SIZE;
+const CAR_DRAW_LEN_TILES = 12 / TILE_SIZE;
+const VEHICLE_GAP_TILES = 2 / TILE_SIZE;
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
@@ -33,8 +40,45 @@ interface Sample {
   angle: number;
 }
 
+/** STYLE §7: "vehicles rotate smoothly along curves... each vehicle's position/angle is sampled
+ * on the curved track path at its own offset behind the head, so couplings follow the curve" —
+ * resolves the fillet partner direction at `node`'s end of edge `(nodeAwayDir)`, from whichever
+ * *other* tile the route actually continues to there (`otherNode`), or `null` if there's no route
+ * continuation (end of known route) or the bend isn't the one 45° angle a train can traverse. */
+function routePartnerDir(
+  mapWidth: number,
+  node: number,
+  nodeAwayDir: number,
+  otherNode: number | undefined,
+): number | null {
+  if (otherNode === undefined) return null;
+  const otherAwayDir = directionBetween(node, otherNode, mapWidth);
+  return isFilletBend(nodeAwayDir, otherAwayDir) ? otherAwayDir : null;
+}
+
+/** Curved (x, y, heading) at `progress` (0..1) along `route[idx] -> route[idx+1]`, following the
+ * same fillet geometry the track renderer draws — the neighboring route tiles just before/after
+ * this edge (if any) decide whether either end bends. */
+function curvedRouteSample(
+  mapWidth: number,
+  route: readonly number[],
+  idx: number,
+  progress: number,
+): Sample {
+  const a = route[idx] as number;
+  const b = route[idx + 1] as number;
+  const dirAB = directionBetween(a, b, mapWidth);
+  const partnerA = routePartnerDir(mapWidth, a, dirAB, route[idx - 1]);
+  const partnerB = routePartnerDir(mapWidth, b, (dirAB + 4) % 8, route[idx + 2]);
+  const path = buildEdgeGeometry(mapWidth, a, b, partnerA, partnerB);
+  const [ax, ay] = tileXY(a, mapWidth);
+  const [bx, by] = tileXY(b, mapWidth);
+  const straightLen = Math.hypot(bx - ax, by - ay);
+  return path.pointAt(progress * straightLen);
+}
+
 /** Walks backward from the train's head along its route by `distanceBehind` tiles, returning the
- * world (tile-space) point and local heading there — used to lay cars out behind the loco. Clamps
+ * curved (tile-space) point and local heading there — used to lay cars out behind the loco. Clamps
  * at the start of the known route (a train that has barely left a station won't have enough route
  * history yet; its cars simply bunch up near the head, a minor cosmetic simplification). */
 function sampleBehindHead(
@@ -65,20 +109,29 @@ function sampleBehindHead(
     coveredOnEdge = edgeLen;
   }
 
-  const a = train.route[idx] as number;
+  const a = train.route[idx];
   const b = train.route[idx + 1];
-  if (b === undefined) {
-    const [x, y] = tileXY(a, mapWidth);
+  if (a === undefined || b === undefined) {
+    const [x, y] = tileXY((a ?? train.route[idx]) as number, mapWidth);
     return { x: x + 0.5, y: y + 0.5, angle: DIR_ANGLE[Math.max(train.direction, 0)] as number };
   }
+  const progress = Math.max(0, Math.min(1, (coveredOnEdge - remaining) / edgeLen));
+  return curvedRouteSample(mapWidth, train.route, idx, progress);
+}
+
+/** Fraction (0..1, clamped) of the way from tile `a` to tile `b` that world point `(x, y)`
+ * projects to along that straight edge — used to recover the head's progress at the *start* of
+ * the current render tick from `renderFromX/Y` (a straight tile-space snapshot the sim already
+ * keeps for alpha-smoothing) without needing any new sim state. */
+function progressAlongEdge(mapWidth: number, a: number, b: number, x: number, y: number): number {
   const [ax, ay] = tileXY(a, mapWidth);
   const [bx, by] = tileXY(b, mapWidth);
-  const progress = Math.max(0, Math.min(1, (coveredOnEdge - remaining) / edgeLen));
-  return {
-    x: ax + 0.5 + (bx - ax) * progress,
-    y: ay + 0.5 + (by - ay) * progress,
-    angle: Math.atan2(by - ay, bx - ax),
-  };
+  const dx = bx - ax;
+  const dy = by - ay;
+  const lenSq = dx * dx + dy * dy || 1;
+  const px = x - (ax + 0.5);
+  const py = y - (ay + 0.5);
+  return Math.max(0, Math.min(1, (px * dx + py * dy) / lenSq));
 }
 
 function worldToScreenScaled(
@@ -126,7 +179,7 @@ function drawLoco(
   ctx.translate(x, y);
   ctx.rotate(angle);
   const len = size * LOCO_LENGTH_TILES;
-  const w = size * 0.34;
+  const w = size * VEHICLE_WIDTH_TILES;
 
   if (type === "steam") {
     const c = LOCO_COLORS.steam;
@@ -221,28 +274,162 @@ function drawLoco(
   ctx.restore();
 }
 
-/** Draws one car in local space, colored by cargo when loaded (SPEC §7's rendering rule), grey
- * when empty so a full vs. running-empty consist reads at a glance. */
+type CarShape = "passenger" | "mail" | "hopper" | "tanker" | "flatcar" | "boxcar" | "livestock";
+
+/** STYLE §7's car body shapes, keyed by the cargo carried — matches `CARGO[type].car`'s naming
+ * (e.g. "Coal hopper", "Ore hopper", "Grain hopper" all draw as a hopper). Body *color* still
+ * follows the existing SPEC §7 rule (each cargo's own color when loaded, grey when empty) rather
+ * than STYLE's literal "green/maroon" passenger suggestion, so a car's cargo stays readable at a
+ * glance exactly as it already was — only the silhouette changes here. */
+const CARGO_CAR_SHAPE: Record<CargoType, CarShape> = {
+  passengers: "passenger",
+  mail: "mail",
+  coal: "hopper",
+  ironOre: "hopper",
+  wood: "flatcar",
+  grain: "hopper",
+  livestock: "livestock",
+  oil: "tanker",
+  steel: "flatcar",
+  lumber: "flatcar",
+  food: "boxcar",
+  goods: "boxcar",
+  fuel: "tanker",
+};
+
+const DECK_COLOR = "#5A4632";
+
+/** Draws one car in local space (+x = direction of travel), shaped per STYLE §7 by the cargo it
+ * carries, colored by cargo when loaded (SPEC §7's rendering rule), grey when empty so a full vs.
+ * running-empty consist reads at a glance. */
 function drawCar(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   angle: number,
   size: number,
-  color: string,
+  cargoType: CargoType,
   loaded: boolean,
 ): void {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle);
-  const len = size * CAR_LENGTH_TILES * 2.2;
-  const w = size * 0.3;
-  roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.22);
-  ctx.fillStyle = loaded ? color : CAR_EMPTY_COLOR;
-  ctx.fill();
-  ctx.strokeStyle = CAR_OUTLINE_COLOR;
-  ctx.lineWidth = Math.max(1, size * 0.025);
-  ctx.stroke();
+  const len = size * CAR_DRAW_LEN_TILES;
+  const w = size * VEHICLE_WIDTH_TILES;
+  const outline = (): void => {
+    ctx.strokeStyle = CAR_OUTLINE_COLOR;
+    ctx.lineWidth = Math.max(1, size * 0.025);
+    ctx.stroke();
+  };
+  const bodyColor = loaded ? CARGO[cargoType].color : CAR_EMPTY_COLOR;
+  const shape = CARGO_CAR_SHAPE[cargoType];
+
+  switch (shape) {
+    case "tanker": {
+      // A rounded cylinder (fully round ends) with a lighter top-lit center stripe.
+      roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.5);
+      ctx.fillStyle = bodyColor;
+      ctx.fill();
+      outline();
+      ctx.fillStyle = "rgba(255, 255, 255, 0.28)";
+      ctx.fillRect(-len * 0.4, -w * 0.1, len * 0.8, w * 0.16);
+      break;
+    }
+    case "hopper": {
+      // Dark frame with an open top showing the load (heap in the cargo color, dark when empty).
+      roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.15);
+      ctx.fillStyle = CAR_EMPTY_COLOR;
+      ctx.fill();
+      const inset = w * 0.16;
+      ctx.fillStyle = loaded ? bodyColor : "#1A1A1A";
+      ctx.fillRect(-len / 2 + inset, -w / 2 + inset, len - inset * 2, w - inset * 2);
+      if (loaded) {
+        ctx.beginPath();
+        ctx.ellipse(0, -w * 0.08, len * 0.28, w * 0.22, 0, 0, Math.PI * 2);
+        ctx.fillStyle = bodyColor;
+        ctx.fill();
+      }
+      roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.15);
+      outline();
+      break;
+    }
+    case "flatcar": {
+      // A bare wood deck, with cargo-colored load blocks stacked on it when loaded.
+      ctx.fillStyle = DECK_COLOR;
+      ctx.fillRect(-len / 2, -w * 0.28, len, w * 0.56);
+      if (loaded) {
+        ctx.fillStyle = bodyColor;
+        const blocks = 3;
+        const blockW = (len / blocks) * 0.8;
+        for (let i = 0; i < blocks; i++) {
+          const bx = -len / 2 + (i + 0.5) * (len / blocks);
+          ctx.fillRect(bx - blockW / 2, -w * 0.4, blockW, w * 0.8);
+        }
+      }
+      ctx.strokeStyle = CAR_OUTLINE_COLOR;
+      ctx.lineWidth = Math.max(1, size * 0.02);
+      ctx.strokeRect(-len / 2, -w * 0.28, len, w * 0.56);
+      break;
+    }
+    case "boxcar": {
+      // A boxy body with a ribbed roof.
+      roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.2);
+      ctx.fillStyle = bodyColor;
+      ctx.fill();
+      outline();
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.25)";
+      ctx.lineWidth = Math.max(0.5, w * 0.05);
+      const ribs = 4;
+      for (let r = 1; r < ribs; r++) {
+        const rx = -len / 2 + (len * r) / ribs;
+        ctx.beginPath();
+        ctx.moveTo(rx, -w * 0.42);
+        ctx.lineTo(rx, w * 0.42);
+        ctx.stroke();
+      }
+      break;
+    }
+    case "livestock": {
+      // A boxy body with a slatted roof (ventilation slats).
+      roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.18);
+      ctx.fillStyle = bodyColor;
+      ctx.fill();
+      outline();
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.32)";
+      ctx.lineWidth = Math.max(0.5, w * 0.07);
+      const slats = 5;
+      for (let s = 0; s < slats; s++) {
+        const sx = -len / 2 + (len * (s + 0.5)) / slats;
+        ctx.beginPath();
+        ctx.moveTo(sx, -w * 0.46);
+        ctx.lineTo(sx, w * 0.46);
+        ctx.stroke();
+      }
+      break;
+    }
+    case "mail": {
+      roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.2);
+      ctx.fillStyle = bodyColor;
+      ctx.fill();
+      outline();
+      break;
+    }
+    case "passenger":
+    default: {
+      // A boxy body with a lighter roof center line (top-lit).
+      roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.24);
+      ctx.fillStyle = bodyColor;
+      ctx.fill();
+      outline();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+      ctx.lineWidth = Math.max(1, w * 0.12);
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.42, 0);
+      ctx.lineTo(len * 0.42, 0);
+      ctx.stroke();
+      break;
+    }
+  }
   ctx.restore();
 }
 
@@ -291,8 +478,27 @@ export function drawTrains(
     const loco = locomotiveById(train.locoModelId);
     if (!loco) continue;
 
-    const headTileX = lerp(train.renderFromX, train.renderToX, alpha);
-    const headTileY = lerp(train.renderFromY, train.renderToY, alpha);
+    const a = train.route[train.routeIndex];
+    const b = train.route[train.routeIndex + 1];
+    let headTileX: number;
+    let headTileY: number;
+    let angle: number;
+    if (a !== undefined && b !== undefined) {
+      // Blend the head's progress along the *current* curved edge between its tick-start
+      // (`renderFromX/Y`, a straight tile-space snapshot the sim already keeps) and tick-end
+      // (`train.edgeProgress`, authoritative) positions, so it follows the same fillet the cars
+      // do while keeping the existing smooth sub-tick interpolation (`alpha`).
+      const progressStart = progressAlongEdge(mapWidth, a, b, train.renderFromX, train.renderFromY);
+      const progress = lerp(progressStart, train.edgeProgress, alpha);
+      const sample = curvedRouteSample(mapWidth, train.route, train.routeIndex, progress);
+      headTileX = sample.x;
+      headTileY = sample.y;
+      angle = sample.angle;
+    } else {
+      headTileX = lerp(train.renderFromX, train.renderToX, alpha);
+      headTileY = lerp(train.renderFromY, train.renderToY, alpha);
+      angle = train.direction >= 0 ? (DIR_ANGLE[train.direction] as number) : Math.atan2(0, 1);
+    }
     const head = worldToScreenScaled(camera, headTileX, headTileY, viewportW, viewportH);
     if (
       head.x < -size * 2 ||
@@ -303,15 +509,24 @@ export function drawTrains(
       continue;
     }
 
-    const angle = train.direction >= 0 ? (DIR_ANGLE[train.direction] as number) : Math.atan2(0, 1);
-
     for (let i = train.cars.length - 1; i >= 0; i--) {
-      const distanceBehind = LOCO_LENGTH_TILES / 2 + (i + 0.5) * CAR_LENGTH_TILES;
+      const distanceBehind =
+        LOCO_LENGTH_TILES +
+        VEHICLE_GAP_TILES +
+        i * (CAR_DRAW_LEN_TILES + VEHICLE_GAP_TILES) +
+        CAR_DRAW_LEN_TILES / 2;
       const sample = sampleBehindHead(mapWidth, graph, train, distanceBehind);
       const screen = worldToScreenScaled(camera, sample.x, sample.y, viewportW, viewportH);
       const car = train.cars[i];
-      const color = car ? CARGO[car.cargoType].color : CAR_EMPTY_COLOR;
-      drawCar(ctx, screen.x, screen.y, sample.angle, size, color, car?.loaded ?? false);
+      drawCar(
+        ctx,
+        screen.x,
+        screen.y,
+        sample.angle,
+        size,
+        car?.cargoType ?? "goods",
+        car?.loaded ?? false,
+      );
     }
 
     drawLoco(ctx, head.x, head.y, angle, size, loco.type, nowMs);
