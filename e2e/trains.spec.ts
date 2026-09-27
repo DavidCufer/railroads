@@ -290,6 +290,50 @@ test.describe("Phase 6 — Trains", () => {
     await page.screenshot({ path: "docs/screenshots/phase-6-train-panel.png" });
   });
 
+  test("Edit cars on an existing train adds a car immediately and shows in the panel", async ({
+    page,
+  }) => {
+    await setup(page, {
+      seed: 12345,
+      size: "medium",
+      waterLevel: "normal",
+      roughness: "normal",
+      startYear: 1848,
+    });
+
+    // Paused throughout: the train's own loading dwell is only a few in-game hours, so without
+    // this it could depart mid-test (real time keeps advancing sim ticks while we navigate the
+    // UI) and the edit would land as "queued for next stop" instead of "applied now" — a real,
+    // separate behavior already covered by unit tests, not what this test is checking.
+    await page.evaluate(() => window.__game!.setSpeed(0));
+    const { stationAId, stationBId } = await buildLineWithStations(page, 71, 90, ROW_Y);
+    const trainId = await buyAndOrder(page, stationAId, stationBId, LOCO);
+
+    await selectTool(page, "Info");
+    await centerOn(page, 71, ROW_Y, 1.5);
+    const p = await tileScreenPoint(page, 71, ROW_Y);
+    await page.mouse.click(p.x, p.y);
+    await page.waitForTimeout(300);
+    await expect(page.locator(".panel-title").last()).toHaveText("Train 1");
+
+    await page.locator(".action-btn", { hasText: "Edit cars" }).click();
+    await page.waitForTimeout(200);
+    await expect(page.locator(".panel-title").last()).toHaveText("Edit Consist");
+    await page.locator(".train-car-add-btn", { hasText: "Coal" }).click();
+    await page.locator(".train-car-add-btn", { hasText: "Grain" }).click();
+    await page.waitForTimeout(50);
+    await page.screenshot({ path: "docs/screenshots/phase-15-consist-editor.png" });
+    await page.locator(".panel-action-build").last().click();
+    await page.waitForTimeout(200);
+
+    const trains = await page.evaluate(() => window.__game!.getTrains());
+    const train = trains.find((t) => t.id === trainId);
+    expect(train?.cars).toEqual(["coal", "grain"]);
+    await expect(page.locator(".panel-title").last()).toHaveText(train!.name);
+    await expect(page.locator(".chip", { hasText: "Coal" })).toBeVisible();
+    await expect(page.locator(".chip", { hasText: "Grain" })).toBeVisible();
+  });
+
   test("double track allows two trains to run in opposite directions concurrently", async ({
     page,
   }) => {

@@ -936,6 +936,11 @@ button.chip {
   width: 10px;
   height: 10px;
 }
+/** PLAN Phase 15: "Changes apply at next station" caption under a queued consist edit. */
+.train-consist-pending {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
 
 /* ---------- toasts (STYLE §3) ---------- */
 

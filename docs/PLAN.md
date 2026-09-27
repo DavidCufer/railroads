@@ -391,7 +391,7 @@ station can't leave (its exit block is occupied by the waiting train) → deadlo
       pass there; a train never stops outside a station except behind a same-direction leader or breakdown;
       save/load mid-reservation is deterministic; the old deadlock regression tests still pass.
 - [ ] Train panel shows what a waiting train waits for ("Waiting for line clear to X", "Waiting for platform at X").
-- [ ] **Edit consist on an existing train**: in the Train panel, an "Edit cars" action (2-column grid style) opens
+- [x] **Edit consist on an existing train**: in the Train panel, an "Edit cars" action (2-column grid style) opens
       the car picker with the current consist. Add/remove/reorder cars up to the loco's max. If the train is at a
       station the change applies immediately; otherwise it's queued and applied at the next station stop (panel
       shows "Changes apply at next station"). New cars are charged at car price; removed cars refund 50%. Cargo

@@ -173,6 +173,12 @@ export const strings = {
      * a fresh target is known). */
     waitingForLineClear: (station: string) => `Waiting for line clear to ${station}`,
     waitingForPlatform: (station: string) => `Waiting for platform at ${station}`,
+    editCars: "Edit cars",
+    editCarsTitle: "Edit Consist",
+    /** PLAN Phase 15: shown while `train.pendingConsist` is set (the train isn't at a station right
+     * now, so the change waits for its next stop). */
+    consistChangeQueued: "Changes apply at next station",
+    confirm: "Confirm",
     replace: "Replace",
     replaceTitle: "Replace Locomotive",
     tradeInCredit: "Trade-in credit",

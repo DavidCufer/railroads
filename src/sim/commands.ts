@@ -750,10 +750,11 @@ export function editConsist(
   state.cash -= plan.netCost;
   addExpense(state, "rollingStock", plan.netCost);
 
-  const order = train.orders[train.currentOrderIndex];
+  // Keyed off the train's actual position rather than its orders — a train that's `"loading"`
+  // but has no orders yet (just bought, before `setOrders`) is still genuinely at a station.
   const currentStation =
-    train.status === "loading" && order
-      ? state.stations.find((s) => s.id === order.stationId)
+    train.status === "loading"
+      ? state.stations.find((s) => s.tile === train.route[train.routeIndex])
       : undefined;
   if (currentStation) {
     for (const car of removedCars) dropCarCargo(state, train, currentStation, car);

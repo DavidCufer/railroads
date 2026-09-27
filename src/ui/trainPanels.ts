@@ -14,8 +14,10 @@ import {
 import {
   buyTrain,
   computeBuyTrainPlan,
+  computeEditConsistPlan,
   computeReplaceLocoPlan,
   computeSellTrainPlan,
+  editConsist,
   replaceLocomotive,
   sellTrain,
   setOrders,
@@ -355,6 +357,45 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
         { className: "panel-row", style: { flexWrap: "wrap" } },
         ...(train.cars.length > 0 ? train.cars.map((c) => carChip(c)) : ["—"]),
       ),
+      ...(train.pendingConsist
+        ? [
+            h(
+              "div",
+              { className: "panel-row train-consist-pending" },
+              strings.trains.consistChangeQueued,
+            ),
+          ]
+        : []),
+      h(
+        "div",
+        { className: "action-grid" },
+        h(
+          "button",
+          {
+            className: "action-btn",
+            onClick: () => openEditConsistPanel(container, state, trainId),
+          },
+          h(
+            "span",
+            { className: "action-btn-label" },
+            icon("edit", "icon-sm"),
+            strings.trains.editCars,
+          ),
+        ),
+        h(
+          "button",
+          {
+            className: "action-btn",
+            onClick: () => openReplaceLocoPanel(container, state, trainId),
+          },
+          h(
+            "span",
+            { className: "action-btn-label" },
+            icon("wrench", "icon-sm"),
+            strings.trains.replace,
+          ),
+        ),
+      ),
       h("div", { className: "panel-section-title" }, strings.trains.orders),
       ...(train.orders.length > 0
         ? train.orders.map((o, i) =>
@@ -382,17 +423,109 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
       },
       `${strings.trains.sell} (+${formatMoney(sellPlan.refund)})`,
     );
-    const replaceBtn = h(
-      "button",
-      {
-        className: "panel-action-cancel train-replace-btn",
-        onClick: () => openReplaceLocoPanel(container, state, trainId),
-      },
-      strings.trains.replace,
+
+    openPanel(container, { title: train.name, body, footer: [sellBtn] });
+  };
+
+  render();
+}
+
+/** Opens the "Edit cars" dialog for an existing train (PLAN Phase 15): the same add/remove car
+ * picker as the Buy Train dialog, seeded with the train's current consist. Confirming applies
+ * immediately if the train is at a station right now, or queues it for the next stop otherwise
+ * (`editConsist` in commands.ts decides which). */
+function openEditConsistPanel(container: HTMLElement, state: GameState, trainId: number): void {
+  const train = state.trains.find((t) => t.id === trainId);
+  if (!train) return;
+  const loco = locomotiveById(train.locoModelId);
+  const year = currentYear(state);
+  let cars: CargoType[] = train.cars.map((c) => c.cargoType);
+
+  const carPickerEl = h("div", { className: "train-car-picker" });
+  const carListEl = h("div", { className: "train-car-list" });
+  const confirmBtn = h("button", { className: "panel-action-build" });
+  const cancelBtn = h(
+    "button",
+    {
+      className: "panel-action-cancel",
+      "aria-label": strings.ui.close,
+      onClick: () => openTrainPanel(container, state, trainId),
+    },
+    icon("close"),
+  );
+
+  function render(): void {
+    carPickerEl.replaceChildren(
+      ...CARGO_TYPES.filter(
+        (c) =>
+          CARGO[c].era <= year && (!loco?.passengerMailOnly || c === "passengers" || c === "mail"),
+      ).map((c) =>
+        h(
+          "button",
+          {
+            className: "train-car-add-btn",
+            disabled: !loco || cars.length >= loco.maxCars,
+            style: { background: CARGO[c].color },
+            onClick: () => {
+              cars.push(c);
+              render();
+            },
+          },
+          CARGO[c].name,
+        ),
+      ),
+    );
+    carListEl.replaceChildren(
+      ...cars.map((c, i) =>
+        h(
+          "button",
+          {
+            className: "train-car-chip",
+            style: { background: CARGO[c].color },
+            onClick: () => {
+              cars.splice(i, 1);
+              render();
+            },
+          },
+          CARGO[c].name,
+          icon("close", "icon-sm"),
+        ),
+      ),
     );
 
-    openPanel(container, { title: train.name, body, footer: [replaceBtn, sellBtn] });
-  };
+    const plan = computeEditConsistPlan(state, trainId, cars);
+    const affordable = plan.netCost <= state.cash;
+    confirmBtn.textContent = `${strings.trains.confirm} (${formatMoney(plan.netCost)})`;
+    confirmBtn.disabled = !plan.valid || !affordable;
+  }
+
+  confirmBtn.addEventListener("click", () => {
+    const result = editConsist(state, trainId, cars);
+    if (!result.ok) {
+      showToast(container, strings.build.reasons[result.reason], "warn");
+      return;
+    }
+    openTrainPanel(container, state, trainId);
+  });
+
+  openPanel(container, {
+    title: strings.trains.editCarsTitle,
+    body: [
+      h("div", { className: "panel-section-title" }, strings.trains.cars),
+      carPickerEl,
+      carListEl,
+      ...(train.status !== "loading"
+        ? [
+            h(
+              "div",
+              { className: "panel-row train-consist-pending" },
+              strings.trains.consistChangeQueued,
+            ),
+          ]
+        : []),
+    ],
+    footer: [confirmBtn, cancelBtn],
+  });
 
   render();
 }
