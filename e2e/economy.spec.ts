@@ -430,15 +430,33 @@ test.describe("Phase 7 — cargo flow and economy", () => {
 
     // Pause before locating/clicking the train — otherwise the real-time gap while centering the
     // camera and clicking (a couple hundred ms of wall-clock, ticking the sim at 1x) can carry a
-    // fast-moving train just far enough past its snapshotted tile position to slip outside
+    // fast-moving train just far enough past its snapshotted position to slip outside
     // findTrainAt's hit radius, an intermittent miss unrelated to what this test checks.
+    //
+    // Found while updating this test: it was clicking `getTrains()`'s `x`/`y`, which is the tile
+    // of the last route node the train passed (`t.route[t.routeIndex]`) — fine for a stopped
+    // train, but a moving one is usually somewhere *between* nodes, sometimes a full tile or more
+    // away. The click was landing on the station underneath instead, and this went unnoticed
+    // because the station's own old-style cargo chip also rendered the cargo name as visible text
+    // ("Coal 60/mo"), which happened to satisfy this test's loose `hasText: "Coal"` check too. The
+    // new STYLE §6 pictogram chips don't repeat the name as text, which is what surfaced this.
+    // Fixed by exposing the train's actual continuous position (`renderX`/`renderY`, same field
+    // `findTrainAt` itself hit-tests against) from `getTrains()` and centering the camera on it
+    // directly, so the train sits exactly at the viewport's center pixel to click.
     await page.evaluate(() => window.__game!.setSpeed(0));
     await selectTool(page, "Info");
     const trainNow = (await page.evaluate(() => window.__game!.getTrains()))[0]!;
-    await centerOn(page, trainNow.x, trainNow.y, 1.5);
-    const p = await tileScreenPoint(page, trainNow.x, trainNow.y);
-    await page.mouse.click(p.x, p.y);
+    await page.evaluate(
+      ({ x, y, tileSize }) => window.__game?.camera.setCenter(x * tileSize, y * tileSize),
+      { x: trainNow.renderX, y: trainNow.renderY, tileSize: TILE_SIZE },
+    );
+    await page.evaluate(() => window.__game?.camera.setZoom(1.5));
     await page.waitForTimeout(300);
+    const viewport = page.viewportSize();
+    if (!viewport) throw new Error("no viewport");
+    await page.mouse.click(viewport.width / 2, viewport.height / 2);
+    await page.waitForTimeout(300);
+    await expect(page.locator(".panel-title")).toHaveText(trainNow.name);
     await expect(page.locator(".chip", { hasText: "Coal" }).first()).toBeVisible();
   });
 });

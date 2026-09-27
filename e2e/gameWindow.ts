@@ -107,6 +107,8 @@ export interface GameWindow {
     tile: number;
     x: number;
     y: number;
+    renderX: number;
+    renderY: number;
     speed: number;
     cars: string[];
     orders: Array<{ stationId: number; rule: string }>;

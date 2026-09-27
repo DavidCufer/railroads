@@ -6,6 +6,7 @@ import { TrackRenderer } from "./render/track";
 import { drawBuildPreview, type BuildMode, type GhostPreview } from "./render/buildPreview";
 import { drawCityLabels, cityWorldCenter } from "./render/labels";
 import { drawStations, drawStationLabels } from "./render/stations";
+import { drawStationSupplyBubbles } from "./render/stationSupplyBubbles";
 import { drawStationCatchment, type StationCatchmentPreview } from "./render/stationPreview";
 import { drawTrains } from "./render/trains";
 import { drawDeliveryLabels, isLabelExpired, type FloatingLabel } from "./render/deliveryLabels";
@@ -713,6 +714,7 @@ function main(): void {
         );
       }
       drawStations(ctx, camera, viewportW, viewportH, state.map.width, state.stations);
+      drawStationSupplyBubbles(ctx, camera, viewportW, viewportH, state);
       if (overlayState.trainProfit) {
         drawTrainProfitOverlay(ctx, camera, viewportW, viewportH, state.trains, state.ticks);
       }
@@ -948,6 +950,11 @@ function main(): void {
             tile: number;
             x: number;
             y: number;
+            /** Continuous rendered position (tile units) — unlike `x`/`y` (the last route node
+             * passed), this tracks a moving train between nodes, so e2e tests that need to click
+             * exactly on a train (not just screenshot near it) should use these instead. */
+            renderX: number;
+            renderY: number;
             speed: number;
             cars: string[];
             orders: Array<{ stationId: number; rule: string }>;
@@ -1133,6 +1140,8 @@ function main(): void {
             tile,
             x: tile % state.map.width,
             y: Math.floor(tile / state.map.width),
+            renderX: t.renderToX,
+            renderY: t.renderToY,
             speed: t.speed,
             cars: t.cars.map((c) => c.cargoType),
             orders: t.orders.map((o) => ({ stationId: o.stationId, rule: o.rule })),

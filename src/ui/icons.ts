@@ -99,6 +99,14 @@ const CARGO_ICONS: Record<CargoType, string> = {
   fuel: `<svg viewBox="0 0 24 24" ${STROKE}><rect x="5" y="7" width="14" height="13" rx="2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="12" y1="10" x2="12" y2="16"/></svg>`,
 };
 
+/** The raw cargo pictogram markup, with `currentColor` resolved to `color` via an inline style on
+ * the SVG root — for embedding as a canvas-drawable image (station supply bubbles on the map),
+ * where there's no surrounding DOM/CSS to inherit a `color` from otherwise. */
+export function cargoIconDataUrl(cargo: CargoType, color: string): string {
+  const svg = CARGO_ICONS[cargo].replace("<svg ", `<svg style="color:${color}" `);
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
 /** Converts `#rrggbb` to `rgba(r,g,b,alpha)`. */
 function hexToRgba(hex: string, alpha: number): string {
   const r = parseInt(hex.slice(1, 3), 16);

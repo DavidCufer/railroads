@@ -6,10 +6,12 @@
  */
 import type { GameState, NewGameOptions } from "../sim/state";
 import { latestSaveSlot, loadSlot } from "../save";
+import { startTitleBackground, type TitleBackgroundHandle } from "../render/titleBackground";
 import { renderNewGameScreen } from "./newGameScreen";
 import { renderSaveLoadScreen } from "./saveLoadScreen";
 import { renderSettingsScreen } from "./settingsScreen";
 import { h } from "./h";
+import { icon } from "./icons";
 import { strings } from "./strings";
 
 export interface TitleScreenHandlers {
@@ -17,11 +19,23 @@ export interface TitleScreenHandlers {
   onLoad: (state: GameState) => void;
 }
 
+const APP_VERSION = "0.1.0";
+
 /** Mounts the title screen into `container` and returns a function that removes it — call after
  * `onStart`/`onLoad` fires so the game underneath is visible. */
 export function openTitleScreen(container: HTMLElement, handlers: TitleScreenHandlers): void {
   const root = h("div", { className: "title-screen" });
   container.appendChild(root);
+
+  // Full-bleed live background (STYLE §4): a panning random map + a looping decorative train,
+  // running only while the title screen (any of its sub-screens) is mounted.
+  const bgCanvas = h("canvas", { className: "title-bg-canvas" });
+  root.appendChild(bgCanvas);
+  let background: TitleBackgroundHandle | null = startTitleBackground(bgCanvas);
+  function stopBackground(): void {
+    background?.stop();
+    background = null;
+  }
 
   function showMenu(): void {
     const t = strings.titleScreen;
@@ -37,9 +51,12 @@ export function openTitleScreen(container: HTMLElement, handlers: TitleScreenHan
         if (!latest) return;
         continueBtn.disabled = false;
         continueBtn.title = "";
+        continueBtn.classList.add("title-btn-primary");
+        newGameBtn.classList.remove("title-btn-primary");
         continueBtn.onclick = () => {
           void loadSlot(latest.slotId).then((state) => {
             if (state) {
+              stopBackground();
               handlers.onLoad(state);
               root.remove();
             }
@@ -50,16 +67,28 @@ export function openTitleScreen(container: HTMLElement, handlers: TitleScreenHan
         // IndexedDB unavailable — Continue just stays disabled.
       });
 
+    const newGameBtn = h(
+      "button",
+      { className: "title-btn title-btn-primary", onClick: showNewGame },
+      t.newGame,
+    );
+
     root.replaceChildren(
+      bgCanvas,
+      h("div", { className: "title-scrim" }),
       h(
         "div",
         { className: "title-menu" },
+        h("div", { className: "title-overline" }, "A Railway Tycoon"),
         h("div", { className: "title-game-name" }, t.gameTitle),
-        h("button", { className: "title-btn title-btn-primary", onClick: showNewGame }, t.newGame),
+        h("div", { className: "title-rule" }, icon("trains")),
+        h("div", { className: "title-subtitle" }, "Build the line. Move the world."),
+        newGameBtn,
         continueBtn,
         h("button", { className: "title-btn", onClick: showLoad }, t.loadGame),
         h("button", { className: "title-btn", onClick: showSettings }, t.settings),
       ),
+      h("div", { className: "title-version" }, `v${APP_VERSION}`),
     );
   }
 
@@ -68,6 +97,7 @@ export function openTitleScreen(container: HTMLElement, handlers: TitleScreenHan
       renderNewGameScreen({
         onBack: showMenu,
         onStart: (options: NewGameOptions) => {
+          stopBackground();
           handlers.onStart(options);
           root.remove();
         },
@@ -83,6 +113,7 @@ export function openTitleScreen(container: HTMLElement, handlers: TitleScreenHan
         onLoad: (slotId) => {
           void loadSlot(slotId).then((state) => {
             if (state) {
+              stopBackground();
               handlers.onLoad(state);
               root.remove();
             }

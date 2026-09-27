@@ -361,14 +361,14 @@ an S-curve; a junction; double-track curve; a bridge on a curve.
 ## Phase 14 — UI restyle, welcome screen, cargo icons
 STYLE: docs/STYLE.md §1–6
 
-- [ ] `src/ui/theme.css` with the tokens; migrate all existing inline/ad-hoc styles to tokens; remove emoji from UI.
-- [ ] `src/ui/icons.ts`: tool icons + 13 cargo pictograms (STYLE §5); use them in toolbar, floating buttons, panels,
+- [x] `src/ui/theme.css` with the tokens; migrate all existing inline/ad-hoc styles to tokens; remove emoji from UI.
+- [x] `src/ui/icons.ts`: tool icons + 13 cargo pictograms (STYLE §5); use them in toolbar, floating buttons, panels,
       and station supply bubbles on the map where applicable.
-- [ ] Restyle every panel/component per STYLE §3 (panel header, buttons, 2-column action grids, chips, segmented
+- [x] Restyle every panel/component per STYLE §3 (panel header, buttons, 2-column action grids, chips, segmented
       controls, top bar, toolbar, floating buttons, toasts).
-- [ ] City / Station / Industry panels per STYLE §6: supplies/demands as pictogram chips at the top; actions last,
+- [x] City / Station / Industry panels per STYLE §6: supplies/demands as pictogram chips at the top; actions last,
       in 2-column grids.
-- [ ] Welcome screen and New Game screen per STYLE §4 (live panning map background with a moving train).
-- [ ] Everything fits 800×360; 44px targets; existing e2e selectors updated rather than tests deleted.
+- [x] Welcome screen and New Game screen per STYLE §4 (live panning map background with a moving train).
+- [x] Everything fits 800×360; 44px targets; existing e2e selectors updated rather than tests deleted.
 **Screenshots (look at them):** welcome, new game (both tabs), city panel, station panel, industry panel, finance,
 train panel, buy-train dialog, top bar + toolbar in-game — all at 800×360.

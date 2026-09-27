@@ -627,8 +627,11 @@ button.chip {
 .goals-button {
   bottom: 120px;
 }
+/* !important: an override utility applied alongside a component's own class (e.g.
+   `.quick-build-toggle.floating-hidden`), which otherwise has equal selector specificity and
+   would lose to whichever rule happens to come later in this file. */
 .floating-hidden {
-  display: none;
+  display: none !important;
 }
 .news-unread-badge {
   display: none;

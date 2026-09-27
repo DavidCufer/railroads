@@ -2667,3 +2667,134 @@ Known carry-overs, not fixed in this phase:
 - Next: **v1 is feature-complete per PLAN.md.** Ideas for after v1 (tunnels, more regions,
   scenario editor, transfers between trains, seasonal effects, achievements) are listed at the
   bottom of `docs/PLAN.md`, not scheduled.
+
+## 2026-09-27 — Phase 14: UI restyle, welcome screen, cargo icons
+
+Applied `docs/STYLE.md` §1–6 ("railway poster, modern flat") across the whole UI. Ran alongside
+another session's Phase 13 (curved track/top-down trains); per this session's brief, stayed inside
+`src/ui/**`/`index.html` and only touched `src/render/**` for the two things explicitly carved out
+for this phase (welcome-screen background, station supply bubbles) — never `track.ts`/`trains.ts`.
+
+- **`src/ui/theme.css`** (new): every design token from STYLE §2 (`--ink-*`, `--paper*`, `--brass*`,
+  `--signal`/`--go`/`--steel`, radii, gaps, `--font-display`/`--font-ui`, type scale), plus a full
+  rewrite of every component style STYLE §3 names — panel shell (header + a real `.panel-rule` 2px
+  brass divider element, not just a border, so a panel with a two-line subtitle still gets the rule
+  in the right place), buttons, chips, the new `.action-grid`/`.action-btn` 2-column pattern,
+  segmented controls, top bar, toolbar (44→48px per STYLE), floating buttons (now round 48px
+  icon-only, no more text label crowding them), toasts. This entirely replaces the ~1250-line
+  inline `<style>` block `index.html` used to carry since Phase 0 — `index.html` is now just the
+  document skeleton plus a `<link rel="stylesheet" href="/src/ui/theme.css">`.
+- **`src/ui/icons.ts`** (new): the STYLE §5 tool icon set (24×24 inline SVG, 2px stroke,
+  `currentColor`) plus all 13 cargo pictograms, exported as an `icon(name)`/`cargoIcon(cargo)` pair
+  of small `<span>`-building helpers so callers drop them into `h()` trees like any other node.
+  Extended the named tool list with a handful of icons STYLE's §5 list doesn't itemize but the rest
+  of the UI needed to actually get to zero emoji (check, warning, wrench, water, trophy, arrowUp,
+  arrowFlat, shed) — a documented, minimal deviation per STYLE's own "smallest deviation, note it"
+  rule. Removed every emoji from `strings.ts` and every DOM-rendered emoji across `src/ui/*.ts`
+  (toolbar icons, ⏸/☰ in the top bar, ✕ close/cancel buttons, ⚠/🔧 status text, ⚙/💧/✅ station
+  badges, 🎉/🏆 the goal celebration, 🎲 the seed dice button) — the only emoji-shaped canvas draws
+  left anywhere are the breakdown/warning glyphs in `src/render/trains.ts`, deliberately not
+  touched since that file is Phase 13's for this session.
+- **City/Station/Industry panels, STYLE §6**: `cargoChip`/`cargoDemandTile` (`src/ui/infoPanels.ts`)
+  now render STYLE's actual "pictogram + amount" chip (icon + number, `--ink-700` background) and
+  "pictogram tile, dimmed if unmet" demand tile, instead of the old full-cargo-color-background
+  text chip — tapping either shows the cargo's name/detail in a toast, a lightweight stand-in for
+  STYLE's "small popover". City panel gained a `stationsServing()` helper (walks
+  `stationCatchmentTiles` against the city's own tiles) for the "Served by" line STYLE's mock shows,
+  and its header subtitle is now `Tier · Population` plus a growing/stagnant arrow icon (extended
+  `PanelOptions.subtitle` to accept a `Node`, not just a string, so an icon can sit next to text
+  there). Station panel: supply chips now carry a thin waiting-cargo bar underneath each one
+  (`supplyChipStack`) instead of a separate "Waiting cargo" section lower down — merges what used
+  to be two disconnected reads of the same cargo into the one STYLE actually asks for, with any
+  waiting cargo that isn't part of the station's own `supply` (e.g. from an era-gated formula
+  edge case) still shown as its own zero-rate stack so nothing silently disappears. Added a
+  "Trains" section (STYLE's Supplies→Demands→Trains→Improvements order) listing trains whose
+  orders include this station, tap to open that train's panel — required threading a new
+  `onOpenTrain` handler through `StationPanelHandlers` from `main.ts`. Improvements are now a real
+  `.action-grid` of `.action-btn`s (icon/check + label + cost-on-second-line), built ones shown
+  done-and-disabled with a check icon instead of a plain "✅ Name" row.
+- **Welcome screen** (`src/ui/titleScreen.ts` + new `src/render/titleBackground.ts`): STYLE §4's
+  overline/hero-title/brass-rule/subtitle column, Continue promoted to primary once a save exists
+  (New Game demoted to secondary), version string bottom-right. The live background is a fresh
+  small map generated on open, flat-rendered once to an offscreen canvas (like the existing
+  region-thumbnail approach, just bigger), then panned at STYLE's ~8px/s (ping-ponging at the
+  image's edges rather than wrapping, simplest way to avoid a seam) with a darkening scrim on top.
+  A small procedural steam-loco silhouette runs a self-contained rounded-rectangle loop track drawn
+  directly on the same canvas — deliberately its own geometry and its own tiny loco-drawing code,
+  not a reuse of `src/render/trains.ts`'s vehicle renderer, specifically so this file never
+  conflicts with the other session's Phase 13 rewrite of that renderer. The loop is sized wide and
+  low so it peeks out on both sides of the centered button column instead of running directly
+  under it. Background animation stops (`cancelAnimationFrame` + resize listener removed) the
+  moment any path off the title screen is taken (New Game/Load Game submit, or the whole screen
+  closing), not just on unmount, since sub-screens replace `root`'s children entirely.
+- **New Game / Settings / Save-Load screens**: new shared `src/ui/screenHeader.ts` (back arrow +
+  serif title) replaces each screen's own plain text header, and the New Game footer is now the one
+  row STYLE actually specifies (difficulty segmented control left, starting cash middle, Start
+  right) instead of two stacked rows plus a separate Back button (Back moved into the header arrow,
+  matching STYLE's layout for that screen — and applied to Settings/Save-Load too for consistency,
+  even though STYLE's mock only spells it out for New Game).
+- **Station supply bubbles on the map** (`src/render/stationSupplyBubbles.ts`, new — the other
+  `src/render/**` file this phase's scope allowed): up to 2 small pictogram bubbles float above each
+  station showing its top-supplied cargo, only drawn at zoom ≥ 0.75 to avoid clutter. Reuses the
+  exact cargo SVG markup from `icons.ts` (a new `cargoIconDataUrl()` export resolves `currentColor`
+  to an inline `style="color:…"` on the SVG root, then loads it as an `Image` via a data URL and
+  caches it per cargo type) rather than duplicating icon-drawing logic in canvas calls — so a bubble
+  and a panel chip are pixel-for-pixel the same pictogram. Bubble fill is the cargo color tinted at
+  ~55% over a dark base plus a light ring, matching the DOM chip's own tinted-tile look closely
+  enough that dark cargos (coal) still read as "a bubble with something in it" rather than
+  disappearing into a plain dark circle (checked at 4× zoom with a throwaway debug script, not
+  committed).
+- **A real, pre-existing test bug found and fixed, not papered over**: `economy.spec.ts`'s "train
+  panel shows the current load of each car" test went from reliably green to failing ~2/3 of the
+  time the moment `cargoChip` stopped putting the cargo's name in visible text. Root cause (found
+  by bisecting against the pre-Phase-14 commit, not guessed): the test was clicking
+  `getTrains()`'s `x`/`y`, which is the tile of the last route node the train passed
+  (`t.route[t.routeIndex]`) — fine for a stopped train, wrong for a moving one, which is usually
+  somewhere *between* nodes. The click had been landing on the station underneath instead of the
+  train all along; it only "passed" because the station's old-style chip also rendered the cargo
+  name as text ("Coal 60/mo"), which happened to satisfy the test's loose `hasText: "Coal"` check
+  too. Fixed at the root rather than by loosening the assertion further: exposed the train's actual
+  continuous position (`renderX`/`renderY` — the same field `findTrainAt`'s own hit-test in
+  `main.ts` already uses) from the `getTrains()` debug hook, and had the test center the camera on
+  that and click the exact viewport center. Reliable across 6 repeated runs after the fix (0/6
+  failures), where it failed 2–5 times out of 6 in every attempt before it (including two rounds of
+  the wrong fix — a click retry loop, then an extra settle-delay — before finding the actual cause).
+  Also fixed a real, unmasked-by-this-same-change CSS bug: `.floating-hidden`'s `display: none` was
+  losing to `.quick-build-toggle`'s own `display: flex` (equal specificity, later in the
+  cascade) — added `!important` to the utility class, the one place in `theme.css` that carries one,
+  with a comment explaining why.
+- **Screenshots — looked at all of them, several rounds**: welcome (both before and after widening
+  the decorative loop off the button column), New Game (Real World + Random tabs), city/station/
+  industry panels, Finance, Train panel, Buy Train dialog, in-game top bar + toolbar, Goals panel,
+  goal-celebration dialog, Yearly Report, News panel with an active toast, Load Game screen — all at
+  800×360, all read as a coherent "railway poster" look: warm brass accents on dark ink surfaces,
+  serif titles, no emoji anywhere, clear icon+label toolbar, chips and action grids reading cleanly
+  at phone width. One thing that looked like a bug on first look (the Train panel's Speed row
+  appearing to overlap the row above it in a screenshot) turned out to be a compressed-PNG/small-
+  font legibility issue, not a real layout bug — confirmed by dumping every `.panel-row`'s
+  `getBoundingClientRect()` in the live DOM (clean, non-overlapping Y positions, exactly matching
+  the scrolled `scrollTop`/`scrollHeight`), so no fix was needed there.
+- **Tests**: `npm run check` (295 unit tests, unchanged — this phase is UI-only, no `src/sim/**`
+  touched) and `npm run e2e` (64 specs) both green. Updated e2e selectors for the merged supply/
+  waiting-cargo UI (`stations.spec.ts`'s "Nothing waiting." text assertion → checks for
+  `.supply-chip-stack`/`.chip-row` instead; `economy.spec.ts`'s `.cargo-bar-row`/`.cargo-bar-label`
+  checks → checks the new mini bar under the Coal chip) rather than deleting coverage, per this
+  phase's brief.
+- Known issues / deviations:
+  - STYLE §5's icon list names 8 named extras this UI ended up needing beyond its literal
+    inventory (see above) — a deliberate, documented "smallest deviation" rather than leaving
+    scattered emoji behind just to stay literally within the named list.
+  - Cargo chip/demand-tile taps show a toast rather than a real anchored popover (STYLE's "small
+    popover with the cargo name and details") — a lightweight stand-in given this phase's scope;
+    a proper popover component (positioned near the tapped chip, dismiss-on-outside-tap) would be
+    a reasonable follow-up if this is ever tightened up.
+  - The mini-map overlay (`src/render/minimap.ts`, `src/ui/menuPanel.ts`) wasn't restyled — it
+    predates this phase and wasn't named in STYLE §3's component list; its own screenshot
+    (`phase-9-minimap.png`) still shows the pre-Phase-14 look. Worth a pass later if the mini-map
+    ever gets its own STYLE entry.
+  - Station supply bubbles are genuinely new map-canvas content (not just a restyle), scoped in by
+    this session's own brief rather than PLAN's checklist wording alone — kept deliberately small
+    (one new file, one two-line wire-up in `main.ts`, one new export in `icons.ts`) and away from
+    `track.ts`/`trains.ts` to not collide with the concurrent Phase 13 session.
+- Next: nothing scheduled — v1 was already feature-complete after Phase 12; Phases 13/14 were a
+  visual-quality pass on top of it. Future ideas remain at the bottom of `docs/PLAN.md`.
