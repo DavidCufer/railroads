@@ -407,3 +407,54 @@ station can't leave (its exit block is occupied by the waiting train) → deadlo
       a real phone ratio (e.g. 2400×1080 CSS scaled, ~890×400).
 **Screenshots (look at them):** two trains passing at a middle station; a waiting train with its reason in the
 panel; the consist editor; steam/diesel/electric trains at zoom 1 and 2 (straight + curve); bottom-right buttons.
+
+---
+
+## Phase 16 — Play-test 2: double track, understandable cargo units, partial loads
+SPEC: §5.1, §6.3, §7.1–7.2, §8.1; STYLE §7
+
+Player report (screenshots of Trieste/Ljubljana, 1840):
+1. Double track is drawn huge and ugly (two full-size tracks far apart); single↔double transitions splay
+   awkwardly; **trains run on the centerline between the two tracks and pass *through* each other**.
+2. "I don't understand the passenger numbers: the city shows an absolute number, the station a per-month number.
+   How many passengers does a car take? Why do cars always say empty?"
+   Root cause (reviewer): cars only load when a full carload (`CARLOAD_UNITS` = 20 abstract units) is waiting,
+   while a town station supplies ~5.7 units/month and waiting passengers decay after 10 days → the pile never
+   reaches 20 → passenger cars always leave empty.
+
+### A. Double track rendering + lanes
+- [ ] Draw double track as two normal-gauge tracks with realistic spacing: rail gauge and tie length the same as
+      single track, track centers ≈ 0.28 tile apart (so the pair is only slightly wider than one track), shared
+      ballast bed. Curves: two concentric arcs.
+- [ ] Single↔double transitions: draw a proper turnout — one track continues straight on the centerline side, the
+      second track diverges with a gentle S-curve over ~1 tile. No splayed/crossing ties.
+- [ ] Trains on double track run in their **own lane**: offset from the centerline by half the track spacing,
+      right-hand running per direction of travel (consistent for the whole network); lane offset eases in/out over
+      the turnout. Opposing trains on double track visibly pass side by side, never overlap.
+- [ ] Trains on single track stay on the centerline. Stations: trains stop on their lane.
+
+### B. Real, understandable cargo units + partial loading
+- [ ] Every cargo gets a real unit and per-car capacity in `src/data/cargo.ts`: passengers (people, 40/car),
+      mail (bags, 30/car), coal/ore/grain/wood (tons, 20/car), livestock (head, 15/car), oil/fuel (barrels,
+      100/car), steel/lumber/food/goods (tons or crates, 20/car). Convert supply/production rates so that
+      *carloads per month stay the same as now* (balance tests must stay green without retuning); convert
+      revenue to per-unit (base per carload ÷ capacity).
+- [ ] **Partial loading**: under the Auto rule a car loads whatever is waiting (up to capacity) instead of only
+      full carloads; revenue is paid per unit delivered. "Wait for full load" still waits until full (or max wait).
+      Passenger/mail decay stays but trains now pick up what's there.
+- [ ] Re-run the balance tests; if partial loading shifts profits outside the Phase 7.1 targets, tune data
+      tables and record deviations.
+- [ ] UI wording (strings.ts), consistent everywhere:
+      - City panel: "Population 18,400" and under Supplies "Passengers 42 / month", "Mail 13 bags / month".
+      - Station panel: Supplies as "per month" + a **Waiting** line per cargo ("12 passengers waiting").
+      - Train panel: each car shows cargo + fill, e.g. "Passengers 28 / 40", "Coal 20 / 20 t", "Empty" only when
+        truly empty; a small fill bar per car.
+      - Buy train / edit consist: show capacity per car type ("Passenger car · 40 seats").
+      - Delivery label: "+$1.2k · 28 passengers".
+- [ ] Save migration for the new unit fields; determinism tests stay green.
+
+**Tests:** a small town (≈5 passengers/month) served by a train every ~10 days produces non-empty passenger
+loads and revenue; partial loads pay proportionally; full-load rule still waits; double-track lane offset puts
+two opposing trains' vehicles ≥ 0.2 tile apart when passing (render-geometry unit test); balance tests green.
+**Screenshots (look at them):** double track straight + curve + turnout with two trains passing at zoom 2;
+single↔double transition; city / station / train panels showing the new units.
