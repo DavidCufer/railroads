@@ -4,7 +4,12 @@
  * time on first use, decrements it, and performs the actual unload/load batch (and, for "Wait for
  * full load", may loop for extra days) once it reaches zero.
  */
-import { CARGO, CARLOAD_UNITS, MIN_REVENUE_DISTANCE_TILES, type CargoType } from "../../data/cargo";
+import {
+  CARGO,
+  cargoUnitFactor,
+  MIN_REVENUE_DISTANCE_TILES,
+  type CargoType,
+} from "../../data/cargo";
 import { DIFFICULTY, eraInflation } from "../../data/finance";
 import { INDUSTRIES } from "../../data/industries";
 import {
@@ -61,17 +66,24 @@ function planLoadUnload(
   const pile = state.stationCargo.get(station.id);
 
   train.cars.forEach((car, i) => {
-    if (car.loaded && accepts(state, station.id, car.cargoType)) unload.push(i);
+    if (car.loadedUnits > 0 && accepts(state, station.id, car.cargoType)) unload.push(i);
   });
 
   if (order.rule !== "unloadOnly") {
     train.cars.forEach((car, i) => {
-      if (car.loaded || unload.includes(i)) return;
+      if (unload.includes(i)) return;
+      // A car only re-enters the load plan once fully empty — see TrainCar.loadedUnits's doc
+      // comment. "Wait for full load" re-runs this plan on each extra wait day, so a partially
+      // loaded car keeps topping up until it's full or the stop gives up (SPEC §7.2).
+      if (car.loadedUnits >= CARGO[car.cargoType].capacity) return;
       // Livestock Pens (SPEC §6.2): required to *load* livestock at this station (unaffected for
       // unloading/delivering it elsewhere).
       if (car.cargoType === "livestock" && !hasImprovement(station, "livestockPens")) return;
       const available = pile?.[car.cargoType]?.amount ?? 0;
-      if (available < CARLOAD_UNITS) return;
+      // PLAN Phase 16 ("partial loading"): Auto loads whatever is waiting, not just a full carload
+      // — a small town's trickle of supply used to never reach a full car and always left empty
+      // (see PROGRESS.md's Phase 16 entry).
+      if (available <= 0) return;
       if (!acceptedAtAnotherStop(state, train, car.cargoType)) return;
       load.push(i);
     });
@@ -137,14 +149,27 @@ function industriesConsuming(state: GameState, station: Station, cargo: CargoTyp
   return ids;
 }
 
+/** Normalizes `units` of `cargo` to the old cargo-agnostic 20-unit carload scale (see
+ * `CARLOAD_UNITS`'s doc comment) — used only for goal/growth-score accounting, so a full car of
+ * *any* cargo still counts the same as it did before Phase 16's real per-cargo capacities, and a
+ * partial load counts proportionally. */
+function carloadEquivalent(cargo: CargoType, units: number): number {
+  return units / cargoUnitFactor(cargo);
+}
+
 function settleUnload(state: GameState, train: Train, station: Station, car: TrainCar): void {
   const cargo = car.cargoType;
+  const unitsDelivered = car.loadedUnits;
   const distanceTiles =
     car.loadedTile !== undefined ? tileDistance(state.map.width, car.loadedTile, station.tile) : 0;
 
-  if (distanceTiles >= MIN_REVENUE_DISTANCE_TILES) {
+  if (distanceTiles >= MIN_REVENUE_DISTANCE_TILES && unitsDelivered > 0) {
     const days = (state.ticks - (car.loadedTick ?? state.ticks)) / HOURS_PER_DAY;
-    let revenue = computeRevenue(state, cargo, distanceTiles, days);
+    // `computeRevenue` is still "per full carload" (SPEC §8.1's `base` rate) — PLAN Phase 16 pays
+    // per unit instead, i.e. that same per-carload figure scaled by the fraction of a car actually
+    // delivered (1.0 for a full car, same result as before real per-cargo capacities existed).
+    let revenue =
+      computeRevenue(state, cargo, distanceTiles, days) * (unitsDelivered / CARGO[cargo].capacity);
 
     // Post Office/Cold Storage (SPEC §6.2): bonus depends on where the cargo was *loaded*, not
     // where it's being delivered.
@@ -168,21 +193,26 @@ function settleUnload(state: GameState, train: Train, station: Station, car: Tra
     state.cash += revenue;
     addRevenue(state, cargo, revenue);
     train.lifetimeRevenue += revenue;
-    state.pendingDeliveries.push({ stationId: station.id, cargoType: cargo, revenue });
-    accrueCityGrowthScore(state, station, cargo, CARLOAD_UNITS);
+    state.pendingDeliveries.push({
+      stationId: station.id,
+      cargoType: cargo,
+      revenue,
+      units: unitsDelivered,
+    });
+    const carloads = carloadEquivalent(cargo, unitsDelivered);
+    accrueCityGrowthScore(state, station, cargo, carloads);
     // SPEC §11's `delivered` goal ("Deliver 1,000 carloads of coal in a year") counts a carload
     // the same moment it earns revenue — a delivery too short to pay out doesn't count either.
-    state.cargoDeliveredThisYear[cargo] =
-      (state.cargoDeliveredThisYear[cargo] ?? 0) + CARLOAD_UNITS;
+    state.cargoDeliveredThisYear[cargo] = (state.cargoDeliveredThisYear[cargo] ?? 0) + carloads;
   }
 
-  car.loaded = false;
+  car.loadedUnits = 0;
   delete car.loadedTile;
   delete car.loadedTick;
 
   for (const industryId of industriesConsuming(state, station, cargo)) {
     const econ = getOrCreateIndustryEconomy(state, industryId);
-    econ.inputStock[cargo] = (econ.inputStock[cargo] ?? 0) + CARLOAD_UNITS;
+    econ.inputStock[cargo] = (econ.inputStock[cargo] ?? 0) + unitsDelivered;
   }
 }
 
@@ -202,11 +232,11 @@ export function dropCarCargo(
   station: Station,
   car: TrainCar,
 ): void {
-  if (!car.loaded) return;
+  if (car.loadedUnits <= 0) return;
   if (accepts(state, station.id, car.cargoType)) {
     settleUnload(state, train, station, car);
   } else {
-    car.loaded = false;
+    car.loadedUnits = 0;
     delete car.loadedTile;
     delete car.loadedTick;
   }
@@ -223,18 +253,27 @@ export function applyPendingConsist(state: GameState, train: Train, station: Sta
   delete train.pendingConsist;
 }
 
+/** PLAN Phase 16: loads whatever is waiting, up to however much room is left in the car — not just
+ * a full carload — so a station whose supply never piles up to a full car (a small town's trickle
+ * of passengers, say) still gets picked up instead of leaving the car empty forever. */
 function applyLoad(state: GameState, train: Train, station: Station, carIndex: number): void {
   const car = train.cars[carIndex];
   if (!car) return;
+  const capacity = CARGO[car.cargoType].capacity;
+  const room = capacity - car.loadedUnits;
+  if (room <= 0) return;
   const pile = state.stationCargo.get(station.id);
   const entry: StationCargoPile | undefined = pile?.[car.cargoType];
-  if (!entry || entry.amount < CARLOAD_UNITS) return;
+  if (!entry || entry.amount <= 0) return;
 
-  entry.amount -= CARLOAD_UNITS;
+  const amount = Math.min(entry.amount, room);
+  entry.amount -= amount;
   entry.waitingDays = 0;
-  car.loaded = true;
-  car.loadedTile = station.tile;
-  car.loadedTick = state.ticks;
+  if (car.loadedUnits === 0) {
+    car.loadedTile = station.tile;
+    car.loadedTick = state.ticks;
+  }
+  car.loadedUnits += amount;
 }
 
 /** Advances one tick of a "loading" stop at `station`; returns true once the train is ready to
@@ -257,7 +296,7 @@ export function stepLoading(state: GameState, train: Train, station: Station): b
   for (const i of plan.load) applyLoad(state, train, station, i);
 
   if (order.rule === "fullLoad") {
-    const allFull = train.cars.every((c) => c.loaded);
+    const allFull = train.cars.every((c) => c.loadedUnits >= CARGO[c.cargoType].capacity);
     const maxWait = order.maxWaitDays ?? DEFAULT_FULL_LOAD_MAX_WAIT_DAYS;
     if (!allFull && train.loadExtraWaitDays < maxWait) {
       train.loadExtraWaitDays++;

@@ -7,17 +7,22 @@ import {
   WAREHOUSE_STORAGE_MULT,
   type StationImprovementType,
 } from "../../data/stations";
-import type { CargoType } from "../../data/cargo";
+import { cargoUnitFactor, type CargoType } from "../../data/cargo";
 import type { Station } from "./types";
 
 export function hasImprovement(station: Station, type: StationImprovementType): boolean {
   return station.improvements.includes(type);
 }
 
-/** Per-cargo storage cap at `station`, doubled by a Warehouse (SPEC §6.2). */
-export function stationStorageCap(station: Station): number {
+/** Per-cargo storage cap at `station`, doubled by a Warehouse (SPEC §6.2). `STATION_TYPE_DEFS`'s
+ * `storagePerCargo` is denominated in the old cargo-agnostic 20-unit carload (PLAN Phase 16); scaled
+ * by `cargoUnitFactor` so every cargo still gets the same *carload* capacity regardless of its real
+ * per-car unit count. `cargo` is optional only for the rare caller that wants the un-scaled base
+ * figure (e.g. comparing before/after a Warehouse, independent of any specific cargo). */
+export function stationStorageCap(station: Station, cargo?: CargoType): number {
   const base = STATION_TYPE_DEFS[station.type].storagePerCargo;
-  return hasImprovement(station, "warehouse") ? base * WAREHOUSE_STORAGE_MULT : base;
+  const withWarehouse = hasImprovement(station, "warehouse") ? base * WAREHOUSE_STORAGE_MULT : base;
+  return cargo ? withWarehouse * cargoUnitFactor(cargo) : withWarehouse;
 }
 
 /** True if `cargo` waiting at `station` is exempt from waiting-cargo decay (SPEC §6.2): Warehouse

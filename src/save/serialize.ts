@@ -5,7 +5,7 @@ import type { GameState } from "../sim/state";
 import type { GameMap } from "../sim/map/types";
 import { TrackGraph } from "../sim/track/graph";
 import { computeStationEconomies } from "../sim/stations/economy";
-import type { SerializedGameMapV1, SerializedGameStateV2, SerializedTrainV2 } from "./format";
+import type { SerializedGameMapV1, SerializedGameStateV3, SerializedTrainV3 } from "./format";
 import {
   decodeFloat32Array,
   decodeInt16Array,
@@ -52,7 +52,7 @@ function entriesMap<V>(entries: ReadonlyArray<[number, V]>): Map<number, V> {
   return new Map(entries);
 }
 
-export function serializeGameState(state: GameState): SerializedGameStateV2 {
+export function serializeGameState(state: GameState): SerializedGameStateV3 {
   return {
     seed: state.seed,
     rng: { ...state.rng },
@@ -66,7 +66,7 @@ export function serializeGameState(state: GameState): SerializedGameStateV2 {
     trackEdges: state.trackGraph.allEdges(),
     stations: state.stations,
     nextStationId: state.nextStationId,
-    trains: state.trains.map((t): SerializedTrainV2 => ({
+    trains: state.trains.map((t): SerializedTrainV3 => ({
       ...t,
       blockPenalties: mapEntries(t.blockPenalties),
     })),
@@ -92,7 +92,7 @@ export function serializeGameState(state: GameState): SerializedGameStateV2 {
   };
 }
 
-export function deserializeGameState(data: SerializedGameStateV2): GameState {
+export function deserializeGameState(data: SerializedGameStateV3): GameState {
   const map = deserializeMap(data.map);
   const trackGraph = new TrackGraph();
   for (const edge of data.trackEdges) trackGraph.addEdge(edge);

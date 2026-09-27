@@ -4,7 +4,7 @@
  * src/sim/stations/economy.ts distributes to covering stations as daily supply (in place of the
  * static `produces` table raw producers use directly).
  */
-import { CARGO_TYPES, type CargoType } from "../../data/cargo";
+import { CARGO, CARGO_TYPES, type CargoType } from "../../data/cargo";
 import { INDUSTRIES, type IndustryDef } from "../../data/industries";
 import type { GameState } from "../state";
 import type { Industry, IndustryEconomyState } from "./types";
@@ -59,15 +59,20 @@ export function processIndustryMonth(
     return { output: { [outputCargo]: output }, consumed };
   }
 
-  let remaining = capacity;
-  let output = 0;
+  // "any": each accepted input contributes toward the shared output cap *carload for carload*
+  // (PLAN Phase 16) rather than raw unit for raw unit — real per-cargo capacities differ (e.g. the
+  // Food Plant's grain-or-livestock recipe: 20 units/car of grain vs. 15 units/car of livestock), so
+  // a straight unit-for-unit sum would make one input's carloads worth more output than the other's.
+  let remainingCarloads = capacity / CARGO[outputCargo].capacity;
+  let outputCarloads = 0;
   for (const [cargo] of consumesEntries) {
-    const use = Math.min(inputStock[cargo] ?? 0, remaining);
-    consumed[cargo] = use;
-    output += use;
-    remaining -= use;
+    const inputCarloads = (inputStock[cargo] ?? 0) / CARGO[cargo].capacity;
+    const useCarloads = Math.min(inputCarloads, remainingCarloads);
+    consumed[cargo] = useCarloads * CARGO[cargo].capacity;
+    outputCarloads += useCarloads;
+    remainingCarloads -= useCarloads;
   }
-  return { output: { [outputCargo]: output }, consumed };
+  return { output: { [outputCargo]: outputCarloads * CARGO[outputCargo].capacity }, consumed };
 }
 
 /** Monthly processing step for every industry (SPEC §8.2), called on the month boundary tick. */

@@ -13,6 +13,7 @@ import {
   refreshStationEconomy,
   setOrders,
 } from "../../../src/sim/commands";
+import { CARGO } from "../../../src/data/cargo";
 import { STATION_IMPROVEMENTS } from "../../../src/data/stations";
 import { stationLoadSpeedMult, stationStorageCap } from "../../../src/sim/stations/improvements";
 import { accrueDailyCargo } from "../../../src/sim/economy/cargoFlow";
@@ -67,7 +68,7 @@ function deliverOnce(
   const train = state.trains[state.trains.length - 1] as { id: number };
   const t = state.trains.find((tr) => tr.id === train.id)!;
   const car = t.cars[0]!;
-  car.loaded = true;
+  car.loadedUnits = CARGO[cargo].capacity;
   car.loadedTile = a.tile;
   car.loadedTick = state.ticks - 12 * (distanceTiles / 2); // deliver right at "expected" transit
 
@@ -115,7 +116,11 @@ describe("station improvements (SPEC §6.2)", () => {
 
     expect(buildImprovement(state, a.id, "postOffice").ok).toBe(true);
     const after = state.stationEconomy.get(a.id)?.supply.mail ?? 0;
-    expect(after).toBeCloseTo(before * 1.5, 1);
+    // 0 decimal places: `before` and `after` each round independently to 1 decimal inside
+    // computeStationEconomies, and PLAN Phase 16's real-unit mail divisor (1400/1.5, a repeating
+    // decimal) can land the multiplied raw figure on a different 1-decimal rounding than
+    // `before * 1.5` — a rounding-order artifact, not a wrong multiplier.
+    expect(after).toBeCloseTo(before * 1.5, 0);
     void width;
   });
 
@@ -190,12 +195,12 @@ describe("station improvements (SPEC §6.2)", () => {
     ).toBe(true);
     train.currentOrderIndex = 0;
     runToDeparture(state, train, a);
-    expect(train.cars[0]?.loaded).toBe(false); // no Livestock Pens yet
+    expect(train.cars[0]?.loadedUnits).toBe(0); // no Livestock Pens yet
 
     expect(buildImprovement(state, a.id, "livestockPens").ok).toBe(true);
     setAccepts(state, b.id, ["livestock"]); // buildImprovement's refreshStationEconomy wiped it
     runToDeparture(state, train, a);
-    expect(train.cars[0]?.loaded).toBe(true);
+    expect(train.cars[0]?.loadedUnits).toBe(CARGO.livestock.capacity);
   });
 
   it("costs match the SPEC §6.2 table (before era inflation)", () => {

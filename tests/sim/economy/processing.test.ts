@@ -56,14 +56,18 @@ describe("monthlyIndustryStep", () => {
     );
   });
 
-  it("food plant (recipeMode 'any'): grain and livestock both count toward the same output cap", () => {
+  it("food plant (recipeMode 'any'): grain and livestock both count toward the same output cap, carload for carload", () => {
+    // PLAN Phase 16: grain (20 units/car) and livestock (15 units/car) have different real
+    // capacities, so a full carload of either — 20 grain, 15 livestock — must contribute the same
+    // amount of food output (20), not a raw unit-for-unit sum (which would make livestock's carload
+    // worth less than grain's).
     const state = stateWithIndustry({ id: 0, type: "foodPlant", x: 0, y: 0 });
     const econ = getOrCreateIndustryEconomy(state, 0);
-    econ.inputStock = { grain: 10, livestock: 10 };
+    econ.inputStock = { grain: 20, livestock: 15 };
 
     monthlyIndustryStep(state);
 
-    expect(state.industryEconomy.get(0)?.monthlyOutput.food).toBe(20);
+    expect(state.industryEconomy.get(0)?.monthlyOutput.food).toBe(40);
     expect(state.industryEconomy.get(0)?.inputStock.grain).toBe(0);
     expect(state.industryEconomy.get(0)?.inputStock.livestock).toBe(0);
   });

@@ -69,8 +69,8 @@ function richFixture(): GameState {
     name: "Train 1",
     locoModelId: "grasshopper-0-4-0",
     cars: [
-      { cargoType: "coal", loaded: true, loadedTile: a, loadedTick: 4_300 },
-      { cargoType: "coal", loaded: false },
+      { cargoType: "coal", loadedUnits: 20, loadedTile: a, loadedTick: 4_300 },
+      { cargoType: "coal", loadedUnits: 0 },
     ],
     orders: [
       { stationId: 0, rule: "auto" },
@@ -107,8 +107,8 @@ function richFixture(): GameState {
     renderToX: c % width,
     renderToY: Math.floor(c / width),
     pendingConsist: {
-      cars: [{ cargoType: "coal", loaded: false }],
-      removedLoaded: [{ cargoType: "coal", loaded: true, loadedTile: a, loadedTick: 4_300 }],
+      cars: [{ cargoType: "coal", loadedUnits: 0 }],
+      removedLoaded: [{ cargoType: "coal", loadedUnits: 20, loadedTile: a, loadedTick: 4_300 }],
     },
   };
   state.trains.push(midRouteTrain);

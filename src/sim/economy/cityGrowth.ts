@@ -23,7 +23,7 @@ import {
   CITY_UNSERVED_BASELINE_GROWTH_PER_YEAR,
   type CityTier,
 } from "../../data/cities";
-import { CARLOAD_UNITS, type CargoType } from "../../data/cargo";
+import type { CargoType } from "../../data/cargo";
 import { DIRS8, inBounds, tileIndex } from "../map/grid";
 import { terrainId } from "../map/terrain";
 import { nextInt } from "../rng";
@@ -82,7 +82,7 @@ export function accrueCityGrowthScore(
   state: GameState,
   station: Station,
   cargo: CargoType,
-  units: number = CARLOAD_UNITS,
+  units: number,
 ): void {
   const weight = GROWTH_CARGO_WEIGHT[cargo];
   if (!weight) return;

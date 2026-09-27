@@ -102,7 +102,7 @@ describe("editConsist — applied immediately at a station", () => {
     const bought = buyTrain(state, a.id, LOCO, ["coal", "grain"]);
     expect(bought.ok).toBe(true);
     const train = state.trains[0] as Train;
-    train.cars[0]!.loaded = true;
+    train.cars[0]!.loadedUnits = CARGO.coal.capacity;
     train.cars[0]!.loadedTile = a.tile;
     train.cars[0]!.loadedTick = 0;
     expect(train.status).toBe("loading");
@@ -113,10 +113,10 @@ describe("editConsist — applied immediately at a station", () => {
 
     expect(train.cars.map((c) => c.cargoType)).toEqual(["coal", "coal"]);
     // The first "coal" car matched the existing loaded one and kept its load...
-    expect(train.cars[0]!.loaded).toBe(true);
+    expect(train.cars[0]!.loadedUnits).toBe(CARGO.coal.capacity);
     // ...while the second is a brand new, empty car (grain's slot was reused for it positionally,
     // but it's charged as new since nothing of type "coal" was left over to match).
-    expect(train.cars[1]!.loaded).toBe(false);
+    expect(train.cars[1]!.loadedUnits).toBe(0);
     expect(train.pendingConsist).toBeUndefined();
 
     const plan = { addedCost: CARGO.coal.carCost, refund: CARGO.grain.carCost * 0.5 };
@@ -129,7 +129,7 @@ describe("editConsist — applied immediately at a station", () => {
     const bought = buyTrain(state, a.id, LOCO, ["coal"]);
     expect(bought.ok).toBe(true);
     const train = state.trains[0] as Train;
-    train.cars[0]!.loaded = true;
+    train.cars[0]!.loadedUnits = CARGO.coal.capacity;
     train.cars[0]!.loadedTile = state.stations[1]!.tile; // "loaded" far away, so it's worth real revenue
     train.cars[0]!.loadedTick = 0;
     state.ticks = 24; // one day later
@@ -147,7 +147,7 @@ describe("editConsist — applied immediately at a station", () => {
     const bought = buyTrain(state, a.id, LOCO, ["coal"]);
     expect(bought.ok).toBe(true);
     const train = state.trains[0] as Train;
-    train.cars[0]!.loaded = true;
+    train.cars[0]!.loadedUnits = CARGO.coal.capacity;
     train.cars[0]!.loadedTile = state.stations[1]!.tile;
     train.cars[0]!.loadedTick = 0;
     state.ticks = 24;

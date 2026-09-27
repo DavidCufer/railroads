@@ -3,7 +3,7 @@
  * `version: 1` and passes it through untouched. */
 import { describe, expect, it } from "vitest";
 import { migrateSaveFile, type SaveFileV0Fixture } from "../../src/save/migrate";
-import { CURRENT_SAVE_VERSION, type SaveFileV2 } from "../../src/save/format";
+import { CURRENT_SAVE_VERSION, type SaveFileV3 } from "../../src/save/format";
 import { serializeGameState } from "../../src/save/serialize";
 import { makeTestMap, makeTestState } from "../sim/track/helpers";
 
@@ -44,7 +44,7 @@ describe("save migration scaffold", () => {
 
   it("passes a current-version save through unchanged", () => {
     const state = serializeGameState(makeTestState(makeTestMap(["pp"])));
-    const file: { version: 2; meta: SaveFileV2["meta"]; state: typeof state } = {
+    const file: { version: 3; meta: SaveFileV3["meta"]; state: typeof state } = {
       version: CURRENT_SAVE_VERSION,
       meta: { savedAt: 1, year: 1830, month: 1, day: 1, cash: 1_000_000, mapLabel: "Test" },
       state,

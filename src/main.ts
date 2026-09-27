@@ -641,10 +641,18 @@ function main(): void {
       for (const delivery of state.pendingDeliveries) {
         const station = state.stations.find((s) => s.id === delivery.stationId);
         if (!station) continue;
+        // PLAN Phase 16: "+$1.2k · 28 passengers" — names what got delivered, not just the payout,
+        // so a floating label alone answers "how many units was that?" (SPEC §8.1's floating label
+        // didn't say, which was part of the units-confusion the Phase 16 play-test flagged).
+        const def = CARGO[delivery.cargoType];
+        const units = delivery.units;
+        const countText = units !== undefined ? `${Math.round(units)} ${def.unitsNoun}` : undefined;
         floatingLabels.push({
           stationTile: station.tile,
-          text: `+${formatMoney(delivery.revenue)}`,
-          color: CARGO[delivery.cargoType].color,
+          text: countText
+            ? `+${formatMoney(delivery.revenue)} · ${countText}`
+            : `+${formatMoney(delivery.revenue)}`,
+          color: def.color,
           startMs: now,
         });
       }
@@ -960,7 +968,9 @@ function main(): void {
             orders: Array<{ stationId: number; rule: string }>;
             currentOrderIndex: number;
           }>;
-          getTrainCars: (trainId: number) => Array<{ cargoType: CargoType; loaded: boolean }>;
+          getTrainCars: (
+            trainId: number,
+          ) => Array<{ cargoType: CargoType; loadedUnits: number; capacity: number }>;
           getStationCargo: (
             stationId: number,
           ) => Partial<Record<string, { amount: number; waitingDays: number }>> | null;
@@ -1151,7 +1161,8 @@ function main(): void {
       getTrainCars: (trainId) =>
         (state.trains.find((t) => t.id === trainId)?.cars ?? []).map((c) => ({
           cargoType: c.cargoType,
-          loaded: c.loaded,
+          loadedUnits: c.loadedUnits,
+          capacity: CARGO[c.cargoType].capacity,
         })),
       getStationCargo: (stationId) => {
         const pile = state.stationCargo.get(stationId);

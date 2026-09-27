@@ -539,7 +539,7 @@ export function drawTrains(
         sample.angle,
         size,
         car?.cargoType ?? "goods",
-        car?.loaded ?? false,
+        (car?.loadedUnits ?? 0) > 0,
       );
     }
 

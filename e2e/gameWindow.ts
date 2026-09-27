@@ -114,7 +114,9 @@ export interface GameWindow {
     orders: Array<{ stationId: number; rule: string }>;
     currentOrderIndex: number;
   }>;
-  getTrainCars: (trainId: number) => Array<{ cargoType: string; loaded: boolean }>;
+  getTrainCars: (
+    trainId: number,
+  ) => Array<{ cargoType: string; loadedUnits: number; capacity: number }>;
   getStationCargo: (
     stationId: number,
   ) => Partial<Record<string, { amount: number; waitingDays: number }>> | null;

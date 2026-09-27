@@ -91,11 +91,12 @@ function statusText(state: GameState, train: Train): string {
  * cargo color when loaded, dimmed and labeled "Empty" otherwise. */
 function carChip(car: TrainCar): HTMLElement {
   const def = CARGO[car.cargoType];
-  const label = car.loaded ? def.name : `${strings.trains.empty} (${def.name})`;
+  const loaded = car.loadedUnits > 0;
+  const label = loaded ? def.name : `${strings.trains.empty} (${def.name})`;
   return h(
     "span",
     {
-      className: `chip${car.loaded ? "" : " chip-dim"}`,
+      className: `chip${loaded ? "" : " chip-dim"}`,
       style: { background: def.color, color: chipTextColor(def.color) },
     },
     label,

@@ -6,7 +6,7 @@
 import type { GameState } from "../sim/state";
 import { deserializeGameState, serializeGameState } from "./serialize";
 import { migrateSaveFile } from "./migrate";
-import { CURRENT_SAVE_VERSION, type SaveFileV2, type SaveMeta } from "./format";
+import { CURRENT_SAVE_VERSION, type SaveFileV3, type SaveMeta } from "./format";
 import {
   AUTO_SLOT_IDS,
   EMERGENCY_SLOT_ID,
@@ -51,7 +51,7 @@ function buildMeta(state: GameState, name?: string): SaveMeta {
   };
 }
 
-function buildSaveFile(state: GameState, name?: string): SaveFileV2 {
+function buildSaveFile(state: GameState, name?: string): SaveFileV3 {
   return {
     version: CURRENT_SAVE_VERSION,
     meta: buildMeta(state, name),

@@ -22,10 +22,14 @@ export interface TrainCar {
    * §7.1's shared car types, e.g. a Boxcar hauling goods/food/lumber/steel, are modeled here as
    * separate cargo-dedicated purchases instead, matching how the Buy Train dialog already works). */
   cargoType: CargoType;
-  /** Whether this car currently holds a carload (SPEC §7.1: 1 car = 1 carload, full or empty). */
-  loaded: boolean;
-  /** Tile the current load was picked up at, and the sim tick it happened — used to compute
-   * distance/time for the revenue formula (SPEC §8.1) on delivery. Undefined when `!loaded`. */
+  /** Real units of `cargoType` currently aboard (PLAN Phase 16: partial loading), 0..`CARGO[
+   * cargoType].capacity`. A car only ever loads once per stop (see src/sim/trains/loading.ts's
+   * `planLoadUnload`) — it doesn't top up again until fully unloaded — except under the "Wait for
+   * full load" rule, which keeps retrying the same stop until full or `maxWaitDays` elapses. */
+  loadedUnits: number;
+  /** Tile the current load was first picked up at, and the sim tick it happened — used to compute
+   * distance/time for the revenue formula (SPEC §8.1) on delivery. Undefined when `loadedUnits`
+   * is 0. Set once on the first load into an empty car; unaffected by a later top-up. */
   loadedTile?: number;
   loadedTick?: number;
 }

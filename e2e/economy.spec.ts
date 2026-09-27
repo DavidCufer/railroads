@@ -295,7 +295,7 @@ test.describe("Phase 7 — cargo flow and economy", () => {
         const bought = g.buyTrain(stationAId, loco, ["coal", "coal", "coal", "coal"]);
         const state = g.getState() as {
           trains: Array<{
-            cars: Array<{ loaded: boolean; loadedTile?: number; loadedTick?: number }>;
+            cars: Array<{ loadedUnits: number; loadedTile?: number; loadedTick?: number }>;
           }>;
           ticks: number;
         };
@@ -303,7 +303,7 @@ test.describe("Phase 7 — cargo flow and economy", () => {
           (t) => (t as unknown as { id: number }).id === bought.trainId,
         )!;
         for (const car of train.cars) {
-          car.loaded = true;
+          car.loadedUnits = 20; // coal's per-car capacity — a full load
           car.loadedTile = 0;
           car.loadedTick = state.ticks;
         }
@@ -422,7 +422,7 @@ test.describe("Phase 7 — cargo flow and economy", () => {
       const g = window.__game!;
       for (let day = 0; day < 60; day++) {
         g.runDays(1);
-        if (g.getTrainCars(trainId!).some((c) => c.loaded)) return true;
+        if (g.getTrainCars(trainId!).some((c) => c.loadedUnits > 0)) return true;
       }
       return false;
     }, bought.trainId);

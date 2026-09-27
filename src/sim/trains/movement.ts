@@ -38,6 +38,7 @@ import {
   type LocomotiveDef,
 } from "../../data/trains";
 import { STATION_TYPE_DEFS } from "../../data/stations";
+import { CARGO } from "../../data/cargo";
 import { pushNews } from "../news";
 import type { GameState } from "../state";
 import type { Station } from "../stations/types";
@@ -342,7 +343,12 @@ export function computeTargetSpeed(
 ): number {
   const load =
     LOCO_WEIGHT_UNITS +
-    train.cars.reduce((sum, c) => sum + (c.loaded ? CAR_WEIGHT_LOADED : CAR_WEIGHT_EMPTY), 0);
+    train.cars.reduce((sum, c) => {
+      // SPEC §7.4: "each carload weighs 1 unit when loaded, 0.4 empty" — interpolated by fill
+      // fraction under partial loading (PLAN Phase 16) rather than a flat loaded/empty switch.
+      const fraction = c.loadedUnits / CARGO[c.cargoType].capacity;
+      return sum + CAR_WEIGHT_EMPTY + fraction * (CAR_WEIGHT_LOADED - CAR_WEIGHT_EMPTY);
+    }, 0);
   const elevA = state.map.elevation[a] ?? 0;
   const elevB = state.map.elevation[b] ?? 0;
   const grade = Math.max(0, elevB - elevA);

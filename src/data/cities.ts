@@ -27,9 +27,14 @@ export const CITY_MIN_SPACING = 8;
  * shuttle earn far more than any freight route (a single train could clear ~half the starting
  * cash every year) — raised to pop/650 (passengers) / pop/1400 (mail) so a good passenger route
  * lands in the same $80k-200k/yr/train ballpark as a good freight route instead of dwarfing it.
- * See PROGRESS.md's Phase 7.1 entry for the measured before/after numbers. */
-export const CITY_PASSENGER_SUPPLY_DIVISOR = 650;
-export const CITY_MAIL_SUPPLY_DIVISOR = 1_400;
+ * See PROGRESS.md's Phase 7.1 entry for the measured before/after numbers.
+ *
+ * **Phase 16 real-unit conversion**: these divisors produced a count of the old cargo-agnostic
+ * 20-unit "carloads" (PLAN: passengers 40/car, mail 30/car now) — divided by `cargoUnitFactor` (2×
+ * for passengers, 1.5× for mail) so `population / divisor` still yields the same number of
+ * carloads/month as before, just expressed in real people/bags. */
+export const CITY_PASSENGER_SUPPLY_DIVISOR = 650 / 2;
+export const CITY_MAIL_SUPPLY_DIVISOR = 1_400 / 1.5;
 
 // --- Growth & Civic Investment (SPEC §8.3, Phase 9) --------------------------------------------
 

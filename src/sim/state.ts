@@ -33,6 +33,10 @@ export interface DeliveryEvent {
   stationId: number;
   cargoType: CargoType;
   revenue: number;
+  /** Real units delivered (PLAN Phase 16's "+$1.2k · 28 passengers" label) — optional so an older
+   * save's already-drained (and therefore always-empty in practice) `pendingDeliveries` array still
+   * type-checks through src/save/migrate.ts without a dedicated migration step. */
+  units?: number;
 }
 
 export interface GameState {

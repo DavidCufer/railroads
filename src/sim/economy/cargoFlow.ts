@@ -26,9 +26,9 @@ export function accrueDailyCargo(state: GameState): void {
       pile = {};
       state.stationCargo.set(station.id, pile);
     }
-    const cap = stationStorageCap(station);
 
     for (const cargo of CARGO_TYPES) {
+      const cap = stationStorageCap(station, cargo);
       const monthly = economy.supply[cargo] ?? 0;
       const daily = monthly / DAYS_PER_MONTH;
       const entry: StationCargoPile = pile[cargo] ?? { amount: 0, waitingDays: 0 };

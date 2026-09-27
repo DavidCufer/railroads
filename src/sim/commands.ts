@@ -605,7 +605,7 @@ export function buyTrain(
     id,
     name: `Train ${id + 1}`,
     locoModelId,
-    cars: cars.map((cargoType) => ({ cargoType, loaded: false })),
+    cars: cars.map((cargoType) => ({ cargoType, loadedUnits: 0 })),
     orders: [],
     currentOrderIndex: 0,
     status: "loading",
@@ -681,7 +681,7 @@ function reconcileConsist(
     const existing = pools.get(type)?.shift();
     if (existing) cars.push(existing);
     else {
-      cars.push({ cargoType: type, loaded: false });
+      cars.push({ cargoType: type, loadedUnits: 0 });
       addedTypes.push(type);
     }
   }
@@ -764,7 +764,7 @@ export function editConsist(
   } else {
     train.pendingConsist = {
       cars: reconciledCars,
-      removedLoaded: removedCars.filter((c) => c.loaded),
+      removedLoaded: removedCars.filter((c) => c.loadedUnits > 0),
     };
   }
   return { ok: true, cost: plan.netCost };

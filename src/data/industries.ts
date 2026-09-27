@@ -71,6 +71,11 @@ export const NEW_INDUSTRY_CHANCE_PER_MONTH = 0.005;
  * approximated as "near any city", see `industryDynamics.ts`'s doc comment). */
 export const NEW_INDUSTRY_CITY_BIAS_RADIUS = 20;
 
+/** `produces`/`consumes` below are in each cargo's own real units (SPEC §8.1/PLAN Phase 16). Coal,
+ * iron ore, wood, grain, steel, lumber, food and goods keep their pre-Phase-16 numbers unchanged
+ * (their 20-unit-per-car capacity didn't change), but livestock (Ranch, Food Plant) and oil/fuel
+ * (Oil Well, Refinery) are multiplied by `cargoUnitFactor` (0.75× and 5× respectively) so
+ * carloads/month — and therefore the Phase 7.1 balance targets — stay exactly what they were. */
 export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
   coalMine: {
     id: "coalMine",
@@ -116,7 +121,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
     id: "ranch",
     name: "Ranch",
     placement: { kind: "terrain", terrain: ["plain", "desert"] },
-    produces: { livestock: 40 },
+    produces: { livestock: 30 }, // 40 × cargoUnitFactor("livestock") (0.75) — same carloads/month
     consumes: {},
     acceptancePoints: {},
     era: 1830,
@@ -126,7 +131,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
     id: "oilWell",
     name: "Oil Well",
     placement: { kind: "terrain", terrain: ["plain", "desert"] },
-    produces: { oil: 50 },
+    produces: { oil: 250 }, // 50 × cargoUnitFactor("oil") (5) — same carloads/month
     consumes: {},
     acceptancePoints: {},
     era: 1860,
@@ -157,7 +162,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
     name: "Food Plant",
     placement: { kind: "nearCity", maxTilesFromCity: 6 },
     produces: { food: 60 },
-    consumes: { grain: 60, livestock: 60 },
+    consumes: { grain: 60, livestock: 45 }, // livestock: 60 × cargoUnitFactor("livestock") (0.75)
     acceptancePoints: { grain: 8, livestock: 8 },
     era: 1830,
     recipeMode: "any",
@@ -176,8 +181,8 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
     id: "refinery",
     name: "Refinery",
     placement: { kind: "nearCity", maxTilesFromCity: 6 },
-    produces: { fuel: 60 },
-    consumes: { oil: 60 },
+    produces: { fuel: 300 }, // 60 × cargoUnitFactor("fuel") (5)
+    consumes: { oil: 300 }, // 60 × cargoUnitFactor("oil") (5) — 1:1 recipe ratio preserved
     acceptancePoints: { oil: 8 },
     era: 1880,
     recipeMode: "any",

@@ -85,7 +85,7 @@ describe("stepLoading", () => {
     if (!train) throw new Error("no train");
     const car = train.cars[0];
     if (!car) throw new Error("no car");
-    car.loaded = true;
+    car.loadedUnits = CARGO.coal.capacity;
     car.loadedTile = a.tile;
     car.loadedTick = state.ticks;
     state.ticks += 5 * 24; // 5 in-game days in transit
@@ -98,10 +98,11 @@ describe("stepLoading", () => {
 
     runToDeparture(state, train, b);
 
-    expect(car.loaded).toBe(false);
+    expect(car.loadedUnits).toBe(0);
     expect(state.pendingDeliveries).toHaveLength(1);
     expect(state.pendingDeliveries[0]?.cargoType).toBe("coal");
     expect(state.pendingDeliveries[0]?.revenue).toBeGreaterThan(0);
+    expect(state.pendingDeliveries[0]?.units).toBe(CARGO.coal.capacity);
   });
 
   it("pays nothing for a delivery under the minimum distance, but still unloads it", () => {
@@ -112,7 +113,7 @@ describe("stepLoading", () => {
     if (!bought.ok || !train) throw new Error("setup failed");
     const car = train.cars[0];
     if (!car) throw new Error("no car");
-    car.loaded = true;
+    car.loadedUnits = CARGO.coal.capacity;
     car.loadedTile = a.tile;
     car.loadedTick = state.ticks;
 
@@ -124,7 +125,7 @@ describe("stepLoading", () => {
 
     runToDeparture(state, train, b);
 
-    expect(car.loaded).toBe(false);
+    expect(car.loadedUnits).toBe(0);
     expect(state.pendingDeliveries).toHaveLength(0);
   });
 
@@ -136,7 +137,7 @@ describe("stepLoading", () => {
     if (!bought.ok || !train) throw new Error("setup failed");
     const car = train.cars[0];
     if (!car) throw new Error("no car");
-    car.loaded = true;
+    car.loadedUnits = CARGO.coal.capacity;
     car.loadedTile = a.tile;
     car.loadedTick = state.ticks;
 
@@ -148,7 +149,7 @@ describe("stepLoading", () => {
 
     runToDeparture(state, train, b);
 
-    expect(car.loaded).toBe(true);
+    expect(car.loadedUnits).toBe(CARGO.coal.capacity);
     expect(state.pendingDeliveries).toHaveLength(0);
   });
 
@@ -169,9 +170,35 @@ describe("stepLoading", () => {
     runToDeparture(state, train, a);
 
     const car = train.cars[0];
-    expect(car?.loaded).toBe(true);
+    expect(car?.loadedUnits).toBe(CARGO.coal.capacity); // filled to capacity (20), 5 left waiting
     expect(car?.loadedTile).toBe(a.tile);
-    expect(state.stationCargo.get(a.id)?.coal?.amount).toBe(5); // 25 - CARLOAD_UNITS(20)
+    expect(state.stationCargo.get(a.id)?.coal?.amount).toBe(5); // 25 - 20 (coal's capacity)
+  });
+
+  it("'auto' loads a partial car when supply is short of a full carload (PLAN Phase 16)", () => {
+    // The play-test bug this fixes: a small town's trickle of supply (well under a full carload)
+    // never accumulated enough for the old "only load a full carload" rule, so passenger cars
+    // always left empty (PROGRESS.md's Phase 16 entry). Auto should now take whatever's there.
+    const { state, a, b } = twoStationLine(10);
+    setAccepts(state, b.id, ["passengers"]);
+    state.stationCargo.set(a.id, { passengers: { amount: 6, waitingDays: 3 } }); // well under 40/car
+    const bought = buyTrain(state, a.id, LOCO, ["passengers"]);
+    const train = state.trains[0];
+    if (!bought.ok || !train) throw new Error("setup failed");
+
+    setOrders(state, train.id, [
+      { stationId: a.id, rule: "auto" },
+      { stationId: b.id, rule: "auto" },
+    ]);
+    train.currentOrderIndex = 0;
+
+    runToDeparture(state, train, a);
+
+    const car = train.cars[0];
+    expect(car?.loadedUnits).toBe(6);
+    expect(car?.loadedUnits).toBeLessThan(CARGO.passengers.capacity);
+    expect(car?.loadedTile).toBe(a.tile);
+    expect(state.stationCargo.get(a.id)?.passengers?.amount).toBeCloseTo(0, 5);
   });
 
   it("'unloadOnly' never loads, even with supply and a willing later stop", () => {
@@ -190,7 +217,7 @@ describe("stepLoading", () => {
 
     runToDeparture(state, train, a);
 
-    expect(train.cars[0]?.loaded).toBe(false);
+    expect(train.cars[0]?.loadedUnits).toBe(0);
     expect(state.stationCargo.get(a.id)?.coal?.amount).toBe(25); // untouched
   });
 
@@ -202,7 +229,7 @@ describe("stepLoading", () => {
     if (!bought.ok || !train) throw new Error("setup failed");
     const car = train.cars[0];
     if (!car) throw new Error("no car");
-    car.loaded = true;
+    car.loadedUnits = CARGO.coal.capacity;
     car.loadedTile = a.tile;
     car.loadedTick = state.ticks;
 
@@ -213,7 +240,7 @@ describe("stepLoading", () => {
     train.currentOrderIndex = 1;
 
     expect(stepLoading(state, train, b)).toBe(true);
-    expect(car.loaded).toBe(true);
+    expect(car.loadedUnits).toBe(CARGO.coal.capacity);
     expect(state.pendingDeliveries).toHaveLength(0);
   });
 
@@ -239,7 +266,8 @@ describe("stepLoading", () => {
 
     // One car loaded (the only supply available), the other stayed empty — departed anyway once
     // maxWaitDays was reached rather than waiting forever.
-    expect(train.cars.filter((c) => c.loaded)).toHaveLength(1);
+    expect(train.cars.filter((c) => c.loadedUnits >= CARGO.coal.capacity)).toHaveLength(1);
+    expect(train.cars.filter((c) => c.loadedUnits === 0)).toHaveLength(1);
     expect(ticks).toBeGreaterThan(24); // it did wait at least a day past the initial batch
   });
 });

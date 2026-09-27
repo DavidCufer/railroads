@@ -19,7 +19,7 @@ import type { PendingCityFounding } from "../sim/regions";
 import type { TrackEdge } from "../sim/track/types";
 import type { DeliveryEvent, StationCargoPile } from "../sim/state";
 
-export const CURRENT_SAVE_VERSION = 2;
+export const CURRENT_SAVE_VERSION = 3;
 
 /** `GameMap`'s typed arrays, each base64-packed (src/save/typedArray.ts) — exact byte round trip,
  * no precision loss (unlike the region-JSON codec's fixed-point elevationRaw). Unchanged since v1. */
@@ -45,15 +45,37 @@ export interface SerializedHeldBlockV1 {
 }
 export type SerializedTrainV1 = Omit<
   Train,
-  "blockPenalties" | "heldBlocks" | "distanceTraveled"
+  "blockPenalties" | "heldBlocks" | "distanceTraveled" | "cars" | "pendingConsist"
 > & {
   blockPenalties: Array<[number, number]>;
   heldBlocks: SerializedHeldBlockV1[];
+  // v1 predates Phase 16's real per-cargo capacities (see `SerializedTrainCarV2` below) just as
+  // much as it predates Phase 15's `pendingConsist` (which didn't exist yet at v1 either).
+  cars: SerializedTrainCarV2[];
+  pendingConsist?: { cars: SerializedTrainCarV2[]; removedLoaded: SerializedTrainCarV2[] };
 };
 
-/** The current (SPEC §7.5, rewritten after play-testing) `Train` shape — station-to-station
- * section reservation, `distanceTraveled`, and the Phase 15 consist-edit queue. */
-export type SerializedTrainV2 = Omit<Train, "blockPenalties"> & {
+/** The pre-Phase-16 `TrainCar` shape (SPEC §7.1's old "1 car = 1 carload, full or empty" model) —
+ * frozen here, independent of the live `TrainCar` type, for `migrate.ts`'s v2→v3 step. */
+export interface SerializedTrainCarV2 {
+  cargoType: CargoType;
+  loaded: boolean;
+  loadedTile?: number;
+  loadedTick?: number;
+}
+
+/** The v2 (SPEC §7.5, rewritten after play-testing) `Train` shape — station-to-station section
+ * reservation, `distanceTraveled`, and the Phase 15 consist-edit queue — frozen with the old
+ * boolean-`loaded` car shape above, since Phase 16 changed `TrainCar` itself. */
+export type SerializedTrainV2 = Omit<Train, "blockPenalties" | "cars" | "pendingConsist"> & {
+  blockPenalties: Array<[number, number]>;
+  cars: SerializedTrainCarV2[];
+  pendingConsist?: { cars: SerializedTrainCarV2[]; removedLoaded: SerializedTrainCarV2[] };
+};
+
+/** The current (PLAN Phase 16: real per-cargo car capacities, `loadedUnits` replacing the old
+ * boolean `loaded`) `Train` shape. */
+export type SerializedTrainV3 = Omit<Train, "blockPenalties"> & {
   blockPenalties: Array<[number, number]>;
 };
 
@@ -108,6 +130,7 @@ interface SerializedGameStateBase<TTrain> {
 
 export type SerializedGameStateV1 = SerializedGameStateBase<SerializedTrainV1>;
 export type SerializedGameStateV2 = SerializedGameStateBase<SerializedTrainV2>;
+export type SerializedGameStateV3 = SerializedGameStateBase<SerializedTrainV3>;
 
 /** Slot-listing metadata (SPEC §13: "Load menu shows slot name, company date, cash, map") — kept
  * alongside `state` so the Load screen can render a slot's card without deserializing/decoding
@@ -135,4 +158,10 @@ export interface SaveFileV2 {
   state: SerializedGameStateV2;
 }
 
-export type AnySaveFile = SaveFileV1 | SaveFileV2;
+export interface SaveFileV3 {
+  version: 3;
+  meta: SaveMeta;
+  state: SerializedGameStateV3;
+}
+
+export type AnySaveFile = SaveFileV1 | SaveFileV2 | SaveFileV3;
