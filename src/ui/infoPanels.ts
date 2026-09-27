@@ -119,8 +119,22 @@ export function openCityPanel(container: HTMLElement, state: GameState, cityId: 
       h(
         "div",
         { className: "chip-row" },
-        cargoChip(container, "passengers", supply.passengers, "", false, true),
-        cargoChip(container, "mail", supply.mail, "", false, true),
+        cargoChip(
+          container,
+          "passengers",
+          supply.passengers,
+          strings.station.supplyRate(CARGO.passengers.unit),
+          false,
+          true,
+        ),
+        cargoChip(
+          container,
+          "mail",
+          supply.mail,
+          strings.station.supplyRate(CARGO.mail.unit),
+          false,
+          true,
+        ),
       ),
       h("div", { className: "panel-section-title" }, strings.station.accepts),
       h(

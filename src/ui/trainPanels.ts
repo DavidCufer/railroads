@@ -42,6 +42,16 @@ function currentYear(state: GameState): number {
   return calendarFromTicks(state.startYear, state.ticks).year;
 }
 
+/** Buy Train/Edit Consist car-picker button label (PLAN Phase 16: "show capacity per car type",
+ * e.g. "Passenger car · 40 seats") — passengers get "seats" specifically (an exception to the
+ * general `CargoDef.unit`, which is "" for passengers so the general "N passengers" phrasing reads
+ * naturally elsewhere without a redundant unit word). */
+function carTypeLabel(cargo: CargoType): string {
+  const def = CARGO[cargo];
+  const capacity = cargo === "passengers" ? `${def.capacity} seats` : `${def.capacity} ${def.unit}`;
+  return `${def.carLabel} · ${capacity}`;
+}
+
 /** SPEC §7.3: "clear reason in the UI: 'Route not electrified'" — checked only when the train is
  * actually stuck with no route and its locomotive is electric; a route that fails for any other
  * reason (a genuinely disconnected network, a wooden bridge too weak for it) falls back to the
@@ -87,19 +97,35 @@ function statusText(state: GameState, train: Train): string {
   return strings.trains.statusNames[train.status];
 }
 
-/** A car chip showing its current load (SPEC §10.2's "current load" in the train panel) — solid
- * cargo color when loaded, dimmed and labeled "Empty" otherwise. */
+/** A car chip showing its current load (SPEC §10.2's "current load" in the train panel, PLAN Phase
+ * 16: "each car shows cargo + fill... a small fill bar per car") — solid cargo color, "Empty" only
+ * when truly empty, otherwise the fill as "Passengers 28 / 40"/"Coal 20 / 20 t" plus a thin bar. */
 function carChip(car: TrainCar): HTMLElement {
   const def = CARGO[car.cargoType];
   const loaded = car.loadedUnits > 0;
-  const label = loaded ? def.name : `${strings.trains.empty} (${def.name})`;
+  const label = loaded
+    ? `${def.name} ${Math.round(car.loadedUnits)} / ${def.capacity}${def.unit ? ` ${def.unit}` : ""}`
+    : `${strings.trains.empty} (${def.name})`;
+  const pct = Math.max(0, Math.min(100, (car.loadedUnits / def.capacity) * 100));
   return h(
-    "span",
-    {
-      className: `chip${loaded ? "" : " chip-dim"}`,
-      style: { background: def.color, color: chipTextColor(def.color) },
-    },
-    label,
+    "div",
+    { className: "supply-chip-stack" },
+    h(
+      "span",
+      {
+        className: `chip${loaded ? "" : " chip-dim"}`,
+        style: { background: def.color, color: chipTextColor(def.color) },
+      },
+      label,
+    ),
+    h(
+      "div",
+      { className: "cargo-bar-track mini" },
+      h("div", {
+        className: "cargo-bar-fill",
+        style: { width: `${pct}%`, background: "var(--brass)" },
+      }),
+    ),
   );
 }
 
@@ -194,7 +220,7 @@ export function openBuyTrainPanel(
               render();
             },
           },
-          CARGO[c].name,
+          carTypeLabel(c),
         ),
       ),
     );
@@ -472,7 +498,7 @@ function openEditConsistPanel(container: HTMLElement, state: GameState, trainId:
               render();
             },
           },
-          CARGO[c].name,
+          carTypeLabel(c),
         ),
       ),
     );

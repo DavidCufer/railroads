@@ -425,6 +425,11 @@ button.chip {
 .cargo-bar-track.mini .cargo-bar-fill {
   height: 100%;
 }
+.cargo-waiting-label {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
 
 /* ---------- action grid (STYLE §3: 2-column related-action buttons) ---------- */
 

@@ -110,6 +110,12 @@ export const strings = {
     storagePerCargo: "Storage/cargo",
     monthlyMaintenance: "Maintenance",
     perMonth: "/mo",
+    /** PLAN Phase 16: city/station Supplies chips spell out "/ month" plus the cargo's unit word
+     * (if any) instead of a bare number, so "42" reads as "42 / month" and "13" as "13 bags /
+     * month" — the play-test's "I don't understand the passenger numbers" complaint. */
+    supplyRate: (unit: string) => `${unit ? ` ${unit}` : ""} / month`,
+    /** PLAN Phase 16: the station panel's "Waiting" line, e.g. "12 passengers waiting". */
+    waitingCount: (amount: string, unitsNoun: string) => `${amount} ${unitsNoun} waiting`,
     supplies: "Supplies",
     accepts: "Demands",
     engineShedFree: "Free Engine Shed",

@@ -24,7 +24,8 @@ import {
   renameStation,
   upgradeStation,
 } from "../sim/commands";
-import { previewStationEconomy, type StationEconomy } from "../sim/stations";
+import { previewStationEconomy, stationStorageCap, type StationEconomy } from "../sim/stations";
+import type { Station } from "../sim/stations/types";
 import type { GameState } from "../sim/state";
 import { calendarFromTicks } from "../sim/time";
 import { cargoChip, cargoDemandTile, row } from "./infoPanels";
@@ -40,8 +41,9 @@ function currentYear(state: GameState): number {
 }
 
 /** A supply chip (STYLE §6: "supplies ... with waiting amounts as a thin bar under each chip") —
- * the per-month rate as a cargo chip, with a thin waiting-cargo bar underneath when this station
- * has some of that cargo piled up waiting for pickup. */
+ * the per-month rate as a cargo chip, with a thin waiting-cargo bar underneath (plus a literal
+ * "N waiting" line, PLAN Phase 16 — a bar alone doesn't say *how much* is piled up) when this
+ * station has some of that cargo waiting for pickup. */
 function supplyChipStack(
   container: HTMLElement,
   cargo: CargoType,
@@ -49,7 +51,12 @@ function supplyChipStack(
   waiting?: { amount: number; cap: number },
 ): HTMLElement {
   const children: Node[] = [
-    cargoChip(container, cargo, Math.round(ratePerMonth * 10) / 10, strings.station.perMonth),
+    cargoChip(
+      container,
+      cargo,
+      Math.round(ratePerMonth * 10) / 10,
+      strings.station.supplyRate(CARGO[cargo].unit),
+    ),
   ];
   if (waiting && waiting.cap > 0) {
     const pct = Math.max(0, Math.min(100, (waiting.amount / waiting.cap) * 100));
@@ -63,18 +70,29 @@ function supplyChipStack(
         }),
       ),
     );
+    if (waiting.amount > 0.5) {
+      children.push(
+        h(
+          "span",
+          { className: "cargo-waiting-label" },
+          strings.station.waitingCount(String(Math.round(waiting.amount)), CARGO[cargo].unitsNoun),
+        ),
+      );
+    }
   }
   return h("div", { className: "supply-chip-stack" }, ...children);
 }
 
-/** Supplies/Demands (STYLE §6): pictogram chips above all actions. `waitingPile`/`waitingCap`
+/** Supplies/Demands (STYLE §6): pictogram chips above all actions. `waitingPile`/`station`
  * (only known for an already-built station, not the placement preview) attach a thin waiting-
- * cargo bar under each matching supply chip instead of a separate "Waiting cargo" section. */
+ * cargo bar under each matching supply chip instead of a separate "Waiting cargo" section —
+ * `station` (rather than a single shared cap) is needed because PLAN Phase 16's real per-cargo
+ * capacities mean each cargo's storage cap is now different (`stationStorageCap`). */
 function economyBody(
   container: HTMLElement,
   economy: StationEconomy,
   waitingPile?: Partial<Record<CargoType, { amount: number }>>,
-  waitingCap?: number,
+  station?: Station,
 ): Node[] {
   const supplyEntries = (Object.entries(economy.supply) as Array<[CargoType, number]>).filter(
     ([, v]) => v > 0.05,
@@ -99,15 +117,18 @@ function economyBody(
               container,
               cargo,
               amount,
-              waitingCap
-                ? { amount: waitingPile?.[cargo]?.amount ?? 0, cap: waitingCap }
+              station
+                ? {
+                    amount: waitingPile?.[cargo]?.amount ?? 0,
+                    cap: stationStorageCap(station, cargo),
+                  }
                 : undefined,
             ),
           ),
           ...extraWaiting.map((cargo) =>
             supplyChipStack(container, cargo, 0, {
               amount: waitingPile?.[cargo]?.amount ?? 0,
-              cap: waitingCap ?? 1,
+              cap: station ? stationStorageCap(station, cargo) : 1,
             }),
           ),
         )
@@ -313,8 +334,7 @@ export function openStationPanel(
 
     if (economy) {
       const pile = state.stationCargo.get(stationId);
-      const cap = STATION_TYPE_DEFS[station.type].storagePerCargo;
-      body.push(...economyBody(container, economy, pile, cap));
+      body.push(...economyBody(container, economy, pile, station));
     }
 
     const servingTrains = state.trains.filter((t) =>
