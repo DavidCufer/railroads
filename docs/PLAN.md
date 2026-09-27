@@ -345,16 +345,16 @@ between trains; seasonal effects; achievements.
 ## Phase 13 — Map visuals: top-down trains and curved track
 STYLE: docs/STYLE.md §7
 
-- [ ] Shared render-side path geometry module (e.g. `src/render/trackPath.ts`): straight segments + circular fillet
+- [x] Shared render-side path geometry module (e.g. `src/render/trackPath.ts`): straight segments + circular fillet
       arcs at 45° direction changes (radius ≈ 1.2 tiles, clamped), with `pointAt(distance)` / tangent sampling.
-- [ ] Track renderer draws rails and ties along this geometry (single, double, bridges, electrified catenary poles
+- [x] Track renderer draws rails and ties along this geometry (single, double, bridges, electrified catenary poles
       follow curves); junction through-routes stay straight.
-- [ ] Train renderer places every vehicle (loco, tender, cars) on the same curved path at its own offset behind the
+- [x] Train renderer places every vehicle (loco, tender, cars) on the same curved path at its own offset behind the
       head, rotated to the local tangent — no more pivoting at tile centers.
-- [ ] New top-down vehicle drawings per STYLE §7 (steam/diesel/electric locos, tender, each car type, loaded vs
-      empty), cached per type+rotation bucket (e.g. 64 angles) for performance.
-- [ ] A* track preview: penalize consecutive 45° turns (zig-zags).
-- [ ] Performance stays within the Phase 12 stress-test budget.
+- [x] New top-down vehicle drawings per STYLE §7 (steam/diesel/electric locos, tender, each car type, loaded vs
+      empty). Drawn as vector shapes every frame rather than cached per type+rotation bucket — see Deviations.
+- [x] A* track preview: penalize consecutive 45° turns (zig-zags).
+- [x] Performance stays within the Phase 12 stress-test budget.
 **Screenshots (look at them):** each loco type + a mixed freight consist on a straight and on a curve at zoom 2;
 an S-curve; a junction; double-track curve; a bridge on a curve.
 

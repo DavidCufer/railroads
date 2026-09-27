@@ -157,7 +157,12 @@ export function pointOnPiece(p: PathPiece, u: number): PathSample {
   const angle = p.a0 + (p.a1 - p.a0) * u;
   const x = p.cx + p.r * Math.cos(angle);
   const y = p.cy + p.r * Math.sin(angle);
-  const dirSign = p.a1 - p.a0 >= 0 ? 1 : -1;
+  // Note this is the *negative* of `sign(a1 - a0)`: which of the two tangent directions is
+  // "forward" depends on which side of the bend this piece represents (see the long derivation
+  // in PROGRESS.md's Phase 13 entry), not just whether the stored angles happen to increase or
+  // decrease — `buildEdgeGeometry` always constructs `a0`/`a1` so this negation is the one that
+  // matches the adjoining straight segment's own heading with no discontinuity at the joint.
+  const dirSign = p.a1 - p.a0 >= 0 ? -1 : 1;
   return { x, y, angle: angle - dirSign * (Math.PI / 2) };
 }
 
@@ -176,8 +181,9 @@ function offsetPiece(p: PathPiece, dist: number): PathPiece {
     const py = (dx / len) * dist;
     return { kind: "line", x0: p.x0 + px, y0: p.y0 + py, x1: p.x1 + px, y1: p.y1 + py };
   }
+  // Matches `pointOnPiece`'s (negated) heading sign convention — see the comment there.
   const sign = p.a1 - p.a0 >= 0 ? 1 : -1;
-  return { ...p, r: p.r + dist * sign };
+  return { ...p, r: p.r - dist * sign };
 }
 
 /** A curved centerline built from straight + arc pieces, in order of travel. */

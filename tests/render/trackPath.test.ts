@@ -112,6 +112,37 @@ describe("buildEdgeGeometry", () => {
     expect(Math.hypot(end.x - 6.5, end.y - 0.5)).toBeGreaterThan(0.01);
   });
 
+  it("heading is continuous across the internal arc->line boundary at the a-end too", () => {
+    const b = 6;
+    const path = buildEdgeGeometry(W, 5, b, 3, null); // fillet at a (dirAB = E, partner SW = 3 steps), straight after
+    const arcPiece = path.pieces[0];
+    if (arcPiece?.kind !== "arc") throw new Error("expected an arc piece first");
+    const arcLen = Math.abs(arcPiece.a1 - arcPiece.a0) * arcPiece.r;
+    const before = path.pointAt(arcLen - 1e-4);
+    const at = path.pointAt(arcLen);
+    const after = path.pointAt(arcLen + 1e-4);
+    expect(before.angle).toBeCloseTo(0, 2);
+    expect(at.angle).toBeCloseTo(0, 3);
+    expect(after.angle).toBeCloseTo(0, 3); // dirAB = E = 0 rad, straight for the rest of the edge
+  });
+
+  it("heading is continuous across the internal line->arc boundary within one edge", () => {
+    // Regression test: heading must keep pointing "forward" (matching the straight portion's own
+    // direction) right up to and through the tangent point, not flip 180° there — a fillet is a
+    // smoothing of the corner, not a reversal. Position alone being continuous isn't enough to
+    // catch this, since a 180°-flipped heading still traces the same points.
+    const path = buildEdgeGeometry(W, 5, 6, null, 1); // trimmed+filleted at b, straight dirAB = E
+    const linePiece = path.pieces[0];
+    if (linePiece?.kind !== "line") throw new Error("expected a line piece first");
+    const straightLen = Math.hypot(linePiece.x1 - linePiece.x0, linePiece.y1 - linePiece.y0);
+    const before = path.pointAt(straightLen - 1e-4);
+    const at = path.pointAt(straightLen);
+    const after = path.pointAt(straightLen + 1e-4);
+    expect(before.angle).toBeCloseTo(0, 3); // dirAB = E = 0 rad
+    expect(at.angle).toBeCloseTo(0, 3);
+    expect(after.angle).toBeCloseTo(0, 2); // just starting to curve, still close to E
+  });
+
   it("start point exactly matches tile center for a through (no-bend) edge end", () => {
     const path = buildEdgeGeometry(W, 40, 41, null, null); // arbitrary tiles, W=20 => (0,2)-(1,2)
     const start = path.pointAt(0);

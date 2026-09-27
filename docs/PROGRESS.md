@@ -2798,3 +2798,177 @@ for this phase (welcome-screen background, station supply bubbles) — never `tr
     `track.ts`/`trains.ts` to not collide with the concurrent Phase 13 session.
 - Next: nothing scheduled — v1 was already feature-complete after Phase 12; Phases 13/14 were a
   visual-quality pass on top of it. Future ideas remain at the bottom of `docs/PLAN.md`.
+
+## 2026-09-27 — Phase 13: Map visuals — top-down trains and curved track
+
+Ran concurrently with another session's Phase 14 (UI restyle); per this session's brief, stayed in
+`src/render/**`, the new `src/render/trackPath.ts`, and the A* build-path preview in
+`src/sim/track/pathfind.ts` — didn't touch `src/ui/**`.
+
+- **Shared curve geometry** (`src/render/trackPath.ts`, new): STYLE §7's fillet — a circular arc at
+  every 45° bend, radius 1.2 tiles — reduces to one fixed shape everywhere it's used. Worked out
+  why: the turn rule (`src/sim/track/turn.ts`) only ever lets a train through a node straight
+  (`directionSteps === 0` on travel headings) or at exactly 45°; expressed as the *away-from-node*
+  direction pair each of the two meeting edges has (what the renderer actually has on hand per
+  edge), that's `directionSteps === 4` (straight, no fillet needed) or `=== 3` (the one bend to
+  smooth) — sharper junctions (`<= 2`) already get the existing red "not traversable" marker and
+  are left as plain corners, nothing to smooth for a bend no train can take. Since the bend angle
+  is always 45°, the interior angle between the two rays is always 135°, so the tangent length for
+  a given radius is a fixed constant (`FILLET_TANGENT_TILES ≈ 0.497` tiles at radius 1.2) — every
+  fillet in the game is the same shape, just translated/rotated per node.
+  - `halfFillet(nodeX, nodeY, dirThis, dirOther)`: each of the two edges meeting at a bend computes
+    its *own half* of the shared arc independently — from its own tangent point to the arc's
+    midpoint — using only its own direction and the other edge's away-from-node direction (no
+    global "who owns this junction" bookkeeping needed; the two halves meet exactly at the
+    midpoint by construction, verified in `tests/render/trackPath.test.ts`).
+  - `buildEdgeGeometry(mapWidth, a, b, partnerDirAtA, partnerDirAtB)`: builds one edge's full
+    curved centerline (tile units) — a straight middle piece, optionally preceded/followed by its
+    own half-fillet at each end, or left un-trimmed at an end with no valid partner (dead end,
+    straight-through pair, sharp junction, or the far end of a bridge, which never bends at its own
+    ends — see below). `partnerDirAtX` is resolved differently by each caller: the track renderer
+    scans *all* other edges at that node (any valid steps-3 direction counts, whichever edge it
+    belongs to — matches STYLE's "junction: through route stays straight, diverging route uses the
+    same fillet" without needing to label which edge is "the" mainline); the train renderer instead
+    looks at the *specific* previous/next tile in the train's own route, since a route only ever
+    actually uses one specific pair of edges at a junction, not just any valid pair.
+  - `EdgePath`: an ordered straight+arc piece list with `pointAt(distance)` (position + heading)
+    and `offset(dist)` (a parallel curve, used for rail pairs, double-track separation, and the
+    catenary wire) — an arc offset is exactly a radius change (a circle offset a constant
+    perpendicular distance is another concentric circle).
+  - **A real bug found and fixed via unit tests, not by eyeballing pixels first**: position across
+    a piece boundary was already continuous (an earlier hand check confirmed the (x,y) sequence was
+    smooth), but *heading* flipped by exactly 180° at the internal boundary between an edge's own
+    straight middle and its own fillet — i.e. two points a hair's-width apart in *position* could
+    face opposite directions. Root cause: `pointOnPiece`'s arc-heading formula picked which of the
+    two tangent directions is "forward" using `sign(a1 − a0)` (whichever way the stored angles
+    happened to increase) — but that sign only tracks the *parametrization's* direction, not which
+    physical tangent direction is actually forward for *this specific* bend (a-end fillets and
+    b-end fillets need the opposite sign convention, since a b-end's `dirThis` is the edge's
+    *backward* away-from-node direction while an a-end's is *forward*). Fix ended up being a single
+    negation once the two cases were worked out algebraically (see the comment above `pointOnPiece`
+    and `offsetPiece`, and PLAN's now-obsolete first attempt at this comment for the wrong
+    derivation that motivated finding the bug). Added two regression tests
+    (`tests/render/trackPath.test.ts`: "heading is continuous across the internal line->arc
+    boundary..." / "...arc->line boundary at the a-end too") that fail with the old sign and pass
+    with the fix — confirmed by temporarily reverting the sign and watching them fail with the
+    exact 180°-off value, then restoring it.
+  - This bug was invisible in rail/tie rendering (a tie is a symmetric mark either side of a point,
+    so a 180°-flipped heading draws an identical tie) and in the position-only "chaining" test I'd
+    already written (which happened to compare two *independently* 180°-off headings against each
+    other at a shared midpoint and saw them agree) — it only became visible once something used
+    heading *asymmetrically*: the catenary wire (a one-sided offset from the centerline) rendered
+    as a chaotic crossing "starburst" instead of a smooth parallel curve, screenshotted, looked
+    wrong, and led straight back to this. Left as a cautionary note for future geometry work here:
+    position continuity is not proof of heading continuity.
+- **Track renderer** (`src/render/track.ts`, rewritten): per-edge, at each end, scans the graph for
+  any other edge whose away-from-node direction is a valid 45° partner (`isFilletBend`); if found,
+  the edge trims and draws its own half-fillet (rails, ties, the double-track offset, the catenary
+  wire — all via `EdgePath`/`tracePieceList`, which maps tile-space pieces straight into a chunk's
+  local pixel space with a uniform scale/translate, so an arc stays an arc — no per-point sampling
+  needed to draw it, only for ties/catenary poles which do need discrete points along the curve).
+  Bridges (a single fixed structural span, SPEC §5.1's Phase-4 deviation) never trim/bend at their
+  own ends — the "bridge on a curve" screenshot ask is about the *approach* track curving into a
+  straight deck, not the deck itself bending. A sharp (>45°) junction still just draws to the plain
+  tile center at that end, matching its existing red marker.
+- **Train renderer** (`src/render/trains.ts`): `sampleBehindHead` (cars) and the loco head both now
+  resolve their position via `curvedRouteSample`, which looks at the *actual* previous/next tile in
+  the train's route (not a generic "any partner" scan) to decide whether either end of the current
+  edge bends, then samples `buildEdgeGeometry`'s curve at the sim's own edge-progress distance —
+  render-only; the sim's own `routeIndex`/`edgeProgress` bookkeeping (straight-line tile lengths)
+  is untouched, so a fillet's small length difference from the straight corner it replaces (an arc
+  is slightly shorter — a real, if tiny, side effect of literally cutting a corner) is absorbed as
+  a barely-perceptible timing rounding, not by changing sim distances. The loco's screen position
+  additionally blends the sub-tick `alpha` the game loop already provides (via
+  `progressAlongEdge`, projecting the existing `renderFromX/Y` tick-start snapshot onto the current
+  edge) so it keeps the pre-existing smooth interpolation *and* follows the curve — before, only
+  cars ever bunched onto the actual route path; the head used a straight tile-to-tile lerp with a
+  coarse compass-snapped angle, so a fast loco visibly cut every corner square before this phase.
+- **New vehicle shapes** (`src/render/trains.ts`): cars now draw a distinct top-down silhouette per
+  STYLE §7 by the cargo they carry (`CARGO_CAR_SHAPE`, keyed off `CARGO[type].car`'s naming) —
+  hopper (coal/ore/grain: open top, load heap in the cargo color when loaded, dark when empty),
+  tanker (oil/fuel: rounded cylinder, lighter top-lit stripe), flatcar (wood/steel/lumber: bare wood
+  deck, cargo-colored load blocks when loaded), boxcar (food/goods: ribbed roof), livestock
+  (slatted roof), passenger (lighter roof center line), mail (plain, already red via its own cargo
+  color) — instead of one generic rounded rectangle for every car. Kept the existing SPEC §7 rule
+  (body tinted by the cargo's own color when loaded, grey when empty) rather than STYLE's literal
+  "green/maroon" passenger-livery suggestion, so a car's cargo stays identifiable at a glance
+  exactly as it already was; only the silhouette is new. Sizing retuned to STYLE §7's literal zoom-1
+  pixel spec (loco 16px [already matched], cars 12px, 7px width for both, 2px gaps) — previously
+  cars were drawn oversized (≈17.6px) relative to their own along-route spacing, so a consist read
+  as one overlapping blob rather than distinct coupled cars.
+- **A\* zig-zag penalty** (`src/sim/track/pathfind.ts`): a new `CONSECUTIVE_TURN_PENALTY` (6,000,
+  comparable to `TURN_PENALTY_PER_STEP`'s existing per-turn cost) applies on top of the existing
+  per-turn cost whenever a 45° turn immediately follows another 45° turn — found by looking up the
+  *grandparent* direction already sitting in the search's own `cameFrom` map (the direction used to
+  reach the current state's parent), no extra state-space needed. Verified with a real, isolating
+  test (`tests/sim/track/pathfind.test.ts`) rather than a hand-waved one: a brute-force search
+  (a throwaway script, not committed) over small direction sequences found a concrete pair of
+  routes to the same destination — one with 2 turns back-to-back, one with 3 turns each separated
+  by a straight tile — where the *base* per-turn cost alone would make the zig-zag route cheaper
+  (fewer total turns) despite being the uglier shape; confirmed by temporarily zeroing the new
+  penalty and watching `findBuildPath` pick the zig-zag route, then restoring it and watching the
+  choice flip to the clean one. (An earlier attempt at this test used Double mode's
+  `existingTrackOnly` cost-0 edges to try to isolate the penalty from terrain cost, and hit a real,
+  separate pre-existing quirk: `findBuildPath`'s octile heuristic assumes real terrain-scale costs,
+  so it's badly inadmissible when edges cost 0, and can return a non-optimal path in that specific
+  mode — not a Phase 13 bug, just not a mode worth building a precise test on; switched to real
+  terrain cost instead, where the heuristic is admissible.)
+- **Screenshots — looked at them, iterated until right** (`e2e/mapVisuals.spec.ts`, new;
+  `docs/screenshots/phase-13-*.png`): each loco type (steam/diesel/electric) + a mixed freight
+  consist (coal/oil/wood/food, so hopper/tanker/flatcar/boxcar all appear) on a straight and on a
+  curve at zoom 2; an S-curve; a junction; a double-track curve; a bridge on a curve.
+  - First pass had two unrelated problems, both fixed before the "good" versions below: (1) a
+    "Goal reached!" celebration dialog covered half of every screenshot — `debugSetCash`'s test
+    amount ($50M) happened to clear a random map's auto-generated net-worth goal; lowered to $2M
+    (enough for every loco/car/track cost used here, comfortably under any goal's scaled
+    threshold). (2) large water bodies showed through a "cleared" test area despite the helper
+    setting `terrain` to plain there — the map's *rivers* are drawn by walking `riverNext`/
+    `riverFlow` independently of the `terrain` array (so clearing terrain alone doesn't remove a
+    river), and separately, the terrain chunk cache had already baked the original water for that
+    chunk before the mutation ran; fixed by also clearing `riverNext`/`riverFlow` in the test's
+    area and bumping `state.mapContentVersion` (the same counter city-growth/new-industry code
+    already uses to bust the terrain chunk cache) after mutating.
+  - What they show: the curve screenshots (steam-mixed, diesel, electric) all show rails bending
+    through a clean 45° arc with every car individually rotated to the local tangent, coupled
+    smoothly around the bend — no pivoting at the tile center, no gap or overlap between cars. The
+    electric loco's catenary wire and poles trace the exact same curve as the rails, evenly spaced
+    and perpendicular throughout (this is the screenshot that caught the heading-sign bug above,
+    then confirmed the fix). The S-curve reads as one continuous flowing line. The junction's
+    mainline is unbroken and straight its full length; the branch fillets smoothly away from the
+    mainline direction it's 45° from, and still shows the pre-existing red dot on the side where
+    it's a sharp 135°-from-the-other-mainline-direction pairing — correct, existing behavior for a
+    3-edge junction that (like any non-symmetric junction) has one gentle side and one sharp side,
+    not a Phase 13 regression. The double-track curve shows two clearly separated parallel arcs.
+    The bridge screenshot shows the approach curving right up to a straight grey deck with no seam.
+- **Performance** (Phase 12's stress scenario, 60 trains/~1,590 edges, re-run unchanged): render
+  cost is higher than Phase 12's baseline (curve geometry + per-vehicle shape drawing costs more
+  than the old straight-lerp + generic-rounded-rect approach) but nowhere near the budget — before:
+  unthrottled `avgRenderMs` ≈ 0.4–1.2ms, 4× throttled ≈ 2.1–4.5ms; after: unthrottled ≈ 1.2–2.1ms
+  (ceiling 16ms), 4× throttled ≈ 4.3–5.8ms (ceiling 120ms) across several runs. No optimization
+  needed to stay inside budget; see the Deviations note in SPEC.md about *not* adding the
+  rotation-bucket sprite cache PLAN's checklist suggested, since it wasn't needed to clear the
+  target.
+- **Tests**: 4 new unit tests in `tests/render/trackPath.test.ts` beyond the initial geometry suite
+  (13 total in that file) — the two heading-continuity regressions above, plus the original
+  tangency/midpoint-agreement/offset-consistency suite (11 tests) written *before* wiring the
+  geometry into any renderer, which is what caught the very first sign bug (a plain 180°-off
+  tangent heading) before it ever reached a screenshot. 1 new test in
+  `tests/sim/track/pathfind.test.ts` for the zig-zag penalty. `npm run check` (309 unit tests) and
+  `npm run e2e` (70 of 72 e2e tests — the 2 failures are pre-existing in the concurrent Phase 14
+  session's WIP commit this branch was rebased onto, `.chip`/`.quick-build-toggle` UI selectors
+  unrelated to anything this phase touched, confirmed by running the same two tests against that
+  commit directly before this phase's changes) both green.
+- Known issues / carry-over: the rotation-bucket sprite cache PLAN suggested for vehicle drawing
+  performance wasn't implemented (see Deviations in SPEC.md) — revisit if a future phase's stress
+  target grows past what plain vector redraws comfortably clear. A junction's "sharp side" red
+  marker (pre-existing from Phase 4) can sit very close to a smoothly-filleted curve on its other
+  side at the same node, which reads correctly but is easy to misread as a rendering glitch at a
+  glance — worth a closer look if a future UI pass wants to make the two states (smooth vs. sharp)
+  more visually distinct at that shared point. `docs/screenshots/phase-0-*` through `phase-12-*`
+  were regenerated by running the full `npm run e2e` suite (since track/train rendering changed,
+  every earlier phase's screenshot that happens to show track or a train changed too) but reverted
+  via `git checkout -- docs/screenshots` before committing, per CLAUDE.md ("commit screenshot
+  changes only for the phase that owns them") — only `phase-13-*.png` is new/committed here.
+- Next: nothing scheduled — this and the concurrent Phase 14 (UI restyle, see the entry just above)
+  were both a visual-quality pass on top of the already-feature-complete v1. Future ideas remain at
+  the bottom of `docs/PLAN.md`.

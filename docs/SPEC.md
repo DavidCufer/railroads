@@ -687,3 +687,12 @@ localization (English only, but keep strings in one `strings.ts` file for later)
   path recomputes it via `computeStationEconomies` right after deserializing, which is exactly what
   every normal-play code path already does whenever those inputs change, so this doesn't skip a
   save round-trip test.
+- [Phase 13] PLAN's Phase 13 checklist suggests caching the new top-down vehicle drawings "per
+  type+rotation bucket (e.g. 64 angles)" for performance. Implemented instead as plain vector draws
+  every frame (loco/car shapes via `ctx.save/rotate/...` in `src/render/trains.ts`, same approach
+  Phase 6 already used) — the Phase 12 stress scenario (60 trains, ~1,500 edges) still measures
+  well inside budget without it (unthrottled `avgRenderMs` ≈ 1.3–1.4ms vs the 16ms ceiling, 4×
+  throttled ≈ 4.3–4.9ms vs 120ms; see PROGRESS.md's Phase 13 entry for the before/after numbers),
+  so the added complexity of a rotation-bucketed sprite cache (building/invalidating offscreen
+  canvases per loco/car type × angle bucket) wasn't worth it for a target that's already cleared
+  comfortably. Revisit if a future phase's stress scenario grows enough to need the headroom.

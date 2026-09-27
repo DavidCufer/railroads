@@ -369,23 +369,34 @@ export class TrackRenderer {
     px: number,
     scale: number,
   ): void {
+    // Each wire point is a *direct* perpendicular offset of its corresponding centerline sample
+    // (not a fraction-matched sample of a separately-built offset curve — offsetting an arc
+    // changes its length, same as a curve's outer rail being longer than its inner one, so
+    // sampling the two curves independently "by fraction of length" drifts out of alignment on a
+    // bend). This keeps every pole exactly perpendicular and the wire polyline naturally smooth.
     const wireOffsetTiles = ((edge.double ? 20 : 16) * scale) / px;
-    const wire = centerline.offset(wireOffsetTiles);
-
-    ctx.strokeStyle = CATENARY_WIRE_COLOR;
-    ctx.lineWidth = Math.max(0.8, 0.9 * scale);
-    tracePieceList(ctx, wire.pieces, originX, originY, px);
-    ctx.stroke();
-
     const spacingTiles = (9 * scale) / px;
     const steps = Math.max(1, Math.round(centerline.length / spacingTiles));
     const baseSamples = sampleEvenly(centerline, steps, originX, originY, px);
-    const wireSamples = sampleEvenly(wire, steps, originX, originY, px);
+    const wirePoints = baseSamples.map((s) => {
+      const perpX = -Math.sin(s.angle);
+      const perpY = Math.cos(s.angle);
+      const wx = s.x + perpX * wireOffsetTiles;
+      const wy = s.y + perpY * wireOffsetTiles;
+      return { lx: (wx - originX) * px, ly: (wy - originY) * px };
+    });
+
+    ctx.strokeStyle = CATENARY_WIRE_COLOR;
+    ctx.lineWidth = Math.max(0.8, 0.9 * scale);
+    ctx.beginPath();
+    wirePoints.forEach((p, i) => (i === 0 ? ctx.moveTo(p.lx, p.ly) : ctx.lineTo(p.lx, p.ly)));
+    ctx.stroke();
+
     ctx.strokeStyle = CATENARY_POLE_COLOR;
     ctx.lineWidth = Math.max(1, 1.3 * scale);
     for (let i = 0; i < baseSamples.length; i++) {
       const base = baseSamples[i] as PathSample & { lx: number; ly: number };
-      const wirePt = wireSamples[i] as PathSample & { lx: number; ly: number };
+      const wirePt = wirePoints[i] as { lx: number; ly: number };
       ctx.beginPath();
       ctx.moveTo(base.lx, base.ly);
       ctx.lineTo(wirePt.lx, wirePt.ly);
