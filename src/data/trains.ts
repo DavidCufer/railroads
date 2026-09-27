@@ -348,21 +348,29 @@ export const MAX_SPEED_FACTOR = 1.0;
 /** Max speed through a 45° turn node (SPEC §7.4), as a fraction of the loco's own maxSpeed. */
 export const CURVE_SPEED_FACTOR = 0.7;
 
-// --- Blocks & signaling (SPEC §7.5) -------------------------------------------------------------
+// --- Signaling (SPEC §7.5, rewritten after play-testing: station-to-station section reservation) -
 
-export const MIN_SPACING_TILES_DOUBLE_TRACK = 2;
-export const DEADLOCK_REROUTE_DAYS = 5;
-export const DEADLOCK_STUCK_DAYS = 10;
+/** Minimum gap (tiles) a same-direction follower keeps behind a leader in a shared block, on both
+ * single and double track (SPEC §7.5: "any number of trains may be in a section heading the same
+ * way... keep a 2-tile spacing and brake behind the leader"). */
+export const MIN_SPACING_TILES = 2;
+/** Safety net (SPEC §7.5, revised after play-testing — was 5/10): a train that has waited this many
+ * in-game days *at a station* (for a line/platform to clear) tries an alternate route; if still
+ * blocked after `DEADLOCK_STUCK_DAYS` it gives up and shows ⚠. */
+export const DEADLOCK_REROUTE_DAYS = 10;
+export const DEADLOCK_STUCK_DAYS = 20;
 /** Extra tile-distance cost added to a block a train has been stuck waiting on, when it retries
  * routing after `DEADLOCK_REROUTE_DAYS` — large enough that any real alternate path wins. */
 export const DEADLOCK_BLOCK_PENALTY = 1_000;
 /** A train stuck at a non-target dead end reverses after this many in-game hours (SPEC §7.3). */
 export const DEAD_END_REVERSE_HOURS = 6;
 
-// --- Composition / rendering geometry (SPEC §7.1) -----------------------------------------------
+// --- Composition / rendering geometry (SPEC §7.1; PLAN Phase 15: "~20% larger") ------------------
 
-export const CAR_LENGTH_TILES = 0.25;
-export const LOCO_LENGTH_TILES = 0.5;
+/** Also used by the signaling section-reservation math (src/sim/trains/movement.ts) as the
+ * physical length a train's tail trails behind its head — not just a render sizing constant. */
+export const CAR_LENGTH_TILES = 0.3;
+export const LOCO_LENGTH_TILES = 0.6;
 
 // --- Orders / loading (SPEC §7.2, §6.1 "load/unload 50% slower" overlength penalty) --------------
 
@@ -378,6 +386,9 @@ export const OVERLENGTH_SLOWDOWN_MULT = 2;
 export const DEFAULT_FULL_LOAD_MAX_WAIT_DAYS = 14;
 
 export const SELL_REFUND_FRACTION = 0.5;
+/** "Edit cars" on an existing train (PLAN Phase 15): a car the edit removes refunds this fraction
+ * of its era-adjusted price; a newly added car is charged in full. */
+export const CONSIST_EDIT_REFUND_FRACTION = 0.5;
 
 // --- Breakdowns & aging (SPEC §7.6) --------------------------------------------------------------
 

@@ -46,6 +46,7 @@ import { computeStationEconomies } from "./stations/economy";
 import type { Station } from "./stations/types";
 import { CARGO, type CargoType } from "../data/cargo";
 import {
+  CONSIST_EDIT_REFUND_FRACTION,
   locomotiveById,
   SELL_REFUND_FRACTION,
   STEAM_PHASE_OUT_YEAR,
@@ -56,8 +57,9 @@ import {
 import { eraInflation } from "../data/finance";
 import { addExpense, computeCreditLimit } from "./finance/ledger";
 import { DAYS_PER_YEAR, HOURS_PER_DAY } from "./time";
+import { dropCarCargo } from "./trains/loading";
 import { tileXY } from "./trains/geometry";
-import type { Train, TrainOrder } from "./trains/types";
+import type { Train, TrainCar, TrainOrder } from "./trains/types";
 
 export type CommandReasonCode =
   | "no-path"
@@ -75,6 +77,7 @@ export type CommandReasonCode =
   | "invalid-locomotive"
   | "steam-phased-out"
   | "too-many-cars"
+  | "invalid-consist"
   | "invalid-train"
   | "invalid-orders"
   | "invalid-loan-amount"
@@ -615,6 +618,7 @@ export function buyTrain(
     routeTrackVersion: state.trackVersion,
     lastApproachNode: -1,
     heldBlocks: [],
+    distanceTraveled: 0,
     blockPenalties: new Map(),
     loadTicksLeft: -1,
     loadExtraWaitDays: 0,
@@ -653,6 +657,116 @@ export function setOrders(
   train.orders = orders.map((o) => ({ ...o }));
   train.currentOrderIndex = 0;
   return { ok: true, cost: 0 };
+}
+
+/** Matches a new car list against the train's current cars by cargo type, in order, so cars that
+ * persist keep their existing load rather than being treated as sold-and-rebought (PLAN Phase 15's
+ * "Edit consist on an existing train"). Greedy: the first `newTypes[i]` of a given type reuses the
+ * oldest still-unmatched old car of that type. `addedTypes` are the new-list entries with no old car
+ * left to match (charged full price); `removedCars` are old cars nothing in the new list matched
+ * (refunded, cargo dropped). */
+function reconcileConsist(
+  oldCars: readonly TrainCar[],
+  newTypes: readonly CargoType[],
+): { cars: TrainCar[]; addedTypes: CargoType[]; removedCars: TrainCar[] } {
+  const pools = new Map<CargoType, TrainCar[]>();
+  for (const car of oldCars) {
+    const list = pools.get(car.cargoType) ?? [];
+    list.push(car);
+    pools.set(car.cargoType, list);
+  }
+  const cars: TrainCar[] = [];
+  const addedTypes: CargoType[] = [];
+  for (const type of newTypes) {
+    const existing = pools.get(type)?.shift();
+    if (existing) cars.push(existing);
+    else {
+      cars.push({ cargoType: type, loaded: false });
+      addedTypes.push(type);
+    }
+  }
+  const removedCars = Array.from(pools.values()).flat();
+  return { cars, addedTypes, removedCars };
+}
+
+export interface EditConsistPlan {
+  /** `addedCost - refund` — may be negative (a net refund) when the edit removes more than it adds. */
+  netCost: number;
+  addedCost: number;
+  refund: number;
+  valid: boolean;
+}
+
+/** Prices an "Edit cars" change on an existing train (PLAN Phase 15) without mutating state — cars
+ * that persist (same cargo type, matched in order by `reconcileConsist`) are free; a genuinely new
+ * car is charged at car price (era-adjusted, like `buyTrain`); a removed car refunds
+ * `CONSIST_EDIT_REFUND_FRACTION` of its price. */
+export function computeEditConsistPlan(
+  state: GameState,
+  trainId: number,
+  cars: readonly CargoType[],
+): EditConsistPlan {
+  const invalid = { netCost: 0, addedCost: 0, refund: 0, valid: false };
+  const train = state.trains.find((t) => t.id === trainId);
+  if (!train) return invalid;
+  const loco = locomotiveById(train.locoModelId);
+  if (!loco) return invalid;
+  if (cars.length > loco.maxCars) return invalid;
+  const year = calendarFromTicks(state.startYear, state.ticks).year;
+  if (cars.some((c) => CARGO[c].era > year)) return invalid;
+  if (loco.passengerMailOnly && cars.some((c) => c !== "passengers" && c !== "mail")) {
+    return invalid;
+  }
+
+  const { addedTypes, removedCars } = reconcileConsist(train.cars, cars);
+  const ctx = costContext(state);
+  const mult = eraInflation(ctx.year) * ctx.buildCostMult;
+  const addedCost = addedTypes.reduce((sum, c) => sum + CARGO[c].carCost * mult, 0);
+  const refund = removedCars.reduce(
+    (sum, c) => sum + CARGO[c.cargoType].carCost * mult * CONSIST_EDIT_REFUND_FRACTION,
+    0,
+  );
+  return { netCost: addedCost - refund, addedCost, refund, valid: true };
+}
+
+/** Applies an "Edit cars" change (PLAN Phase 15): pays/refunds immediately. If the train is
+ * currently at a station (`status === "loading"`) the new consist applies right away — cargo in any
+ * removed car is dropped there (paid if the station accepts it, wasted otherwise, SPEC-equivalent
+ * to a normal unload). Otherwise the change is queued on `train.pendingConsist` and applied at the
+ * train's next stop (`applyPendingConsist` in loading.ts), same cargo-drop rule, at whichever
+ * station that turns out to be. */
+export function editConsist(
+  state: GameState,
+  trainId: number,
+  cars: readonly CargoType[],
+): CommandResult {
+  const train = state.trains.find((t) => t.id === trainId);
+  if (!train) return { ok: false, reason: "invalid-train" };
+  const plan = computeEditConsistPlan(state, trainId, cars);
+  if (!plan.valid) return { ok: false, reason: "invalid-consist" };
+  if (plan.netCost > state.cash) return { ok: false, reason: "cant-afford" };
+
+  const { cars: reconciledCars, removedCars } = reconcileConsist(train.cars, cars);
+  state.cash -= plan.netCost;
+  addExpense(state, "rollingStock", plan.netCost);
+
+  const order = train.orders[train.currentOrderIndex];
+  const currentStation =
+    train.status === "loading" && order
+      ? state.stations.find((s) => s.id === order.stationId)
+      : undefined;
+  if (currentStation) {
+    for (const car of removedCars) dropCarCargo(state, train, currentStation, car);
+    train.cars = reconciledCars;
+    delete train.pendingConsist;
+    train.loadTicksLeft = -1; // recompute this stop's dwell time for the new car count
+  } else {
+    train.pendingConsist = {
+      cars: reconciledCars,
+      removedLoaded: removedCars.filter((c) => c.loaded),
+    };
+  }
+  return { ok: true, cost: plan.netCost };
 }
 
 export interface SellTrainPlan {

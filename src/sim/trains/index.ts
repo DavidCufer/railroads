@@ -15,6 +15,7 @@ interface CacheEntry {
   partition: BlockPartition;
   stationTiles: Set<number>;
   stationsById: Map<number, GameState["stations"][number]>;
+  stationsByTile: Map<number, GameState["stations"][number]>;
 }
 
 const runtimeCache = new WeakMap<GameState, CacheEntry>();
@@ -28,18 +29,22 @@ const runtimeCache = new WeakMap<GameState, CacheEntry>();
  * this index is exactly as fresh as `partition` with no extra invalidation to track. Renaming/
  * upgrading a station mutates the existing `Station` object in place, so the index's references
  * stay valid without a rebuild. This turns `stepTrain`'s per-train per-tick "find my order's
- * target station" from an O(stations) scan into an O(1) lookup (Phase 12 perf pass). */
+ * target station" from an O(stations) scan into an O(1) lookup (Phase 12 perf pass); `stationsByTile`
+ * gives the same for movement.ts's "what station is at the far end of this section" lookup (SPEC
+ * §7.5's rewritten station-to-station reservation). */
 export function getTrainRuntime(state: GameState): TrainRuntime {
   const cached = runtimeCache.get(state);
   if (cached && cached.trackVersion === state.trackVersion) return cached;
   const stationTiles = new Set(state.stations.map((s) => s.tile));
   const partition = computeBlocks(state.trackGraph, stationTiles);
   const stationsById = new Map(state.stations.map((s) => [s.id, s]));
+  const stationsByTile = new Map(state.stations.map((s) => [s.tile, s]));
   const entry: CacheEntry = {
     trackVersion: state.trackVersion,
     partition,
     stationTiles,
     stationsById,
+    stationsByTile,
   };
   runtimeCache.set(state, entry);
   return entry;

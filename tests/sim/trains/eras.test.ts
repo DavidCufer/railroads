@@ -148,6 +148,7 @@ function bareTrain(
     routeTrackVersion: 0,
     lastApproachNode: -1,
     heldBlocks: [],
+    distanceTraveled: 0,
     blockPenalties: new Map(),
     loadTicksLeft: -1,
     loadExtraWaitDays: 0,

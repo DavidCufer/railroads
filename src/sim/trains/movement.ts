@@ -1,9 +1,23 @@
 /**
- * Per-tick train simulation (SPEC §7.3–§7.5): routing/rerouting, the speed model, block
- * reservation and release, station capacity, and deadlock recovery. `stepTrain` is called once per
- * train per tick (1 tick = 1 in-game hour) by src/sim/trains/index.ts's `stepTrains`.
+ * Per-tick train simulation (SPEC §7.3–§7.5): routing/rerouting, the speed model, and the SPEC
+ * §7.5 signaling rewrite (station-to-station section reservation, rewritten after play-testing —
+ * "trains wait only at stations, never out on the line"), station capacity, and deadlock recovery.
+ * `stepTrain` is called once per train per tick (1 tick = 1 in-game hour) by
+ * src/sim/trains/index.ts's `stepTrains`.
+ *
+ * Signaling model: a **section** is the track between one station and the next station occurring
+ * along a train's route (any station counts, whether or not the train stops there — junctions in
+ * between are not waiting points, SPEC §7.5). Before leaving a station (a real stop, or pausing
+ * mid-route at a through-station), a train atomically reserves *every* block of its path up to the
+ * next station (`tryEnterSection`) — it only departs if none of those blocks is held by opposing
+ * traffic and the target station has a free slot. Once committed, the whole batch is held in
+ * `train.heldBlocks` at once (not one block at a time), and blocks are released from the *front* as
+ * the train's tail (not just its head) clears them (`releaseTrailingBlocks`), so a same-direction
+ * follower or opposing train further back can reuse the parts of a long section this train has
+ * already passed, without waiting for the whole thing to clear.
  */
 import {
+  CAR_LENGTH_TILES,
   CAR_WEIGHT_EMPTY,
   CAR_WEIGHT_LOADED,
   CURVE_SPEED_FACTOR,
@@ -12,9 +26,10 @@ import {
   DEADLOCK_STUCK_DAYS,
   DEAD_END_REVERSE_HOURS,
   GRADE_EFFORT_FACTOR,
+  LOCO_LENGTH_TILES,
   LOCO_WEIGHT_UNITS,
   MAX_SPEED_FACTOR,
-  MIN_SPACING_TILES_DOUBLE_TRACK,
+  MIN_SPACING_TILES,
   MIN_SPEED_FACTOR,
   TICKS_PER_TILE_DIVISOR,
   WATER_TOWER_RANGE_TILES,
@@ -28,10 +43,10 @@ import type { GameState } from "../state";
 import type { Station } from "../stations/types";
 import { directionSteps } from "../track/graph";
 import { directionBetween, edgeDirectionFrom, edgeLengthTiles, tileXY } from "./geometry";
-import { blockIdForEdge, blockOtherEnd, type BlockPartition } from "./blocks";
-import { stepLoading } from "./loading";
+import { blockIdForEdge, type Block, type BlockPartition } from "./blocks";
+import { applyPendingConsist, stepLoading } from "./loading";
 import { findTrainRoute } from "./route";
-import type { Train, TrainStatus } from "./types";
+import type { HeldBlock, Train, TrainStatus } from "./types";
 
 export interface TrainRuntime {
   trackVersion: number;
@@ -40,6 +55,9 @@ export interface TrainRuntime {
   /** id -> Station, built alongside `partition` (see index.ts's `getTrainRuntime`) — O(1) lookup
    * for the "find my order's target station" check every train does every tick. */
   stationsById: ReadonlyMap<number, Station>;
+  /** tile -> Station, same caching as `stationsById` — O(1) lookup for "what station sits at the
+   * far end of this section" (SPEC §7.5). */
+  stationsByTile: ReadonlyMap<number, Station>;
 }
 
 const MAX_EDGE_STEPS_PER_TICK = 8;
@@ -55,6 +73,18 @@ function setStatus(train: Train, status: TrainStatus): void {
   }
 }
 
+/** Like `setStatus`, but for the two "stalled at a boundary" statuses specifically: a train
+ * denied for a *different* reason tick to tick (line clear one tick, platform free the next) is
+ * still continuously waiting at the same station, so the SPEC §7.5 safety-net clock
+ * (`DEADLOCK_REROUTE_DAYS`/`DEADLOCK_STUCK_DAYS`) must keep counting across that flip rather than
+ * restarting from 0 every time the specific reason changes — only reset when it was genuinely
+ * doing something else (moving, loading) before. */
+function setWaitingStatus(train: Train, status: "waitingForBlock" | "waitingForStation"): void {
+  const wasWaiting = train.status === "waitingForBlock" || train.status === "waitingForStation";
+  train.status = status;
+  if (!wasWaiting) train.waitTicks = 0;
+}
+
 function currentFractionalPosition(mapWidth: number, train: Train): { x: number; y: number } {
   const a = train.route[train.routeIndex] as number;
   const bTile = train.route[train.routeIndex + 1];
@@ -67,18 +97,37 @@ function currentFractionalPosition(mapWidth: number, train: Train): { x: number;
   };
 }
 
-function bumpHeldBlockDistance(train: Train, tiles: number): void {
-  const newest = train.heldBlocks[train.heldBlocks.length - 1];
-  if (newest) newest.distanceInto += tiles;
+/** Physical length of `train`'s consist in tiles (SPEC §7.5's "tail-based release" — how far the
+ * tail trails behind the head), from the same STYLE §7 sizing constants the renderer uses. */
+function trainLengthTiles(train: Train): number {
+  return LOCO_LENGTH_TILES + train.cars.length * CAR_LENGTH_TILES;
+}
+
+/** Drops any `heldBlocks` entries whose far end the train's *tail* has now cleared — the entries
+ * are always oldest-entered-first, so once the front one survives the check, so does everything
+ * behind it. */
+function releaseTrailingBlocks(train: Train): void {
+  const tailDistance = train.distanceTraveled - trainLengthTiles(train);
+  while (train.heldBlocks.length > 0) {
+    const front = train.heldBlocks[0] as HeldBlock;
+    if (tailDistance < front.enteredAtDistance + front.lengthTiles) break;
+    train.heldBlocks.shift();
+  }
+}
+
+function advanceDistance(train: Train, tiles: number): void {
+  train.distanceTraveled += tiles;
+  releaseTrailingBlocks(train);
 }
 
 function holdsBlockFor(train: Train, runtime: TrainRuntime, a: number, b: number): boolean {
   const blockId = blockIdForEdge(runtime.partition, a, b);
-  const newest = train.heldBlocks[train.heldBlocks.length - 1];
-  return blockId !== undefined && newest !== undefined && newest.blockId === blockId;
+  return blockId !== undefined && train.heldBlocks.some((hb) => hb.blockId === blockId);
 }
 
-function otherTrainsInBlock(
+/** Other trains' live "distance into `blockId`" (0 at the near end, `lengthTiles` at the far end),
+ * derived from their own `heldBlocks` entry rather than a per-tick-updated counter. */
+function occupantsOfBlock(
   trains: readonly Train[],
   excludeId: number,
   blockId: number,
@@ -87,74 +136,152 @@ function otherTrainsInBlock(
   for (const t of trains) {
     if (t.id === excludeId) continue;
     for (const hb of t.heldBlocks) {
-      if (hb.blockId === blockId)
-        result.push({ direction: hb.direction, distanceInto: hb.distanceInto });
+      if (hb.blockId === blockId) {
+        result.push({
+          direction: hb.direction,
+          distanceInto: clamp(t.distanceTraveled - hb.enteredAtDistance, 0, hb.lengthTiles),
+        });
+      }
     }
   }
   return result;
 }
 
-function stationOccupancy(state: GameState, runtime: TrainRuntime, station: Station): number {
+/** SPEC §7.5: "any number of trains may be in a section heading the same way. Followers keep a
+ * 2-tile spacing and brake behind the leader (on single and double track)" — checked every tick
+ * while moving through `blockId` (not just at entry), so a follower keeps braking for as long as a
+ * slower/stopped leader stays close ahead, rather than only at the moment it entered the block. */
+function leaderAheadTooClose(train: Train, trains: readonly Train[], blockId: number): boolean {
+  const mine = train.heldBlocks.find((hb) => hb.blockId === blockId);
+  if (!mine) return false;
+  const myDistanceInto = clamp(
+    train.distanceTraveled - mine.enteredAtDistance,
+    0,
+    mine.lengthTiles,
+  );
+  return occupantsOfBlock(trains, train.id, blockId).some(
+    (o) =>
+      o.direction === mine.direction &&
+      o.distanceInto > myDistanceInto &&
+      o.distanceInto - myDistanceInto < MIN_SPACING_TILES,
+  );
+}
+
+/** Trains counting against `station`'s slot capacity (SPEC §7.5): physically parked there (loading
+ * at their actual stop, or paused mid-route at a through-station whose onward section reservation
+ * failed) plus trains that have already reserved a section ending there ("inbound"). A train that
+ * has itself reserved a section departing *from* `station` no longer counts (its
+ * `sectionTargetStationId` now points elsewhere). */
+function stationOccupancy(state: GameState, station: Station, excludeId: number): number {
   let count = 0;
   for (const t of state.trains) {
-    const order = t.orders[t.currentOrderIndex];
-    if (!order || order.stationId !== station.id) continue;
-    if (t.status === "loading") {
+    if (t.id === excludeId) continue;
+    if (t.sectionTargetStationId === station.id) {
       count++;
       continue;
     }
-    const newest = t.heldBlocks[t.heldBlocks.length - 1];
-    if (!newest) continue;
-    const block = runtime.partition.blocks[newest.blockId];
-    if (block && (block.nodeA === station.tile || block.nodeB === station.tile)) count++;
+    if (
+      t.sectionTargetStationId === undefined &&
+      t.edgeProgress === 0 &&
+      t.route[t.routeIndex] === station.tile
+    ) {
+      count++;
+    }
   }
   return count;
 }
 
-/** Attempts to reserve the block covering edge (a, b) for `train`, including the station-capacity
- * gate when that block leads directly to `targetStation` (SPEC §7.5: "reserve station slot
- * together with the final block"). Sets `waitingForBlock`/`waitingForStation` and returns false on
- * denial; on success, adds the reservation (dropping anything older than the one-block lag). */
-function tryEnterBlock(
+interface SectionAttemptResult {
+  ok: boolean;
+  /** The block that denied departure (opposing traffic, or the last block leading into a full
+   * station) — what the SPEC §7.5 deadlock-reroute penalty targets. Present only on failure. */
+  blockingBlockId?: number;
+}
+
+/** Scans `train.route` forward from its current node for the next station tile, gathers every
+ * distinct block along the way with its would-be `enteredAtDistance`/`lengthTiles`, and — if no
+ * block is held by opposing traffic and the target station has a free slot — reserves the whole
+ * batch atomically and departs (SPEC §7.5's "departure check (atomic)"). Also used for a
+ * through-station's "reserve the next section before entering" continuation, since from the sim's
+ * point of view arriving at a through-station and departing a real stop are the same operation:
+ * *this train currently isn't holding a reservation for the edge ahead of it*. */
+function tryEnterSection(
   state: GameState,
   train: Train,
   runtime: TrainRuntime,
-  a: number,
-  b: number,
-  targetStation: Station,
-): boolean {
-  const blockId = blockIdForEdge(runtime.partition, a, b);
-  if (blockId === undefined) return true; // not part of any computed block — fail open
-  const block = runtime.partition.blocks[blockId];
-  if (!block) return true;
-  const direction = directionBetween(a, b, state.map.width);
-  const occupants = otherTrainsInBlock(state.trains, train.id, blockId);
-
-  if (block.double) {
-    const sameDirection = occupants.filter((o) => o.direction === direction);
-    if (sameDirection.length > 0) {
-      const nearest = Math.min(...sameDirection.map((o) => o.distanceInto));
-      if (nearest < MIN_SPACING_TILES_DOUBLE_TRACK) {
-        setStatus(train, "waitingForBlock");
-        return false;
-      }
-    }
-  } else if (occupants.length > 0) {
-    setStatus(train, "waitingForBlock");
-    return false;
-  }
-
-  if (blockOtherEnd(block, a) === targetStation.tile) {
-    const occupancy = stationOccupancy(state, runtime, targetStation);
-    if (occupancy >= STATION_TYPE_DEFS[targetStation.type].trainCapacity) {
-      setStatus(train, "waitingForStation");
-      return false;
+): SectionAttemptResult {
+  const startIndex = train.routeIndex;
+  let endIndex = -1;
+  for (let i = startIndex + 1; i < train.route.length; i++) {
+    if (runtime.stationTiles.has(train.route[i] as number)) {
+      endIndex = i;
+      break;
     }
   }
+  if (endIndex === -1) {
+    // The route ran out before reaching another station — shouldn't happen (every route ends at
+    // the order's target station), but force a fresh route search rather than getting stuck.
+    train.routeTrackVersion = -1;
+    return { ok: false };
+  }
+  const targetStation = runtime.stationsByTile.get(train.route[endIndex] as number);
+  if (!targetStation) {
+    train.routeTrackVersion = -1;
+    return { ok: false };
+  }
+  train.waitingForStationId = targetStation.id;
 
-  train.heldBlocks.push({ blockId, direction, distanceInto: 0 });
-  while (train.heldBlocks.length > 2) train.heldBlocks.shift();
-  return true;
+  const batch: HeldBlock[] = [];
+  let cumulative = 0;
+  let lastBlockId: number | undefined;
+  for (let i = startIndex; i < endIndex; i++) {
+    const a = train.route[i] as number;
+    const b = train.route[i + 1] as number;
+    const edge = state.trackGraph.getEdge(a, b);
+    if (!edge) {
+      train.routeTrackVersion = -1;
+      return { ok: false };
+    }
+    const blockId = blockIdForEdge(runtime.partition, a, b);
+    if (blockId !== undefined && blockId !== lastBlockId) {
+      const block = runtime.partition.blocks[blockId] as Block;
+      batch.push({
+        blockId,
+        direction: directionBetween(a, b, state.map.width),
+        enteredAtDistance: train.distanceTraveled + cumulative,
+        lengthTiles: block.lengthTiles,
+      });
+      lastBlockId = blockId;
+    }
+    cumulative += edgeLengthTiles(edge);
+  }
+
+  // Rule 1 (SPEC §7.5): no block on the path may be held by opposing traffic. Double track never
+  // blocks here — opposing trains use separate lanes.
+  for (const entry of batch) {
+    const block = runtime.partition.blocks[entry.blockId] as Block;
+    if (block.double) continue;
+    const opposing = occupantsOfBlock(state.trains, train.id, entry.blockId).some(
+      (o) => o.direction !== entry.direction,
+    );
+    if (opposing) {
+      setWaitingStatus(train, "waitingForBlock");
+      return { ok: false, blockingBlockId: entry.blockId };
+    }
+  }
+
+  // Rule 2: the target station needs a free slot (inside + inbound).
+  const occupancy = stationOccupancy(state, targetStation, train.id);
+  if (occupancy >= STATION_TYPE_DEFS[targetStation.type].trainCapacity) {
+    setWaitingStatus(train, "waitingForStation");
+    const last = batch[batch.length - 1];
+    return last ? { ok: false, blockingBlockId: last.blockId } : { ok: false };
+  }
+
+  train.heldBlocks.push(...batch);
+  train.sectionTargetStationId = targetStation.id;
+  setStatus(train, "moving");
+  return { ok: true };
 }
 
 /** Computes a fresh route from the train's current node to `targetStation` and adopts it (or, if
@@ -197,6 +324,7 @@ function tryRoute(
   }
   train.edgeProgress = 0;
   train.heldBlocks = [];
+  delete train.sectionTargetStationId;
   const wasNoRoute = train.status === "noRoute";
   setStatus(train, result ? "moving" : "noRoute");
   if (!result && !wasNoRoute) {
@@ -232,37 +360,39 @@ export function computeTargetSpeed(
   return loco.maxSpeedKmh * speedFactor * curve * conditionFactor;
 }
 
-/** Handles a train sitting stalled at a boundary (`waitingForBlock`/`waitingForStation`): the
+/** Handles a train stalled at a boundary (`waitingForBlock`/`waitingForStation`): the
  * deadlock-reroute-with-penalty timeout at `DEADLOCK_REROUTE_DAYS`, and giving up as `stuck` at
  * `DEADLOCK_STUCK_DAYS` (SPEC §7.5).
  *
  * The reroute attempt deliberately does *not* go through `tryRoute` (which always resolves to
- * `moving`/`noRoute`): if the alternate route it finds is immediately blocked too, `tryEnterBlock`
- * puts the train right back in `waitingForBlock`/`waitingForStation` — the same status string, so
- * `setStatus` leaves `waitTicks` alone and the stuck-clock keeps counting. Going through `tryRoute`
- * here would flip to `moving` and reset the clock every `DEADLOCK_REROUTE_DAYS`, so a
- * still-congested train would retry forever and never reach `stuck`. */
+ * `moving`/`noRoute`): if the alternate route it finds is immediately blocked too,
+ * `tryEnterSection` puts the train right back in `waitingForBlock`/`waitingForStation` — the same
+ * status string, so `setStatus` leaves `waitTicks` alone and the stuck-clock keeps counting. Going
+ * through `tryRoute` here would flip to `moving` and reset the clock every `DEADLOCK_REROUTE_DAYS`,
+ * so a still-congested train would retry forever and never reach `stuck`. */
 function checkDeadlockTimeout(
   state: GameState,
   train: Train,
   runtime: TrainRuntime,
   loco: LocomotiveDef,
-  targetStation: Station,
-  a: number,
-  b: number,
+  blockingBlockId: number | undefined,
 ): void {
   if (train.waitTicks === DEADLOCK_STUCK_DAYS * 24) {
     setStatus(train, "stuck");
-    pushNews(state, { kind: "trafficJam", tile: a });
+    pushNews(state, { kind: "trafficJam", tile: train.route[train.routeIndex] as number });
     return;
   }
   if (train.waitTicks !== DEADLOCK_REROUTE_DAYS * 24) return;
 
-  const blockingBlockId = blockIdForEdge(runtime.partition, a, b);
-  if (blockingBlockId !== undefined)
+  const order = train.orders[train.currentOrderIndex];
+  const finalTarget = order && runtime.stationsById.get(order.stationId);
+  if (!finalTarget) return;
+  if (blockingBlockId !== undefined) {
     train.blockPenalties.set(blockingBlockId, DEADLOCK_BLOCK_PENALTY);
+  }
 
-  const result = findTrainRoute(state.map.width, state.trackGraph, a, targetStation.tile, {
+  const start = train.route[train.routeIndex] as number;
+  const result = findTrainRoute(state.map.width, state.trackGraph, start, finalTarget.tile, {
     weightClass: loco.weightClass,
     electric: loco.type === "electric",
     incomingDirection: train.direction,
@@ -271,19 +401,20 @@ function checkDeadlockTimeout(
     edgeToBlock: runtime.partition.edgeToBlock,
   });
   train.routeTrackVersion = runtime.trackVersion;
-  train.route = result ?? [a];
+  train.route = result ?? [start];
   train.routeIndex = 0;
   train.edgeProgress = 0;
   train.heldBlocks = [];
+  delete train.sectionTargetStationId;
   if (!result) {
     setStatus(train, "noRoute");
-    pushNews(state, { kind: "noRoute", trainId: train.id, stationId: targetStation.id });
+    pushNews(state, { kind: "noRoute", trainId: train.id, stationId: finalTarget.id });
     return;
   }
-  const next = train.route[1];
-  if (next === undefined || tryEnterBlock(state, train, runtime, a, next, targetStation)) {
-    setStatus(train, "moving");
-  }
+  // One attempt at the new route's first section — sets `moving` on success, or the same
+  // `waitingForBlock`/`waitingForStation` (with a fresh target) on failure. Either way the next
+  // tick's `handleMoving` retries again as usual.
+  tryEnterSection(state, train, runtime);
 }
 
 function arriveAtStation(state: GameState, train: Train, station: Station): void {
@@ -294,6 +425,8 @@ function arriveAtStation(state: GameState, train: Train, station: Station): void
   train.routeIndex = 0;
   train.edgeProgress = 0;
   train.heldBlocks = [];
+  delete train.sectionTargetStationId;
+  delete train.waitingForStationId;
   train.blockPenalties.clear();
   train.speed = 0;
   train.direction = -1;
@@ -303,6 +436,9 @@ function arriveAtStation(state: GameState, train: Train, station: Station): void
   // (SPEC §6.2), not just a scheduled order stop.
   if (station.hasEngineShed) train.lastServicedTick = state.ticks;
   if (station.hasWaterTower) train.tilesSinceWaterTower = 0;
+  // A queued "Edit cars" change (PLAN Phase 15) is applied the moment the train next stops
+  // anywhere, whether or not this is one of its scheduled order stops.
+  applyPendingConsist(state, train, station);
   setStatus(train, "loading");
 }
 
@@ -379,7 +515,13 @@ function handleMoving(
   if (!wasWaiting) {
     const a = train.route[train.routeIndex] as number;
     const b = train.route[train.routeIndex + 1];
-    const targetSpeed = b !== undefined ? computeTargetSpeed(state, loco, train, a, b) : 0;
+    let targetSpeed = b !== undefined ? computeTargetSpeed(state, loco, train, a, b) : 0;
+    if (b !== undefined) {
+      const blockId = blockIdForEdge(runtime.partition, a, b);
+      if (blockId !== undefined && leaderAheadTooClose(train, state.trains, blockId)) {
+        targetSpeed = 0;
+      }
+    }
     if (train.speed < targetSpeed)
       train.speed = Math.min(targetSpeed, train.speed + loco.maxSpeedKmh);
     else train.speed = Math.max(targetSpeed, train.speed - loco.maxSpeedKmh);
@@ -401,12 +543,16 @@ function handleMoving(
       return;
     }
 
+    // Not holding a reservation for the edge immediately ahead means this is either a fresh
+    // departure or a through-station the train just reached mid-route (a station tile is always a
+    // block boundary, so the block starting here was never part of an earlier batch) — either way,
+    // SPEC §7.5's atomic departure check applies the same way.
     if (train.edgeProgress === 0 && !holdsBlockFor(train, runtime, a, b)) {
-      if (!tryEnterBlock(state, train, runtime, a, b, targetStation)) {
-        checkDeadlockTimeout(state, train, runtime, loco, targetStation, a, b);
+      const attempt = tryEnterSection(state, train, runtime);
+      if (!attempt.ok) {
+        checkDeadlockTimeout(state, train, runtime, loco, attempt.blockingBlockId);
         return;
       }
-      setStatus(train, "moving");
     }
 
     if (remainingTiles <= 0) return;
@@ -417,6 +563,7 @@ function handleMoving(
       // force a reroute from there next tick, rather than continuing across a gone edge.
       train.edgeProgress = 0;
       train.heldBlocks = [];
+      delete train.sectionTargetStationId;
       train.routeTrackVersion = -1;
       return;
     }
@@ -425,13 +572,13 @@ function handleMoving(
 
     if (remainingTiles < remainingOnEdge) {
       train.edgeProgress += remainingTiles / edgeLen;
-      bumpHeldBlockDistance(train, remainingTiles);
+      advanceDistance(train, remainingTiles);
       if (loco.type === "steam") train.tilesSinceWaterTower += remainingTiles;
       return;
     }
 
     remainingTiles -= remainingOnEdge;
-    bumpHeldBlockDistance(train, remainingOnEdge);
+    advanceDistance(train, remainingOnEdge);
     if (loco.type === "steam") train.tilesSinceWaterTower += remainingOnEdge;
     train.edgeProgress = 0;
     train.routeIndex++;

@@ -77,6 +77,7 @@ export const strings = {
       "invalid-locomotive": "That locomotive isn't available",
       "steam-phased-out": "Steam locomotives can't be bought after 1960",
       "too-many-cars": "Too many cars for that locomotive",
+      "invalid-consist": "That consist isn't valid for this locomotive",
       "invalid-train": "That train doesn't exist",
       "invalid-orders": "Orders need 2-8 valid stations",
       "invalid-loan-amount": "Amount must be a multiple of $100k",

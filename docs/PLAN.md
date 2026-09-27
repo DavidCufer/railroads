@@ -382,10 +382,10 @@ Player report: a train got stuck ⚠ at "Pittsburgh Coal Mine" (a Depot on a sin
 train). Cause: Depot capacity 1 + trains allowed to wait *in the block before a full station*, so the train in the
 station can't leave (its exit block is occupied by the waiting train) → deadlock.
 
-- [ ] Implement SPEC §7.5 as rewritten: waiting only at stations; atomic station-to-station path reservation with
+- [x] Implement SPEC §7.5 as rewritten: waiting only at stations; atomic station-to-station path reservation with
       direction; same-direction following with spacing/braking; station slots Depot 2 / Station 3 / Terminal 5;
       through-station passing; releases on tail exit; longer safety-net timeouts. Keep the sim deterministic.
-- [ ] Tests (must include): the exact reported scenario (two trains sharing a single-track line between two
+- [x] Tests (must include): the exact reported scenario (two trains sharing a single-track line between two
       depots, opposite directions, 2 years at 8×: never stuck, both keep earning); 3 trains same direction on one
       single-track section follow each other without stopping; opposing trains on a line with a middle station
       pass there; a train never stops outside a station except behind a same-direction leader or breakdown;

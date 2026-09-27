@@ -30,18 +30,23 @@ export interface TrainCar {
   loadedTick?: number;
 }
 
-/** A block this train currently holds a reservation on (SPEC §7.5), newest last. At most 2 at a
- * time: the block its head is in, and the one behind it kept reserved for one extra tick after the
- * head leaves (the "one-block lag" release rule — approximates the train's tail/cars still
- * physically occupying the tail end of the previous block). */
+/** A block reserved as part of the train's current station-to-station section reservation (SPEC
+ * §7.5, rewritten after play-testing), oldest-entered first. Departing a station reserves *every*
+ * block up to the next station on the route in one atomic batch (see
+ * `src/sim/trains/movement.ts`'s `tryEnterSection`); entries are dropped from the front as the
+ * train's *tail* clears each one (see `releaseTrailingBlocks`), not just its head. */
 export interface HeldBlock {
   blockId: number;
-  /** DIRS8 index the train was moving in when it entered this block — used for double-track
-   * same-direction spacing (opposing-direction trains never conflict, so it's irrelevant then). */
+  /** DIRS8 index the train was moving in when it entered this block — used for same-direction
+   * spacing (opposing-direction trains never conflict, so it's irrelevant then). */
   direction: number;
-  /** Tiles traveled into this block since entering it — the spacing check compares this against
-   * `MIN_SPACING_TILES_DOUBLE_TRACK` for a following same-direction train. */
-  distanceInto: number;
+  /** `train.distanceTraveled` value at the moment this block started being entered — a fixed
+   * (monotonic, never-reset) mark, not a live counter. Combined with `lengthTiles`, this is enough
+   * to derive both this train's live "distance into this block" (for the spacing check) and the
+   * tail-clear release point, without recomputing path geometry every tick. */
+  enteredAtDistance: number;
+  /** This block's length in tiles (`Block.lengthTiles`), cached at reservation time. */
+  lengthTiles: number;
 }
 
 export interface Train {
@@ -77,6 +82,20 @@ export interface Train {
    * rendering aid, movement math only ever reads `route[routeIndex..]` onward. */
   lastApproachNode: number;
   heldBlocks: HeldBlock[];
+  /** Monotonic tiles traveled since the train was bought — never reset (including across station
+   * stops or a fresh section reservation), so `HeldBlock.enteredAtDistance` marks stay meaningful
+   * forever. Only ever read relative to itself (`distanceTraveled - enteredAtDistance`). */
+  distanceTraveled: number;
+  /** The station this train's *current, successfully reserved* section ends at — set the moment a
+   * departure (from a real stop or a through-station) is committed, cleared on arrival. This is
+   * what `stationOccupancy` in movement.ts counts as "reserved toward" a station's slot. */
+  sectionTargetStationId?: number;
+  /** The station this train is trying (and, while `status` is `waitingForBlock`/
+   * `waitingForStation`, currently failing) to reach next — set on every reservation attempt
+   * whether it succeeds or not, cleared on arrival. Purely descriptive: the train panel's "waiting
+   * for line clear to X" / "waiting for platform at X" text (SPEC §7.5) reads this; nothing in the
+   * sim itself depends on it. */
+  waitingForStationId?: number;
   /** Extra cost penalty applied to specific blocks the next time this train re-routes (SPEC §7.5
    * deadlock handling) — cleared once a route is found that avoids needing it. */
   blockPenalties: Map<number, number>;
@@ -111,4 +130,11 @@ export interface Train {
   renderFromY: number;
   renderToX: number;
   renderToY: number;
+  /** A consist change queued by the "Edit cars" action (PLAN Phase 15) while the train isn't at a
+   * station — cash already changed hands when the command ran (`editConsist` in commands.ts), but
+   * the actual car swap (and dropping cargo from `removedLoaded`) waits for the train's next stop
+   * anywhere (`applyPendingConsist` in loading.ts). `undefined` when nothing is queued. Applied
+   * immediately instead (never queued) when the train already *is* at a station when the command
+   * runs. */
+  pendingConsist?: { cars: TrainCar[]; removedLoaded: TrainCar[] };
 }

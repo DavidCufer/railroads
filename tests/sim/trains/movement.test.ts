@@ -9,7 +9,7 @@ import {
 import { createGameState } from "../../../src/sim/state";
 import { computeTargetSpeed, stepTrains } from "../../../src/sim/trains";
 import type { Train } from "../../../src/sim/trains";
-import { locomotiveById } from "../../../src/data/trains";
+import { DEADLOCK_STUCK_DAYS, locomotiveById } from "../../../src/data/trains";
 import { tileAt } from "../track/helpers";
 import type { GameState } from "../../../src/sim/state";
 
@@ -27,16 +27,24 @@ function upgradeToDouble(state: GameState, width: number, y: number): void {
   expect(result.ok).toBe(true);
 }
 
-function heldBlockIds(state: GameState): Map<number, number[]> {
-  const byBlock = new Map<number, number[]>();
+/** SPEC §7.5 (rewritten): a single-track block may be held by any number of trains *travelling the
+ * same way* at once (they queue behind each other with spacing) — the invariant that must never
+ * break is that it's never held by two trains travelling *opposite* ways at the same time. Every
+ * block has exactly two possible entry directions (one per end), so more than one distinct
+ * direction present on a block at once means an opposing-traffic collision. */
+function opposingDirectionCollision(state: GameState): boolean {
+  const directionsByBlock = new Map<number, Set<number>>();
   for (const train of state.trains) {
     for (const hb of train.heldBlocks) {
-      const list = byBlock.get(hb.blockId) ?? [];
-      list.push(train.id);
-      byBlock.set(hb.blockId, list);
+      const dirs = directionsByBlock.get(hb.blockId) ?? new Set<number>();
+      dirs.add(hb.direction);
+      directionsByBlock.set(hb.blockId, dirs);
     }
   }
-  return byBlock;
+  for (const dirs of directionsByBlock.values()) {
+    if (dirs.size > 1) return true;
+  }
+  return false;
 }
 
 describe("computeTargetSpeed", () => {
@@ -62,7 +70,7 @@ describe("computeTargetSpeed", () => {
 });
 
 describe("single-track shuttle", () => {
-  it("two trains shuttle for 60 days without ever double-booking the block or getting stuck", () => {
+  it("two trains on the same shuttle never collide (same direction is allowed to share the block) or get stuck", () => {
     const state = createGameState({
       seed: 1,
       size: "small",
@@ -100,10 +108,7 @@ describe("single-track shuttle", () => {
 
     for (let tick = 0; tick < 60 * 24; tick++) {
       stepTrains(state);
-      for (const [, trainIds] of heldBlockIds(state)) {
-        const distinct = new Set(trainIds);
-        expect(distinct.size).toBeLessThanOrEqual(1);
-      }
+      expect(opposingDirectionCollision(state)).toBe(false);
     }
 
     for (const train of state.trains) {
@@ -167,7 +172,7 @@ describe("double-track opposing traffic", () => {
 });
 
 describe("congested line (4 trains)", () => {
-  it("resolves (or reports stuck) within the deadlock timeouts without ever double-booking a block", () => {
+  it("resolves (or reports stuck) within the deadlock timeouts without ever letting opposing trains share a block", () => {
     const state = createGameState({
       seed: 3,
       size: "small",
@@ -223,9 +228,7 @@ describe("congested line (4 trains)", () => {
     const TICK_BUDGET = 60 * 24; // 60 in-game days — plenty of room for a 4-train line to drain
     for (let tick = 0; tick < TICK_BUDGET; tick++) {
       stepTrains(state);
-      for (const [, ids] of heldBlockIds(state)) {
-        expect(new Set(ids).size).toBeLessThanOrEqual(1);
-      }
+      expect(opposingDirectionCollision(state)).toBe(false);
       for (const train of state.trains) {
         const waiting = train.status === "waitingForBlock" || train.status === "waitingForStation";
         const streak = waiting ? (waitStreak.get(train.id) ?? 0) + 1 : 0;
@@ -234,7 +237,7 @@ describe("congested line (4 trains)", () => {
       }
     }
 
-    expect(maxWaitStreak).toBeLessThanOrEqual(10 * 24);
+    expect(maxWaitStreak).toBeLessThanOrEqual(DEADLOCK_STUCK_DAYS * 24);
 
     let anyMoved = false;
     for (const train of state.trains) {

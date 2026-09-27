@@ -28,7 +28,7 @@ import type { Station } from "../stations/types";
 import { hasImprovement, stationLoadSpeedMult } from "../stations/improvements";
 import { stationAtTile, stationCatchmentTiles } from "../stations/placement";
 import { tileXY } from "./geometry";
-import type { Train, TrainOrder } from "./types";
+import type { Train, TrainCar, TrainOrder } from "./types";
 
 interface LoadPlan {
   unload: number[];
@@ -137,9 +137,7 @@ function industriesConsuming(state: GameState, station: Station, cargo: CargoTyp
   return ids;
 }
 
-function applyUnload(state: GameState, train: Train, station: Station, carIndex: number): void {
-  const car = train.cars[carIndex];
-  if (!car) return;
+function settleUnload(state: GameState, train: Train, station: Station, car: TrainCar): void {
   const cargo = car.cargoType;
   const distanceTiles =
     car.loadedTile !== undefined ? tileDistance(state.map.width, car.loadedTile, station.tile) : 0;
@@ -186,6 +184,43 @@ function applyUnload(state: GameState, train: Train, station: Station, carIndex:
     const econ = getOrCreateIndustryEconomy(state, industryId);
     econ.inputStock[cargo] = (econ.inputStock[cargo] ?? 0) + CARLOAD_UNITS;
   }
+}
+
+function applyUnload(state: GameState, train: Train, station: Station, carIndex: number): void {
+  const car = train.cars[carIndex];
+  if (!car) return;
+  settleUnload(state, train, station, car);
+}
+
+/** Cargo left in a car removed by the "Edit cars" command (PLAN Phase 15: "dropped at the station —
+ * counts as unloaded without payment unless accepted there"). Reuses the normal paid-delivery path
+ * when the station happens to accept that cargo; otherwise just clears the load with no revenue or
+ * side effects, since there's nowhere for it to go. */
+export function dropCarCargo(
+  state: GameState,
+  train: Train,
+  station: Station,
+  car: TrainCar,
+): void {
+  if (!car.loaded) return;
+  if (accepts(state, station.id, car.cargoType)) {
+    settleUnload(state, train, station, car);
+  } else {
+    car.loaded = false;
+    delete car.loadedTile;
+    delete car.loadedTick;
+  }
+}
+
+/** Installs a consist change queued by `editConsist` (src/sim/commands.ts) the moment the train
+ * next stops at any station (PLAN Phase 15: "applied at the next station stop"), dropping cargo
+ * from any car the change removes first. A no-op when nothing is queued. */
+export function applyPendingConsist(state: GameState, train: Train, station: Station): void {
+  const pending = train.pendingConsist;
+  if (!pending) return;
+  for (const car of pending.removedLoaded) dropCarCargo(state, train, station, car);
+  train.cars = pending.cars;
+  delete train.pendingConsist;
 }
 
 function applyLoad(state: GameState, train: Train, station: Station, carIndex: number): void {

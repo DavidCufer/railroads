@@ -86,7 +86,10 @@ function richFixture(): GameState {
     waitTicks: 3,
     routeTrackVersion: 2,
     lastApproachNode: a,
-    heldBlocks: [{ blockId: 0, direction: 0, distanceInto: 1 }],
+    heldBlocks: [{ blockId: 0, direction: 0, enteredAtDistance: 4, lengthTiles: 3 }],
+    distanceTraveled: 4.42,
+    sectionTargetStationId: 1,
+    waitingForStationId: 1,
     blockPenalties: new Map([
       [5, 1_200],
       [9, 400],
@@ -103,6 +106,10 @@ function richFixture(): GameState {
     renderFromY: Math.floor(b / width),
     renderToX: c % width,
     renderToY: Math.floor(c / width),
+    pendingConsist: {
+      cars: [{ cargoType: "coal", loaded: false }],
+      removedLoaded: [{ cargoType: "coal", loaded: true, loadedTile: a, loadedTick: 4_300 }],
+    },
   };
   state.trains.push(midRouteTrain);
   state.nextTrainId = 1;

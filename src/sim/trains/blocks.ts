@@ -6,6 +6,7 @@
  */
 import { edgeKey, type TrackGraph } from "../track/graph";
 import type { TrackEdge } from "../track/types";
+import { edgeLengthTiles } from "./geometry";
 
 export interface Block {
   id: number;
@@ -18,6 +19,10 @@ export interface Block {
   /** True only if every edge in the block is double-tracked (SPEC §7.5: "a block counts as double
    * only if every edge in it is double"). */
   double: boolean;
+  /** Total length in tiles (edge lengths, including diagonal/bridge spans) — cached here since
+   * every section reservation (movement.ts's `tryEnterSection`) needs it to place each block's
+   * `HeldBlock.enteredAtDistance`/`lengthTiles`, and it never changes once a block is computed. */
+  lengthTiles: number;
 }
 
 export interface BlockPartition {
@@ -96,7 +101,8 @@ export function computeBlocks(
     const edges = [...backward.reverse(), startEdge, ...forward];
     const id = blocks.length;
     const double = edges.every((e) => e.double);
-    blocks.push({ id, edges, nodeA, nodeB, double });
+    const lengthTiles = edges.reduce((sum, e) => sum + edgeLengthTiles(e), 0);
+    blocks.push({ id, edges, nodeA, nodeB, double, lengthTiles });
     for (const e of edges) edgeToBlock.set(edgeKey(e.a, e.b), id);
   }
 
