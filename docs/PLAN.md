@@ -339,3 +339,36 @@ SPEC: §10.4
 ## After v1 (ideas, not scheduled)
 Tunnels; more regions (Japan, Scandinavia, the Iberian peninsula, India); a scenario editor; transfers
 between trains; seasonal effects; achievements.
+
+---
+
+## Phase 13 — Map visuals: top-down trains and curved track
+STYLE: docs/STYLE.md §7
+
+- [ ] Shared render-side path geometry module (e.g. `src/render/trackPath.ts`): straight segments + circular fillet
+      arcs at 45° direction changes (radius ≈ 1.2 tiles, clamped), with `pointAt(distance)` / tangent sampling.
+- [ ] Track renderer draws rails and ties along this geometry (single, double, bridges, electrified catenary poles
+      follow curves); junction through-routes stay straight.
+- [ ] Train renderer places every vehicle (loco, tender, cars) on the same curved path at its own offset behind the
+      head, rotated to the local tangent — no more pivoting at tile centers.
+- [ ] New top-down vehicle drawings per STYLE §7 (steam/diesel/electric locos, tender, each car type, loaded vs
+      empty), cached per type+rotation bucket (e.g. 64 angles) for performance.
+- [ ] A* track preview: penalize consecutive 45° turns (zig-zags).
+- [ ] Performance stays within the Phase 12 stress-test budget.
+**Screenshots (look at them):** each loco type + a mixed freight consist on a straight and on a curve at zoom 2;
+an S-curve; a junction; double-track curve; a bridge on a curve.
+
+## Phase 14 — UI restyle, welcome screen, cargo icons
+STYLE: docs/STYLE.md §1–6
+
+- [ ] `src/ui/theme.css` with the tokens; migrate all existing inline/ad-hoc styles to tokens; remove emoji from UI.
+- [ ] `src/ui/icons.ts`: tool icons + 13 cargo pictograms (STYLE §5); use them in toolbar, floating buttons, panels,
+      and station supply bubbles on the map where applicable.
+- [ ] Restyle every panel/component per STYLE §3 (panel header, buttons, 2-column action grids, chips, segmented
+      controls, top bar, toolbar, floating buttons, toasts).
+- [ ] City / Station / Industry panels per STYLE §6: supplies/demands as pictogram chips at the top; actions last,
+      in 2-column grids.
+- [ ] Welcome screen and New Game screen per STYLE §4 (live panning map background with a moving train).
+- [ ] Everything fits 800×360; 44px targets; existing e2e selectors updated rather than tests deleted.
+**Screenshots (look at them):** welcome, new game (both tabs), city panel, station panel, industry panel, finance,
+train panel, buy-train dialog, top bar + toolbar in-game — all at 800×360.
