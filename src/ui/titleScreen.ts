@@ -39,39 +39,47 @@ export function openTitleScreen(container: HTMLElement, handlers: TitleScreenHan
 
   function showMenu(): void {
     const t = strings.titleScreen;
-    const continueBtn = h(
-      "button",
-      { className: "title-btn", disabled: true },
-      t.continue,
-    ) as HTMLButtonElement;
-    continueBtn.title = t.continueDisabled;
-
-    void latestSaveSlot()
-      .then((latest) => {
-        if (!latest) return;
-        continueBtn.disabled = false;
-        continueBtn.title = "";
-        continueBtn.classList.add("title-btn-primary");
-        newGameBtn.classList.remove("title-btn-primary");
-        continueBtn.onclick = () => {
-          void loadSlot(latest.slotId).then((state) => {
-            if (state) {
-              stopBackground();
-              handlers.onLoad(state);
-              root.remove();
-            }
-          });
-        };
-      })
-      .catch(() => {
-        // IndexedDB unavailable — Continue just stays disabled.
-      });
 
     const newGameBtn = h(
       "button",
       { className: "title-btn title-btn-primary", onClick: showNewGame },
       t.newGame,
     );
+
+    // Continue is only ever shown once a save is confirmed to exist (STYLE: never shown disabled).
+    const btnGrid = h(
+      "div",
+      { className: "title-btn-grid" },
+      newGameBtn,
+      h("button", { className: "title-btn", onClick: showLoad }, t.loadGame),
+      h("button", { className: "title-btn", onClick: showSettings }, t.settings),
+    );
+
+    void latestSaveSlot()
+      .then((latest) => {
+        if (!latest) return;
+        const continueBtn = h(
+          "button",
+          {
+            className: "title-btn title-btn-primary",
+            onClick: () => {
+              void loadSlot(latest.slotId).then((state) => {
+                if (state) {
+                  stopBackground();
+                  handlers.onLoad(state);
+                  root.remove();
+                }
+              });
+            },
+          },
+          t.continue,
+        );
+        newGameBtn.classList.remove("title-btn-primary");
+        btnGrid.insertBefore(continueBtn, newGameBtn);
+      })
+      .catch(() => {
+        // IndexedDB unavailable — Continue just stays hidden.
+      });
 
     root.replaceChildren(
       bgCanvas,
@@ -83,10 +91,7 @@ export function openTitleScreen(container: HTMLElement, handlers: TitleScreenHan
         h("div", { className: "title-game-name" }, t.gameTitle),
         h("div", { className: "title-rule" }, icon("trains")),
         h("div", { className: "title-subtitle" }, "Build the line. Move the world."),
-        newGameBtn,
-        continueBtn,
-        h("button", { className: "title-btn", onClick: showLoad }, t.loadGame),
-        h("button", { className: "title-btn", onClick: showSettings }, t.settings),
+        btnGrid,
       ),
       h("div", { className: "title-version" }, `v${APP_VERSION}`),
     );

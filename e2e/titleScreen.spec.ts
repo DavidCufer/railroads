@@ -3,7 +3,9 @@ import { expect, test } from "@playwright/test";
 const PHONE_VIEWPORT = { width: 800, height: 360 };
 
 test.describe("Phase 10 — title screen and New Game screen", () => {
-  test("title screen shows on load (no ?debug=1), Continue is disabled", async ({ page }) => {
+  test("title screen shows on load (no ?debug=1), Continue is hidden with no save", async ({
+    page,
+  }) => {
     const consoleErrors: string[] = [];
     page.on("console", (msg) => {
       if (msg.type() === "error") consoleErrors.push(msg.text());
@@ -16,7 +18,8 @@ test.describe("Phase 10 — title screen and New Game screen", () => {
     await expect(page.locator(".title-screen")).toBeVisible();
     await expect(page.getByText("Railroads", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "New Game" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Continue" })).toBeDisabled();
+    // STYLE review: Continue is never shown disabled — with no save yet, it isn't shown at all.
+    await expect(page.getByRole("button", { name: "Continue" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Settings" })).toBeEnabled();
 
     await page.screenshot({ path: "docs/screenshots/phase-10-main-menu.png" });

@@ -148,6 +148,16 @@ input {
   width: 12px;
   height: 12px;
 }
+/* Larger variant (City panel: STYLE §6's pictograms read too small next to the bigger 2-column
+   action grid there). */
+.cargo-icon-lg {
+  width: 28px;
+  height: 28px;
+}
+.cargo-icon-lg svg {
+  width: 18px;
+  height: 18px;
+}
 
 /* ---------- top bar (STYLE §3) ---------- */
 
@@ -374,7 +384,7 @@ input {
   display: inline-flex;
   align-items: center;
   gap: var(--gap-1);
-  height: 24px;
+  min-height: 24px;
   padding: 0 var(--gap-2) 0 4px;
   border-radius: var(--radius-s);
   background: var(--ink-700);
@@ -385,6 +395,10 @@ input {
 }
 .chip.chip-dim {
   opacity: 0.45;
+}
+.chip.chip-lg {
+  min-height: 34px;
+  padding: 3px var(--gap-2) 3px 3px;
 }
 button.chip {
   cursor: pointer;
@@ -437,10 +451,16 @@ button.chip {
 }
 .action-btn-label {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--gap-1);
   font-size: var(--fs-s);
   font-weight: 600;
+  white-space: normal;
+  overflow-wrap: break-word;
+  line-height: 1.2;
+}
+.action-btn-label .icon {
+  flex: 0 0 auto;
 }
 .action-btn-detail {
   font-size: var(--fs-xs);
@@ -560,9 +580,8 @@ button.chip {
   align-items: center;
   justify-content: center;
 }
-/* Single full-width actions (not part of a 2-column action grid): station upgrade/water tower/
-   buy-train, city civic investment. */
-.station-upgrade-btn,
+/* Single full-width actions (not part of a 2-column action grid): station water tower/buy-train,
+   city civic investment. */
 .station-water-tower-btn,
 .station-buy-train-btn,
 .city-civic-investment-btn {
@@ -583,11 +602,25 @@ button.chip {
   border-color: var(--brass);
   color: var(--brass);
 }
-.station-upgrade-btn:disabled,
 .station-water-tower-btn:disabled,
 .station-buy-train-btn:disabled,
 .city-civic-investment-btn:disabled {
   opacity: 0.4;
+}
+/* The station panel's single primary footer action (STYLE §3: "only a single primary footer
+   action may be full width") — brass fill, same as the placement panel's Build button. */
+.station-upgrade-btn {
+  background: var(--brass);
+  color: var(--ink-900);
+  font: 700 var(--fs-m) var(--font-ui);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap-2);
+}
+.station-upgrade-btn:disabled {
+  background: var(--ink-700);
+  color: var(--muted);
 }
 .station-name-input {
   background: var(--ink-700);
@@ -598,6 +631,46 @@ button.chip {
   font: var(--fs-m) var(--font-ui);
   width: 100%;
   box-sizing: border-box;
+}
+/* Station panel title (STYLE §6): the name shown once, as the title, plus a small pencil-icon
+   button that swaps it for the inline edit field above. */
+.station-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  min-width: 0;
+}
+.station-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.station-title-edit-btn {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  border-radius: var(--radius-s);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.station-title-edit-btn:hover,
+.station-title-edit-btn:active {
+  color: var(--brass);
+  background: rgba(255, 255, 255, 0.08);
+}
+.station-title-row .station-name-input {
+  font-size: var(--fs-l);
+}
+/* Compact 2-column key/value grid (STYLE §6: station stats at the bottom of the panel). */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap-1) var(--gap-4);
+  font-size: var(--fs-s);
 }
 
 /* ---------- floating buttons (STYLE §3: round 48px, ink-800, signal badge dot) ---------- */
@@ -1211,11 +1284,6 @@ button.chip {
   letter-spacing: 0.06em;
   margin: 2px 0 4px;
 }
-@media (max-height: 400px) {
-  .title-game-name {
-    font-size: 32px;
-  }
-}
 .title-rule {
   display: flex;
   align-items: center;
@@ -1238,6 +1306,13 @@ button.chip {
   margin-bottom: var(--gap-3);
   text-align: center;
 }
+.title-btn-grid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--gap-3);
+  width: 100%;
+}
 .title-btn {
   width: 100%;
   max-width: 280px;
@@ -1255,6 +1330,41 @@ button.chip {
 }
 .title-btn:disabled {
   opacity: 0.4;
+}
+/* Short landscape phones (e.g. 800×360): switch the button stack to a 2-column grid and shrink
+   the title/spacing so the whole menu fits with margin instead of overflowing. */
+@media (max-height: 420px) {
+  .title-menu {
+    gap: var(--gap-2);
+    padding: var(--gap-2) var(--gap-3);
+  }
+  .title-game-name {
+    font-size: 28px;
+    margin: 0 0 2px;
+  }
+  .title-rule {
+    width: 120px;
+    margin-bottom: var(--gap-1);
+  }
+  .title-subtitle {
+    margin-bottom: var(--gap-2);
+    font-size: var(--fs-xs);
+  }
+  .title-btn-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--gap-2);
+    max-width: 520px;
+  }
+  /* An odd (unpaired) last button — e.g. Settings when Continue is hidden — spans both columns
+     instead of leaving a lopsided empty cell. */
+  .title-btn-grid > *:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  .title-btn {
+    max-width: none;
+    min-height: 38px;
+  }
 }
 .title-version {
   position: absolute;

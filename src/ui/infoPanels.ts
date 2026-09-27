@@ -35,40 +35,45 @@ export function chipTextColor(hex: string): string {
 }
 
 /** A cargo chip: pictogram + amount (STYLE §6) — tapping shows the cargo's full name in a toast,
- * a lightweight stand-in for STYLE's "small popover with the cargo name and details". */
+ * a lightweight stand-in for STYLE's "small popover with the cargo name and details". `large`
+ * bumps the pictogram tile up (28px tile/18px icon vs. the usual 18px/12px) for panels — the City
+ * panel — where the default size reads too small next to its bigger 2-column action grid. */
 export function cargoChip(
   container: HTMLElement,
   cargo: CargoType,
   amount: number,
   suffix = "",
   dimmed = false,
+  large = false,
 ): HTMLElement {
   const def = CARGO[cargo];
   return h(
     "button",
     {
-      className: `chip${dimmed ? " chip-dim" : ""}`,
+      className: `chip${large ? " chip-lg" : ""}${dimmed ? " chip-dim" : ""}`,
       "aria-label": def.name,
       onClick: () => showToast(container, `${def.name}: ${amount}${suffix}`, "info"),
     },
-    cargoIcon(cargo, "cargo-icon-sm"),
+    cargoIcon(cargo, large ? "cargo-icon-lg" : "cargo-icon-sm"),
     `${amount}${suffix}`,
   );
 }
 
 /** A demand tile (STYLE §6): pictogram only, dimmed + a toast with the shortfall when the
- * station's acceptance points for this cargo are below the unlock threshold. */
+ * station's acceptance points for this cargo are below the unlock threshold. `large` — see
+ * `cargoChip`. */
 export function cargoDemandTile(
   container: HTMLElement,
   cargo: CargoType,
   points: number,
+  large = false,
 ): HTMLElement {
   const def = CARGO[cargo];
   const met = points >= STATION_ACCEPTANCE_THRESHOLD;
   return h(
     "button",
     {
-      className: `chip${met ? "" : " chip-dim"}`,
+      className: `chip${large ? " chip-lg" : ""}${met ? "" : " chip-dim"}`,
       "aria-label": def.name,
       onClick: () =>
         showToast(
@@ -79,7 +84,7 @@ export function cargoDemandTile(
           met ? "info" : "warn",
         ),
     },
-    cargoIcon(cargo, "cargo-icon-sm"),
+    cargoIcon(cargo, large ? "cargo-icon-lg" : "cargo-icon-sm"),
   );
 }
 
@@ -114,14 +119,14 @@ export function openCityPanel(container: HTMLElement, state: GameState, cityId: 
       h(
         "div",
         { className: "chip-row" },
-        cargoChip(container, "passengers", supply.passengers),
-        cargoChip(container, "mail", supply.mail),
+        cargoChip(container, "passengers", supply.passengers, "", false, true),
+        cargoChip(container, "mail", supply.mail, "", false, true),
       ),
       h("div", { className: "panel-section-title" }, strings.station.accepts),
       h(
         "div",
         { className: "chip-row" },
-        ...acceptEntries.map(([cargo, points]) => cargoDemandTile(container, cargo, points)),
+        ...acceptEntries.map(([cargo, points]) => cargoDemandTile(container, cargo, points, true)),
       ),
       h("div", { className: "panel-section-title" }, strings.city.servedBy),
       h(

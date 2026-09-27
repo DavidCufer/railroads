@@ -15,7 +15,7 @@ let currentPanel: {
 } | null = null;
 
 export interface PanelOptions {
-  title: string;
+  title: string | Node;
   /** Optional muted line under the title (STYLE §3), e.g. a city's tier/population/growth. */
   subtitle?: string | Node;
   body: Node[];

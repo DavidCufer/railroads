@@ -7,6 +7,7 @@ export const strings = {
     close: "Close",
     back: "Back",
     actions: "Actions",
+    stats: "Stats",
   },
   topBar: {
     pause: "Pause",
@@ -253,7 +254,6 @@ export const strings = {
     gameTitle: "Railroads",
     newGame: "New Game",
     continue: "Continue",
-    continueDisabled: "No saved game yet",
     loadGame: "Load Game",
     settings: "Settings",
   },

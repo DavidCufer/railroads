@@ -126,14 +126,19 @@ function economyBody(
   return body;
 }
 
-function statsRows(type: StationType): Node[] {
+/** Compact 2-column key/value grid (STYLE §6: stats at the bottom, below the actionable
+ * sections) — type, catchment, max train length, storage/cargo, monthly maintenance. */
+function statsGrid(type: StationType): Node {
   const def = STATION_TYPE_DEFS[type];
-  return [
+  return h(
+    "div",
+    { className: "stats-grid" },
+    row(strings.station.type, strings.station.types[type]),
     row(strings.station.catchment, `${def.catchmentRadius * 2 + 1}×${def.catchmentRadius * 2 + 1}`),
     row(strings.station.maxTrainLength, String(def.maxTrainLength)),
     row(strings.station.storagePerCargo, String(def.storagePerCargo)),
     row(strings.station.monthlyMaintenance, formatMoney(def.monthlyMaintenance)),
-  ];
+  );
 }
 
 export interface StationPlacementCallbacks {
@@ -216,7 +221,7 @@ export function openStationPlacementPanel(
       year,
     );
 
-    statsEl.replaceChildren(...statsRows(selectedType));
+    statsEl.replaceChildren(statsGrid(selectedType));
     economyEl.replaceChildren(...economyBody(container, economy));
     buildBtn.textContent = `${strings.station.build} (${formatMoney(plan.cost)})`;
     buildBtn.disabled = !plan.valid || !affordable;
@@ -241,13 +246,17 @@ export interface StationPanelHandlers {
   onOpenTrain: (trainId: number) => void;
 }
 
-/** Opens the management panel for an already-built station (Station or Info mode tap). */
+/** Opens the management panel for an already-built station (Station or Info mode tap). The name
+ * appears once, as the panel title — STYLE §3's usual plain-text title, plus a small pencil-icon
+ * button that swaps it for an inline edit field (Enter/blur commits, Escape cancels). */
 export function openStationPanel(
   container: HTMLElement,
   state: GameState,
   stationId: number,
   handlers?: StationPanelHandlers,
 ): void {
+  let editingName = false;
+
   const render = (): void => {
     const station = state.stations.find((s) => s.id === stationId);
     if (!station) return;
@@ -255,32 +264,52 @@ export function openStationPanel(
     const nextType = STATION_TYPES[STATION_TYPES.indexOf(station.type) + 1] as
       StationType | undefined;
 
-    const body: Node[] = [
-      h(
-        "div",
-        { className: "panel-row" },
-        h("input", {
-          className: "station-name-input",
-          type: "text",
-          value: station.name,
-          "aria-label": strings.station.rename,
-          onChange: (e: Event) => {
-            const input = e.target as HTMLInputElement;
-            const result = renameStation(state, stationId, input.value);
-            if (!result.ok) {
-              input.value = station.name;
-              showToast(container, strings.build.reasons[result.reason], "warn");
-              return;
-            }
-            const titleEl = container.querySelector(".panel-title");
-            if (titleEl) titleEl.textContent = station.name;
-            input.value = station.name;
-          },
-        }),
-      ),
-      row(strings.station.type, strings.station.types[station.type]),
-      ...statsRows(station.type),
-    ];
+    const titleNode = editingName
+      ? h(
+          "div",
+          { className: "station-title-row" },
+          h("input", {
+            className: "station-name-input",
+            type: "text",
+            value: station.name,
+            "aria-label": strings.station.rename,
+            onKeydown: (e: KeyboardEvent) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              else if (e.key === "Escape") {
+                editingName = false;
+                render();
+              }
+            },
+            onBlur: (e: Event) => {
+              const input = e.target as HTMLInputElement;
+              if (input.value !== station.name) {
+                const result = renameStation(state, stationId, input.value);
+                if (!result.ok) showToast(container, strings.build.reasons[result.reason], "warn");
+              }
+              editingName = false;
+              render();
+            },
+          }),
+        )
+      : h(
+          "div",
+          { className: "station-title-row" },
+          h("span", { className: "station-title-text" }, station.name),
+          h(
+            "button",
+            {
+              className: "station-title-edit-btn",
+              "aria-label": strings.station.rename,
+              onClick: () => {
+                editingName = true;
+                render();
+              },
+            },
+            icon("edit", "icon-sm"),
+          ),
+        );
+
+    const body: Node[] = [];
 
     if (economy) {
       const pile = state.stationCargo.get(stationId);
@@ -361,7 +390,6 @@ export function openStationPanel(
       ),
     );
 
-    body.push(h("div", { className: "panel-section-title" }, strings.ui.actions));
     if (station.hasEngineShed && handlers) {
       body.push(
         h(
@@ -414,9 +442,13 @@ export function openStationPanel(
       );
     }
 
+    body.push(h("div", { className: "panel-section-title" }, strings.ui.stats));
+    body.push(statsGrid(station.type));
+
+    const footer: Node[] = [];
     if (nextType) {
       const plan = computeStationUpgradePlan(state, stationId, nextType);
-      body.push(
+      footer.push(
         h(
           "button",
           {
@@ -437,7 +469,12 @@ export function openStationPanel(
       );
     }
 
-    openPanel(container, { title: station.name, body });
+    openPanel(container, { title: titleNode, body, footer });
+    if (editingName) {
+      const input = container.querySelector<HTMLInputElement>(".station-name-input");
+      input?.focus();
+      input?.select();
+    }
   };
 
   render();

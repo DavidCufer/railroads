@@ -2972,3 +2972,108 @@ Ran concurrently with another session's Phase 14 (UI restyle); per this session'
 - Next: nothing scheduled — this and the concurrent Phase 14 (UI restyle, see the entry just above)
   were both a visual-quality pass on top of the already-feature-complete v1. Future ideas remain at
   the bottom of `docs/PLAN.md`.
+
+## 2026-09-27 — Phase 14.1: UI fixes (review carry-over)
+
+A small follow-up fixing five review findings against Phase 14's restyle, per `docs/STYLE.md`.
+Ran after Phase 13 (curved track/trains) had already landed on `main`, so — unlike Phase 14 itself —
+this session used the real `TrackRenderer`/`TerrainRenderer` freely; still stayed out of
+`track.ts`/`trains.ts` themselves (no need to touch either). Scope: `src/ui/**`, `theme.css`, plus
+`src/render/titleBackground.ts` and one small addition to `src/render/stations.ts` (both explicitly
+in-brief).
+
+- **Welcome screen overflow** (`src/ui/titleScreen.ts`, `theme.css`): the button stack is now a
+  `.title-btn-grid` — a normal centered column ≤280px wide at ordinary heights, switching to a real
+  2-column CSS grid (`max-width: 520px`) under a new `@media (max-height: 420px)` block, which also
+  shrinks the title to 28px, tightens the rule/subtitle/menu gaps, and drops button `min-height` to
+  38px — comfortably fits 800×360 with margin now instead of clipping Settings. An odd (unpaired)
+  last button — Settings, when Continue is hidden — spans both grid columns via a
+  `:last-child:nth-child(odd)` selector instead of leaving a lopsided empty cell. **Continue** is
+  now built into the grid only once `latestSaveSlot()` resolves with an actual save (inserted before
+  New Game, which demotes to secondary) — never rendered disabled-with-a-tooltip at all, per STYLE's
+  own disabled-button rule ("show the reason as a caption" doesn't apply to a state that isn't
+  reachable yet). Removed the now-dead `continueDisabled` string.
+- **Welcome background rewrite** (`src/render/titleBackground.ts`, full rewrite): previously a
+  hand-rolled flat-fill "overview" render plus a synthetic rounded-rectangle "loop" with its own tiny
+  loco-drawing code — deliberately isolated from the real renderers back when Phase 13 was rewriting
+  them concurrently. Now that Phase 13's curved-track rendering is on `main`, this reuses it for
+  real: a `createGameState` map (small/normal/normal) feeds the actual `TerrainRenderer` at
+  `BACKGROUND_ZOOM = 0.85` (full "detail" style — hillshading, tree canopies, river curves — not the
+  flat overview fill, since 0.85 ≥ `OVERVIEW_ZOOM_THRESHOLD`), panned slowly (±70 world px, ~8px/s
+  screen speed per STYLE) via a real `Camera` instead of a hand-rolled `panX`. A `findLoopSite` scan
+  (up to 300 random placements, up to 3 candidate maps) locates a 9×4-tile clearing — flat land, no
+  water/city/industry tiles — for a small octagonal loop (7-tile straights, 1-tile 45°-corner cuts;
+  the same "walk the 8 compass directions in order" trick guarantees every corner is a legal ≤45°
+  bend, no A* needed), built for real via `buildTrack` (`src/sim/commands.ts`) so the actual
+  `TrackRenderer` draws it — real ties, rails, fillet curves — instead of a plain stroked rounded
+  rect (the exact "reads as a UI box" complaint). The camera is centered so the loop sits in a
+  left-side band, low in the frame, clear of the centered button column instead of running behind
+  it. The decorative loco is still its own small self-drawn silhouette (a full `sim/trains` `Train`
+  — block reservations, orders, breakdowns — is unwarranted for background scenery), but it now
+  rides the *real* shared curve geometry: a small local `buildLoopPath`/`sampleLoop` pair built from
+  `src/render/trackPath.ts`'s exported `buildEdgeGeometry`/`isFilletBend` (the same primitives
+  `track.ts`/`trains.ts` use internally, just not their own not-exported route-sampling helpers, so
+  this file still never imports from either), so the loco visibly follows the curved rails drawn
+  underneath it instead of a separately-computed rounded-rectangle path. Falls back to terrain-only
+  panning (no loop/train) if no clearing is found, which in practice essentially never happens on a
+  "small" map.
+- **Station panel name shown twice** (`src/ui/stationPanels.ts`, `src/ui/panel.ts`,
+  `src/ui/icons.ts`): `PanelOptions.title` now accepts `string | Node` (mirroring `subtitle`'s
+  existing precedent) so the station panel can pass its own title row — the name once, plus a small
+  new `edit` icon button (documented STYLE §5 deviation, same pattern as Phase 14's `check`/`shed`/
+  etc.) that swaps it for an inline `<input>` (Enter blurs/commits, Escape cancels, blur commits) —
+  instead of the old title-plus-separate-rename-field duplication. Sections reordered to match
+  STYLE §6 literally: Supplies → Demands → Trains → Improvements (2-col grid, unchanged) → a new
+  compact `statsGrid()` (2-column key/value grid: type, catchment, max train length, storage/cargo,
+  monthly maintenance — `type` folded in here from its old standalone row) → a `footer` holding only
+  the single primary Upgrade action (STYLE §3: "only a single primary footer action may be full
+  width"), now styled brass-filled like the placement panel's Build button instead of the plain
+  outline it used to share with Water Tower/Buy Train (which stay in the body as secondary actions,
+  ahead of the stats block). The placement panel (`openStationPlacementPanel`) reuses the same new
+  `statsGrid()` for its own stats area, so its stats read as the same compact grid too, not just the
+  built-station panel.
+- **City panel action label truncation + small pictograms** (`src/ui/infoPanels.ts`, `theme.css`):
+  `.action-btn-label` now wraps (`white-space: normal`, `overflow-wrap: break-word`,
+  `align-items: flex-start` so a wrapped icon+label reads top-aligned instead of vertically centered
+  against only the first line) instead of getting squeezed/cut — verified with a throwaway scrolled
+  screenshot (not committed) showing "Civic Investment" cleanly wrapped to two lines above its cost,
+  since the committed `phase-9-city-panel-civic-investment.png`/`-cooldown.png` screenshots don't
+  scroll far enough to show the Actions section at all (pre-existing, unrelated to this fix). Cargo
+  pictograms in the City panel specifically are bigger now: `cargoChip`/`cargoDemandTile` both take
+  a new optional `large` flag (only passed `true` at the City panel's two call sites) selecting a new
+  `.cargo-icon-lg` (28px tile/18px icon, vs. the usual `.cargo-icon-sm` 18px/12px) and `.chip-lg`
+  (taller padding to fit it) — Station/Industry panels are unchanged. `.chip`'s fixed `height: 24px`
+  became `min-height: 24px` so the taller variant isn't clipped (no visual change for existing
+  24px-tall chips elsewhere).
+- **Duplicate station/city label on the map** (`src/render/stations.ts`): `drawStationLabels` now
+  skips a station's own label entirely when its name equals its city's name (the common case per
+  SPEC §6.1's default naming — a station built right on a city tile just inherits the city's name) —
+  the station building icon plus the city's own label already say everything the (now-identical,
+  near-overlapping) second label would have. A station with a distinct name (e.g. "Ashtown
+  Crossing", off the city tile) is unaffected and still gets its own label, confirmed in
+  `phase-5-station-type.png` (one "Ashtown" label, not two) against the pre-existing
+  `phase-4-junction.png`/other screenshots (unchanged, different station names).
+- **Tests**: updated `e2e/titleScreen.spec.ts` (Continue is asserted absent, not disabled, with no
+  save) and `e2e/stations.spec.ts` (rename flow now clicks the pencil button to reach the input,
+  rather than expecting it present by default; added a wait after the rename's blur since it
+  triggers two back-to-back panel re-renders whose slide-transition cleanup can otherwise still be
+  in flight when the next assertion runs — the same "let the old copy clear the DOM" issue Phase 5's
+  original upgrade-button assertion already worked around). `npm run check` (307 unit tests,
+  unchanged — this is UI/render-only) and `npm run e2e` (64 specs) both green.
+- **Screenshots — looked at them**: regenerated only the ones this fix actually touches (rather than
+  the ~50 that a full `npm run e2e` run overwrites with pure debug-overlay tick-count/render-time
+  noise — spot-checked one totally unrelated screenshot, `phase-4-bridge-steel.png`, byte-for-byte
+  against `HEAD` and confirmed the diff was only the on-screen tick counter, nothing visual, before
+  reverting the rest): `phase-10-main-menu.png`/`phase-14-welcome.png` (the welcome screen — 2×2
+  button grid with no overflow, no disabled Continue, real detailed terrain background with visible
+  ties on the loop track and the loco running on it, positioned off to the left rather than behind
+  the buttons), `phase-5-station-panel.png` (name once as the title + pencil icon, new section
+  order, brass Upgrade footer button), `phase-5-station-placement.png` (the new-station panel's
+  stats as the same compact grid), `phase-5-station-type.png` (single "Ashtown" label on a
+  same-named station), `phase-7-station-waiting-cargo.png` (station panel reorder, another map),
+  `phase-9-city-panel-civic-investment.png`/`-cooldown.png` (bigger city cargo pictograms). All read
+  correctly; no further issues spotted.
+- Known issues / deviations: none beyond what's already noted above (the scrolled Actions-section
+  check was thrown away rather than committed as a new spec, since an existing spec already covers
+  the civic-investment button's behavior — only its *visual wrap* needed a one-off look).
+- Next: nothing scheduled.

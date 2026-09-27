@@ -192,9 +192,11 @@ test.describe("Phase 5 — stations", () => {
     // Let the panel's slide-in transition finish before screenshotting.
     await page.waitForTimeout(300);
 
+    // The name appears once, as the title (STYLE review) — no separate rename field until the
+    // pencil-icon edit button is tapped.
     await expect(page.locator(".panel-title")).toHaveText("Ashtown");
     await expect(page.locator(".station-upgrade-btn")).toContainText("Upgrade to Station");
-    await expect(page.locator(".station-name-input")).toHaveValue("Ashtown");
+    await expect(page.locator(".station-name-input")).toHaveCount(0);
     // Supplies render as pictogram chips (STYLE §6) with a thin waiting-cargo bar underneath each
     // one — no days have run yet, so the bars are all at 0%, but the chip stacks themselves (and
     // the station's demand tiles) should already be there.
@@ -203,10 +205,18 @@ test.describe("Phase 5 — stations", () => {
 
     await page.screenshot({ path: "docs/screenshots/phase-5-station-panel.png" });
 
-    // Rename.
+    // Tapping the pencil icon turns the title into an inline edit field, pre-filled with the
+    // current name.
+    await page.locator(".station-title-edit-btn").click();
+    await expect(page.locator(".station-name-input")).toHaveValue("Ashtown");
+
+    // Rename (blur commits; the panel fully re-renders twice in a row here — edit mode back to
+    // display mode — so give each slide transition's old copy time to clear the DOM).
     await page.locator(".station-name-input").fill("Ashtown Central");
     await page.locator(".station-name-input").blur();
+    await page.waitForTimeout(300);
     await expect(page.locator(".panel-title")).toHaveText("Ashtown Central");
+    await expect(page.locator(".station-name-input")).toHaveCount(0);
 
     // Upgrade (the panel fully re-renders; give the old copy time to be removed from the DOM
     // before re-querying, since it lingers briefly for its slide-out transition).

@@ -267,6 +267,10 @@ export function drawStationLabels(
     let labelY = s.y + 2;
     const cityId = cityIdAt(station.tile);
     const city = cityId >= 0 ? cities[cityId] : undefined;
+    // A station named after the city it sits in (the common case — SPEC §6.1's default naming)
+    // would draw its label almost right on top of the city's own — the station building plus the
+    // city label already say everything a second, identical label would (STYLE review carry-over).
+    if (city && city.name === station.name) continue;
     if (city) {
       const center = cityWorldCenter(city, mapWidth);
       const cityScreen = camera.worldToScreen(center.x, center.y, viewportW, viewportH);
