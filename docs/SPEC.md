@@ -323,24 +323,33 @@ Movement scale (**revised in Phase 5 review**; the old "1 tile = 10 km at real s
   and the 270 km/h trainset ≈ 9 tiles/day). Per tick (1 in-game hour) that's `speedKmh / 720` tiles.
 - Put the constant `KMH_PER_TILE_PER_DAY = 30` in `src/data/` so it can be tuned.
 
-### 7.5 Blocks & signaling (single vs. double track)
+### 7.5 Signaling: trains wait only at stations (revised after play-testing)
 
-Keep it simple and deadlock-resistant:
+Rule from the player: **trains wait at stations, never out on the line.** A train only leaves a station
+when the stretch of track to its next station is safe to run through end to end.
 
-- The track graph is partitioned into **blocks**: maximal chains of edges between "block boundaries".
-  Boundaries are: stations, junction nodes (degree ≥ 3), and dead ends. (Recompute blocks when track changes.)
-- **Single-track block**: at most one train at a time in *either direction*. A train must reserve the
-  whole next block before leaving a boundary; otherwise it waits at the boundary.
-- **Double-track block**: one lane per direction; multiple trains may follow in the same direction
-  with a minimum spacing of 2 tiles; opposing trains never conflict.
-- **Stations** hold up to 2 trains at once (Depot 1, Station 2, Terminal 4) — a train waiting to enter
-  a full station waits in the preceding block. This is what makes stations act as passing loops on
-  single-track lines.
-- Mixed: a block counts as double only if *every* edge in it is double.
-- **Deadlock handling**: if a train has waited > 5 in-game days, it tries an alternate route
-  (A* with the blocking block penalized). If still stuck after 10 days, show ⚠ and news message
-  "Traffic jam near X — consider double track or more stations". No teleporting.
-- Waiting trains render with a small red signal icon.
+- **Sections**: the track between two consecutive *stations on a train's route* (any station counts, whether or
+  not the train stops there, because stations are the passing places). Junctions inside a section are not
+  waiting points.
+- **Departure check (atomic)**: before leaving a station, the train reserves every block of its path up to the
+  next station on its route. It may depart only if:
+  1. no block on that path is occupied or reserved by a train travelling in the **opposite direction**
+     (single track), and
+  2. the next station has a free **slot**, counting trains already inside it plus trains already reserved
+     toward it. (A train that has reserved its departure from that station no longer counts against it.)
+  Otherwise it stays in the station with status "waiting for line clear" / "waiting for platform" (signal icon).
+- **Same direction is fine**: any number of trains may be in a section heading the same way. Followers keep a
+  2-tile spacing and brake behind the leader (on single and double track).
+- **Double track**: opposing trains use separate lanes, so rule 1 never blocks them; rule 2 still applies.
+- **Station slots**: Depot 2, Station 3, Terminal 5 (the minimum is 2, so every station can act as a passing
+  loop). Trains passing *through* a station they don't stop at still need a slot while inside it, and they
+  reserve the next section before entering, so they never stop on the main line.
+- **Releasing**: a block is released when the train's tail leaves it; the section reservation shrinks as the
+  train advances.
+- **Safety net**: if a train has waited > 10 in-game days *at a station*, try an alternate route; if still
+  blocked after 20 days, show ⚠ and a news message ("Line between A and B is congested — add double track or a
+  station in between"). No teleporting.
+- Waiting trains show a small red signal icon, and the train panel says what they are waiting for.
 
 ### 7.6 Breakdowns & aging
 
@@ -696,3 +705,4 @@ localization (English only, but keep strings in one `strings.ts` file for later)
   so the added complexity of a rotation-bucketed sprite cache (building/invalidating offscreen
   canvases per loco/car type × angle bucket) wasn't worth it for a target that's already cleared
   comfortably. Revisit if a future phase's stress scenario grows enough to need the headroom.
+- [Play-test] §7.5 signaling rewritten: trains wait only at stations; departure reserves the whole station-to-station path; opposing traffic blocks, same-direction allowed; station slots raised (Depot 2 / Station 3 / Terminal 5) to prevent deadlocks.

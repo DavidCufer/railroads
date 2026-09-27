@@ -372,3 +372,38 @@ STYLE: docs/STYLE.md §1–6
 - [x] Everything fits 800×360; 44px targets; existing e2e selectors updated rather than tests deleted.
 **Screenshots (look at them):** welcome, new game (both tabs), city panel, station panel, industry panel, finance,
 train panel, buy-train dialog, top bar + toolbar in-game — all at 800×360.
+
+---
+
+## Phase 15 — Play-test fixes: signaling, consist editing, train drawing
+SPEC: §7.5 (rewritten), §7.1–7.2; STYLE: §7
+
+Player report: a train got stuck ⚠ at "Pittsburgh Coal Mine" (a Depot on a single-track line shared with a second
+train). Cause: Depot capacity 1 + trains allowed to wait *in the block before a full station*, so the train in the
+station can't leave (its exit block is occupied by the waiting train) → deadlock.
+
+- [ ] Implement SPEC §7.5 as rewritten: waiting only at stations; atomic station-to-station path reservation with
+      direction; same-direction following with spacing/braking; station slots Depot 2 / Station 3 / Terminal 5;
+      through-station passing; releases on tail exit; longer safety-net timeouts. Keep the sim deterministic.
+- [ ] Tests (must include): the exact reported scenario (two trains sharing a single-track line between two
+      depots, opposite directions, 2 years at 8×: never stuck, both keep earning); 3 trains same direction on one
+      single-track section follow each other without stopping; opposing trains on a line with a middle station
+      pass there; a train never stops outside a station except behind a same-direction leader or breakdown;
+      save/load mid-reservation is deterministic; the old deadlock regression tests still pass.
+- [ ] Train panel shows what a waiting train waits for ("Waiting for line clear to X", "Waiting for platform at X").
+- [ ] **Edit consist on an existing train**: in the Train panel, an "Edit cars" action (2-column grid style) opens
+      the car picker with the current consist. Add/remove/reorder cars up to the loco's max. If the train is at a
+      station the change applies immediately; otherwise it's queued and applied at the next station stop (panel
+      shows "Changes apply at next station"). New cars are charged at car price; removed cars refund 50%. Cargo
+      in removed cars is dropped at the station (counts as unloaded without payment unless accepted there). Goes
+      through commands.ts with validation + tests.
+- [ ] Train drawing fixes (STYLE §7): the steam chimney is drawn sticking out sideways — draw it as a dark circle
+      on the boiler's centerline near the front (with a tiny lighter rim), smoke rising from there; same for the
+      dome. Reduce gaps: tender tight behind the cab, ~1px coupler gap between all vehicles at zoom 1 (scale
+      with zoom), no big space between loco and first car. Make vehicles ~20% larger so they read at zoom 1.
+- [ ] Station supply bubbles above stations render as plain colored circles without their pictograms (see
+      player screenshot) — draw the cargo pictogram inside, or remove the bubbles if they add nothing.
+- [ ] Bottom-right: a round floating button overlaps the "Quick build" toggle — fix the layout at 800×360 and at
+      a real phone ratio (e.g. 2400×1080 CSS scaled, ~890×400).
+**Screenshots (look at them):** two trains passing at a middle station; a waiting train with its reason in the
+panel; the consist editor; steam/diesel/electric trains at zoom 1 and 2 (straight + curve); bottom-right buttons.
