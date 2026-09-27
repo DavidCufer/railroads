@@ -24,11 +24,14 @@ import { buildEdgeGeometry, isFilletBend } from "./trackPath";
 /** DIRS8[i]'s screen-space heading, in radians (grid is screen-aligned: +x right, +y down). */
 const DIR_ANGLE: readonly number[] = DIRS8.map(([dx, dy]) => Math.atan2(dy, dx));
 
-// --- STYLE §7 vehicle sizing (zoom 1, tile = 32px): "loco 16×7 px... cars 12×7, 2px gaps" -------
-// (Render-only sizing: LOCO_LENGTH_TILES already matches 16px; the rest are local to drawing.)
-const VEHICLE_WIDTH_TILES = 7 / TILE_SIZE;
-const CAR_DRAW_LEN_TILES = 12 / TILE_SIZE;
-const VEHICLE_GAP_TILES = 2 / TILE_SIZE;
+// --- Vehicle sizing (zoom 1, tile = 32px) ---------------------------------------------------
+// STYLE §7's literal pixel spec was loco 16×7, cars 12×7, 2px gaps; PLAN Phase 15 (play-test:
+// "vehicles read too small at zoom 1") bumps every dimension ~20% and tightens the coupler gap to
+// ~1px. (Render-only sizing here — LOCO_LENGTH_TILES/CAR_LENGTH_TILES in data/trains.ts already
+// carry the 20% bump since the signaling model's tail-length math shares them.)
+const VEHICLE_WIDTH_TILES = 8.4 / TILE_SIZE;
+const CAR_DRAW_LEN_TILES = 14.4 / TILE_SIZE;
+const VEHICLE_GAP_TILES = 1 / TILE_SIZE;
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
@@ -218,25 +221,36 @@ function drawLoco(
     ctx.fillStyle = c.chimney;
     ctx.fillRect(boilerFront, -w * 0.42, front - boilerFront, w * 0.84);
 
-    // Chimney, set back a little from the very front.
+    // Chimney and dome (PLAN Phase 15 play-test fix — these previously drew as rects offset to one
+    // side, reading as sticking out sideways): both dark circles centered on the boiler's own
+    // centerline (y=0 in this local, direction-of-travel-aligned space), each with a tiny lighter
+    // rim, chimney near the front and the smaller dome just behind it.
     const chimneyX = boilerFront - len * 0.12;
-    ctx.fillRect(chimneyX - w * 0.13, -w * 0.85, w * 0.26, w * 0.5);
+    const chimneyR = w * 0.16;
+    const domeX = chimneyX - len * 0.16;
+    const domeR = w * 0.11;
+    for (const [cx, r] of [
+      [chimneyX, chimneyR],
+      [domeX, domeR],
+    ] as const) {
+      ctx.fillStyle = c.chimney;
+      ctx.beginPath();
+      ctx.arc(cx, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+      ctx.lineWidth = Math.max(1, w * 0.035);
+      ctx.stroke();
+    }
 
-    // Cheap smoke puffs drifting up and back (toward the cars) from the chimney, cycling with
-    // real time so they animate independent of sim tick rate.
+    // Cheap smoke puffs rising from the chimney (on the centerline) and drifting back toward the
+    // cars, cycling with real time so they animate independent of sim tick rate.
     const puffPhase = (nowMs / 550) % 1;
     for (let i = 0; i < 2; i++) {
       const t = (puffPhase + i * 0.5) % 1;
       ctx.globalAlpha = 0.5 * (1 - t);
       ctx.fillStyle = LOCO_SMOKE_COLOR;
       ctx.beginPath();
-      ctx.arc(
-        chimneyX - t * len * 0.4,
-        -w * 1.1 - t * w * 1.6,
-        w * (0.25 + t * 0.3),
-        0,
-        Math.PI * 2,
-      );
+      ctx.arc(chimneyX - t * len * 0.35, -t * w * 1.4, chimneyR * (1 + t * 1.8), 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;

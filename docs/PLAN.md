@@ -390,20 +390,20 @@ station can't leave (its exit block is occupied by the waiting train) → deadlo
       single-track section follow each other without stopping; opposing trains on a line with a middle station
       pass there; a train never stops outside a station except behind a same-direction leader or breakdown;
       save/load mid-reservation is deterministic; the old deadlock regression tests still pass.
-- [ ] Train panel shows what a waiting train waits for ("Waiting for line clear to X", "Waiting for platform at X").
+- [x] Train panel shows what a waiting train waits for ("Waiting for line clear to X", "Waiting for platform at X").
 - [x] **Edit consist on an existing train**: in the Train panel, an "Edit cars" action (2-column grid style) opens
       the car picker with the current consist. Add/remove/reorder cars up to the loco's max. If the train is at a
       station the change applies immediately; otherwise it's queued and applied at the next station stop (panel
       shows "Changes apply at next station"). New cars are charged at car price; removed cars refund 50%. Cargo
       in removed cars is dropped at the station (counts as unloaded without payment unless accepted there). Goes
       through commands.ts with validation + tests.
-- [ ] Train drawing fixes (STYLE §7): the steam chimney is drawn sticking out sideways — draw it as a dark circle
+- [x] Train drawing fixes (STYLE §7): the steam chimney is drawn sticking out sideways — draw it as a dark circle
       on the boiler's centerline near the front (with a tiny lighter rim), smoke rising from there; same for the
       dome. Reduce gaps: tender tight behind the cab, ~1px coupler gap between all vehicles at zoom 1 (scale
       with zoom), no big space between loco and first car. Make vehicles ~20% larger so they read at zoom 1.
-- [ ] Station supply bubbles above stations render as plain colored circles without their pictograms (see
+- [x] Station supply bubbles above stations render as plain colored circles without their pictograms (see
       player screenshot) — draw the cargo pictogram inside, or remove the bubbles if they add nothing.
-- [ ] Bottom-right: a round floating button overlaps the "Quick build" toggle — fix the layout at 800×360 and at
+- [x] Bottom-right: a round floating button overlaps the "Quick build" toggle — fix the layout at 800×360 and at
       a real phone ratio (e.g. 2400×1080 CSS scaled, ~890×400).
 **Screenshots (look at them):** two trains passing at a middle station; a waiting train with its reason in the
 panel; the consist editor; steam/diesel/electric trains at zoom 1 and 2 (straight + curve); bottom-right buttons.

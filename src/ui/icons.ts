@@ -107,9 +107,20 @@ const CARGO_ICONS: Record<CargoType, string> = {
 
 /** The raw cargo pictogram markup, with `currentColor` resolved to `color` via an inline style on
  * the SVG root — for embedding as a canvas-drawable image (station supply bubbles on the map),
- * where there's no surrounding DOM/CSS to inherit a `color` from otherwise. */
+ * where there's no surrounding DOM/CSS to inherit a `color` from otherwise.
+ *
+ * PLAN Phase 15 play-test fix: `CARGO_ICONS`' markup (also used via `innerHTML` elsewhere, where a
+ * browser happily infers the SVG namespace for inline markup already inside an HTML document) has
+ * no `xmlns` attribute — loaded standalone as an `<img>` src (which is what a canvas `drawImage`
+ * needs), that makes it invalid, unnamespaced XML, so the image silently fails to decode and
+ * `img.complete`/`naturalWidth` never become truthy. The bubble's background circle still drew
+ * (it's plain canvas arcs), so the bug read as "bubbles render as plain colored circles with no
+ * pictogram inside" rather than a visible error. */
 export function cargoIconDataUrl(cargo: CargoType, color: string): string {
-  const svg = CARGO_ICONS[cargo].replace("<svg ", `<svg style="color:${color}" `);
+  const svg = CARGO_ICONS[cargo].replace(
+    "<svg ",
+    `<svg xmlns="http://www.w3.org/2000/svg" style="color:${color}" `,
+  );
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 

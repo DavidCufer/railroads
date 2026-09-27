@@ -1058,7 +1058,11 @@ button.chip {
 .quick-build-toggle {
   position: absolute;
   right: 8px;
-  bottom: 8px;
+  /* PLAN Phase 15 play-test fix: this used to share `bottom: 8px` with `.train-list-button`,
+   * overlapping it — the Trains/News/Goals round buttons are always present (stacked at 8/64/120,
+   * each 48px), so this sits in the same bottom-right corner just above all three
+   * (120 + 48 + 8px gap) instead of on top of the lowest one. */
+  bottom: 176px;
   display: flex;
   align-items: center;
   gap: var(--gap-2);

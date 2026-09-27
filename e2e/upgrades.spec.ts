@@ -313,4 +313,38 @@ test.describe("Phase 9 — upgrades and growth", () => {
     await expect(page.locator(".quick-build-toggle")).toBeHidden();
     await page.screenshot({ path: "docs/screenshots/phase-9-finance-panel-buttons-hidden.png" });
   });
+
+  test("bottom-right floating buttons never overlap the Quick build toggle (PLAN Phase 15 play-test fix)", async ({
+    page,
+  }) => {
+    for (const viewport of [PHONE_VIEWPORT, { width: 890, height: 400 }]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/?debug=1");
+      await page.waitForFunction(() => window.__game !== undefined);
+      await page.evaluate((opts) => window.__game?.regenerate(opts), {
+        seed: 12345,
+        size: "medium",
+        waterLevel: "normal",
+        startYear: 1848,
+      } as RegenOptions);
+      await page.waitForTimeout(300);
+
+      const toggleBox = await page.locator(".quick-build-toggle").boundingBox();
+      for (const selector of [".train-list-button", ".news-button", ".goals-button"]) {
+        const box = await page.locator(selector).boundingBox();
+        if (!toggleBox || !box)
+          throw new Error(`${selector} or the quick-build toggle isn't visible`);
+        const overlaps =
+          toggleBox.x < box.x + box.width &&
+          toggleBox.x + toggleBox.width > box.x &&
+          toggleBox.y < box.y + box.height &&
+          toggleBox.y + toggleBox.height > box.y;
+        expect(
+          overlaps,
+          `${selector} overlaps .quick-build-toggle at ${viewport.width}x${viewport.height}`,
+        ).toBe(false);
+      }
+    }
+    await page.screenshot({ path: "docs/screenshots/phase-15-bottom-right-buttons.png" });
+  });
 });
