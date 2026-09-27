@@ -71,11 +71,13 @@ function planLoadUnload(
 
   if (order.rule !== "unloadOnly") {
     train.cars.forEach((car, i) => {
-      if (unload.includes(i)) return;
-      // A car only re-enters the load plan once fully empty — see TrainCar.loadedUnits's doc
-      // comment. "Wait for full load" re-runs this plan on each extra wait day, so a partially
-      // loaded car keeps topping up until it's full or the stop gives up (SPEC §7.2).
-      if (car.loadedUnits >= CARGO[car.cargoType].capacity) return;
+      // A car being unloaded here is empty by the time loading runs (stepLoading applies all
+      // unloads first), so it can be refilled at the same stop — otherwise every two-way route
+      // (passenger/mail shuttles) left each station with the just-emptied cars running empty.
+      const loadedAfterUnload = unload.includes(i) ? 0 : car.loadedUnits;
+      // "Wait for full load" re-runs this plan on each extra wait day, so a partially loaded car
+      // keeps topping up until it's full or the stop gives up (SPEC §7.2).
+      if (loadedAfterUnload >= CARGO[car.cargoType].capacity) return;
       // Livestock Pens (SPEC §6.2): required to *load* livestock at this station (unaffected for
       // unloading/delivering it elsewhere).
       if (car.cargoType === "livestock" && !hasImprovement(station, "livestockPens")) return;

@@ -105,6 +105,37 @@ describe("stepLoading", () => {
     expect(state.pendingDeliveries[0]?.units).toBe(CARGO.coal.capacity);
   });
 
+  it("refills a car at the same stop where it was just unloaded (two-way mail shuttle regression)", () => {
+    // Play-test report: mail from Trieste was delivered at Ljubljana, but Ljubljana's own waiting
+    // mail was never picked up — the just-unloaded car was excluded from the load plan.
+    const { state, a, b } = twoStationLine(10);
+    setAccepts(state, a.id, ["mail"]);
+    setAccepts(state, b.id, ["mail"]);
+    expect(buyTrain(state, a.id, LOCO, ["mail"]).ok).toBe(true);
+    const train = state.trains[0];
+    if (!train) throw new Error("no train");
+    const car = train.cars[0];
+    if (!car) throw new Error("no car");
+    car.loadedUnits = CARGO.mail.capacity;
+    car.loadedTile = a.tile;
+    car.loadedTick = state.ticks;
+    state.ticks += 5 * 24;
+    state.stationCargo.set(b.id, { mail: { amount: 9, waitingDays: 2 } });
+
+    setOrders(state, train.id, [
+      { stationId: a.id, rule: "auto" },
+      { stationId: b.id, rule: "auto" },
+    ]);
+    train.currentOrderIndex = 1; // arriving at b
+
+    runToDeparture(state, train, b);
+
+    expect(state.pendingDeliveries).toHaveLength(1); // a's mail delivered at b
+    expect(car.loadedUnits).toBe(9); // ...and b's waiting mail picked up for the trip back
+    expect(car.loadedTile).toBe(b.tile);
+    expect(state.stationCargo.get(b.id)?.mail?.amount).toBe(0);
+  });
+
   it("pays nothing for a delivery under the minimum distance, but still unloads it", () => {
     const { state, a, b } = twoStationLine(2); // 2 tiles < MIN_REVENUE_DISTANCE_TILES (3)
     setAccepts(state, b.id, ["coal"]);
