@@ -142,6 +142,7 @@ export const strings = {
     orders: "Orders",
     buy: "Buy",
     sell: "Sell",
+    sellConfirm: "Tap again to sell",
     status: "Status",
     speed: "Speed",
     consist: "Consist",

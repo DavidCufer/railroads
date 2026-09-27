@@ -438,8 +438,15 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
     const sellBtn = h(
       "button",
       {
-        className: "panel-action-build train-sell-btn",
-        onClick: () => {
+        className: "btn-danger train-sell-btn",
+        onClick: (e: Event) => {
+          // Two-tap confirm: selling is irreversible, so the first tap only arms the button.
+          const btn = e.currentTarget as HTMLButtonElement;
+          if (btn.dataset.armed !== "1") {
+            btn.dataset.armed = "1";
+            btn.textContent = strings.trains.sellConfirm;
+            return;
+          }
           const result = sellTrain(state, trainId);
           if (!result.ok) {
             showToast(container, strings.build.reasons[result.reason], "warn");
