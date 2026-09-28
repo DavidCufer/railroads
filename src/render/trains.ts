@@ -36,8 +36,8 @@ const DIR_ANGLE: readonly number[] = DIRS8.map(([dx, dy]) => Math.atan2(dy, dx))
 // ~1px. (Render-only sizing here — LOCO_LENGTH_TILES/CAR_LENGTH_TILES in data/trains.ts already
 // carry the 20% bump since the signaling model's tail-length math shares them.)
 const VEHICLE_WIDTH_TILES = 8.4 / TILE_SIZE;
-const CAR_DRAW_LEN_TILES = 14.4 / TILE_SIZE;
-const VEHICLE_GAP_TILES = 1 / TILE_SIZE;
+export const CAR_DRAW_LEN_TILES = 14.4 / TILE_SIZE;
+export const VEHICLE_GAP_TILES = 1 / TILE_SIZE;
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
@@ -534,6 +534,70 @@ function drawStatusIcon(
     ctx.fillStyle = TRAIN_WARNING_COLOR;
     ctx.fillText("⚠", x, y - size * 0.35);
   }
+}
+
+export interface VehiclePlacement {
+  kind: "loco" | "car";
+  /** Tile-space center and heading (radians) of the vehicle's drawn rectangle. */
+  x: number;
+  y: number;
+  angle: number;
+  /** Drawn length in tiles. */
+  length: number;
+}
+
+export type LayoutTrain = Pick<
+  Train,
+  | "route"
+  | "routeIndex"
+  | "edgeProgress"
+  | "renderFromX"
+  | "renderFromY"
+  | "renderToX"
+  | "renderToY"
+  | "direction"
+> & { cars: readonly unknown[] };
+
+/** Where every vehicle of `train` is drawn (tile space), loco first then cars front to back. */
+export function layoutConsist(
+  mapWidth: number,
+  graph: TrackGraph,
+  train: LayoutTrain,
+  alpha: number,
+  stationTiles: ReadonlySet<number>,
+): VehiclePlacement[] {
+  const a = train.route[train.routeIndex];
+  const b = train.route[train.routeIndex + 1];
+  let head: Sample;
+  if (a !== undefined && b !== undefined) {
+    const progressStart = progressAlongEdge(mapWidth, a, b, train.renderFromX, train.renderFromY);
+    const progress = lerp(progressStart, train.edgeProgress, alpha);
+    head = curvedRouteSample(
+      mapWidth,
+      graph,
+      train.route,
+      train.routeIndex,
+      progress,
+      stationTiles,
+    );
+  } else {
+    head = {
+      x: lerp(train.renderFromX, train.renderToX, alpha),
+      y: lerp(train.renderFromY, train.renderToY, alpha),
+      angle: train.direction >= 0 ? (DIR_ANGLE[train.direction] as number) : 0,
+    };
+  }
+  const out: VehiclePlacement[] = [{ kind: "loco", ...head, length: LOCO_LENGTH_TILES }];
+  for (let i = 0; i < train.cars.length; i++) {
+    const distanceBehind =
+      LOCO_LENGTH_TILES +
+      VEHICLE_GAP_TILES +
+      i * (CAR_DRAW_LEN_TILES + VEHICLE_GAP_TILES) +
+      CAR_DRAW_LEN_TILES / 2;
+    const sample = sampleBehindHead(mapWidth, graph, train as Train, distanceBehind, stationTiles);
+    out.push({ kind: "car", ...sample, length: CAR_DRAW_LEN_TILES });
+  }
+  return out;
 }
 
 export function drawTrains(
