@@ -482,3 +482,56 @@ the rails overlap. It "looks weird".
 **Screenshots (look at them critically and compare with the player's complaint):** a double-track line entering a
 station straight, on a curve, a station with double on one side and single on the other, a mid-line
 single↔double transition, and two trains stopped side by side at a double-track station — zoom 1.5 and 2.
+
+---
+
+## Phase 17 — Play-test 4: consist gaps, robust double-track geometry, tap targeting
+STYLE §7
+
+Player report (Trieste, 1840):
+1. "There is still a gap between the train and the first car" — visible on the diagonal approach to Trieste (the
+   loco+tender, then ~one car length of empty track, then the cars). On straight horizontal track the coupling is
+   tight, so the consist spacing is probably computed in tile units without the diagonal/arc length (√2) or with a
+   different path than the drawn one.
+2. "Double tracks are still problematic at times" — a single↔double transition that lands on a curve next to the
+   station produces crossing tie fans / an X-shaped mess. Previous fixes were special-cased; replace them with one
+   general model.
+3. "When adding a train I tap the town instead of the station and the whole menu changes. When clicking for info I
+   hit the town instead of the station. A lot of clicking around to find the station."
+
+### A. Consist spacing
+- [ ] One source of truth: every vehicle is placed by arc length along the *same* rendered lane path the rails are
+      drawn from (straight segments √2-correct on diagonals, arcs by radius×angle). Coupler gap constant in screen
+      px at a given zoom, identical on straight, diagonal and curved track.
+- [ ] Unit test: for a consist on a horizontal, a diagonal, and a 45° curve, the distance between consecutive vehicle
+      ends is within ±0.5 px of the configured coupler gap at zoom 1 and 2.
+
+### B. General track geometry model (render-side)
+- [ ] Build per-edge-chain **centerline paths** (straights + fillet arcs, as now). For each point along a chain define
+      `laneOffset(s)` = 0 for single track, ±spacing/2 for double, and eased with a smoothstep over a ≥1.5-tile
+      transition wherever single↔double changes. Transitions must not start on an arc: if one would, shift it onto
+      the nearest straight part (or extend it across the arc with the offset easing continuously — pick whichever
+      looks clean and document it).
+- [ ] Rails = offset curves of each lane centerline (±gauge/2). **Ties = one set per chain**, sampled at fixed arc
+      spacing along the centerline, perpendicular to the local tangent, with length = span of all present lanes +
+      overhang (so double track has long shared ties and turnouts have ties that lengthen smoothly). Never draw two
+      overlapping tie sets.
+- [ ] Stations (passing loops), junctions and bridges use the same model. Trains use the same lane paths.
+- [ ] Remove the previous special-case turnout/station code paths once the new model covers them.
+- [ ] Screenshots to judge (zoom 1.5 and 2): the exact player situation (double track curving into a station whose
+      other side is single), a double-track S-curve, a mid-line transition on a curve, a junction off double track,
+      a double-track bridge. Compare against the player's screenshots in the description above; there must be no tie
+      crossings anywhere.
+
+### C. Tap targeting
+- [ ] Hit-test priority: trains > stations > industries > cities. Stations get a generous touch radius (≥ 28 CSS px
+      around the station building/platform, or the whole station tile, whichever is larger) that wins over the city
+      footprint.
+- [ ] Context-aware picking: while adding stops to a train's orders (buy-train or edit-orders mode), only stations
+      are pickable; tapping a city selects the station serving it (if exactly one) or shows a small chooser if
+      several; if none, a toast "No station in Trieste yet".
+- [ ] If two different kinds of objects are within the touch radius and neither clearly wins (e.g. a station and an
+      industry), show a small chooser popup listing them (icon + name) instead of guessing.
+- [ ] City panel: "Served by" station names are tappable and open the station panel.
+- [ ] e2e tests for: tap on a station inside a city opens the station; in order-edit mode a tap on the city adds its
+      station; the chooser appears for overlapping objects.
