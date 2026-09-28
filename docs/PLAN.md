@@ -524,14 +524,14 @@ Player report (Trieste, 1840):
       crossings anywhere.
 
 ### C. Tap targeting
-- [ ] Hit-test priority: trains > stations > industries > cities. Stations get a generous touch radius (≥ 28 CSS px
+- [x] Hit-test priority: trains > stations > industries > cities. Stations get a generous touch radius (≥ 28 CSS px
       around the station building/platform, or the whole station tile, whichever is larger) that wins over the city
       footprint.
-- [ ] Context-aware picking: while adding stops to a train's orders (buy-train or edit-orders mode), only stations
+- [x] Context-aware picking: while adding stops to a train's orders (buy-train or edit-orders mode), only stations
       are pickable; tapping a city selects the station serving it (if exactly one) or shows a small chooser if
       several; if none, a toast "No station in Trieste yet".
-- [ ] If two different kinds of objects are within the touch radius and neither clearly wins (e.g. a station and an
+- [x] If two different kinds of objects are within the touch radius and neither clearly wins (e.g. a station and an
       industry), show a small chooser popup listing them (icon + name) instead of guessing.
-- [ ] City panel: "Served by" station names are tappable and open the station panel.
-- [ ] e2e tests for: tap on a station inside a city opens the station; in order-edit mode a tap on the city adds its
+- [x] City panel: "Served by" station names are tappable and open the station panel.
+- [x] e2e tests for: tap on a station inside a city opens the station; in order-edit mode a tap on the city adds its
       station; the chooser appears for overlapping objects.

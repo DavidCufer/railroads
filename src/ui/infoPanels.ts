@@ -7,6 +7,7 @@ import { cityAcceptance, citySupply } from "../sim/economy/cityStats";
 import { civicInvestment, computeCivicInvestmentPlan } from "../sim/commands";
 import { stationCatchmentTiles } from "../sim/stations/placement";
 import { STATION_ACCEPTANCE_THRESHOLD, STATION_TYPE_DEFS } from "../data/stations";
+import type { Station } from "../sim/stations/types";
 import type { GameState } from "../sim/state";
 import { calendarFromTicks, DAYS_PER_YEAR, HOURS_PER_DAY } from "../sim/time";
 import { h } from "./h";
@@ -91,17 +92,25 @@ export function cargoDemandTile(
 /** Stations whose catchment covers at least one of `cityTiles` — the City panel's "Served by"
  * line (STYLE §6). */
 export function stationsServing(state: GameState, cityTiles: readonly number[]): string[] {
-  const tileSet = new Set(cityTiles);
-  const names: string[] = [];
-  for (const station of state.stations) {
-    const radius = STATION_TYPE_DEFS[station.type].catchmentRadius;
-    const catchment = stationCatchmentTiles(state.map, station.tile, radius);
-    if (catchment.some((t) => tileSet.has(t))) names.push(station.name);
-  }
-  return names;
+  return stationsServingList(state, cityTiles).map((s) => s.name);
 }
 
-export function openCityPanel(container: HTMLElement, state: GameState, cityId: number): void {
+/** Same as `stationsServing` but returns the stations themselves (tap targeting, tappable links). */
+export function stationsServingList(state: GameState, tiles: readonly number[]): Station[] {
+  const tileSet = new Set(tiles);
+  return state.stations.filter((station) => {
+    const radius = STATION_TYPE_DEFS[station.type].catchmentRadius;
+    const catchment = stationCatchmentTiles(state.map, station.tile, radius);
+    return catchment.some((t) => tileSet.has(t));
+  });
+}
+
+export function openCityPanel(
+  container: HTMLElement,
+  state: GameState,
+  cityId: number,
+  onOpenStation?: (stationId: number) => void,
+): void {
   const render = (): void => {
     const city = state.cities.find((c) => c.id === cityId);
     if (!city) return;
@@ -112,7 +121,7 @@ export function openCityPanel(container: HTMLElement, state: GameState, cityId: 
     const growth = state.cityGrowth.get(cityId);
 
     const growing = !!growth?.lastServed;
-    const served = stationsServing(state, city.tiles);
+    const served = stationsServingList(state, city.tiles);
 
     const body: Node[] = [
       h("div", { className: "panel-section-title" }, strings.station.supplies),
@@ -145,8 +154,21 @@ export function openCityPanel(container: HTMLElement, state: GameState, cityId: 
       h("div", { className: "panel-section-title" }, strings.city.servedBy),
       h(
         "div",
-        { className: "panel-row" },
-        served.length > 0 ? served.join(" · ") : strings.city.servedByNone,
+        { className: "panel-row served-by-row" },
+        ...(served.length > 0
+          ? served.flatMap((station, i) => [
+              i > 0 ? " · " : null,
+              h(
+                "button",
+                {
+                  className: "link-btn",
+                  "data-testid": "served-by-station",
+                  onClick: () => onOpenStation?.(station.id),
+                },
+                station.name,
+              ),
+            ])
+          : [strings.city.servedByNone]),
       ),
     ];
 

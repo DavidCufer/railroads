@@ -22,7 +22,15 @@ import { CameraInput, type BuildDragHandlers } from "./ui/cameraInput";
 import { createDebugControls } from "./ui/debugControls";
 import { createTopBar } from "./ui/topBar";
 import { createToolbar, createQuickBuildToggle, type ToolId } from "./ui/toolbar";
-import { openCityPanel, openIndustryPanel } from "./ui/infoPanels";
+import { openCityPanel, openIndustryPanel, stationsServingList } from "./ui/infoPanels";
+import { closeChooser, showChooser } from "./ui/chooser";
+import {
+  resolveInfoPick,
+  resolveStationPick,
+  stationTouchRadius,
+  type PickCandidate,
+  type PickOutcome,
+} from "./ui/picking";
 import { openStationPanel, openStationPlacementPanel } from "./ui/stationPanels";
 import { closePanel } from "./ui/panel";
 import { initBackButton } from "./ui/backButton";
@@ -299,6 +307,67 @@ function main(): void {
     return null;
   }
 
+  /** Stations within their (generous) touch radius of the tap, nearest first (PLAN Phase 17 C). */
+  function stationsNearTap(
+    canvasX: number,
+    canvasY: number,
+    viewportW: number,
+    viewportH: number,
+  ): Station[] {
+    const radius = stationTouchRadius(TILE_SIZE, camera.zoom);
+    const hits: Array<{ station: Station; dist: number }> = [];
+    for (const station of state.stations) {
+      const sx = (station.tile % state.map.width) + 0.5;
+      const sy = Math.floor(station.tile / state.map.width) + 0.5;
+      const screen = camera.worldToScreen(sx * TILE_SIZE, sy * TILE_SIZE, viewportW, viewportH);
+      const dist = Math.hypot(screen.x - canvasX, screen.y - canvasY);
+      if (dist <= radius) hits.push({ station, dist });
+    }
+    hits.sort((p, q) => p.dist - q.dist);
+    return hits.map((x) => x.station);
+  }
+
+  function stationCandidate(station: Station): PickCandidate {
+    return { kind: "station", id: station.id, name: station.name };
+  }
+
+  function openStationById(stationId: number): void {
+    openStationPanel(ui, state, stationId, {
+      onBuyTrain: () => openBuyTrain(stationId),
+      onOpenTrain: (trainId) => openTrainPanel(ui, state, trainId),
+    });
+  }
+
+  function openCityById(cityId: number): void {
+    openCityPanel(ui, state, cityId, openStationById);
+  }
+
+  function openPicked(pick: PickCandidate): void {
+    if (pick.kind === "train") openTrainPanel(ui, state, pick.id);
+    else if (pick.kind === "station") openStationById(pick.id);
+    else if (pick.kind === "industry") {
+      const industry = state.industries[pick.id];
+      if (industry) openIndustryPanel(ui, industry);
+    } else openCityById(pick.id);
+  }
+
+  /** Delivers a station chosen while adding stops to an order list. */
+  function deliverStationPick(stationId: number): void {
+    const picked = stationPickHandler;
+    stationPickHandler = null;
+    picked?.(stationId);
+  }
+
+  function applyOutcome(
+    outcome: PickOutcome,
+    canvasX: number,
+    canvasY: number,
+    onPick: (pick: PickCandidate) => void,
+  ): void {
+    if (outcome.type === "single") onPick(outcome.pick);
+    else if (outcome.type === "choose") showChooser(ui, canvasX, canvasY, outcome.options, onPick);
+  }
+
   function openBuyTrain(stationId: number): void {
     openBuyTrainPanel(ui, state, stationId, {
       pickStationOnMap: (onPicked) => {
@@ -324,51 +393,72 @@ function main(): void {
       }
     }
 
-    const trainHit = findTrainAt(canvasX, canvasY, viewportW, viewportH);
-    if (trainHit) {
-      openTrainPanel(ui, state, trainHit.id);
-      return;
-    }
+    closeChooser();
 
     const world = camera.screenToWorld(canvasX, canvasY, viewportW, viewportH);
     const tileX = Math.floor(world.x / TILE_SIZE);
     const tileY = Math.floor(world.y / TILE_SIZE);
-    if (!inBounds(state.map, tileX, tileY)) return;
-    const idx = tileIndex(state.map, tileX, tileY);
+    const inMap = inBounds(state.map, tileX, tileY);
+    const idx = inMap ? tileIndex(state.map, tileX, tileY) : -1;
+    const cityId = inMap ? (state.map.cityId[idx] as number) : -1;
+    const industryIdx = inMap ? (state.map.industryId[idx] as number) : -1;
 
-    // An existing station is manageable from either Info or Station mode.
-    const station = stationAtTile(state.stations, idx);
-    if (station) {
-      if (stationPickHandler) {
-        const picked = stationPickHandler;
-        stationPickHandler = null;
-        picked(station.id);
+    // Adding stops to a train's orders: only stations are pickable (PLAN Phase 17 C). A tap on a
+    // city or industry picks the station serving it.
+    if (stationPickHandler) {
+      const near = stationsNearTap(canvasX, canvasY, viewportW, viewportH);
+      let serving: Station[] = [];
+      let placeName = "";
+      if (cityId >= 0 && state.cities[cityId]) {
+        const city = state.cities[cityId];
+        placeName = city.name;
+        serving = stationsServingList(state, city.tiles);
+      } else if (industryIdx >= 0 && state.industries[industryIdx]) {
+        const industry = state.industries[industryIdx];
+        placeName = INDUSTRIES[industry.type].name;
+        serving = stationsServingList(state, [idx]);
+      }
+      const outcome = resolveStationPick({
+        stationsNear: near.map(stationCandidate),
+        serving: serving.map(stationCandidate),
+      });
+      if (outcome.type === "none") {
+        if (placeName) showToast(ui, strings.city.noStationIn(placeName), "warn");
         return;
       }
-      openStationPanel(ui, state, station.id, {
-        onBuyTrain: () => openBuyTrain(station.id),
-        onOpenTrain: (trainId) => openTrainPanel(ui, state, trainId),
-      });
+      applyOutcome(outcome, canvasX, canvasY, (pick) => deliverStationPick(pick.id));
       return;
     }
 
     if (currentTool === "station") {
-      if (canPlaceStationAt(state.map, state.trackGraph, idx)) {
+      // Placing a station needs tile precision; only a tap on an existing station's own tile
+      // opens it.
+      const station = inMap ? stationAtTile(state.stations, idx) : undefined;
+      if (station) {
+        openStationById(station.id);
+      } else if (inMap && canPlaceStationAt(state.map, state.trackGraph, idx)) {
         startStationPlacement(idx);
-      } else {
+      } else if (inMap) {
         showToast(ui, strings.station.tapTrackTile, "warn");
       }
       return;
     }
     if (currentTool !== "info") return;
 
-    const cityId = state.map.cityId[idx] as number;
-    const industryIdx = state.map.industryId[idx] as number;
-    if (cityId >= 0 && state.cities[cityId]) {
-      openCityPanel(ui, state, cityId);
-    } else if (industryIdx >= 0 && state.industries[industryIdx]) {
-      openIndustryPanel(ui, state.industries[industryIdx]);
-    }
+    const trainHit = findTrainAt(canvasX, canvasY, viewportW, viewportH);
+    const near = stationsNearTap(canvasX, canvasY, viewportW, viewportH);
+    const industry = industryIdx >= 0 ? state.industries[industryIdx] : undefined;
+    const city = cityId >= 0 ? state.cities[cityId] : undefined;
+    const outcome = resolveInfoPick({
+      trains: trainHit ? [{ kind: "train", id: trainHit.id, name: `Train ${trainHit.id}` }] : [],
+      stationsNear: near.map(stationCandidate),
+      onStationTile: near[0]?.tile === idx,
+      industry: industry
+        ? { kind: "industry", id: industryIdx, name: INDUSTRIES[industry.type].name }
+        : null,
+      city: city ? { kind: "city", id: cityId, name: city.name } : null,
+    });
+    applyOutcome(outcome, canvasX, canvasY, openPicked);
   }
   cameraInput.setOnTap(handleTap);
 

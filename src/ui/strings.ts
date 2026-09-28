@@ -53,6 +53,7 @@ export const strings = {
     civicInvestmentCooldown: (years: number) => `Available again in ${years}y`,
     servedBy: "Served by",
     servedByNone: "Not yet connected",
+    noStationIn: (name: string) => `No station in ${name} yet`,
   },
   industry: {
     produces: "Produces",
