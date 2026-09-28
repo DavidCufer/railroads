@@ -500,25 +500,25 @@ Player report (Trieste, 1840):
    hit the town instead of the station. A lot of clicking around to find the station."
 
 ### A. Consist spacing
-- [ ] One source of truth: every vehicle is placed by arc length along the *same* rendered lane path the rails are
+- [x] One source of truth: every vehicle is placed by arc length along the *same* rendered lane path the rails are
       drawn from (straight segments √2-correct on diagonals, arcs by radius×angle). Coupler gap constant in screen
       px at a given zoom, identical on straight, diagonal and curved track.
-- [ ] Unit test: for a consist on a horizontal, a diagonal, and a 45° curve, the distance between consecutive vehicle
+- [x] Unit test: for a consist on a horizontal, a diagonal, and a 45° curve, the distance between consecutive vehicle
       ends is within ±0.5 px of the configured coupler gap at zoom 1 and 2.
 
 ### B. General track geometry model (render-side)
-- [ ] Build per-edge-chain **centerline paths** (straights + fillet arcs, as now). For each point along a chain define
+- [x] Build per-edge-chain **centerline paths** (straights + fillet arcs, as now). For each point along a chain define
       `laneOffset(s)` = 0 for single track, ±spacing/2 for double, and eased with a smoothstep over a ≥1.5-tile
       transition wherever single↔double changes. Transitions must not start on an arc: if one would, shift it onto
       the nearest straight part (or extend it across the arc with the offset easing continuously — pick whichever
       looks clean and document it).
-- [ ] Rails = offset curves of each lane centerline (±gauge/2). **Ties = one set per chain**, sampled at fixed arc
+- [x] Rails = offset curves of each lane centerline (±gauge/2). **Ties = one set per chain**, sampled at fixed arc
       spacing along the centerline, perpendicular to the local tangent, with length = span of all present lanes +
       overhang (so double track has long shared ties and turnouts have ties that lengthen smoothly). Never draw two
       overlapping tie sets.
-- [ ] Stations (passing loops), junctions and bridges use the same model. Trains use the same lane paths.
-- [ ] Remove the previous special-case turnout/station code paths once the new model covers them.
-- [ ] Screenshots to judge (zoom 1.5 and 2): the exact player situation (double track curving into a station whose
+- [x] Stations (passing loops), junctions and bridges use the same model. Trains use the same lane paths.
+- [x] Remove the previous special-case turnout/station code paths once the new model covers them.
+- [x] Screenshots to judge (zoom 1.5 and 2): the exact player situation (double track curving into a station whose
       other side is single), a double-track S-curve, a mid-line transition on a curve, a junction off double track,
       a double-track bridge. Compare against the player's screenshots in the description above; there must be no tie
       crossings anywhere.

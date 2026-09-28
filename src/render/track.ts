@@ -289,35 +289,47 @@ export class TrackRenderer {
     const centers = s.map((v) => lane.centerAt(v));
     const widths = s.map((v) => lane.halfWidthAt(v));
     const railGap = 2.2 / TILE_SIZE;
-    const offsets = tiesStyle ? [-railGap, railGap] : [0];
 
     ctx.strokeStyle = TRACK_COLOR;
     ctx.lineWidth = tiesStyle ? Math.max(1, 1.1 * scale) : Math.max(1, 1.6 * scale);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    for (const laneSign of [1, -1]) {
-      for (const rail of offsets) {
-        // The second lane is only drawn where it has actually separated from the first.
-        let open = false;
-        ctx.beginPath();
-        for (let i = 0; i < s.length; i++) {
-          const w = widths[i] as number;
-          const c = centers[i] as { x: number; y: number; angle: number };
-          if (laneSign < 0 && w < LANE_VISIBLE_EPS) {
-            if (open) {
-              ctx.stroke();
-              ctx.beginPath();
-              open = false;
-            }
-            continue;
+    // The outer rail of each lane is always drawn (at w=0 they are the single track's own two
+    // rails). The inner rails only exist once the lanes are a full gauge apart (w >= gauge): before
+    // that they would cross each other in an "X", so they start at the centerline as a V — like a
+    // real turnout frog — and open up as the lanes separate. Without ties (overview zoom) each lane
+    // is just one line, drawn only once it has separated from the first.
+    const rails: Array<{ lane: number; rail: number; minW: number }> = tiesStyle
+      ? [
+          { lane: 1, rail: railGap, minW: 0 },
+          { lane: -1, rail: -railGap, minW: 0 },
+          { lane: 1, rail: -railGap, minW: railGap },
+          { lane: -1, rail: railGap, minW: railGap },
+        ]
+      : [
+          { lane: 1, rail: 0, minW: 0 },
+          { lane: -1, rail: 0, minW: LANE_VISIBLE_EPS },
+        ];
+    for (const { lane: laneSign, rail, minW } of rails) {
+      let open = false;
+      ctx.beginPath();
+      for (let i = 0; i < s.length; i++) {
+        const w = widths[i] as number;
+        if (w < minW || (minW > 0 && w <= 0)) {
+          if (open) {
+            ctx.stroke();
+            ctx.beginPath();
+            open = false;
           }
-          const [x, y] = offsetPoint(f, c.x, c.y, c.angle, laneSign * w + rail);
-          if (open) ctx.lineTo(x, y);
-          else ctx.moveTo(x, y);
-          open = true;
+          continue;
         }
-        if (open) ctx.stroke();
+        const c = centers[i] as { x: number; y: number; angle: number };
+        const [x, y] = offsetPoint(f, c.x, c.y, c.angle, laneSign * w + rail);
+        if (open) ctx.lineTo(x, y);
+        else ctx.moveTo(x, y);
+        open = true;
       }
+      if (open) ctx.stroke();
     }
   }
 

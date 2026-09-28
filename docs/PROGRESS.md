@@ -3540,3 +3540,118 @@ five new Phase 16.1 screenshot tests and the entire pre-existing suite) both gre
 
 - Next: nothing scheduled — this closes out the third play-test's punch list. Future ideas remain at
   the bottom of `docs/PLAN.md`.
+
+## 2026-09-28 — Phase 17: Play-test 4 fixes (consist gaps, general lane geometry, tap targeting)
+
+Fourth play-test (Trieste, 1840): (1) a visible gap between the loco and its first car on diagonals,
+(2) double track "still problematic at times" (a transition landing on a curve next to a station gave
+crossing tie fans / an X), (3) tapping the town instead of the station. Done in three pushes: Part C,
+then the failing consist test, then the geometry rewrite (A+B). `src/sim/**` untouched — all
+pre-existing sim/determinism/balance tests pass unchanged.
+
+### C. Tap targeting (`src/ui/picking.ts`, `src/ui/chooser.ts`, `handleTap` in `src/main.ts`)
+- Priority trains > stations > industries > cities. Stations have a touch radius of
+  `max(28 CSS px, half a tile at the current zoom)` around the station tile centre (`stationTouchRadius`),
+  so a tap anywhere near a station inside a city opens the station, never the city.
+- Station vs industry both in reach and the tap not on the station's own tile → small chooser popup
+  (icon + name per entry, `data-testid="chooser"`). Train hits win outright (existing hit radius).
+- While a train's orders are being edited ("+ Add stop", the `stationPickHandler` mode) only stations are
+  pickable: a tap near a station picks it; on a city/industry it picks the station serving it (one → picked,
+  several → chooser of stations, none → toast "No station in <name> yet").
+- City panel "Served by" names are now buttons that open the station panel (`stationsServingList`).
+- Deviation/decision: the Station (build) tool still uses exact-tile hit-testing for existing stations, since
+  placing a station next to one needs tile precision. "Edit orders" only exists inside the Buy Train dialog
+  today; the picker is generic so a future orders editor gets the behaviour for free.
+- Tests: `tests/ui/picking.test.ts` (ranking rules) and `e2e/phase17.spec.ts` (station inside city opens the
+  station; far city tile still opens the city and served-by opens the station; order-edit tap on the city
+  adds its station; chooser appears for a station next to an industry).
+
+### A. Consist spacing
+- Root cause (measured, not guessed): `sampleBehindHead` placed the first car `LOCO_LENGTH + gap +
+  car/2` behind the head point, but the loco was *drawn centred* on that same point, so every consist had
+  half a loco length (~9.6px at zoom 1) of extra gap after the loco — on every angle (it just looked worst on
+  diagonals/curves where it was unmistakable). Parked trains (route = `[stationTile]`) had all cars stacked
+  on the head, and cars beyond a short route history bunched up.
+- The failing test came first (`tests/render/consistSpacing.test.ts`, committed red: gap 10.6px vs 1px).
+  It now passes: horizontal, diagonal and 45° curve at zoom 1 and 2, every gap within ±0.5px of
+  `VEHICLE_GAP_TILES × 32 × zoom`.
+- New layout (`layoutConsist` in `src/render/trains.ts`, `placeVehicles` in `laneGeometry.ts`): the head
+  position is the loco's *nose*; each vehicle occupies the next `length` tiles behind it by **arc length**
+  along the same lane path the rails are drawn from; a vehicle is drawn between the lane points at its two ends
+  (centre = chord midpoint, heading = chord), so facing ends are exactly one coupler gap apart along the
+  rails at any angle/curvature. Behaviour changes worth knowing: the loco is drawn ~0.3 tile further back than
+  before (nose at the sim head, which is also what the signalling tail-length math assumes); parked trains
+  lie along the approach track instead of stacking; a short route history is extended backwards along the
+  track (`extendChainBackward`); after a route fold (reversal at a terminal) the tail continues along
+  whatever track lies behind the fold instead of landing on top of the head.
+
+### B. General lane geometry (`src/render/laneGeometry.ts`, `track.ts`, `trains.ts`)
+- One model: a **centerline path** per strand (straights + the existing STYLE §7 fillet arcs) and a
+  **lane half-width `w(s)`** (0 single, `DOUBLE_TRACK_SPACING/2` double, smoothstep-eased). Two lanes at
+  `±w(s)`, symmetric — nothing depends on canonical edge order any more. Old model: one "through" track on the
+  centerline and a "diverging" one offset to the `+` side of the edge's canonical `a→b` direction; on a bend
+  the canonical direction flips between consecutive edges, so the diverging side flipped too, which is what
+  produced the crossing tie fans / X on curves.
+- **Ties: one set per strand**, fixed arc-length spacing, perpendicular to the centerline, spanning
+  `±(w + overhang)`. Rails: outer rail of each lane always; inner rails only once the lanes are a full gauge
+  apart (they start as a V at the centerline, like a turnout frog) — this removed the rail "bow-tie" X that the
+  first version of the new model still had when two tracks merge.
+- Strands = maximal runs through degree-2 nodes. At junctions every traversable 45° bend gets a short
+  **connector arc** (identical to the fillet a bending train follows); the branch strand is trimmed to the
+  connector's tangent point and the through line stays straight and untrimmed.
+- **Easing is now measured along the path, not per edge.** Graph edges are one tile long, so the old per-edge
+  "1.5 tile ease" (`min(1.5, edgeLength/2)`) was really 0.5 tile in practice — much of the "kink" was that.
+  `LanePath.halfWidthAt` looks along the path (up to `TURNOUT_EASE_TILES`) for the nearest non-split node
+  (double edge) or split node (single edge next to a passing loop).
+- Node rule (`nodeIsSplit`): both lanes apart at a station touching a double edge (passing loop) or where a
+  double line passes through (two double edges ≥135° apart — a single branch can attach and gets a "ghost"
+  funnel). Everything else is drawn single, so double tapers to one track there.
+- **Transitions on curves** (PLAN's "shift or extend" choice): extend. The offset keeps easing continuously
+  across the fillet arc (`w` is a function of arc length, lanes are `±w` off the centerline), so no transition
+  restarts on an arc and no tie fans; verified by the "lanes never cross / never swap sides" unit test on an
+  S-curve and by screenshots.
+- Stations, junctions, bridges: same model. Bridges are a wide deck over a strand range with the rails drawn
+  on top (they were bare decks before); fillets may now lead into a bridge (the deck follows the path).
+  Passing-loop station icon just uses the symmetric lanes.
+- Trains: `layoutConsist` builds a `LanePath` for the recent route window (history + 3 nodes ahead, because the
+  easing looks ~1.5 tiles ahead) with fillets exactly where the drawn strands/connectors have them, and rides
+  lane `+1` (the right-hand side of travel), so opposing trains use the two drawn rails.
+- Removed: `doubleTrackOffsetAt`, `hasDoubleNeighborAt`, `isPassingLoopStation`, `stationApproachOffsetAt`
+  (trackPath.ts), `drawVariableOffsetLine`/`secondaryOffsetAt`/`drawEdge`/`findFilletPartnerDir`
+  (track.ts), `laneOffsetTiles`/`curvedRouteSample`/`sampleBehindHead`/`routePartnerDir` (trains.ts).
+  `buildEdgeGeometry`/`halfFillet` stay (title background + tests). `TrackRenderer.invalidateTiles` now also
+  drops chunks within two tiles of a changed tile, since one node can re-shape its neighbours.
+- Tests: `tests/render/laneGeometry.test.ts` (path continuity, node positions on the path, easing spans
+  edges, lanes never cross on a curve, opposing lanes exactly one spacing apart, passing-loop station,
+  junction connector = route fillet, branch trimmed / through line whole), `consistSpacing.test.ts`. The
+  Phase 16/16.1 unit tests for the removed functions were replaced by these.
+- **Performance** (Phase 12 stress scenario, 60 trains / ~1500 edges, budgets 16 / 120 ms render):
+  before → after: unthrottled avgRender 1.16 → 1.47 ms (tick 0.105 → 0.090), 4× throttled avgRender
+  5.18 → 7.04 ms (tick 1.28 → 1.15). Well inside budget. `npm run check` (351 unit tests) and the full
+  `npm run e2e` (95 tests) pass.
+
+### Screenshots — looked at critically (`docs/screenshots/phase-17-*.png`, rendered at 2× device scale)
+Cropped and magnified the important spots to check rails/ties, not just the overview.
+- `phase-17-player-situation(.png, -zoom1.5)`: diagonal double track bending into a station, single on the
+  far side (the reported case). No tie crossings; ties lengthen smoothly; past the station the two lanes
+  converge over ~1.5 tiles into the single track with the inner rails starting as a V (no X). There is a
+  slightly heavy dark blob at the V tip where two round-capped rail ends meet — cosmetic.
+- `phase-17-double-s-curve`, `phase-17-transition-on-curve(.png, -zoom1.5)`: double S-curve reads as two
+  parallel curves with one tie set; a single→double transition that begins one tile after a bend eases
+  across the arc with no fan.
+- `phase-17-junction-single-branch`: double mainline stays double through the junction, the single branch
+  leaves as a curve that narrows from two rails to one. Honest note: this one is busier than I'd like —
+  both mainline lanes fan into the branch's connector and its ties overlap the mainline's for a moment. No
+  crossing ties, but it is the least polished of the set. `phase-17-junction-double-branch` (double branch off
+  double main) is clean.
+- `phase-17-double-bridge`: deck with trestle marks, both lanes' rails continue over it.
+- `phase-17-consist-straight`, `phase-17-consist-diagonal-curve`: two 4-car consists (same direction) on
+  straight, diagonal and curved double track — couplers tight everywhere, vehicles rotate smoothly through the
+  arc, no gap after the loco.
+- Recaptured the pre-existing phase-4/6/7/8/13/15/16/16.1 screenshots whose track/train drawing this phase
+  changed; other phases' screenshot diffs (text/fps counters) were reverted per CLAUDE.md.
+- Known cosmetic/limitations: chunk canvases show a half-pixel seam where rails cross a chunk boundary
+  (pre-existing, visible when magnified 8×); a junction within 1.5 tiles of a passing-loop station can pop
+  the ghost lane by ≲1px because the easing cannot see across a strand boundary; after a terminal reversal the
+  tail extends along whatever track lies behind the fold (or straight back if none).
+- Next: nothing scheduled; future ideas remain at the bottom of `docs/PLAN.md`.

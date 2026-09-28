@@ -16,7 +16,8 @@
  * Easing is measured along the path (`LanePath.halfWidthAt`), so it spans several one-tile edges.
  *
  * Node "split" rule (`nodeIsSplit`): a node is drawn with both lanes apart iff it is a station
- * with some double edge touching it (a passing loop), or every edge at the node is double. Every
+ * with some double edge touching it (a passing loop), or a double line passes through it (two
+ * double edges leaving ≥135° apart — a single branch may attach, it gets a ghost funnel). Every
  * other node is drawn single, so a double edge tapers to one track there and a single edge next to
  * a passing-loop station grows a second (ghost) lane over `TURNOUT_EASE_TILES`. Easing is
  * measured along the path (`LanePath.halfWidthAt`) from the node's fillet midpoint, so it spans
@@ -67,10 +68,23 @@ export function nodeIsSplit(env: GeomEnv, node: number): boolean {
   const edges = env.graph.edgesAt(node);
   let split = false;
   if (edges.length > 0) {
-    const anyDouble = edges.some((e) => e.double);
-    split = env.stationTiles.has(node)
-      ? anyDouble
-      : edges.length >= 2 && edges.every((e) => e.double);
+    if (env.stationTiles.has(node)) {
+      split = edges.some((e) => e.double);
+    } else {
+      // A double line passes through the node: two double edges leaving ≥135° apart (straight, or
+      // the 45° bend a train can take). Single branches may attach; they get a ghost lane funnel.
+      const away = edges
+        .filter((e) => e.double)
+        .map((e) => (e.a === node ? e.direction : (e.direction + 4) % 8));
+      for (let i = 0; i < away.length && !split; i++) {
+        for (let j = i + 1; j < away.length; j++) {
+          if (directionSteps(away[i] as number, away[j] as number) >= 3) {
+            split = true;
+            break;
+          }
+        }
+      }
+    }
   }
   env.splitCache?.set(node, split);
   return split;
