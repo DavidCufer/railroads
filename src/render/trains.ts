@@ -1,12 +1,6 @@
-/**
- * Train rendering (SPEC §7, PLAN Phase 6): loco drawn by type (steam/diesel/electric), cars
- * trailing behind colored by cargo, both rotated to the local track direction, with smooth
- * interpolation between sim ticks using the game loop's alpha. A handful of trains at once, drawn
- * directly every frame (same reasoning as render/stations.ts — too few to need chunk caching).
- */
 import { DIRS8 } from "../sim/map/grid";
 import type { TrackGraph } from "../sim/track/graph";
-import { directionBetween, edgeLengthTiles, tileXY } from "../sim/trains/geometry";
+import { tileXY } from "../sim/trains/geometry";
 import type { Train } from "../sim/trains/types";
 import { CARGO, type CargoType } from "../data/cargo";
 import { LOCO_LENGTH_TILES, locomotiveById } from "../data/trains";
@@ -20,12 +14,11 @@ import {
   TRAIN_WARNING_COLOR,
 } from "./palette";
 import {
-  buildEdgeGeometry,
-  doubleTrackOffsetAt,
-  hasDoubleNeighborAt,
-  isFilletBend,
-  type EdgePath,
-} from "./trackPath";
+  buildRouteLanePath,
+  extendChainBackward,
+  placeVehicles,
+  type GeomEnv,
+} from "./laneGeometry";
 
 /** DIRS8[i]'s screen-space heading, in radians (grid is screen-aligned: +x right, +y down). */
 const DIR_ANGLE: readonly number[] = DIRS8.map(([dx, dy]) => Math.atan2(dy, dx));
@@ -43,144 +36,28 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-interface Sample {
+export interface VehiclePlacement {
+  kind: "loco" | "car";
+  /** Tile-space center and heading (radians) of the vehicle's drawn rectangle. */
   x: number;
   y: number;
   angle: number;
+  /** Drawn length in tiles. */
+  length: number;
 }
 
-/** STYLE §7: "vehicles rotate smoothly along curves... each vehicle's position/angle is sampled
- * on the curved track path at its own offset behind the head, so couplings follow the curve" —
- * resolves the fillet partner direction at `node`'s end of edge `(nodeAwayDir)`, from whichever
- * *other* tile the route actually continues to there (`otherNode`), or `null` if there's no route
- * continuation (end of known route) or the bend isn't the one 45° angle a train can traverse. */
-function routePartnerDir(
-  mapWidth: number,
-  node: number,
-  nodeAwayDir: number,
-  otherNode: number | undefined,
-): number | null {
-  if (otherNode === undefined) return null;
-  const otherAwayDir = directionBetween(node, otherNode, mapWidth);
-  return isFilletBend(nodeAwayDir, otherAwayDir) ? otherAwayDir : null;
-}
-
-/** A train's lateral lane offset (tiles) to apply to a `path.pointAt(...)` sample taken while
- * traveling from `a` to `b` (in that order — `path`'s own forward direction) — PLAN Phase 16 (play-
- * test 2: "trains run on the centerline between the two tracks and pass through each other"). 0 on
- * single track. On double track, one direction rides the "through" track (offset 0, exactly the
- * track renderer's own centerline) and the other rides the "diverging" track (`track.ts`'s
- * `offsetAt`), so opposing trains are always on the two different rails actually drawn, easing in/
- * out over the same turnout the track renderer tapers — see `src/render/trackPath.ts`'s
- * `doubleTrackOffsetAt` doc comment for why one side needs no taper handling at all. */
-function laneOffsetTiles(
-  graph: TrackGraph,
-  a: number,
-  b: number,
-  path: EdgePath,
-  distanceAlongPath: number,
-  stationTiles: ReadonlySet<number>,
-): number {
-  const edge = graph.getEdge(a, b);
-  if (!edge?.double) return 0;
-  const throughDirection = a === edge.a; // traveling a->b matches the edge's own canonical a->b
-  if (throughDirection) return 0;
-  // PLAN Phase 16.1: a station never pinches a touching double edge's taper to 0 at itself (see
-  // `track.ts`'s matching taper flags) — a train stays in its own lane all the way up to the
-  // platform instead of sliding back onto the centerline just before arriving.
-  const taperAtA = !hasDoubleNeighborAt(graph, edge.a, edge.b) && !stationTiles.has(edge.a);
-  const taperAtB = !hasDoubleNeighborAt(graph, edge.b, edge.a) && !stationTiles.has(edge.b);
-  // `path` runs b->a here (reversed from canonical a->b), so distance from *canonical* start (a of
-  // the edge, i.e. this path's own end) is the remainder.
-  const distanceFromCanonicalStart = path.length - distanceAlongPath;
-  const magnitude = doubleTrackOffsetAt(
-    distanceFromCanonicalStart,
-    path.length,
-    taperAtA,
-    taperAtB,
-  );
-  // `path`'s own forward direction is reversed from canonical, so its perpendicular convention is
-  // negated relative to the canonical centerline's — negate the magnitude to land on the same
-  // world-space "diverging" position the track renderer draws.
-  return -magnitude;
-}
-
-/** Curved (x, y, heading) at `progress` (0..1) along `route[idx] -> route[idx+1]`, following the
- * same fillet geometry the track renderer draws — the neighboring route tiles just before/after
- * this edge (if any) decide whether either end bends. Offsets sideways into this direction's own
- * lane on double track (see `laneOffsetTiles`). */
-export function curvedRouteSample(
-  mapWidth: number,
-  graph: TrackGraph,
-  route: readonly number[],
-  idx: number,
-  progress: number,
-  stationTiles: ReadonlySet<number> = new Set(),
-): Sample {
-  const a = route[idx] as number;
-  const b = route[idx + 1] as number;
-  const dirAB = directionBetween(a, b, mapWidth);
-  // PLAN Phase 16.1: never fillet at a station's own node (matches `track.ts`'s drawn geometry —
-  // "the station tile is always straight").
-  const partnerA = stationTiles.has(a) ? null : routePartnerDir(mapWidth, a, dirAB, route[idx - 1]);
-  const partnerB = stationTiles.has(b)
-    ? null
-    : routePartnerDir(mapWidth, b, (dirAB + 4) % 8, route[idx + 2]);
-  const path = buildEdgeGeometry(mapWidth, a, b, partnerA, partnerB);
-  const [ax, ay] = tileXY(a, mapWidth);
-  const [bx, by] = tileXY(b, mapWidth);
-  const straightLen = Math.hypot(bx - ax, by - ay);
-  const distanceAlongPath = progress * straightLen;
-  const sample = path.pointAt(distanceAlongPath);
-  const lane = laneOffsetTiles(graph, a, b, path, distanceAlongPath, stationTiles);
-  if (lane === 0) return sample;
-  const perpX = -Math.sin(sample.angle);
-  const perpY = Math.cos(sample.angle);
-  return { x: sample.x + perpX * lane, y: sample.y + perpY * lane, angle: sample.angle };
-}
-
-/** Walks backward from the train's head along its route by `distanceBehind` tiles, returning the
- * curved (tile-space) point and local heading there — used to lay cars out behind the loco. Clamps
- * at the start of the known route (a train that has barely left a station won't have enough route
- * history yet; its cars simply bunch up near the head, a minor cosmetic simplification). */
-function sampleBehindHead(
-  mapWidth: number,
-  graph: TrackGraph,
-  train: Train,
-  distanceBehind: number,
-  stationTiles: ReadonlySet<number>,
-): Sample {
-  let idx = train.routeIndex;
-  const firstB = train.route[idx + 1];
-  if (firstB === undefined) {
-    const [x, y] = tileXY(train.route[idx] as number, mapWidth);
-    return { x: x + 0.5, y: y + 0.5, angle: DIR_ANGLE[Math.max(train.direction, 0)] as number };
-  }
-
-  const firstEdge = graph.getEdge(train.route[idx] as number, firstB);
-  let edgeLen = firstEdge ? edgeLengthTiles(firstEdge) : 1;
-  let coveredOnEdge = train.edgeProgress * edgeLen;
-  let remaining = distanceBehind;
-
-  while (remaining > coveredOnEdge && idx > 0) {
-    remaining -= coveredOnEdge;
-    idx--;
-    const a = train.route[idx] as number;
-    const b = train.route[idx + 1] as number;
-    const edge = graph.getEdge(a, b);
-    edgeLen = edge ? edgeLengthTiles(edge) : 1;
-    coveredOnEdge = edgeLen;
-  }
-
-  const a = train.route[idx];
-  const b = train.route[idx + 1];
-  if (a === undefined || b === undefined) {
-    const [x, y] = tileXY((a ?? train.route[idx]) as number, mapWidth);
-    return { x: x + 0.5, y: y + 0.5, angle: DIR_ANGLE[Math.max(train.direction, 0)] as number };
-  }
-  const progress = Math.max(0, Math.min(1, (coveredOnEdge - remaining) / edgeLen));
-  return curvedRouteSample(mapWidth, graph, train.route, idx, progress, stationTiles);
-}
+export type LayoutTrain = Pick<
+  Train,
+  | "route"
+  | "routeIndex"
+  | "edgeProgress"
+  | "renderFromX"
+  | "renderFromY"
+  | "renderToX"
+  | "renderToY"
+  | "direction"
+  | "lastApproachNode"
+> & { cars: readonly unknown[] };
 
 /** Fraction (0..1, clamped) of the way from tile `a` to tile `b` that world point `(x, y)`
  * projects to along that straight edge — used to recover the head's progress at the *start* of
@@ -195,6 +72,119 @@ function progressAlongEdge(mapWidth: number, a: number, b: number, x: number, y:
   const px = x - (ax + 0.5);
   const py = y - (ay + 0.5);
   return Math.max(0, Math.min(1, (px * dx + py * dy) / lenSq));
+}
+
+/** Total drawn length of a consist with `carCount` cars, coupler gaps included (tiles). */
+export function consistLengthTiles(carCount: number): number {
+  return (
+    LOCO_LENGTH_TILES + carCount * (CAR_DRAW_LEN_TILES + VEHICLE_GAP_TILES) + (carCount > 0 ? 0 : 0)
+  );
+}
+
+/** The node a stationary train (route has no edge ahead) trails back toward: the previous route
+ * node, else the node it last arrived from, else any neighbour of its tile. */
+function historyNodeFor(env: GeomEnv, train: LayoutTrain, node: number): number | undefined {
+  const prev = train.route[train.routeIndex - 1];
+  if (prev !== undefined) return prev;
+  if (train.lastApproachNode >= 0 && env.graph.hasEdge(train.lastApproachNode, node)) {
+    return train.lastApproachNode;
+  }
+  return env.graph.neighborsOf(node).sort((p, q) => p - q)[0];
+}
+
+/**
+ * Where every vehicle of `train` is drawn (tile space), loco first then cars front to back
+ * (PLAN Phase 17 A). One source of truth with the rails: the consist is laid out by *arc length*
+ * along the same lane path `track.ts` draws from — the loco's nose is the head position, each
+ * vehicle occupies the next `length` tiles behind it, and consecutive vehicles are separated by
+ * exactly `VEHICLE_GAP_TILES` along the rails, whatever the angle or curvature.
+ */
+export function layoutConsist(env: GeomEnv, train: LayoutTrain, alpha: number): VehiclePlacement[] {
+  const carCount = train.cars.length;
+  const lengths = [LOCO_LENGTH_TILES, ...train.cars.map(() => CAR_DRAW_LEN_TILES)];
+  const kinds: Array<"loco" | "car"> = lengths.map((_, i) => (i === 0 ? "loco" : "car"));
+  const tail = consistLengthTiles(carCount);
+  const { mapWidth } = env;
+  const route = train.route;
+  const idx = train.routeIndex;
+  const nodeAt = route[idx];
+  const nextNode = route[idx + 1];
+
+  let chain: number[] | null = null;
+  let i0 = 0;
+  let progress = 1;
+  if (nodeAt !== undefined && nextNode !== undefined) {
+    // Moving: recent history + the next few nodes (lane easing looks up to TURNOUT_EASE_TILES
+    // ahead, and the fillet at each node needs the node after it).
+    let lo = idx;
+    let behind = 0;
+    while (lo > 0 && behind < tail + 2) {
+      const [ax, ay] = tileXY(route[lo - 1] as number, mapWidth);
+      const [bx, by] = tileXY(route[lo] as number, mapWidth);
+      behind += Math.hypot(bx - ax, by - ay);
+      lo--;
+    }
+    chain = route.slice(lo, Math.min(route.length, idx + 4));
+    i0 = idx - lo;
+    // A route that doubles back on itself (reversal at a terminal) can't be followed backwards
+    // through the fold — the consist would land on top of the head. Start after the fold and let
+    // the tail continue along whatever track really lies behind it.
+    for (let k = i0; k >= 1; k--) {
+      if (chain[k + 1] !== undefined && chain[k - 1] === chain[k + 1]) {
+        chain = chain.slice(k);
+        i0 -= k;
+        break;
+      }
+    }
+    const progressStart = progressAlongEdge(
+      mapWidth,
+      nodeAt,
+      nextNode,
+      train.renderFromX,
+      train.renderFromY,
+    );
+    progress = lerp(progressStart, train.edgeProgress, alpha);
+  } else if (nodeAt !== undefined) {
+    // Parked (or at the end of its route): head at the node, tail back along the approach track.
+    const prev = historyNodeFor(env, train, nodeAt);
+    if (prev !== undefined) {
+      chain = [prev, nodeAt];
+      i0 = 0;
+      progress = 1;
+    }
+  }
+
+  if (!chain || chain.length < 2) {
+    // No track to follow at all: a straight consist along the last known heading.
+    const x = lerp(train.renderFromX, train.renderToX, alpha);
+    const y = lerp(train.renderFromY, train.renderToY, alpha);
+    const angle = train.direction >= 0 ? (DIR_ANGLE[train.direction] as number) : 0;
+    const out: VehiclePlacement[] = [];
+    let back = 0;
+    lengths.forEach((length, i) => {
+      out.push({
+        kind: kinds[i] as "loco" | "car",
+        x: x - Math.cos(angle) * (back + length / 2),
+        y: y - Math.sin(angle) * (back + length / 2),
+        angle,
+        length,
+      });
+      back += length + VEHICLE_GAP_TILES;
+    });
+    return out;
+  }
+
+  const before = chain.length;
+  chain = extendChainBackward(env, chain, tail + 2 + 4);
+  i0 += chain.length - before;
+  const lane = buildRouteLanePath(env, chain);
+  const s0 = lane.nodeS[i0] as number;
+  const s1 = lane.nodeS[i0 + 1] as number;
+  const headS = s0 + (s1 - s0) * progress;
+  return placeVehicles(lane, headS, lengths, VEHICLE_GAP_TILES).map((v, i) => ({
+    kind: kinds[i] as "loco" | "car",
+    ...v,
+  }));
 }
 
 function worldToScreenScaled(
@@ -536,70 +526,6 @@ function drawStatusIcon(
   }
 }
 
-export interface VehiclePlacement {
-  kind: "loco" | "car";
-  /** Tile-space center and heading (radians) of the vehicle's drawn rectangle. */
-  x: number;
-  y: number;
-  angle: number;
-  /** Drawn length in tiles. */
-  length: number;
-}
-
-export type LayoutTrain = Pick<
-  Train,
-  | "route"
-  | "routeIndex"
-  | "edgeProgress"
-  | "renderFromX"
-  | "renderFromY"
-  | "renderToX"
-  | "renderToY"
-  | "direction"
-> & { cars: readonly unknown[] };
-
-/** Where every vehicle of `train` is drawn (tile space), loco first then cars front to back. */
-export function layoutConsist(
-  mapWidth: number,
-  graph: TrackGraph,
-  train: LayoutTrain,
-  alpha: number,
-  stationTiles: ReadonlySet<number>,
-): VehiclePlacement[] {
-  const a = train.route[train.routeIndex];
-  const b = train.route[train.routeIndex + 1];
-  let head: Sample;
-  if (a !== undefined && b !== undefined) {
-    const progressStart = progressAlongEdge(mapWidth, a, b, train.renderFromX, train.renderFromY);
-    const progress = lerp(progressStart, train.edgeProgress, alpha);
-    head = curvedRouteSample(
-      mapWidth,
-      graph,
-      train.route,
-      train.routeIndex,
-      progress,
-      stationTiles,
-    );
-  } else {
-    head = {
-      x: lerp(train.renderFromX, train.renderToX, alpha),
-      y: lerp(train.renderFromY, train.renderToY, alpha),
-      angle: train.direction >= 0 ? (DIR_ANGLE[train.direction] as number) : 0,
-    };
-  }
-  const out: VehiclePlacement[] = [{ kind: "loco", ...head, length: LOCO_LENGTH_TILES }];
-  for (let i = 0; i < train.cars.length; i++) {
-    const distanceBehind =
-      LOCO_LENGTH_TILES +
-      VEHICLE_GAP_TILES +
-      i * (CAR_DRAW_LEN_TILES + VEHICLE_GAP_TILES) +
-      CAR_DRAW_LEN_TILES / 2;
-    const sample = sampleBehindHead(mapWidth, graph, train as Train, distanceBehind, stationTiles);
-    out.push({ kind: "car", ...sample, length: CAR_DRAW_LEN_TILES });
-  }
-  return out;
-}
-
 export function drawTrains(
   ctx: CanvasRenderingContext2D,
   camera: Camera,
@@ -613,69 +539,47 @@ export function drawTrains(
   stationTiles: ReadonlySet<number>,
 ): void {
   const size = TILE_SIZE * camera.zoom;
+  const env: GeomEnv = { mapWidth, graph, stationTiles, splitCache: new Map() };
   for (const train of trains) {
     const loco = locomotiveById(train.locoModelId);
     if (!loco) continue;
 
-    const a = train.route[train.routeIndex];
-    const b = train.route[train.routeIndex + 1];
-    let headTileX: number;
-    let headTileY: number;
-    let angle: number;
-    if (a !== undefined && b !== undefined) {
-      // Blend the head's progress along the *current* curved edge between its tick-start
-      // (`renderFromX/Y`, a straight tile-space snapshot the sim already keeps) and tick-end
-      // (`train.edgeProgress`, authoritative) positions, so it follows the same fillet the cars
-      // do while keeping the existing smooth sub-tick interpolation (`alpha`).
-      const progressStart = progressAlongEdge(mapWidth, a, b, train.renderFromX, train.renderFromY);
-      const progress = lerp(progressStart, train.edgeProgress, alpha);
-      const sample = curvedRouteSample(
-        mapWidth,
-        graph,
-        train.route,
-        train.routeIndex,
-        progress,
-        stationTiles,
-      );
-      headTileX = sample.x;
-      headTileY = sample.y;
-      angle = sample.angle;
-    } else {
-      headTileX = lerp(train.renderFromX, train.renderToX, alpha);
-      headTileY = lerp(train.renderFromY, train.renderToY, alpha);
-      angle = train.direction >= 0 ? (DIR_ANGLE[train.direction] as number) : Math.atan2(0, 1);
-    }
-    const head = worldToScreenScaled(camera, headTileX, headTileY, viewportW, viewportH);
+    // Cheap cull on the head position before laying out the whole consist.
+    const rough = worldToScreenScaled(
+      camera,
+      lerp(train.renderFromX, train.renderToX, alpha),
+      lerp(train.renderFromY, train.renderToY, alpha),
+      viewportW,
+      viewportH,
+    );
+    const reach = size * (2 + consistLengthTiles(train.cars.length));
     if (
-      head.x < -size * 2 ||
-      head.y < -size * 2 ||
-      head.x > viewportW + size * 2 ||
-      head.y > viewportH + size * 2
+      rough.x < -reach ||
+      rough.y < -reach ||
+      rough.x > viewportW + reach ||
+      rough.y > viewportH + reach
     ) {
       continue;
     }
 
-    for (let i = train.cars.length - 1; i >= 0; i--) {
-      const distanceBehind =
-        LOCO_LENGTH_TILES +
-        VEHICLE_GAP_TILES +
-        i * (CAR_DRAW_LEN_TILES + VEHICLE_GAP_TILES) +
-        CAR_DRAW_LEN_TILES / 2;
-      const sample = sampleBehindHead(mapWidth, graph, train, distanceBehind, stationTiles);
-      const screen = worldToScreenScaled(camera, sample.x, sample.y, viewportW, viewportH);
-      const car = train.cars[i];
+    const vehicles = layoutConsist(env, train, alpha);
+    for (let i = vehicles.length - 1; i >= 1; i--) {
+      const v = vehicles[i] as VehiclePlacement;
+      const screen = worldToScreenScaled(camera, v.x, v.y, viewportW, viewportH);
+      const car = train.cars[i - 1];
       drawCar(
         ctx,
         screen.x,
         screen.y,
-        sample.angle,
+        v.angle,
         size,
         car?.cargoType ?? "goods",
         (car?.loadedUnits ?? 0) > 0,
       );
     }
-
-    drawLoco(ctx, head.x, head.y, angle, size, loco.type, nowMs);
-    drawStatusIcon(ctx, head.x, head.y, size, train);
+    const head = vehicles[0] as VehiclePlacement;
+    const headScreen = worldToScreenScaled(camera, head.x, head.y, viewportW, viewportH);
+    drawLoco(ctx, headScreen.x, headScreen.y, head.angle, size, loco.type, nowMs);
+    drawStatusIcon(ctx, headScreen.x, headScreen.y, size, train);
   }
 }

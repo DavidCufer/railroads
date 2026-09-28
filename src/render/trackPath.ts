@@ -20,7 +20,7 @@
  * tangent length for a given radius), just translated and rotated per node.
  */
 import { DIRS8 } from "../sim/map/grid";
-import { directionSteps, type TrackGraph } from "../sim/track/graph";
+import { directionSteps } from "../sim/track/graph";
 
 /** STYLE §7: "radius ≈ 1.2 tiles (clamped so arcs don't overlap on short segments)". Every track
  * edge in this game is at least 1 tile long (√2 if diagonal), and the tangent length this implies
@@ -36,104 +36,14 @@ const HALF_INTERIOR = INTERIOR_ANGLE / 2;
 /** Distance from a node to each tangent point, along the corresponding "away from node" ray. */
 export const FILLET_TANGENT_TILES = FILLET_RADIUS_TILES / Math.tan(HALF_INTERIOR);
 
-/** PLAN Phase 16 (Play-test 2 review: "double track is drawn huge and ugly, two full-size tracks
- * far apart"): center-to-center spacing between a double edge's two tracks, in tiles — "only
- * slightly wider than one track" (SPEC §5.1). One track always sits exactly on the shared
- * centerline (the "through" track, offset 0); the other sits `DOUBLE_TRACK_SPACING_TILES` to one
- * side (see `doubleTrackOffsetAt`) — this asymmetric split is what lets a single↔double transition
- * taper smoothly: the through track needs no taper at all (it already *is* the single track's own
- * line), only the diverging one eases in/out. */
+/** Center-to-center spacing between a double edge's two lanes, in tiles — "only slightly wider than
+ * one track" (SPEC §5.1; PLAN Phase 16). The lanes sit symmetrically at ±half of this from the
+ * centerline (`laneGeometry.ts`). */
 export const DOUBLE_TRACK_SPACING_TILES = 0.28;
 
-/** How far (in tiles) a single↔double turnout's diverging track eases in/out — SPEC §5.1: "a
- * gentle S-curve over ~1 tile", bumped to PLAN Phase 16.1's "≥ 1.5 tiles" (play-test 3: the
- * original 1-tile ease read as a "kink" right next to a station; the same easing function is used
- * for every single↔double transition, station-adjacent or mid-line, so both got longer). */
+/** How far (in tiles) a single↔double transition eases in/out — SPEC §5.1 "gentle S-curve", PLAN
+ * Phase 16.1 "≥ 1.5 tiles". One easing length for every transition (mid-line or at a station). */
 export const TURNOUT_EASE_TILES = 1.5;
-
-/** The diverging ("second") track's lateral offset (tiles, 0..`DOUBLE_TRACK_SPACING_TILES`) at
- * `distanceFromStart` along a double edge of total length `edgeLength` (both in tiles, along the
- * curved centerline — i.e. `EdgePath.length`/`EdgePath.pointAt`'s own units) — 0 right at a node
- * with no double continuation there (so it visually merges into the through track, matching the
- * single track it's connected to), ramping linearly up to full spacing over `TURNOUT_EASE_TILES`
- * (clamped to half the edge, so a short double stub doesn't overshoot before easing back down).
- * Shared by the track renderer (`track.ts`, sampling a whole edge) and the train renderer
- * (`trains.ts`, sampling one point at a time) so both agree on exactly where a train's lane and the
- * drawn rail it's supposed to be on line up. */
-export function doubleTrackOffsetAt(
-  distanceFromStart: number,
-  edgeLength: number,
-  taperAtStart: boolean,
-  taperAtEnd: boolean,
-): number {
-  const taperLen = Math.min(TURNOUT_EASE_TILES, edgeLength / 2);
-  let factor = 1;
-  if (taperAtStart) factor = Math.min(factor, taperLen > 0 ? distanceFromStart / taperLen : 1);
-  if (taperAtEnd) {
-    const distanceFromEnd = edgeLength - distanceFromStart;
-    factor = Math.min(factor, taperLen > 0 ? distanceFromEnd / taperLen : 1);
-  }
-  return DOUBLE_TRACK_SPACING_TILES * Math.max(0, Math.min(1, factor));
-}
-
-/** Whether `node` connects to some *other* double-track edge besides the one arriving from
- * `excludeNeighbor` — used to decide whether a double edge's diverging track needs to taper down to
- * 0 at that end (no — it continues as double) or not (yes — it's a single↔double transition, or a
- * dead end). Deliberately simpler than the centerline fillet's own partner search (which cares about
- * the exact bend angle): any connected double edge reads as "double continues here" for taper
- * purposes, even across a junction. */
-export function hasDoubleNeighborAt(
-  graph: TrackGraph,
-  node: number,
-  excludeNeighbor: number,
-): boolean {
-  for (const neighbor of graph.neighborsOf(node)) {
-    if (neighbor === excludeNeighbor) continue;
-    if (graph.getEdge(node, neighbor)?.double) return true;
-  }
-  return false;
-}
-
-/** PLAN Phase 16.1 (play-test 3: "where double track meets a station, the two tracks pinch
- * together in a sharp kink right at the station tile"): true if `node` is a station tile with at
- * least one double-track edge touching it. Such a station is a passing loop — drawn with both
- * tracks at full spacing straight through the tile (`stationTiles.has(node)` alone is enough to
- * suppress a double edge's own taper at that end, regardless of `hasDoubleNeighborAt`, since a
- * station never pinches). The turnout this displaces is drawn instead on whichever single-track
- * edge leaves the station on the other side — see `stationApproachOffsetAt`. */
-export function isPassingLoopStation(
-  graph: TrackGraph,
-  node: number,
-  stationTiles: ReadonlySet<number>,
-): boolean {
-  return stationTiles.has(node) && graph.edgesAt(node).some((e) => e.double);
-}
-
-/** The "ghost" continuation of a passing-loop station's second track a short way onto a
- * single-track edge leaving it (rails/ties only — there is no second lane a train can actually use
- * here, since the edge itself isn't double; ordinary single-track routing applies the moment a
- * train leaves the station). PLAN Phase 16.1: "draw the turnout on the *single* side, starting at
- * the station edge and completing over ≥ 1.5 tiles with a smooth S-curve". Mirrors
- * `doubleTrackOffsetAt`'s taper shape but inverted — full spacing right at the station end(s),
- * decaying to 0 over `TURNOUT_EASE_TILES` — so the station's own full-width passing loop merges
- * smoothly into the single line beyond it instead of pinching at the station tile itself. */
-export function stationApproachOffsetAt(
-  distanceFromStart: number,
-  edgeLength: number,
-  approachAtStart: boolean,
-  approachAtEnd: boolean,
-): number {
-  const taperLen = Math.min(TURNOUT_EASE_TILES, edgeLength / 2);
-  let factor = 0;
-  if (approachAtStart) {
-    factor = Math.max(factor, taperLen > 0 ? 1 - distanceFromStart / taperLen : 0);
-  }
-  if (approachAtEnd) {
-    const distanceFromEnd = edgeLength - distanceFromStart;
-    factor = Math.max(factor, taperLen > 0 ? 1 - distanceFromEnd / taperLen : 0);
-  }
-  return DOUBLE_TRACK_SPACING_TILES * Math.max(0, Math.min(1, factor));
-}
 
 export interface Point {
   x: number;

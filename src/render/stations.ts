@@ -87,12 +87,11 @@ function drawStationIcon(
 
 /** PLAN Phase 16.1 (play-test 3: "stations on double track are passing loops"): draws a station
  * that has a double-track edge touching it as two parallel platform tracks straight through the
- * tile instead of one — matching `track.ts`'s own through (offset 0) / diverging
- * (`DOUBLE_TRACK_SPACING_TILES`) rail pair exactly, so the icon lines up with the rails drawn under
- * it rather than contradicting them. `dirIndex` is the touching double edge's own canonical
- * direction (not "away from this station"), the same convention `track.ts` offsets from, so
- * rotating by its heading here lands "+local y" on the same physical side as the diverging track.
- * Both the platform and the building sit beyond the diverging track's own outer rail (not squeezed
+ * tile instead of one — the two lanes of the lane model (`laneGeometry.ts`, symmetric at
+ * ±`DOUBLE_TRACK_SPACING_TILES / 2` of the centerline), so the icon lines up with the rails drawn
+ * under it. Symmetric, so any touching double edge's direction gives the same picture; `dirIndex`
+ * just rotates the icon along the track. Both the platform and the building sit beyond the outer
+ * lane's rail (not squeezed
  * into the narrow gap between the two tracks, which the 0.28-tile spacing leaves no room to read
  * cleanly) — PLAN: "never under the rails". */
 function drawPassingLoopStationIcon(
@@ -113,7 +112,7 @@ function drawPassingLoopStationIcon(
   ctx.translate(cx, cy);
   ctx.rotate(angle);
 
-  const laneSpacing = size * DOUBLE_TRACK_SPACING_TILES;
+  const laneSpacing = (size * DOUBLE_TRACK_SPACING_TILES) / 2;
   const platformLen = size * platform;
 
   // Clearance past the diverging track's own outer rail/tie extent (matches `track.ts`'s

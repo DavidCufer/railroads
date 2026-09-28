@@ -1,22 +1,17 @@
 /**
  * Track renderer: cached per-chunk offscreen canvases, same scheme as TerrainRenderer (SPEC
- * §10.3, §10.4) — dark rails with ties at zoom ≥ 1, a single line at lower zoom, double track as
- * parallel lines, bridges colored distinctively by type, small junction dots, and a small red
- * marker on nodes where two edges meet at a sharper-than-45° angle (SPEC §5.1: buildable, but not
- * traversable as a through route).
+ * §10.3, §10.4) — dark rails with ties at zoom ≥ 1, plain lines at lower zoom, bridges colored
+ * distinctively by type, small junction dots, and a small red marker on nodes where two edges
+ * meet at a sharper-than-45° angle (SPEC §5.1: buildable, but not traversable as a through route).
  *
- * STYLE §7: rails (and ties, and the double-track offset, and the catenary wire) follow a
- * circular fillet arc at every 45° bend instead of meeting in a hard corner — see
- * `src/render/trackPath.ts` for the shared curve geometry the train renderer also samples, so
- * consists follow exactly the same line drawn here. A sharp (>45°) junction has no traversable
- * bend to smooth, so it stays a plain pointed corner, matching its existing red marker. Bridges
- * are a single straight structural span (SPEC §5.1 deviation, see `src/sim/track/types.ts`) and
- * never bend at their own ends, though an approach track curving into one is drawn normally.
- *
- * PLAN Phase 16.1 (play-test 3): a station tile never bends (no fillet at its own node) and never
- * pinches a touching double edge's taper to 0 at itself — see `trackPath.ts`'s
- * `isPassingLoopStation`/`stationApproachOffsetAt` for how the displaced single↔double turnout
- * moves onto the single-track side instead.
+ * PLAN Phase 17 B: everything geometric comes from the general lane model in `laneGeometry.ts` —
+ * the graph is decomposed into *strands* (runs through degree-2 nodes, plus a short connector arc
+ * for every traversable bend at a junction). Each strand has one centerline (straights + STYLE §7
+ * fillet arcs) and a lane half-width `w(s)`: 0 on single track, half the lane spacing on double,
+ * smoothstep-eased between. Rails are the two lanes at ±w(s) each with its own rail pair, and
+ * **ties are one set per strand**, perpendicular to the centerline, spanning both lanes — so no
+ * two tie sets ever cross, on straights, curves, turnouts, stations, junctions or bridges.
+ * The train renderer places vehicles on the very same lane paths (`laneGeometry.ts`).
  */
 import { Camera, OVERVIEW_ZOOM_THRESHOLD, TILE_SIZE } from "./camera";
 import {
@@ -32,25 +27,19 @@ import { hasSharpJunction } from "../sim/track/turn";
 import type { TrackGraph } from "../sim/track/graph";
 import type { TrackEdge } from "../sim/track/types";
 import { ChunkCache } from "./chunkCache";
-import {
-  buildEdgeGeometry,
-  doubleTrackOffsetAt,
-  hasDoubleNeighborAt,
-  isFilletBend,
-  isPassingLoopStation,
-  stationApproachOffsetAt,
-  type EdgePath,
-  type PathPiece,
-  type PathSample,
-} from "./trackPath";
+import { buildTrackStrands, type LanePath, type Strand } from "./laneGeometry";
 
 const CHUNK_TILES = 16;
 type ZoomBucket = 1 | 0.5 | 0.25;
 
-/** Sampling resolution (tiles) for a double edge's diverging track, drawn as a polyline instead of
- * an `EdgePath` (see `drawVariableOffsetLine`) — fine enough that the polyline reads as smoothly
- * curved through a fillet at any zoom. */
-const DIVERGING_SAMPLE_SPACING_TILES = 0.12;
+/** Polyline sampling step (tiles) for rails — fine enough that fillet arcs read as smooth curves. */
+const RAIL_SAMPLE_TILES = 0.1;
+/** Below this lane half-width (tiles) the second lane coincides with the first and isn't drawn. */
+const LANE_VISIBLE_EPS = 0.004;
+/** Connector arcs skip ties over their first/last stretch, where they still overlap the ties of
+ * the through track / the branch strand they join. */
+const CONNECTOR_TIE_MARGIN_START = 0.3;
+const CONNECTOR_TIE_MARGIN_END = 0.12;
 
 /** Same rationale/sizing as TerrainRenderer's cap (Phase 12 memory-bounds backstop). */
 const TRACK_CHUNK_CACHE_MAX = 350;
@@ -69,73 +58,42 @@ function chunkCacheKey(cx: number, cy: number, bucket: ZoomBucket): string {
   return `${bucket}|${cx}|${cy}`;
 }
 
-interface EdgeBBox {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
+/** One drawable piece of a strand: an edge's arc-length range (or a whole connector). */
+interface DrawItem {
+  strand: Strand;
+  sA: number;
+  sB: number;
+  /** The graph edge, absent for connectors. */
+  edge: TrackEdge | undefined;
 }
 
-function edgeBBox(edge: TrackEdge, mapWidth: number): EdgeBBox {
-  const [ax, ay] = tileXY(edge.a, mapWidth);
-  const [bx, by] = tileXY(edge.b, mapWidth);
-  return {
-    minX: Math.min(ax, bx),
-    minY: Math.min(ay, by),
-    maxX: Math.max(ax, bx),
-    maxY: Math.max(ay, by),
-  };
+interface Frame {
+  ctx: CanvasRenderingContext2D;
+  originX: number;
+  originY: number;
+  px: number;
+  scale: number;
 }
 
-/** This edge's "away from node" direction at `node` (the compass direction from `node` toward the
- * edge's other end) — the same convention `src/sim/track/turn.ts`'s `hasSharpJunction` uses. */
-function awayDirAt(edge: TrackEdge, node: number): number {
-  return edge.a === node ? edge.direction : (edge.direction + 4) % 8;
+/** Chunk-local pixel point at signed perpendicular `offset` (tiles) from a centerline sample. */
+function offsetPoint(
+  f: Frame,
+  x: number,
+  y: number,
+  angle: number,
+  offset: number,
+): [number, number] {
+  return [
+    (x - Math.sin(angle) * offset - f.originX) * f.px,
+    (y + Math.cos(angle) * offset - f.originY) * f.px,
+  ];
 }
 
-/** Strokes a tile-space piece list into a chunk-local pixel-space path (uniform scale/translate
- * only, so a tile-space circle stays a circle — no per-point sampling needed for the arcs). Caller
- * sets `ctx.strokeStyle`/`lineWidth` and calls `ctx.stroke()`. */
-function tracePieceList(
-  ctx: CanvasRenderingContext2D,
-  pieces: readonly PathPiece[],
-  originX: number,
-  originY: number,
-  px: number,
-): void {
-  ctx.beginPath();
-  pieces.forEach((p, i) => {
-    if (p.kind === "line") {
-      const x0 = (p.x0 - originX) * px;
-      const y0 = (p.y0 - originY) * px;
-      const x1 = (p.x1 - originX) * px;
-      const y1 = (p.y1 - originY) * px;
-      if (i === 0) ctx.moveTo(x0, y0);
-      ctx.lineTo(x1, y1);
-    } else {
-      const cx = (p.cx - originX) * px;
-      const cy = (p.cy - originY) * px;
-      const r = p.r * px;
-      if (i === 0) ctx.moveTo(cx + r * Math.cos(p.a0), cy + r * Math.sin(p.a0));
-      ctx.arc(cx, cy, r, p.a0, p.a1, p.a1 < p.a0);
-    }
-  });
-}
-
-/** Samples `path` at `steps + 1` evenly-fraction-spaced points (same "fraction of total length"
- * convention the old straight-edge tie loop used) and converts each to chunk-local pixel space. */
-function sampleEvenly(
-  path: EdgePath,
-  steps: number,
-  originX: number,
-  originY: number,
-  px: number,
-): Array<PathSample & { lx: number; ly: number }> {
-  const out: Array<PathSample & { lx: number; ly: number }> = [];
-  for (let s = 0; s <= steps; s++) {
-    const sample = path.pointAt((s / steps) * path.length);
-    out.push({ ...sample, lx: (sample.x - originX) * px, ly: (sample.y - originY) * px });
-  }
+/** Evenly spaced parameters covering `[s0, s1]` (always includes both ends). */
+function paramsFor(s0: number, s1: number, step: number): number[] {
+  const n = Math.max(2, Math.ceil((s1 - s0) / step));
+  const out: number[] = [];
+  for (let i = 0; i <= n; i++) out.push(s0 + ((s1 - s0) * i) / n);
   return out;
 }
 
@@ -144,10 +102,12 @@ export class TrackRenderer {
   private mapWidth: number;
   private mapHeight: number;
   private graph: TrackGraph;
-  /** Station tiles (PLAN Phase 16.1) — a double edge never tapers at one of these, and a fillet
-   * arc is never drawn through one (the station tile is always straight). Chunk canvases are
-   * cached, so this needs its own setter that busts the cache, same as `setMap`/`invalidateTiles`. */
+  /** Station tiles (PLAN Phase 16.1) — passing-loop stations are drawn with both lanes apart, and
+   * a fillet is never drawn through one. Chunk canvases are cached, so this needs its own setter
+   * that busts the cache, same as `setMap`/`invalidateTiles`. */
   private stationTiles: ReadonlySet<number> = new Set();
+  /** Lazily rebuilt strand decomposition of `graph` (dropped whenever the track or stations change). */
+  private strands: Strand[] | null = null;
 
   constructor(mapWidth: number, mapHeight: number, graph: TrackGraph) {
     this.mapWidth = mapWidth;
@@ -160,27 +120,41 @@ export class TrackRenderer {
     this.mapHeight = mapHeight;
     this.graph = graph;
     this.stationTiles = new Set();
+    this.strands = null;
     this.cache.clear();
   }
 
   /** Call whenever the set of built stations changes (a station build is the only thing that adds
    * one — SPEC has no bulldoze-station command). Stations are rare events, so simply dropping the
-   * whole chunk cache is fine (no need to track exactly which chunks a station's approach geometry
-   * reaches). */
+   * whole chunk cache is fine. */
   setStations(stationTiles: ReadonlySet<number>): void {
     this.stationTiles = stationTiles;
+    this.strands = null;
     this.cache.clear();
   }
 
   /** Drops cached chunk canvases touched by these tiles (endpoints + any bridge span), at every
-   * zoom bucket — call after any track mutation (build/upgrade/bulldoze). */
+   * zoom bucket — call after any track mutation (build/upgrade/bulldoze). A change at one node can
+   * re-shape neighbouring edges (fillets, lane easing), so the surrounding two tiles are dropped
+   * too. */
   invalidateTiles(tiles: readonly number[]): void {
+    this.strands = null;
     const buckets: ZoomBucket[] = [1, 0.5, 0.25];
+    const dropped = new Set<string>();
     for (const tile of tiles) {
       const [x, y] = tileXY(tile, this.mapWidth);
-      const cx = Math.floor(x / CHUNK_TILES);
-      const cy = Math.floor(y / CHUNK_TILES);
-      for (const bucket of buckets) this.cache.delete(chunkCacheKey(cx, cy, bucket));
+      for (let dy = -2; dy <= 2; dy += 2) {
+        for (let dx = -2; dx <= 2; dx += 2) {
+          const cx = Math.floor(Math.max(0, x + dx) / CHUNK_TILES);
+          const cy = Math.floor(Math.max(0, y + dy) / CHUNK_TILES);
+          for (const bucket of buckets) {
+            const key = chunkCacheKey(cx, cy, bucket);
+            if (dropped.has(key)) continue;
+            dropped.add(key);
+            this.cache.delete(key);
+          }
+        }
+      }
     }
   }
 
@@ -188,6 +162,15 @@ export class TrackRenderer {
    * the Phase 12 memory-bounds e2e test. */
   get cacheSize(): number {
     return this.cache.size;
+  }
+
+  private getStrands(): Strand[] {
+    this.strands ??= buildTrackStrands({
+      mapWidth: this.mapWidth,
+      graph: this.graph,
+      stationTiles: this.stationTiles,
+    });
+    return this.strands;
   }
 
   draw(ctx: CanvasRenderingContext2D, camera: Camera, viewportW: number, viewportH: number): void {
@@ -240,255 +223,127 @@ export class TrackRenderer {
     const rangeMaxX = originX + tilesX - 1;
     const rangeMaxY = originY + tilesY - 1;
     const tiesStyle = bucket === 1;
+    const frame: Frame = { ctx, originX, originY, px, scale: px / TILE_SIZE };
 
-    const localCenter = (tile: number): [number, number] => {
-      const [x, y] = tileXY(tile, this.mapWidth);
-      return [(x - originX + 0.5) * px, (y - originY + 0.5) * px];
+    const touchesChunk = (tiles: readonly number[]): boolean => {
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (const t of tiles) {
+        const [x, y] = tileXY(t, this.mapWidth);
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+      return !(maxX < rangeMinX || minX > rangeMaxX || maxY < rangeMinY || minY > rangeMaxY);
     };
 
-    for (const edge of this.graph.allEdges()) {
-      const bbox = edgeBBox(edge, this.mapWidth);
-      if (
-        bbox.maxX < rangeMinX ||
-        bbox.minX > rangeMaxX ||
-        bbox.maxY < rangeMinY ||
-        bbox.minY > rangeMaxY
-      ) {
+    const items: DrawItem[] = [];
+    for (const strand of this.getStrands()) {
+      if (strand.connector) {
+        if (touchesChunk(strand.nodes)) {
+          items.push({ strand, sA: 0, sB: strand.lane.length, edge: undefined });
+        }
         continue;
       }
-      this.drawEdge(ctx, edge, originX, originY, px, localCenter, tiesStyle);
+      for (const e of strand.edges) {
+        if (!touchesChunk([e.a, e.b])) continue;
+        items.push({ strand, sA: e.sA, sB: e.sB, edge: this.graph.getEdge(e.a, e.b) });
+      }
     }
 
+    // Decks first, then ties, then rails, then catenary — so a neighbouring item never paints over
+    // another's rails.
+    for (const item of items) {
+      if (item.edge?.bridge) this.drawBridgeDeck(frame, item);
+    }
     if (tiesStyle) {
+      for (const item of items) {
+        if (!item.edge?.bridge) this.drawTies(frame, item);
+      }
+    }
+    for (const item of items) this.drawRails(frame, item, tiesStyle);
+    if (tiesStyle) {
+      for (const item of items) {
+        if (item.edge ? item.edge.electrified : item.strand.electrified) {
+          this.drawCatenary(frame, item);
+        }
+      }
       for (const node of this.graph.allNodes()) {
         const [x, y] = tileXY(node, this.mapWidth);
         if (x < rangeMinX || x > rangeMaxX || y < rangeMinY || y > rangeMaxY) continue;
-        this.drawJunction(ctx, node, localCenter, px);
+        this.drawJunction(ctx, node, frame);
       }
     }
 
     return canvas;
   }
 
-  /** This edge's fillet partner direction at `node` (the *other* edge's own away-from-node
-   * direction), or `null` if there is no valid 45° bend to fillet there — a dead end, a straight
-   * through-pair, or a sharp (>45°) junction (already flagged with the existing red marker). */
-  private findFilletPartnerDir(
-    node: number,
-    excludeNeighbor: number,
-    thisAwayDir: number,
-  ): number | null {
-    for (const neighbor of this.graph.neighborsOf(node)) {
-      if (neighbor === excludeNeighbor) continue;
-      const otherEdge = this.graph.getEdge(node, neighbor);
-      if (!otherEdge) continue;
-      const otherAway = awayDirAt(otherEdge, node);
-      if (isFilletBend(thisAwayDir, otherAway)) return otherAway;
-    }
-    return null;
-  }
+  /** Rails: each lane (at ±w(s)) gets its own rail pair; with `tiesStyle` off, one line per lane. */
+  private drawRails(f: Frame, item: DrawItem, tiesStyle: boolean): void {
+    const { ctx, scale } = f;
+    const lane = item.strand.lane;
+    const s = paramsFor(item.sA, item.sB, RAIL_SAMPLE_TILES);
+    const centers = s.map((v) => lane.centerAt(v));
+    const widths = s.map((v) => lane.halfWidthAt(v));
+    const railGap = 2.2 / TILE_SIZE;
+    const offsets = tiesStyle ? [-railGap, railGap] : [0];
 
-  private drawEdge(
-    ctx: CanvasRenderingContext2D,
-    edge: TrackEdge,
-    originX: number,
-    originY: number,
-    px: number,
-    localCenter: (tile: number) => [number, number],
-    tiesStyle: boolean,
-  ): void {
-    const scale = px / TILE_SIZE;
-
-    if (edge.bridge) {
-      const [x1, y1] = localCenter(edge.a);
-      const [x2, y2] = localCenter(edge.b);
-      const dx = x2 - x1;
-      const dy = y2 - y1;
-      const len = Math.hypot(dx, dy) || 1;
-      const perpX = -dy / len;
-      const perpY = dx / len;
-      this.drawBridge(ctx, x1, y1, x2, y2, perpX, perpY, edge, scale);
-      if (edge.electrified && tiesStyle) {
-        this.drawCatenaryStraight(ctx, x1, y1, x2, y2, perpX, perpY, edge, scale);
-      }
-      return;
-    }
-
-    const dirAB = edge.direction;
-    // PLAN Phase 16.1 ("the station tile is always straight"): never fillet a bend at a station's
-    // own node — a train platform reads as one clean straight run through the tile, whatever angle
-    // the track happens to meet it at.
-    const partnerA = this.stationTiles.has(edge.a)
-      ? null
-      : this.findFilletPartnerDir(edge.a, edge.b, dirAB);
-    const partnerB = this.stationTiles.has(edge.b)
-      ? null
-      : this.findFilletPartnerDir(edge.b, edge.a, (dirAB + 4) % 8);
-    const centerline = buildEdgeGeometry(this.mapWidth, edge.a, edge.b, partnerA, partnerB);
-
-    const railColor = TRACK_COLOR;
+    ctx.strokeStyle = TRACK_COLOR;
+    ctx.lineWidth = tiesStyle ? Math.max(1, 1.1 * scale) : Math.max(1, 1.6 * scale);
     ctx.lineCap = "round";
-    const centerlineLen = centerline.length;
-
-    // PLAN Phase 16 (play-test 2): a double edge's two tracks are no longer symmetric offsets of a
-    // shared centerline — one ("through") *is* the centerline exactly, the other ("diverging")
-    // eases out to `DOUBLE_TRACK_SPACING_TILES` away from it. That's what lets a single↔double
-    // transition taper smoothly instead of splaying: the through track needs no special handling at
-    // all (it's already the single track's own line), only the diverging one ramps in `offsetAt`.
-    // PLAN Phase 16.1: a station never pinches this taper to 0 at its own end — see
-    // `isPassingLoopStation`'s doc comment for where the displaced taper goes instead.
-    let secondaryOffsetAt: ((d: number) => number) | null = null;
-    if (edge.double) {
-      const taperAtA =
-        !hasDoubleNeighborAt(this.graph, edge.a, edge.b) && !this.stationTiles.has(edge.a);
-      const taperAtB =
-        !hasDoubleNeighborAt(this.graph, edge.b, edge.a) && !this.stationTiles.has(edge.b);
-      secondaryOffsetAt = (d) => doubleTrackOffsetAt(d, centerlineLen, taperAtA, taperAtB);
-    } else {
-      const approachAtA = isPassingLoopStation(this.graph, edge.a, this.stationTiles);
-      const approachAtB = isPassingLoopStation(this.graph, edge.b, this.stationTiles);
-      if (approachAtA || approachAtB) {
-        secondaryOffsetAt = (d) =>
-          stationApproachOffsetAt(d, centerlineLen, approachAtA, approachAtB);
+    ctx.lineJoin = "round";
+    for (const laneSign of [1, -1]) {
+      for (const rail of offsets) {
+        // The second lane is only drawn where it has actually separated from the first.
+        let open = false;
+        ctx.beginPath();
+        for (let i = 0; i < s.length; i++) {
+          const w = widths[i] as number;
+          const c = centers[i] as { x: number; y: number; angle: number };
+          if (laneSign < 0 && w < LANE_VISIBLE_EPS) {
+            if (open) {
+              ctx.stroke();
+              ctx.beginPath();
+              open = false;
+            }
+            continue;
+          }
+          const [x, y] = offsetPoint(f, c.x, c.y, c.angle, laneSign * w + rail);
+          if (open) ctx.lineTo(x, y);
+          else ctx.moveTo(x, y);
+          open = true;
+        }
+        if (open) ctx.stroke();
       }
     }
-
-    if (!tiesStyle) {
-      ctx.strokeStyle = railColor;
-      ctx.lineWidth = Math.max(1, (edge.double ? 2.4 : 1.6) * scale);
-      tracePieceList(ctx, centerline.pieces, originX, originY, px);
-      ctx.stroke();
-      if (secondaryOffsetAt) {
-        this.drawVariableOffsetLine(ctx, centerline, secondaryOffsetAt, originX, originY, px);
-      }
-      if (edge.electrified)
-        this.drawCatenaryOnPath(ctx, centerline, edge, originX, originY, px, scale);
-      return;
-    }
-
-    const railGapTiles = 2.2 / TILE_SIZE;
-    const tieHalfLenTiles = 4.2 / TILE_SIZE;
-    const tieSpacingTiles = 7 / TILE_SIZE;
-
-    ctx.strokeStyle = railColor;
-    ctx.lineWidth = Math.max(1, 1.1 * scale);
-    tracePieceList(ctx, centerline.offset(-railGapTiles).pieces, originX, originY, px);
-    ctx.stroke();
-    tracePieceList(ctx, centerline.offset(railGapTiles).pieces, originX, originY, px);
-    ctx.stroke();
-
-    if (secondaryOffsetAt) {
-      const offsetAt = secondaryOffsetAt;
-      // Second track's own two rails, at the through track's rail gap either side of its
-      // (variable) own offset — sampled directly rather than via `EdgePath.offset`, which only
-      // supports one constant offset for a whole edge. Same code path whether this is a genuine
-      // double edge or a single edge's ghost approach into a passing-loop station (Phase 16.1) —
-      // the latter just never gets a train lane, since the edge itself isn't double.
-      this.drawVariableOffsetLine(
-        ctx,
-        centerline,
-        (d) => offsetAt(d) - railGapTiles,
-        originX,
-        originY,
-        px,
-      );
-      this.drawVariableOffsetLine(
-        ctx,
-        centerline,
-        (d) => offsetAt(d) + railGapTiles,
-        originX,
-        originY,
-        px,
-      );
-
-      // One shared, widening tie per sample (SPEC §5.1: "shared ballast bed") — spans from the
-      // through track's own outer rail to the second track's own (growing) outer rail, so it reads
-      // as one normal-width tie right at a single-track transition and widens into a shared
-      // double-width tie further into the double section (or the station's own passing loop).
-      this.drawTies(
-        ctx,
-        centerline,
-        (d) => ({ left: -tieHalfLenTiles, right: offsetAt(d) + tieHalfLenTiles }),
-        tieSpacingTiles,
-        originX,
-        originY,
-        px,
-        scale,
-      );
-    } else {
-      this.drawTies(
-        ctx,
-        centerline,
-        () => ({ left: -tieHalfLenTiles, right: tieHalfLenTiles }),
-        tieSpacingTiles,
-        originX,
-        originY,
-        px,
-        scale,
-      );
-    }
-
-    if (edge.electrified)
-      this.drawCatenaryOnPath(ctx, centerline, edge, originX, originY, px, scale);
   }
 
-  /** Strokes a smooth polyline tracking `centerline` with a per-distance perpendicular offset that
-   * varies along the edge (`offsetAt`) — used for a double edge's diverging track/rail, which can't
-   * be expressed as one `EdgePath.offset(dist)` call (that only supports a single constant offset
-   * for the whole edge, arcs included). Sampled finely enough (`DIVERGING_SAMPLE_SPACING_TILES`)
-   * that the polyline reads as smoothly curved at any zoom this is drawn at. */
-  private drawVariableOffsetLine(
-    ctx: CanvasRenderingContext2D,
-    centerline: EdgePath,
-    offsetAt: (distance: number) => number,
-    originX: number,
-    originY: number,
-    px: number,
-  ): void {
-    const length = centerline.length;
-    const steps = Math.max(4, Math.ceil(length / DIVERGING_SAMPLE_SPACING_TILES));
-    ctx.beginPath();
-    for (let s = 0; s <= steps; s++) {
-      const d = (s / steps) * length;
-      const sample = centerline.pointAt(d);
-      const off = offsetAt(d);
-      const perpX = -Math.sin(sample.angle);
-      const perpY = Math.cos(sample.angle);
-      const x = (sample.x + perpX * off - originX) * px;
-      const y = (sample.y + perpY * off - originY) * px;
-      if (s === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
-
-  /** Draws one tie (perpendicular cross-mark) per `spacingTiles` along `centerline`, each spanning
-   * from `extentAt(d).left` to `extentAt(d).right` (signed perpendicular distances, not necessarily
-   * symmetric — see the "shared ballast bed" comment above `drawEdge`'s double-track branch). */
-  private drawTies(
-    ctx: CanvasRenderingContext2D,
-    centerline: EdgePath,
-    extentAt: (distance: number) => { left: number; right: number },
-    spacingTiles: number,
-    originX: number,
-    originY: number,
-    px: number,
-    scale: number,
-  ): void {
+  /** One tie per fixed arc-length step along the strand centerline, perpendicular to it, spanning
+   * both lanes plus overhang. Tie positions are global to the strand (`i * spacing`), each claimed
+   * by exactly one edge range, so adjacent ranges never double up or leave gaps. */
+  private drawTies(f: Frame, item: DrawItem): void {
+    const { ctx, scale } = f;
+    const lane = item.strand.lane;
+    const tieHalf = 4.2 / TILE_SIZE;
+    const spacing = 7 / TILE_SIZE;
+    const isLast = item.sB >= lane.length - 1e-9;
+    const first = item.sA <= 1e-9 ? 0 : Math.ceil(item.sA / spacing - 1e-9);
     ctx.strokeStyle = TIE_COLOR;
     ctx.lineWidth = Math.max(1, 1.4 * scale);
-    const length = centerline.length;
-    const steps = Math.max(1, Math.floor(length / spacingTiles));
-    for (let s = 0; s <= steps; s++) {
-      const d = (s / steps) * length;
-      const sample = centerline.pointAt(d);
-      const { left, right } = extentAt(d);
-      const perpX = -Math.sin(sample.angle);
-      const perpY = Math.cos(sample.angle);
-      const x0 = (sample.x + perpX * left - originX) * px;
-      const y0 = (sample.y + perpY * left - originY) * px;
-      const x1 = (sample.x + perpX * right - originX) * px;
-      const y1 = (sample.y + perpY * right - originY) * px;
+    ctx.lineCap = "butt";
+    for (let i = first; ; i++) {
+      const s = i * spacing;
+      if (isLast ? s > item.sB + 1e-9 : s >= item.sB - 1e-9) break;
+      if (item.strand.connector) {
+        if (s < CONNECTOR_TIE_MARGIN_START || s > lane.length - CONNECTOR_TIE_MARGIN_END) continue;
+      }
+      const c = lane.centerAt(s);
+      const ext = lane.halfWidthAt(s) + tieHalf;
+      const [x0, y0] = offsetPoint(f, c.x, c.y, c.angle, -ext);
+      const [x1, y1] = offsetPoint(f, c.x, c.y, c.angle, ext);
       ctx.beginPath();
       ctx.moveTo(x0, y0);
       ctx.lineTo(x1, y1);
@@ -496,149 +351,84 @@ export class TrackRenderer {
     }
   }
 
-  /** Catenary poles + wire on electrified track (SPEC §7.7: "electric... requires electrified
-   * track", rendered so it reads distinctly at zoom ≥ 1) — the wire follows the same curved
-   * centerline as the rails (STYLE §7: "electrified catenary poles follow curves"), offset
-   * perpendicular, with short poles at regular intervals connecting it back to the track. Only
-   * called from the `tiesStyle` (zoom ≥ 0.75) rendering path; at lower zoom buckets the track
-   * itself collapses to a single plain line, too small to read poles on top of anyway. */
-  private drawCatenaryOnPath(
-    ctx: CanvasRenderingContext2D,
-    centerline: EdgePath,
-    edge: TrackEdge,
-    originX: number,
-    originY: number,
-    px: number,
-    scale: number,
-  ): void {
-    // Each wire point is a *direct* perpendicular offset of its corresponding centerline sample
-    // (not a fraction-matched sample of a separately-built offset curve — offsetting an arc
-    // changes its length, same as a curve's outer rail being longer than its inner one, so
-    // sampling the two curves independently "by fraction of length" drifts out of alignment on a
-    // bend). This keeps every pole exactly perpendicular and the wire polyline naturally smooth.
-    const wireOffsetTiles = ((edge.double ? 20 : 16) * scale) / px;
-    const spacingTiles = (9 * scale) / px;
-    const steps = Math.max(1, Math.round(centerline.length / spacingTiles));
-    const baseSamples = sampleEvenly(centerline, steps, originX, originY, px);
-    const wirePoints = baseSamples.map((s) => {
-      const perpX = -Math.sin(s.angle);
-      const perpY = Math.cos(s.angle);
-      const wx = s.x + perpX * wireOffsetTiles;
-      const wy = s.y + perpY * wireOffsetTiles;
-      return { lx: (wx - originX) * px, ly: (wy - originY) * px };
-    });
-
-    ctx.strokeStyle = CATENARY_WIRE_COLOR;
-    ctx.lineWidth = Math.max(0.8, 0.9 * scale);
-    ctx.beginPath();
-    wirePoints.forEach((p, i) => (i === 0 ? ctx.moveTo(p.lx, p.ly) : ctx.lineTo(p.lx, p.ly)));
-    ctx.stroke();
-
-    ctx.strokeStyle = CATENARY_POLE_COLOR;
-    ctx.lineWidth = Math.max(1, 1.3 * scale);
-    for (let i = 0; i < baseSamples.length; i++) {
-      const base = baseSamples[i] as PathSample & { lx: number; ly: number };
-      const wirePt = wirePoints[i] as { lx: number; ly: number };
-      ctx.beginPath();
-      ctx.moveTo(base.lx, base.ly);
-      ctx.lineTo(wirePt.lx, wirePt.ly);
-      ctx.stroke();
+  /** Catenary poles + wire along the strand (SPEC §7.7), on the +side of the strand direction. */
+  private drawCatenary(f: Frame, item: DrawItem): void {
+    const { ctx, scale } = f;
+    const lane: LanePath = item.strand.lane;
+    const wireOffset = (item.edge?.double ? 20 : 16) / TILE_SIZE;
+    const spacing = 9 / TILE_SIZE;
+    const steps = Math.max(1, Math.round((item.sB - item.sA) / spacing));
+    const base: Array<[number, number]> = [];
+    const wire: Array<[number, number]> = [];
+    for (let i = 0; i <= steps; i++) {
+      const s = item.sA + ((item.sB - item.sA) * i) / steps;
+      const c = lane.centerAt(s);
+      base.push(offsetPoint(f, c.x, c.y, c.angle, 0));
+      wire.push(offsetPoint(f, c.x, c.y, c.angle, wireOffset));
     }
-  }
-
-  /** Same as `drawCatenaryOnPath` but for a bridge's fixed straight deck (never curved). */
-  private drawCatenaryStraight(
-    ctx: CanvasRenderingContext2D,
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-    perpX: number,
-    perpY: number,
-    edge: TrackEdge,
-    scale: number,
-  ): void {
-    const wireOffset = (edge.double ? 20 : 16) * scale;
-    const wx1 = x1 + perpX * wireOffset;
-    const wy1 = y1 + perpY * wireOffset;
-    const wx2 = x2 + perpX * wireOffset;
-    const wy2 = y2 + perpY * wireOffset;
-
     ctx.strokeStyle = CATENARY_WIRE_COLOR;
     ctx.lineWidth = Math.max(0.8, 0.9 * scale);
     ctx.beginPath();
-    ctx.moveTo(wx1, wy1);
-    ctx.lineTo(wx2, wy2);
+    wire.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
     ctx.stroke();
-
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const len = Math.hypot(dx, dy) || 1;
-    const spacing = 9 * scale;
-    const steps = Math.max(1, Math.round(len / spacing));
     ctx.strokeStyle = CATENARY_POLE_COLOR;
     ctx.lineWidth = Math.max(1, 1.3 * scale);
-    for (let s = 0; s <= steps; s++) {
-      const t = s / steps;
-      const bx = x1 + dx * t;
-      const by = y1 + dy * t;
+    for (let i = 0; i < base.length; i++) {
+      const [bx, by] = base[i] as [number, number];
+      const [wx, wy] = wire[i] as [number, number];
       ctx.beginPath();
       ctx.moveTo(bx, by);
-      ctx.lineTo(bx + perpX * wireOffset, by + perpY * wireOffset);
+      ctx.lineTo(wx, wy);
       ctx.stroke();
     }
   }
 
-  private drawBridge(
-    ctx: CanvasRenderingContext2D,
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-    perpX: number,
-    perpY: number,
-    edge: TrackEdge,
-    scale: number,
-  ): void {
+  /** A bridge is a colored deck under its strand range with trestle cross-marks (SPEC §5.1); the
+   * rails are drawn over it like on any other track. */
+  private drawBridgeDeck(f: Frame, item: DrawItem): void {
+    const { ctx, scale } = f;
+    const edge = item.edge as TrackEdge;
     const colors = BRIDGE_COLORS[edge.bridge as keyof typeof BRIDGE_COLORS];
-    const deckHalfWidth = (edge.double ? 6.5 : 4.5) * scale;
+    const lane = item.strand.lane;
+    const deckHalfPx = (edge.double ? 8.5 : 4.5) * scale;
+    const s = paramsFor(item.sA, item.sB, RAIL_SAMPLE_TILES * 2);
 
     ctx.strokeStyle = colors.deck;
-    ctx.lineWidth = deckHalfWidth * 2;
+    ctx.lineWidth = deckHalfPx * 2;
     ctx.lineCap = "butt";
+    ctx.lineJoin = "round";
     ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
+    s.forEach((v, i) => {
+      const c = lane.centerAt(v);
+      const [x, y] = offsetPoint(f, c.x, c.y, c.angle, 0);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
     ctx.stroke();
 
-    // Trestle/tie cross-marks along the deck read as distinct from plain track at a glance.
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const len = Math.hypot(dx, dy) || 1;
-    const spacing = 8 * scale;
-    const steps = Math.max(1, Math.floor(len / spacing));
     ctx.strokeStyle = colors.trestle;
     ctx.lineWidth = Math.max(1, 1.3 * scale);
-    for (let s = 0; s <= steps; s++) {
-      const t = s / steps;
-      const tx = x1 + dx * t;
-      const ty = y1 + dy * t;
+    const spacing = 8 / TILE_SIZE;
+    const steps = Math.max(1, Math.floor((item.sB - item.sA) / spacing));
+    const halfTiles = deckHalfPx / f.px;
+    for (let i = 0; i <= steps; i++) {
+      const v = item.sA + ((item.sB - item.sA) * i) / steps;
+      const c = lane.centerAt(v);
+      const [x0, y0] = offsetPoint(f, c.x, c.y, c.angle, -halfTiles);
+      const [x1, y1] = offsetPoint(f, c.x, c.y, c.angle, halfTiles);
       ctx.beginPath();
-      ctx.moveTo(tx - perpX * deckHalfWidth, ty - perpY * deckHalfWidth);
-      ctx.lineTo(tx + perpX * deckHalfWidth, ty + perpY * deckHalfWidth);
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
       ctx.stroke();
     }
   }
 
-  private drawJunction(
-    ctx: CanvasRenderingContext2D,
-    node: number,
-    localCenter: (tile: number) => [number, number],
-    px: number,
-  ): void {
+  private drawJunction(ctx: CanvasRenderingContext2D, node: number, f: Frame): void {
     const edges = this.graph.edgesAt(node);
-    const [x, y] = localCenter(node);
-    const scale = px / TILE_SIZE;
+    const [tx, ty] = tileXY(node, this.mapWidth);
+    const x = (tx - f.originX + 0.5) * f.px;
+    const y = (ty - f.originY + 0.5) * f.px;
+    const scale = f.scale;
 
     if (edges.length >= 3) {
       ctx.fillStyle = JUNCTION_DOT_COLOR;

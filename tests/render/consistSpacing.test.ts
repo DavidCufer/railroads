@@ -50,6 +50,7 @@ function trainOn(route: number[], routeIndex: number, progress: number, cars: nu
     renderToX: x,
     renderToY: y,
     direction: 0,
+    lastApproachNode: -1,
     cars: Array.from({ length: cars }, () => ({})),
   };
 }
@@ -84,7 +85,11 @@ describe("consist coupler gaps (PLAN Phase 17 A)", () => {
         const route = c.route;
         const graph = graphFor(route);
         const train = trainOn(route, c.routeIndex, c.progress, 5);
-        const vehicles = layoutConsist(MAP_W, graph, train, 1, new Set());
+        const vehicles = layoutConsist(
+          { mapWidth: MAP_W, graph, stationTiles: new Set() },
+          train,
+          1,
+        );
         expect(vehicles.length).toBe(6);
         const wantPx = VEHICLE_GAP_TILES * TILE_SIZE * zoom;
         for (let i = 0; i + 1 < vehicles.length; i++) {
