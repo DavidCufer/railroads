@@ -485,3 +485,59 @@ export function logPile(p: Paint, x: number, y: number, w: number, h: number, ro
     ctx.fill();
   }
 }
+
+/** A square pyramid roof (tower/spire) from above: four faces meeting at the apex, with the long
+ * shadow a tall pointed roof throws. `height` scales the shadow. */
+export function pyramid(
+  p: Paint,
+  cx: number,
+  cy: number,
+  s: number,
+  color: string,
+  height = 2,
+): void {
+  const { ctx, px } = p;
+  const h = s / 2;
+  ctx.fillStyle = SHADOW;
+  ctx.beginPath();
+  ctx.moveTo(cx - h, cy + h);
+  ctx.lineTo(cx + h, cy + h);
+  ctx.lineTo(cx + h, cy - h);
+  ctx.lineTo(cx + h + SH_X * height, cy - h + SH_Y * height);
+  ctx.lineTo(cx + h + SH_X * height, cy + h + SH_Y * height);
+  ctx.lineTo(cx - h + SH_X * height, cy + h + SH_Y * height);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = darken(color, 0.5);
+  ctx.fillRect(cx - h - px, cy - h - px, s + px * 2, s + px * 2);
+  const faces: Array<[number, number, number, number, string]> = [
+    [cx - h, cy - h, cx + h, cy - h, lighten(color, 0.28)], // top (lit)
+    [cx - h, cy + h, cx - h, cy - h, lighten(color, 0.1)], // left (lit)
+    [cx + h, cy - h, cx + h, cy + h, darken(color, 0.72)], // right
+    [cx + h, cy + h, cx - h, cy + h, darken(color, 0.6)], // bottom
+  ];
+  for (const [x0, y0, x1, y1, fill] of faces) {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.lineTo(cx, cy);
+    ctx.closePath();
+    ctx.fill();
+  }
+  if (p.detail) {
+    ctx.strokeStyle = "rgba(0,0,0,0.3)";
+    ctx.lineWidth = px;
+    ctx.beginPath();
+    for (const [x, y] of [
+      [cx - h, cy - h],
+      [cx + h, cy - h],
+      [cx + h, cy + h],
+      [cx - h, cy + h],
+    ] as const) {
+      ctx.moveTo(x, y);
+      ctx.lineTo(cx, cy);
+    }
+    ctx.stroke();
+  }
+}

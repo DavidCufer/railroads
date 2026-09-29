@@ -15,7 +15,6 @@ import {
   flat,
   gable,
   ground,
-  hip,
   lighten,
   line,
   logPile,

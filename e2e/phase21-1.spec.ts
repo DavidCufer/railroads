@@ -259,4 +259,40 @@ test.describe("Phase 21.1 — map polish", () => {
       await page.screenshot({ path: `docs/screenshots/phase-21-1-industries-zoom2-${name}.png` });
     });
   }
+
+  async function placeCity(page: Page, rx: number, ry: number, population: number): Promise<void> {
+    const cx = 60;
+    const cy = 60;
+    await setupFlat(page, cx, cy, 12);
+    await page.evaluate(
+      ({ cx, cy, rx, ry, population }) => {
+        const w = window.__game!.getMap().width;
+        const tiles: number[] = [];
+        for (let y = -8; y <= 8; y++) {
+          for (let x = -10; x <= 10; x++) {
+            if (Math.hypot(x / rx, y / ry) <= 1) tiles.push((cy + y) * w + cx + x);
+          }
+        }
+        window.__game!.debugPlaceCity(tiles, population);
+        (window.__game!.getState() as unknown as { mapContentVersion: number }).mapContentVersion++;
+      },
+      { cx, cy, rx, ry, population },
+    );
+  }
+
+  test("town zoom 1.5", async ({ page }) => {
+    await placeCity(page, 2.7, 2.2, 12000);
+    await hideUi(page);
+    await centerOn(page, 60, 60, 1.5);
+    await page.screenshot({ path: "docs/screenshots/phase-21-1-town-zoom1.5.png" });
+  });
+
+  test("city zoom 1.5 and zoom 1", async ({ page }) => {
+    await placeCity(page, 4.3, 3.3, 60000);
+    await hideUi(page);
+    await centerOn(page, 60, 60, 1.5);
+    await page.screenshot({ path: "docs/screenshots/phase-21-1-city-zoom1.5.png" });
+    await centerOn(page, 60, 60, 1);
+    await page.screenshot({ path: "docs/screenshots/phase-21-1-city-zoom1.png" });
+  });
 });
