@@ -771,3 +771,59 @@ Same parallel rules as Phases 19–22.
       padding on the top bar and side rails so nothing is ever under a notch or status bar.
 - [x] Screenshots: station inside a dense city (before/after), station with all improvements next to a junction,
       station on diagonal track, gallery steam page, top bar with simulated safe-area insets.
+
+## Phase 24 — Play-test 7: spacing, profitability, smooth following, render polish
+Player report (Central Europe, 1840–1844): "Perfect, really good." Remaining:
+1. Some industries are too close to cities (Ljubljana Farm, Trieste port/factory touch the town) — no room for a
+   station and track, it makes no sense to connect them.
+2. Double track is good, but a branch leaving diagonal double track still looks strange (odd tie fan / crossing
+   where the single-track branch leaves).
+3. Finance: "I want the current average of income and expenses. Net profit includes investments (construction,
+   trains) that happen often, so I don't know if I'm currently profitable."
+4. Floating "+$662 · 17 mail bags" delivery labels overlap when several trains unload at one station — unreadable.
+5. "I would like to know for each train if it is profitable."
+6. A faster train following a slower one moves jerkily (stop-go); trains following on single track also end up
+   visually touching.
+Seen in the screenshots: thin straight seams across the map at chunk borders (vertical/horizontal hairlines);
+grass↔hills/forest terrain borders are still blocky staircases (coast is smooth now).
+
+Two parallel sessions: **24A** (sim, generation, finance/train UI) and **24B** (render polish).
+
+### 24A — Spacing, profitability, following
+- [ ] Generation: industries keep a clear gap from city footprints (e.g. ≥ 5 tiles from any city tile, data table
+      in `src/data/`), and from each other (≥ 3 tiles between footprints), except ports, which may sit on the town's
+      coast but not on its buildings. Region-map fixed industries that violate it are nudged outward. Tests on
+      seeds + all regions.
+- [ ] Finance "Overview": **Operating** view — trailing 12-month (and last-30-days) average per month of operating
+      income vs operating costs (maintenance, running costs, interest), clearly separated from **investments**
+      (track, stations, trains, improvements). A single headline "Operating profit: +$12k / month" (green/red) with a
+      small bar pair income vs costs. Yearly tab keeps the full breakdown but labels investment lines as such.
+- [ ] Per-train profit: track per train revenue and running cost (+ breakdown repairs) this year, last year and
+      lifetime (sim, deterministic, saved). Train panel Stats: headline "Profit this year" (green/red), last year,
+      lifetime, and "Paid back" progress vs purchase price. Train list: profit/yr column with a coloured dot and
+      sort by profit; unprofitable trains marked. Optional overlay already exists ("Train profit colors") — make it
+      use the same numbers.
+- [ ] Undeliverable cargo: if a car carries cargo that no stop in its orders accepts any more (demand changed,
+      orders edited), the train panel shows a warning chip ("2 cars of coal can't be delivered on this route") and a
+      news item once; such cargo is dropped at the next warehouse hub if any (existing rule).
+- [ ] Smooth following (sim): a train closing on a same-direction train ahead matches its speed smoothly (target
+      speed from the gap, limited acceleration/braking, no oscillation) and keeps a visible minimum gap of ≥ 1 tile
+      (or the current spacing rule if larger). Unit test: speed trace of a fast train behind a slow one has no
+      sign-flip oscillation in acceleration after settling and never closes below the gap.
+- [ ] Screenshots: finance overview with operating profit, train stats with profit, train list sorted by profit,
+      Central Europe around Ljubljana/Trieste showing the new industry spacing.
+
+### 24B — Render polish
+- [ ] Double-track branch geometry: a single (or double) branch leaving diagonal/straight double track diverges
+      from the *outer* lane with a proper turnout (ties lengthen smoothly, no crossing tie fans, no rail crossing the
+      other lane unless it is a real crossover). Screenshots at zoom 1.5/2 for branch off diagonal double track (the
+      player's case), off straight double, and both-sided branches.
+- [ ] Delivery labels: never overlap. Per station, labels queue and stack upward (newest at the bottom, older ones
+      pushed up and faded), or merge deliveries within ~1 s into one label ("+$1.9k · 3 deliveries"); world-anchored,
+      readable at every zoom; collision with the station's supply bubbles avoided.
+- [ ] Chunk seams: find and remove the hairline seams between cached terrain/track chunks (pixel alignment,
+      rounding at fractional zoom, bleed/overlap of 1px, or imageSmoothing on edges). e2e screenshot at zoom 1, 1.37,
+      2 across a chunk border shows no line (pixel-check the border column against its neighbours).
+- [ ] Terrain borders: grass↔hills, grass↔forest, hills↔mountains get the same smooth, noise-perturbed contour
+      treatment as the coast (no staircases), cached per chunk.
+- [ ] Screenshots before/after for each item; open and check them.
