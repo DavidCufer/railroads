@@ -22,6 +22,7 @@
 import type { CargoType } from "./cargo";
 import type { CityTier } from "./cities";
 import type { RegionId } from "../sim/regions/types";
+import { WORLD_SCALE } from "./scale";
 
 export type GoalTier = "bronze" | "silver" | "gold";
 
@@ -62,7 +63,7 @@ export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
   ],
   "central-eu": [
     { tier: "bronze", def: { type: "connect", cities: ["Munich", "Milan"], byYear: 1875 } },
-    { tier: "silver", def: { type: "electrifiedTiles", amount: 200, byYear: 1930 } },
+    { tier: "silver", def: { type: "electrifiedTiles", amount: 200 * WORLD_SCALE, byYear: 1930 } },
     { tier: "gold", def: { type: "netWorth", amount: 30_000_000, byYear: 1930 } },
   ],
   "us-west": [

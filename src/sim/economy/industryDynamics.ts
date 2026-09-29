@@ -14,6 +14,7 @@
  * is a simpler, no-new-state proxy for the same idea, checked monthly rather than over a trailing
  * 12-month window (a deliberate simplification — see PROGRESS.md).
  */
+import { WORLD_SCALE } from "../../data/scale";
 import {
   INDUSTRIES,
   INDUSTRY_GROWTH_CHANCE_PER_MONTH,
@@ -42,7 +43,7 @@ const WATER_ID = terrainId("water");
 /** Same spacing rule map-gen placement uses between two same-type raw producers
  * (src/sim/economy/industries.ts's `SAME_TYPE_SPACING`) — kept independent since spawning is a
  * different concern, but deliberately matches so spawned industries don't crowd existing ones. */
-const SAME_TYPE_SPACING = 6;
+const SAME_TYPE_SPACING = 6 * WORLD_SCALE;
 
 function clampGrowthMult(mult: number): number {
   return Math.min(INDUSTRY_GROWTH_MULT_MAX, Math.max(INDUSTRY_GROWTH_MULT_MIN, mult));

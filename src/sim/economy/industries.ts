@@ -5,6 +5,7 @@
  */
 import { RESOURCE_DENSITY_MULT, type ResourceDensity } from "../../data/cities";
 import { INDUSTRIES, INDUSTRY_TYPES, type IndustryType } from "../../data/industries";
+import { AREA_SCALE, WORLD_SCALE } from "../../data/scale";
 import { inBounds, tileIndex } from "../map/grid";
 import { terrainId, TERRAIN_TYPES as TERRAIN_NAMES, type Terrain } from "../map/terrain";
 import type { GameMap } from "../map/types";
@@ -16,7 +17,7 @@ const MOUNTAIN_ID = terrainId("mountain");
 const FOREST_ID = terrainId("forest");
 
 /** Minimum spacing (tiles) between two raw producers of the same type. */
-const SAME_TYPE_SPACING = 6;
+const SAME_TYPE_SPACING = 6 * WORLD_SCALE;
 
 function isBuildableLand(map: GameMap, idx: number): boolean {
   const t = map.terrain[idx] as number;
@@ -48,7 +49,7 @@ function distance(map: GameMap, a: number, b: number): number {
 }
 
 function countForRawIndustry(map: GameMap, densityMult: number): number {
-  const raw = Math.round((map.width * map.height) / 1800) * densityMult;
+  const raw = Math.round((map.width * map.height) / (1800 * AREA_SCALE)) * densityMult;
   return Math.max(2, Math.min(18, Math.round(raw)));
 }
 

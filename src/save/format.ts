@@ -19,7 +19,10 @@ import type { PendingCityFounding } from "../sim/regions";
 import type { TrackEdge } from "../sim/track/types";
 import type { DeliveryEvent, StationCargoPile, TransferLot } from "../sim/state";
 
-export const CURRENT_SAVE_VERSION = 3;
+/** v4 (Phase 23A): the world went from 10 km to 5 km per tile. The state *shape* is unchanged from v3
+ * but every coordinate, distance and track edge in a v1–v3 save is on the old grid, so those saves
+ * are refused with `OldMapScaleError` (src/save/migrate.ts) rather than migrated. */
+export const CURRENT_SAVE_VERSION = 4;
 
 /** `GameMap`'s typed arrays, each base64-packed (src/save/typedArray.ts) — exact byte round trip,
  * no precision loss (unlike the region-JSON codec's fixed-point elevationRaw). Unchanged since v1. */
@@ -166,4 +169,10 @@ export interface SaveFileV3 {
   state: SerializedGameStateV3;
 }
 
-export type AnySaveFile = SaveFileV1 | SaveFileV2 | SaveFileV3;
+export interface SaveFileV4 {
+  version: 4;
+  meta: SaveMeta;
+  state: SerializedGameStateV3;
+}
+
+export type AnySaveFile = SaveFileV1 | SaveFileV2 | SaveFileV3 | SaveFileV4;

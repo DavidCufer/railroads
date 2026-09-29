@@ -1,5 +1,7 @@
 /** Cargo types (SPEC §8.1). Balance numbers only — logic lives in src/sim/economy. */
 
+import { WORLD_SCALE } from "./scale";
+
 export const CARGO_TYPES = [
   "passengers",
   "mail",
@@ -42,7 +44,7 @@ export interface CargoDef {
    * and floating delivery label), e.g. "tons of coal", "head of livestock" — reads naturally where
    * the short `unit` word alone wouldn't ("13 mail bags waiting", not "13 bags waiting"). */
   unitsNoun: string;
-  /** Revenue per carload per 10 tiles (100 km) at era-1830 prices, on-time delivery. Still "per
+  /** Revenue per carload per `REVENUE_DISTANCE_TILES` tiles (100 km) at era-1830 prices, on-time delivery. Still "per
    * carload" (unchanged by Phase 16) — src/sim/trains/loading.ts scales it by the fraction of a full
    * car actually delivered (`loadedUnits / capacity`) for partial loads. */
   baseRate: number;
@@ -85,8 +87,14 @@ export function cargoUnitFactor(cargo: CargoType): number {
   return CARGO[cargo].capacity / CARLOAD_UNITS;
 }
 
+/** Tiles per 100 km — the distance unit `baseRate` is quoted for (SPEC §8.1: 10 tiles at 10 km/tile). */
+export const REVENUE_DISTANCE_TILES = 10 * WORLD_SCALE;
+
+/** Tiles a 60 km/h reference train covers per day, for the revenue `expected` transit time (SPEC §8.1). */
+export const EXPECTED_TILES_PER_DAY = 2 * WORLD_SCALE;
+
 /** SPEC §8.1: shorter deliveries pay nothing (and warn once). */
-export const MIN_REVENUE_DISTANCE_TILES = 3;
+export const MIN_REVENUE_DISTANCE_TILES = 3 * WORLD_SCALE;
 
 export const CARGO: Record<CargoType, CargoDef> = {
   passengers: {

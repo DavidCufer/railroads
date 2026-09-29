@@ -5,8 +5,8 @@
  */
 import type { GameState } from "../sim/state";
 import { deserializeGameState, serializeGameState } from "./serialize";
-import { migrateSaveFile } from "./migrate";
-import { CURRENT_SAVE_VERSION, type SaveFileV3, type SaveMeta } from "./format";
+import { migrateSaveFile, OldMapScaleError } from "./migrate";
+import { CURRENT_SAVE_VERSION, type SaveFileV4, type SaveMeta } from "./format";
 import {
   AUTO_SLOT_IDS,
   EMERGENCY_SLOT_ID,
@@ -29,7 +29,11 @@ export type { SaveMeta } from "./format";
 export interface SaveSlotInfo {
   slotId: SlotId;
   meta: SaveMeta;
+  /** True for a save from before the 5 km/tile world (Phase 23A): listed, but not loadable. */
+  incompatible?: boolean;
 }
+
+export { OldMapScaleError } from "./migrate";
 
 const AUTOSAVE_CURSOR_KEY = "railroads.autosaveCursor";
 
@@ -51,7 +55,7 @@ function buildMeta(state: GameState, name?: string): SaveMeta {
   };
 }
 
-function buildSaveFile(state: GameState, name?: string): SaveFileV3 {
+function buildSaveFile(state: GameState, name?: string): SaveFileV4 {
   return {
     version: CURRENT_SAVE_VERSION,
     meta: buildMeta(state, name),
@@ -127,8 +131,14 @@ export async function listSaveSlots(): Promise<SaveSlotInfo[]> {
   for (const slotId of order) {
     const raw = bySlot.get(slotId);
     if (!raw) continue;
-    const file = migrateSaveFile(raw);
-    result.push({ slotId, meta: file.meta });
+    try {
+      const file = migrateSaveFile(raw);
+      result.push({ slotId, meta: file.meta });
+    } catch (err) {
+      if (!(err instanceof OldMapScaleError)) throw err;
+      const meta = (raw as { meta?: SaveMeta }).meta;
+      if (meta) result.push({ slotId, meta, incompatible: true });
+    }
   }
   return result;
 }
@@ -136,7 +146,7 @@ export async function listSaveSlots(): Promise<SaveSlotInfo[]> {
 /** The most recently saved slot across every autosave + manual slot (SPEC §13/PLAN's "Continue =
  * latest save"), or null if nothing has ever been saved. */
 export async function latestSaveSlot(): Promise<SaveSlotInfo | null> {
-  const slots = await listSaveSlots();
+  const slots = (await listSaveSlots()).filter((s) => !s.incompatible);
   if (slots.length === 0) return null;
   return slots.reduce((latest, s) => (s.meta.savedAt > latest.meta.savedAt ? s : latest));
 }

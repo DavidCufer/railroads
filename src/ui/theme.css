@@ -1849,6 +1849,10 @@ button.chip {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.save-slot-warning {
+  color: var(--signal);
+  white-space: normal;
+}
 .save-slot-empty .save-slot-name {
   opacity: 0.5;
 }

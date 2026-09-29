@@ -5,7 +5,7 @@
  * working unchanged.
  */
 import type { GameState, NewGameOptions } from "../sim/state";
-import { latestSaveSlot, loadSlot } from "../save";
+import { latestSaveSlot, loadSlot, OldMapScaleError } from "../save";
 import { startTitleBackground, type TitleBackgroundHandle } from "../render/titleBackground";
 import { renderNewGameScreen } from "./newGameScreen";
 import { renderSaveLoadScreen } from "./saveLoadScreen";
@@ -20,6 +20,12 @@ export interface TitleScreenHandlers {
 }
 
 const APP_VERSION = "0.1.0";
+
+/** A save that cannot be loaded (from before the 5 km/tile world) gets a clear message. */
+function reportLoadFailure(err: unknown): void {
+  if (err instanceof OldMapScaleError) window.alert(strings.saveLoad.oldMapScale);
+  else window.alert(err instanceof Error ? err.message : String(err));
+}
 
 /** Mounts the title screen into `container` and returns a function that removes it — call after
  * `onStart`/`onLoad` fires so the game underneath is visible. */
@@ -63,13 +69,15 @@ export function openTitleScreen(container: HTMLElement, handlers: TitleScreenHan
           {
             className: "title-btn title-btn-primary",
             onClick: () => {
-              void loadSlot(latest.slotId).then((state) => {
-                if (state) {
-                  stopBackground();
-                  handlers.onLoad(state);
-                  root.remove();
-                }
-              });
+              void loadSlot(latest.slotId)
+                .then((state) => {
+                  if (state) {
+                    stopBackground();
+                    handlers.onLoad(state);
+                    root.remove();
+                  }
+                })
+                .catch(reportLoadFailure);
             },
           },
           t.continue,
@@ -116,13 +124,15 @@ export function openTitleScreen(container: HTMLElement, handlers: TitleScreenHan
         mode: "load",
         onBack: showMenu,
         onLoad: (slotId) => {
-          void loadSlot(slotId).then((state) => {
-            if (state) {
-              stopBackground();
-              handlers.onLoad(state);
-              root.remove();
-            }
-          });
+          void loadSlot(slotId)
+            .then((state) => {
+              if (state) {
+                stopBackground();
+                handlers.onLoad(state);
+                root.remove();
+              }
+            })
+            .catch(reportLoadFailure);
         },
       }),
     );

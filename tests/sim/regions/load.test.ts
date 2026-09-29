@@ -1,5 +1,6 @@
 /** Region loader (SPEC §4.3): committed JSON → GameState, founding-year cities start absent. */
 import { describe, expect, it } from "vitest";
+import { WORLD_SCALE } from "../../../src/data/scale";
 import { createGameState } from "../../../src/sim/state";
 import { getRegion, loadRegion } from "../../../src/sim/regions";
 
@@ -7,9 +8,11 @@ describe("loadRegion(us-east)", () => {
   it("produces a GameMap sized to the region", () => {
     const region = getRegion("us-east");
     const loaded = loadRegion(region);
-    expect(loaded.map.width).toBe(region.width);
-    expect(loaded.map.height).toBe(region.height);
-    expect(loaded.map.terrain.length).toBe(region.width * region.height);
+    expect(loaded.map.width).toBe(region.width * WORLD_SCALE);
+    expect(loaded.map.height).toBe(region.height * WORLD_SCALE);
+    expect(loaded.map.terrain.length).toBe(
+      region.width * region.height * WORLD_SCALE * WORLD_SCALE,
+    );
   });
 
   it("gives every city a name and, if founded at start, a non-empty footprint", () => {
@@ -49,8 +52,8 @@ describe("loadRegion(gb)", () => {
   it("produces a GameMap sized to the region with no founding-year cities", () => {
     const region = getRegion("gb");
     const loaded = loadRegion(region);
-    expect(loaded.map.width).toBe(region.width);
-    expect(loaded.map.height).toBe(region.height);
+    expect(loaded.map.width).toBe(region.width * WORLD_SCALE);
+    expect(loaded.map.height).toBe(region.height * WORLD_SCALE);
     expect(loaded.cities.length).toBe(region.cities.length);
     expect(loaded.pendingCityFoundings).toEqual([]);
     for (const city of loaded.cities) {
@@ -63,8 +66,8 @@ describe("loadRegion(central-eu)", () => {
   it("produces a GameMap sized to the region with no founding-year cities", () => {
     const region = getRegion("central-eu");
     const loaded = loadRegion(region);
-    expect(loaded.map.width).toBe(region.width);
-    expect(loaded.map.height).toBe(region.height);
+    expect(loaded.map.width).toBe(region.width * WORLD_SCALE);
+    expect(loaded.map.height).toBe(region.height * WORLD_SCALE);
     expect(loaded.cities.length).toBe(region.cities.length);
     expect(loaded.pendingCityFoundings).toEqual([]);
   });

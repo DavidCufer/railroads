@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { eraInflation } from "../../../src/data/finance";
+import { WORLD_SCALE } from "../../../src/data/scale";
 import {
   DIAGONAL_FACTOR,
   GRADE_SURCHARGE_PER_ELEVATION,
@@ -91,12 +92,14 @@ describe("bridge type selection (validBridgeTypes / cheapestBridgeType)", () => 
     expect(validBridgeTypes("water", 1, 1950)).not.toContain("wood");
   });
 
-  it("water: stone caps at 3 tiles, steel (from 1870) picks up spans up to 8", () => {
-    expect(cheapestBridgeType("water", 3, 1900)).toBe("stone");
-    expect(cheapestBridgeType("water", 4, 1900)).toBe("steel"); // exceeds stone's max span
-    expect(cheapestBridgeType("water", 4, 1860)).toBe(null); // too early for steel
-    expect(cheapestBridgeType("water", 8, 1870)).toBe("steel");
-    expect(cheapestBridgeType("water", 9, 1870)).toBe(null); // exceeds even steel's max span
+  it("water: stone caps at 3×scale tiles, steel (from 1870) picks up spans up to 8×scale", () => {
+    // Spans are in 5 km tiles (Phase 23A); same km as the old 3 / 8 tile limits.
+    const S = WORLD_SCALE;
+    expect(cheapestBridgeType("water", 3 * S, 1900)).toBe("stone");
+    expect(cheapestBridgeType("water", 3 * S + 1, 1900)).toBe("steel"); // exceeds stone's max span
+    expect(cheapestBridgeType("water", 3 * S + 1, 1860)).toBe(null); // too early for steel
+    expect(cheapestBridgeType("water", 8 * S, 1870)).toBe("steel");
+    expect(cheapestBridgeType("water", 8 * S + 1, 1870)).toBe(null); // exceeds even steel's max span
   });
 
   it("water: nothing valid before 1840 (stone) regardless of span", () => {

@@ -1,4 +1,5 @@
 /** City placement (SPEC §4.2 step 4): score, spacing, tiers, footprint growth, naming. */
+import { WORLD_SCALE } from "../../data/scale";
 import {
   CITY_MIN_SPACING,
   CITY_TIER_DEFS,
@@ -17,7 +18,7 @@ const WATER_ID = terrainId("water");
 const MOUNTAIN_ID = terrainId("mountain");
 const RIVER_ID = terrainId("river");
 
-const NEARBY_RADIUS = 3;
+const NEARBY_RADIUS = 3 * WORLD_SCALE;
 
 function isWater(map: GameMap, x: number, y: number): boolean {
   return (map.terrain[tileIndex(map, x, y)] as number) === WATER_ID;
@@ -141,7 +142,7 @@ export interface PlaceCitiesOptions {
 
 export function placeCities(map: GameMap, rng: RngState, options: PlaceCitiesOptions): City[] {
   const target = targetCityCount(map, options.cityCount ?? "normal");
-  const blockSize = 4;
+  const blockSize = 4 * WORLD_SCALE;
   const blocksX = Math.ceil(map.width / blockSize);
   const blocksY = Math.ceil(map.height / blockSize);
   const candidates: { x: number; y: number; score: number }[] = [];

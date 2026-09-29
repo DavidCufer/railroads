@@ -1,9 +1,10 @@
 /** Track building balance numbers (SPEC §5.3, §5.4). Logic lives in src/sim/track. */
+import { WORLD_SCALE } from "./scale";
 import type { Terrain } from "../sim/map/terrain";
 
 export type BridgeType = "wood" | "stone" | "steel";
 
-export const TRACK_BASE_COST_PER_TILE = 4_000;
+export const TRACK_BASE_COST_PER_TILE = 4_000 / WORLD_SCALE;
 
 /** SPEC §5.3: "use the more expensive of the two tiles". Water/river aren't listed — those
  * edges are priced as bridges instead (see BRIDGE costs below), never through this table. */
@@ -17,7 +18,7 @@ export const TERRAIN_COST_MULTIPLIER: Partial<Record<Terrain, number>> = {
 };
 
 export const DIAGONAL_FACTOR = 1.41;
-export const GRADE_SURCHARGE_PER_ELEVATION = 2_000;
+export const GRADE_SURCHARGE_PER_ELEVATION = 2_000 / WORLD_SCALE;
 
 /** Double track: 1.6× a fresh single-track edge's cost; upgrading existing single track costs
  * the 0.6× delta. Over a bridge the fresh-build multiplier is 1.8× (SPEC §5.3), so the upgrade
@@ -27,7 +28,7 @@ export const DOUBLE_TRACK_UPGRADE_MULTIPLIER = DOUBLE_TRACK_MULTIPLIER - 1.0;
 export const DOUBLE_TRACK_BRIDGE_MULTIPLIER = 1.8;
 export const DOUBLE_TRACK_BRIDGE_UPGRADE_MULTIPLIER = DOUBLE_TRACK_BRIDGE_MULTIPLIER - 1.0;
 
-export const ELECTRIFICATION_COST_PER_EDGE = 6_000;
+export const ELECTRIFICATION_COST_PER_EDGE = 6_000 / WORLD_SCALE;
 export const ELECTRIFICATION_DOUBLE_SURCHARGE = 0.5;
 export const ELECTRIFICATION_ERA = 1905;
 
@@ -54,8 +55,18 @@ export const BRIDGE_TYPES: readonly BridgeType[] = ["wood", "stone", "steel"];
 
 export const BRIDGE_COSTS: Record<BridgeType, BridgeCostDef> = {
   wood: { riverCost: 20_000, waterCostPerTile: null, maxWaterSpan: 0, era: 1830 },
-  stone: { riverCost: 45_000, waterCostPerTile: 60_000, maxWaterSpan: 3, era: 1840 },
-  steel: { riverCost: 80_000, waterCostPerTile: 110_000, maxWaterSpan: 8, era: 1870 },
+  stone: {
+    riverCost: 45_000,
+    waterCostPerTile: 60_000 / WORLD_SCALE,
+    maxWaterSpan: 3 * WORLD_SCALE,
+    era: 1840,
+  },
+  steel: {
+    riverCost: 80_000,
+    waterCostPerTile: 110_000 / WORLD_SCALE,
+    maxWaterSpan: 8 * WORLD_SCALE,
+    era: 1870,
+  },
 };
 
 /** Wooden bridges can't carry a "heavy" weight-class locomotive (SPEC §5.3) — used from Phase 6. */
@@ -64,9 +75,9 @@ export const WOODEN_BRIDGE_MAX_WEIGHT_CLASS = "medium";
 export const WOODEN_BRIDGE_WASHOUT_CHANCE_PER_YEAR = 0.01;
 
 /** Monthly maintenance (SPEC §5.4), scaled by era inflation. */
-export const MAINTENANCE_SINGLE = 10;
-export const MAINTENANCE_DOUBLE = 16;
-export const MAINTENANCE_ELECTRIFIED_SURCHARGE = 5;
+export const MAINTENANCE_SINGLE = 10 / WORLD_SCALE;
+export const MAINTENANCE_DOUBLE = 16 / WORLD_SCALE;
+export const MAINTENANCE_ELECTRIFIED_SURCHARGE = 5 / WORLD_SCALE;
 export const MAINTENANCE_BRIDGE: Record<BridgeType, number> = {
   wood: 50,
   stone: 30,

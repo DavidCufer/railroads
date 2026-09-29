@@ -16,6 +16,7 @@ import {
   buyTrain,
   setOrders,
 } from "../../src/sim/commands";
+import { WORLD_SCALE } from "../../src/data/scale";
 import { DIFFICULTY, ledgerNetProfit } from "../../src/data/finance";
 import { INDUSTRIES } from "../../src/data/industries";
 import { STATION_IMPROVEMENT_TYPES } from "../../src/data/stations";
@@ -388,22 +389,22 @@ function addNetworkPassengerRoute(
 
 describe("Phase 7.1 balance acceptance", () => {
   it("a good coal mine -> steel mill route earns $40k-$120k profit/yr/train (Normal)", () => {
-    const state = buildCoalToSteelRoute(16, 4);
+    const state = buildCoalToSteelRoute(16 * WORLD_SCALE, 4);
     const [, yr2] = yearlyProfits(state, 2);
     expect(yr2 as number).toBeGreaterThan(40_000);
     expect(yr2 as number).toBeLessThan(120_000);
   });
 
   it("a good two-city passenger route earns $80k-$200k profit/yr/train (Normal)", () => {
-    const state = buildPassengerRoute(16, 40_000, 4);
+    const state = buildPassengerRoute(16 * WORLD_SCALE, 40_000, 4);
     const [, yr2] = yearlyProfits(state, 2);
     expect(yr2 as number).toBeGreaterThan(80_000);
     expect(yr2 as number).toBeLessThan(200_000);
   });
 
   it("passenger/freight profit-per-train ratio for comparable routes is within 1x-2.5x", () => {
-    const coal = buildCoalToSteelRoute(16, 4);
-    const pax = buildPassengerRoute(16, 40_000, 4);
+    const coal = buildCoalToSteelRoute(16 * WORLD_SCALE, 4);
+    const pax = buildPassengerRoute(16 * WORLD_SCALE, 40_000, 4);
     const [, coalYr2] = yearlyProfits(coal, 2);
     const [, paxYr2] = yearlyProfits(pax, 2);
     const ratio = (paxYr2 as number) / (coalYr2 as number);
@@ -412,8 +413,8 @@ describe("Phase 7.1 balance acceptance", () => {
   });
 
   it("a coal+ore -> steel -> factory -> goods chain out-earns a passenger shuttle per train", () => {
-    const chain = buildChain(12);
-    const pax = buildPassengerRoute(12, 40_000, 4);
+    const chain = buildChain(12 * WORLD_SCALE);
+    const pax = buildPassengerRoute(12 * WORLD_SCALE, 40_000, 4);
     const [, chainYr2] = yearlyProfits(chain, 2);
     const [, paxYr2] = yearlyProfits(pax, 2);
     const chainProfitPerTrain = (chainYr2 as number) / 3;
@@ -421,7 +422,7 @@ describe("Phase 7.1 balance acceptance", () => {
   });
 
   it("doesn't print absurd money: 2-3 trains on a coal route stays under 10x starting cash", () => {
-    const state = buildCoalToSteelRoute(12, 4);
+    const state = buildCoalToSteelRoute(12 * WORLD_SCALE, 4);
     // A second, independent train shuttling the same route (a sensible small network, not a
     // pathological one) — bought at the same station, same orders.
     const stationAId = state.stations[0]!.id;
@@ -444,7 +445,7 @@ describe("Phase 7.1 balance acceptance", () => {
     // Passengers pay per-carload more than any freight cargo and this route is bidirectional (both
     // cities supply and accept), so it's the strongest case for an exploitable money-printer —
     // stress it with more trains than its two cities' supply can really keep fed.
-    const state = buildPassengerRoute(12, 40_000, 4);
+    const state = buildPassengerRoute(12 * WORLD_SCALE, 40_000, 4);
     const stationAId = state.stations[0]!.id;
     const stationBId = state.stations[1]!.id;
     for (let n = 0; n < 2; n++) {
@@ -512,10 +513,10 @@ describe("Phase 9 balance guard: station improvements", () => {
     // 1880 so every era-gated improvement (Freight Yard 1870, Cold Storage 1880) is buildable —
     // "fully improved" for a route that only ever hauls coal means every improvement that could
     // conceivably apply to it, not just the ones that happen to move the needle for this cargo.
-    const baseline = buildCoalToSteelRoute(16, 4, 1880);
+    const baseline = buildCoalToSteelRoute(16 * WORLD_SCALE, 4, 1880);
     const [, baselineYr2] = yearlyProfits(baseline, 2);
 
-    const improved = buildCoalToSteelRoute(16, 4, 1880);
+    const improved = buildCoalToSteelRoute(16 * WORLD_SCALE, 4, 1880);
     const stationAId = improved.stations[0]!.id;
     const stationBId = improved.stations[1]!.id;
     for (const type of STATION_IMPROVEMENT_TYPES) {

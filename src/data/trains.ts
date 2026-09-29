@@ -1,6 +1,8 @@
 /** Locomotive roster and train physics/balance constants (SPEC §7.1, §7.4, §7.5, §7.7).
  * Logic lives in src/sim/trains. */
 
+import { WORLD_SCALE } from "./scale";
+
 export type LocomotiveType = "steam" | "diesel" | "electric";
 export type WeightClass = "light" | "medium" | "heavy";
 
@@ -332,7 +334,7 @@ export function locomotiveById(id: string): LocomotiveDef | undefined {
 // --- Movement scale (SPEC §7.4, revised in the Phase 5 review) -----------------------------------
 
 /** A train moves `speedKmh / KMH_PER_TILE_PER_DAY` tiles per in-game day. */
-export const KMH_PER_TILE_PER_DAY = 30;
+export const KMH_PER_TILE_PER_DAY = 30 / WORLD_SCALE;
 
 /** `speedKmh / TICKS_PER_TILE_DIVISOR` tiles per tick (1 tick = 1 in-game hour, 24/day). */
 export const TICKS_PER_TILE_DIVISOR = KMH_PER_TILE_PER_DAY * 24;
@@ -435,7 +437,7 @@ export const TRADE_IN_MIN_FRACTION = 0.1;
 
 /** Steam trains that go further than this many tiles without stopping at a Water Tower lose speed
  * (until their next refill) — diesel/electric ignore this entirely. */
-export const WATER_TOWER_RANGE_TILES = 40;
+export const WATER_TOWER_RANGE_TILES = 40 * WORLD_SCALE;
 export const WATER_TOWER_SPEED_PENALTY = 0.2;
 
 // --- "New!" badge (SPEC §7.7) --------------------------------------------------------------------

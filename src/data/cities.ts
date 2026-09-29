@@ -1,5 +1,7 @@
 /** City tiers and name-generator syllable tables (SPEC §8.3, §4.2 step 4). */
 
+import { AREA_SCALE, WORLD_SCALE } from "./scale";
+
 export const CITY_TIERS = ["village", "town", "city", "metropolis"] as const;
 
 export type CityTier = (typeof CITY_TIERS)[number];
@@ -20,7 +22,7 @@ export const CITY_TIER_DEFS: Record<CityTier, CityTierDef> = {
 };
 
 /** Minimum spacing (tiles, anchor to anchor) between two cities (SPEC §4.2 step 4). */
-export const CITY_MIN_SPACING = 8;
+export const CITY_MIN_SPACING = 8 * WORLD_SCALE;
 
 /** Monthly passenger/mail supply per resident (SPEC §8.3: "passengers = pop/250, mail = pop/800").
  * **Deviation (Phase 7.1 balance pass)**: SPEC's pop/250 made two decent-sized cities' passenger
@@ -72,9 +74,9 @@ export type CityCount = "few" | "normal" | "many";
 
 /** Target number of cities per 1,000 map tiles, by the "city count" option. */
 export const CITY_COUNT_DENSITY: Record<CityCount, number> = {
-  few: 0.85,
-  normal: 1.3,
-  many: 1.9,
+  few: 0.85 / AREA_SCALE,
+  normal: 1.3 / AREA_SCALE,
+  many: 1.9 / AREA_SCALE,
 };
 
 export type ResourceDensity = "low" | "normal" | "high";

@@ -1,13 +1,14 @@
 /** Playability check (SPEC §4.2 step 6): at least 3 pairs of towns/cities within 15–30 tiles of
  * each other, reachable over land. */
+import { WORLD_SCALE } from "../../data/scale";
 import { DIRS8, inBounds, tileIndex } from "../map/grid";
 import { terrainId } from "../map/terrain";
 import type { GameMap } from "../map/types";
 import type { City } from "./types";
 
 const WATER_ID = terrainId("water");
-const MIN_TILES = 15;
-const MAX_TILES = 30;
+const MIN_TILES = 15 * WORLD_SCALE;
+const MAX_TILES = 30 * WORLD_SCALE;
 
 /** Labels each land tile with its connected-component id (8-connected); water tiles get -1. */
 function landComponents(map: GameMap): Int32Array {

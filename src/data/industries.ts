@@ -1,5 +1,6 @@
 /** Industries (SPEC §8.2). Balance numbers only — placement logic lives in src/sim/economy. */
 import type { Terrain } from "../sim/map/terrain";
+import { WORLD_SCALE } from "./scale";
 import type { CargoType } from "./cargo";
 
 export const INDUSTRY_TYPES = [
@@ -69,7 +70,7 @@ export const INDUSTRY_GROWTH_MULT_MAX = 3;
 export const NEW_INDUSTRY_CHANCE_PER_MONTH = 0.005;
 /** Tiles within this radius of a city are preferred spawn sites ("higher near served cities" —
  * approximated as "near any city", see `industryDynamics.ts`'s doc comment). */
-export const NEW_INDUSTRY_CITY_BIAS_RADIUS = 20;
+export const NEW_INDUSTRY_CITY_BIAS_RADIUS = 20 * WORLD_SCALE;
 
 /** `produces`/`consumes` below are in each cargo's own real units (SPEC §8.1/PLAN Phase 16). Coal,
  * iron ore, wood, grain, steel, lumber, food and goods keep their pre-Phase-16 numbers unchanged
@@ -140,7 +141,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
   steelMill: {
     id: "steelMill",
     name: "Steel Mill",
-    placement: { kind: "nearCity", maxTilesFromCity: 6 },
+    placement: { kind: "nearCity", maxTilesFromCity: 6 * WORLD_SCALE },
     produces: { steel: 60 },
     consumes: { coal: 60, ironOre: 60 },
     acceptancePoints: { coal: 8, ironOre: 8 },
@@ -150,7 +151,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
   sawmill: {
     id: "sawmill",
     name: "Sawmill",
-    placement: { kind: "nearForestOrCity", maxTilesFromCity: 6 },
+    placement: { kind: "nearForestOrCity", maxTilesFromCity: 6 * WORLD_SCALE },
     produces: { lumber: 60 },
     consumes: { wood: 60 },
     acceptancePoints: { wood: 8 },
@@ -160,7 +161,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
   foodPlant: {
     id: "foodPlant",
     name: "Food Plant",
-    placement: { kind: "nearCity", maxTilesFromCity: 6 },
+    placement: { kind: "nearCity", maxTilesFromCity: 6 * WORLD_SCALE },
     produces: { food: 60 },
     consumes: { grain: 60, livestock: 45 }, // livestock: 60 × cargoUnitFactor("livestock") (0.75)
     acceptancePoints: { grain: 8, livestock: 8 },
@@ -170,7 +171,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
   factory: {
     id: "factory",
     name: "Factory",
-    placement: { kind: "nearCity", maxTilesFromCity: 4 },
+    placement: { kind: "nearCity", maxTilesFromCity: 4 * WORLD_SCALE },
     produces: { goods: 60 },
     consumes: { steel: 60, lumber: 60 },
     acceptancePoints: { steel: 8, lumber: 8 },
@@ -180,7 +181,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
   refinery: {
     id: "refinery",
     name: "Refinery",
-    placement: { kind: "nearCity", maxTilesFromCity: 6 },
+    placement: { kind: "nearCity", maxTilesFromCity: 6 * WORLD_SCALE },
     produces: { fuel: 300 }, // 60 × cargoUnitFactor("fuel") (5)
     consumes: { oil: 300 }, // 60 × cargoUnitFactor("oil") (5) — 1:1 recipe ratio preserved
     acceptancePoints: { oil: 8 },
@@ -214,7 +215,7 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
 
 /** A processor's inputs should have a source within this many tiles (map generation guarantees it;
  * the industry panel lists the nearest source of each input). */
-export const CHAIN_MAX_DISTANCE_TILES = 25;
+export const CHAIN_MAX_DISTANCE_TILES = 25 * WORLD_SCALE;
 
 /** Raw/processed producers of `cargo` (industries whose `produces` include it). */
 export function producersOf(cargo: CargoType): IndustryType[] {

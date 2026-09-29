@@ -13,6 +13,7 @@ import {
   inputGroups,
   type IndustryType,
 } from "../../data/industries";
+import { WORLD_SCALE } from "../../data/scale";
 import { inBounds, tileIndex } from "../map/grid";
 import { terrainId, TERRAIN_TYPES as TERRAIN_NAMES } from "../map/terrain";
 import type { GameMap } from "../map/types";
@@ -25,8 +26,10 @@ const FOREST_ID = terrainId("forest");
 
 /** New producers are placed at least this far from the processor they feed, and within
  * `PLACE_MAX` — comfortably inside the guaranteed range so a later move of either stays valid. */
-const PLACE_MIN = 5;
-const PLACE_MAX = 22;
+const PLACE_MIN = 5 * WORLD_SCALE;
+const PLACE_MAX = 22 * WORLD_SCALE;
+/** Sites tried for a processor source before giving up on that type. */
+const PROCESSOR_SITE_ATTEMPTS = 8;
 const PROCESSOR_TYPES = (Object.keys(INDUSTRIES) as IndustryType[]).filter(
   (t) => inputGroups(t).length > 0,
 );
@@ -85,7 +88,7 @@ export function hasGoodsChainNearCity(
   industries: readonly Industry[],
   cities: readonly City[],
   startYear: number,
-  reach = 30,
+  reach = 30 * WORLD_SCALE,
 ): boolean {
   return industries.some(
     (f) =>
@@ -149,7 +152,8 @@ function candidateSites(
         if (!relaxed && !(placement.terrain as readonly string[]).includes(name as string))
           continue;
         // Keep same-type raw producers from stacking on each other.
-        if (ctx.work.some((i) => i.type === type && Math.hypot(i.x - x, i.y - y) < 4)) continue;
+        if (ctx.work.some((i) => i.type === type && Math.hypot(i.x - x, i.y - y) < 4 * WORLD_SCALE))
+          continue;
       } else if (placement.kind === "nearCity" || placement.kind === "nearForestOrCity") {
         const maxCity = placement.maxTilesFromCity;
         const nearCity = cities.some((c) =>
@@ -164,7 +168,7 @@ function candidateSites(
   }
   if (placement.kind === "nearForestOrCity") {
     const forested = out.filter((idx) =>
-      isNearForest(map, idx % map.width, Math.floor(idx / map.width), 6),
+      isNearForest(map, idx % map.width, Math.floor(idx / map.width), 6 * WORLD_SCALE),
     );
     if (forested.length > 0) return forested;
   }
@@ -198,10 +202,22 @@ function placeSource(
     const type = options[(first + k) % options.length] as IndustryType;
     const sites = candidateSites(ctx, type, processor, relaxed);
     if (sites.length === 0) continue;
-    const idx = sites[nextInt(ctx.rng, 0, sites.length - 1)] as number;
-    const added = addIndustry(ctx, type, idx);
-    if (depth < 3) feed(ctx, added, depth + 1, relaxed);
-    return true;
+    // A processor source (e.g. the Steel Mill feeding a Factory) is only worth placing where it can
+    // be fed itself; try a few sites and undo the ones that cannot (raw producers need no inputs).
+    const isProcessor = inputGroups(type).length > 0;
+    const attempts = isProcessor ? Math.min(sites.length, PROCESSOR_SITE_ATTEMPTS) : 1;
+    for (let a = 0; a < attempts; a++) {
+      const pick = nextInt(ctx.rng, 0, sites.length - 1);
+      const idx = sites[pick] as number;
+      sites.splice(pick, 1);
+      const mark = ctx.work.length;
+      const added = addIndustry(ctx, type, idx);
+      const fed = depth >= 3 || feed(ctx, added, depth + 1, relaxed);
+      if (fed || !isProcessor || relaxed) return true;
+      for (const undone of ctx.work.splice(mark)) {
+        ctx.map.industryId[undone.y * ctx.map.width + undone.x] = -1;
+      }
+    }
   }
   return false;
 }
@@ -236,7 +252,7 @@ function relocate(ctx: Ctx, processor: Industry): boolean {
       const alts = group.filter((t) => eraOk(t, ctx.startYear));
       if (alts.length === 0) return true;
       const have = nearestOf(ctx.work, alts, { x, y }, processor);
-      return have !== undefined && have.distance <= CHAIN_MAX_DISTANCE_TILES - 3;
+      return have !== undefined && have.distance <= CHAIN_MAX_DISTANCE_TILES - 3 * WORLD_SCALE;
     });
   const sites: number[] = [];
   const seen = new Set<number>();

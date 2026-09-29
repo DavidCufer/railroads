@@ -7,7 +7,9 @@
 import {
   CARGO,
   cargoUnitFactor,
+  EXPECTED_TILES_PER_DAY,
   MIN_REVENUE_DISTANCE_TILES,
+  REVENUE_DISTANCE_TILES,
   type CargoType,
 } from "../../data/cargo";
 import { DIFFICULTY, eraInflation } from "../../data/finance";
@@ -168,7 +170,7 @@ export function computeRevenue(
   days: number,
 ): number {
   const def = CARGO[cargo];
-  const expected = (distanceTiles / 2) * def.urgency + 2;
+  const expected = (distanceTiles / EXPECTED_TILES_PER_DAY) * def.urgency + 2;
   const timeFactor =
     days <= expected
       ? 1 + 0.25 * (1 - days / expected)
@@ -176,7 +178,7 @@ export function computeRevenue(
   const year = calendarFromTicks(state.startYear, state.ticks).year;
   return (
     def.baseRate *
-    (distanceTiles / 10) *
+    (distanceTiles / REVENUE_DISTANCE_TILES) *
     timeFactor *
     eraInflation(year) *
     DIFFICULTY[state.difficulty].revenueMult

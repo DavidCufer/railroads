@@ -17,6 +17,7 @@ import {
   type SaveFileV1,
   type SaveFileV2,
   type SaveFileV3,
+  type SaveFileV4,
   type SerializedTrainCarV2,
   type SerializedTrainV2,
   type SerializedTrainV3,
@@ -157,13 +158,34 @@ export function migrateV2toV3(v2: SaveFileV2): SaveFileV3 {
 
 /** Upgrades a raw parsed save (any prior version) to the current format. Throws on a version this
  * build has never heard of (newer than `CURRENT_SAVE_VERSION`, or garbage) rather than guessing. */
-export function migrateSaveFile(raw: unknown): SaveFileV3 {
+export function migrateToV3(raw: unknown): SaveFileV3 {
   const version = (raw as { version?: unknown } | null)?.version;
-  if (version === CURRENT_SAVE_VERSION) return raw as SaveFileV3;
+  if (version === 3) return raw as SaveFileV3;
   if (version === 2) return migrateV2toV3(raw as SaveFileV2);
   if (version === 1) return migrateV2toV3(migrateV1toV2(raw as SaveFileV1));
   if (version === 0) {
     return migrateV2toV3(migrateV1toV2(migrateV0toV1(raw as SaveFileV0Fixture)));
   }
+  throw new Error(`Unrecognized save version: ${JSON.stringify(version)}`);
+}
+
+/** Thrown for a v0–v3 save: it was made at 10 km/tile (Phase 23A moved the world to 5 km/tile).
+ * Migrating would mean rescaling every coordinate, track edge, train position and station, so the
+ * save is refused with a clear message instead (see `strings.saveLoad.oldMapScale`). */
+export class OldMapScaleError extends Error {
+  constructor() {
+    super("This save uses the old map scale and can't be loaded");
+    this.name = "OldMapScaleError";
+  }
+}
+
+/** Upgrades a raw parsed save to the current format. Throws `OldMapScaleError` for a save from
+ * before the 5 km/tile world (versions 0–3), and a plain Error for a version this build has never
+ * heard of (newer than `CURRENT_SAVE_VERSION`, or garbage) rather than guessing. */
+export function migrateSaveFile(raw: unknown): SaveFileV4 {
+  const version = (raw as { version?: unknown } | null)?.version;
+  if (version === CURRENT_SAVE_VERSION) return raw as SaveFileV4;
+  if (version === 0 || version === 1 || version === 2 || version === 3)
+    throw new OldMapScaleError();
   throw new Error(`Unrecognized save version: ${JSON.stringify(version)}`);
 }

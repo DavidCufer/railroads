@@ -490,6 +490,7 @@ export const strings = {
     overwrite: "Overwrite",
     delete: "Delete",
     deleteConfirm: "Delete this save?",
+    oldMapScale: "This save uses the old map scale and can't be loaded",
     namePrompt: "Save name",
     nameDefault: "My Game",
   },

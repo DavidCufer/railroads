@@ -59,10 +59,10 @@ export function renderSaveLoadScreen(handlers: SaveLoadScreenHandlers): HTMLElem
       // IndexedDB unavailable — render as if nothing is saved yet, rather than crashing the menu.
     }
     const bySlot = new Map(slots.map((s2) => [s2.slotId, s2.meta]));
-    renderList(bySlot);
+    renderList(bySlot, new Set(slots.filter((s2) => s2.incompatible).map((s2) => s2.slotId)));
   }
 
-  function renderList(bySlot: Map<SlotId, SaveMeta>): void {
+  function renderList(bySlot: Map<SlotId, SaveMeta>, incompatible: Set<SlotId>): void {
     // The emergency slot (PLAN Phase 12) only ever shows as a row when it actually holds a crash
     // save — unlike the always-present autosave/manual rows, a permanent empty "Emergency Save"
     // row would be confusing clutter for the (overwhelmingly common) case where nothing ever
@@ -82,16 +82,20 @@ export function renderSaveLoadScreen(handlers: SaveLoadScreenHandlers): HTMLElem
 
       if (handlers.mode === "load") {
         if (meta) {
+          if (!incompatible.has(slotId)) {
+            actions.push(
+              h(
+                "button",
+                {
+                  className: "save-slot-btn save-slot-btn-primary",
+                  onClick: () => handlers.onLoad?.(slotId),
+                },
+                icon("load", "icon-sm"),
+                s.load,
+              ),
+            );
+          }
           actions.push(
-            h(
-              "button",
-              {
-                className: "save-slot-btn save-slot-btn-primary",
-                onClick: () => handlers.onLoad?.(slotId),
-              },
-              icon("load", "icon-sm"),
-              s.load,
-            ),
             h(
               "button",
               {
@@ -147,6 +151,9 @@ export function renderSaveLoadScreen(handlers: SaveLoadScreenHandlers): HTMLElem
           { className: "save-slot-info" },
           h("div", { className: "save-slot-name" }, label),
           meta ? h("div", { className: "save-slot-detail" }, slotDetail(meta)) : null,
+          meta && incompatible.has(slotId)
+            ? h("div", { className: "save-slot-detail save-slot-warning" }, s.oldMapScale)
+            : null,
         ),
         h("div", { className: "save-slot-actions" }, ...actions),
       );

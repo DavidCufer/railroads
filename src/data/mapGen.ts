@@ -2,6 +2,8 @@
  * Random map generator parameters (SPEC §4.2). Balance numbers only — logic lives in src/sim/map.
  */
 
+import { WORLD_SCALE } from "./scale";
+
 export type MapSizeName = "small" | "medium" | "large";
 
 /** Scenario start year (SPEC §3: 1830–1950) used until Phase 10 adds a new-game year picker.
@@ -13,9 +15,9 @@ export const DEFAULT_START_YEAR = 1830;
 export const RANDOM_START_YEAR_CHOICES = [1830, 1850, 1870, 1900, 1930, 1950] as const;
 
 export const MAP_SIZES: Record<MapSizeName, { width: number; height: number }> = {
-  small: { width: 96, height: 64 },
-  medium: { width: 128, height: 96 },
-  large: { width: 192, height: 128 },
+  small: { width: 96 * WORLD_SCALE, height: 64 * WORLD_SCALE },
+  medium: { width: 128 * WORLD_SCALE, height: 96 * WORLD_SCALE },
+  large: { width: 192 * WORLD_SCALE, height: 128 * WORLD_SCALE },
 };
 
 export type WaterLevel = "low" | "normal" | "high";
@@ -52,9 +54,9 @@ export const RIVER_SOURCE_MIN_ELEVATION = 6;
 export const RIVER_SOURCE_COUNT_MIN = 4;
 export const RIVER_SOURCE_COUNT_MAX = 12;
 /** Minimum tile-distance between two accepted river sources. */
-export const RIVER_SOURCE_MIN_SPACING = 10;
+export const RIVER_SOURCE_MIN_SPACING = 10 * WORLD_SCALE;
 /** A traced river shorter than this (land tiles, source to water/merge) is discarded. */
-export const RIVER_MIN_LENGTH = 12;
+export const RIVER_MIN_LENGTH = 12 * WORLD_SCALE;
 
 /**
  * Priority-flood (Barnes et al. 2014, "Priority-Flood + epsilon") depression filling, run on the
@@ -65,7 +67,7 @@ export const FLOOD_EPSILON = 1e-5;
 /** A filled depression shallower than this (in raw elevation units) is not considered a lake. */
 export const LAKE_FILL_THRESHOLD = 0.02;
 /** A filled depression smaller than this many tiles is left as land, not turned into a lake. */
-export const LAKE_MIN_AREA = 4;
+export const LAKE_MIN_AREA = 4 * WORLD_SCALE * WORLD_SCALE;
 
 /** Terrain classification thresholds (elevation is 0–9; moisture is [-1, 1]). */
 export const TERRAIN_THRESHOLDS = {

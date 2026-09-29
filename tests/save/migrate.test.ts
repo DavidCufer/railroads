@@ -2,8 +2,13 @@
  * scaffold actually rewrites an older save into the current format, not just that it recognizes
  * `version: 1` and passes it through untouched. */
 import { describe, expect, it } from "vitest";
-import { migrateSaveFile, type SaveFileV0Fixture } from "../../src/save/migrate";
-import { CURRENT_SAVE_VERSION, type SaveFileV3 } from "../../src/save/format";
+import {
+  migrateSaveFile,
+  migrateToV3,
+  OldMapScaleError,
+  type SaveFileV0Fixture,
+} from "../../src/save/migrate";
+import { CURRENT_SAVE_VERSION, type SaveFileV4 } from "../../src/save/format";
 import { serializeGameState } from "../../src/save/serialize";
 import { makeTestMap, makeTestState } from "../sim/track/helpers";
 
@@ -28,10 +33,10 @@ function v0Fixture(): SaveFileV0Fixture {
 }
 
 describe("save migration scaffold", () => {
-  it("migrates a v0 fixture up to the current version, filling in fields that didn't exist yet", () => {
-    const migrated = migrateSaveFile(v0Fixture());
+  it("migrates a v0 fixture up to v3, filling in fields that didn't exist yet", () => {
+    const migrated = migrateToV3(v0Fixture());
 
-    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.version).toBe(3);
     expect(migrated.state.cash).toBe(1_000_000); // renamed from v0's `money`
     expect(migrated.state.goals).toEqual([]);
     expect(migrated.state.goalsCompleted).toEqual([]);
@@ -44,12 +49,23 @@ describe("save migration scaffold", () => {
 
   it("passes a current-version save through unchanged", () => {
     const state = serializeGameState(makeTestState(makeTestMap(["pp"])));
-    const file: { version: 3; meta: SaveFileV3["meta"]; state: typeof state } = {
+    const file: { version: 4; meta: SaveFileV4["meta"]; state: typeof state } = {
       version: CURRENT_SAVE_VERSION,
       meta: { savedAt: 1, year: 1830, month: 1, day: 1, cash: 1_000_000, mapLabel: "Test" },
       state,
     };
     expect(migrateSaveFile(file)).toBe(file);
+  });
+
+  it("refuses saves from before the 5 km/tile world with OldMapScaleError", () => {
+    expect(() => migrateSaveFile(v0Fixture())).toThrow(OldMapScaleError);
+    const state = serializeGameState(makeTestState(makeTestMap(["pp"])));
+    const v3 = {
+      version: 3,
+      meta: { savedAt: 1, year: 1830, month: 1, day: 1, cash: 1, mapLabel: "Test" },
+      state,
+    };
+    expect(() => migrateSaveFile(v3)).toThrow("old map scale");
   });
 
   it("throws on an unrecognized future version rather than guessing", () => {

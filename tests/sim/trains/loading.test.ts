@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildStation, buildTrack, buyTrain, setOrders } from "../../../src/sim/commands";
 import { computeRevenue, stepLoading } from "../../../src/sim/trains/loading";
 import { CARGO } from "../../../src/data/cargo";
+import { KM_PER_TILE, WORLD_SCALE } from "../../../src/data/scale";
 import { DIFFICULTY, eraInflation } from "../../../src/data/finance";
 import { makeTestMap, makeTestState, tileAt } from "../track/helpers";
 import type { GameState } from "../../../src/sim/state";
@@ -44,14 +45,25 @@ describe("computeRevenue", () => {
     days: number;
     expected: number;
   }> = [
+    // Distances are the pre-Phase-23 tile counts × WORLD_SCALE (same km).
     // coal: urgency 2.5, baseRate 1200, decayDays 30. expected = (8/2)*2.5+2 = 12 days exactly.
-    { cargo: "coal", distanceTiles: 8, days: 6, expected: 1200 * 0.8 * (1 + 0.25 * (1 - 6 / 12)) },
-    { cargo: "coal", distanceTiles: 8, days: 12, expected: 1200 * 0.8 * 1.0 },
-    { cargo: "coal", distanceTiles: 8, days: 42, expected: 1200 * 0.8 * (1 - (42 - 12) / 60) },
+    {
+      cargo: "coal",
+      distanceTiles: 8 * WORLD_SCALE,
+      days: 6,
+      expected: 1200 * 0.8 * (1 + 0.25 * (1 - 6 / 12)),
+    },
+    { cargo: "coal", distanceTiles: 8 * WORLD_SCALE, days: 12, expected: 1200 * 0.8 * 1.0 },
+    {
+      cargo: "coal",
+      distanceTiles: 8 * WORLD_SCALE,
+      days: 42,
+      expected: 1200 * 0.8 * (1 - (42 - 12) / 60),
+    },
     // Very late: time factor floors at 0.2.
-    { cargo: "coal", distanceTiles: 8, days: 500, expected: 1200 * 0.8 * 0.2 },
+    { cargo: "coal", distanceTiles: 8 * WORLD_SCALE, days: 500, expected: 1200 * 0.8 * 0.2 },
     // Passengers: urgency 1.0. expected = (20/2)*1+2 = 12 days.
-    { cargo: "passengers", distanceTiles: 20, days: 12, expected: 1650 * 2 * 1.0 },
+    { cargo: "passengers", distanceTiles: 20 * WORLD_SCALE, days: 12, expected: 1650 * 2 * 1.0 },
   ];
 
   for (const c of cases) {
@@ -64,12 +76,33 @@ describe("computeRevenue", () => {
     });
   }
 
+  it("the same km route earns the same revenue as before the 5 km/tile conversion", () => {
+    // Pre-Phase-23 formula on the old 10 km grid: base * (oldTiles / 10) with expected = oldTiles/2*urgency+2.
+    const map = makeTestMap(["p"]);
+    const state = makeTestState(map);
+    state.startYear = 1830;
+    const oldTiles = 12;
+    const km = oldTiles * 10;
+    for (const cargo of ["coal", "passengers", "mail"] as const) {
+      for (const days of [3, 9, 30]) {
+        const def = CARGO[cargo];
+        const expected = (oldTiles / 2) * def.urgency + 2;
+        const timeFactor =
+          days <= expected
+            ? 1 + 0.25 * (1 - days / expected)
+            : Math.max(0.2, 1 - (days - expected) / (def.decayDays * 2));
+        const before = def.baseRate * (oldTiles / 10) * timeFactor;
+        expect(computeRevenue(state, cargo, km / KM_PER_TILE, days)).toBeCloseTo(before, 6);
+      }
+    }
+  });
+
   it("scales with era inflation and difficulty revenue multiplier", () => {
     const map = makeTestMap(["p"]);
     const state = makeTestState(map, { difficulty: "hard" });
     state.startYear = 1830;
     state.ticks = (1950 - 1830) * 360 * 24; // ~1950
-    const revenue = computeRevenue(state, "coal", 8, 12);
+    const revenue = computeRevenue(state, "coal", 8 * WORLD_SCALE, 12);
     const expected = 1200 * 0.8 * 1.0 * eraInflation(1950) * DIFFICULTY.hard.revenueMult;
     expect(revenue).toBeCloseTo(expected, 0);
   });
