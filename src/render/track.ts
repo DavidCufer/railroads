@@ -570,19 +570,13 @@ export class TrackRenderer {
   }
 
   private drawJunction(ctx: CanvasRenderingContext2D, node: number, f: Frame): void {
-    const edges = this.graph.edgesAt(node);
     const [tx, ty] = tileXY(node, this.mapWidth);
     const x = (tx - f.originX + 0.5) * f.px;
     const y = (ty - f.originY + 0.5) * f.px;
     const scale = f.scale;
 
-    if (edges.length >= 3) {
-      ctx.fillStyle = JUNCTION_DOT_COLOR;
-      ctx.beginPath();
-      ctx.arc(x, y, 2.6 * scale, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
+    // No junction dot: the lane geometry (turnout arcs, tie sets) reads as a junction on its own,
+    // and a dot on top of the rails is exactly what made complex double-track junctions look wrong.
     if (hasSharpJunction(this.graph, node)) {
       ctx.fillStyle = SHARP_TURN_MARKER_COLOR;
       ctx.beginPath();
