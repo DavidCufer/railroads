@@ -29,6 +29,7 @@ import {
   drawTrainProfitOverlay,
 } from "./render/overlays";
 import { MiniMapRenderer } from "./render/minimap";
+import { drawZoomMarkers } from "./render/zoomMarkers";
 import type { ReservedScreenRect } from "./render/reservedRects";
 import { CameraInput, type BuildDragHandlers } from "./ui/cameraInput";
 import { createDebugControls } from "./ui/debugControls";
@@ -904,6 +905,15 @@ function main(): void {
       }
       drawStations(ctx, camera, viewportW, viewportH, stationWorldOf(state));
       drawStationSupplyBubbles(ctx, camera, viewportW, viewportH, state);
+      drawZoomMarkers(
+        ctx,
+        camera,
+        viewportW,
+        viewportH,
+        state.map,
+        state.industries,
+        state.stations,
+      );
       if (overlayState.trainProfit) {
         drawTrainProfitOverlay(ctx, camera, viewportW, viewportH, state.trains, state.ticks);
       }

@@ -10,6 +10,7 @@ import { rand, seedTile } from "./rng";
 import { drawCityRoofs } from "./cities";
 import { drawIndustryIcon } from "./industries";
 import {
+  CITY_ROOF_COLORS,
   FOREST_CANOPY_COLOR,
   FOREST_SHADOW_COLOR,
   RIVER_LINE_COLOR,
@@ -130,7 +131,7 @@ function groundClassOf(map: GameMap, x: number, y: number): number {
 function renderColorFor(map: GameMap, x: number, y: number): string {
   const idx = tileIndex(map, x, y);
   const id = map.terrain[idx] as number;
-  if (id === WATER_ID) return WATER_DEPTH_COLORS[waterDepthLevel(map, x, y)] as string;
+  if (id === WATER_ID) return WATER_SHALLOW_COLOR;
   if (id === RIVER_ID) return LAND_CLASS_COLORS[groundClassOf(map, x, y)] as string;
   return terrainColorFor(map, idx);
 }
@@ -163,17 +164,35 @@ function marchingSquaresPolygon(
   return out;
 }
 
+/** The points where the `threshold` contour crosses the cell's edges, in walk order (paired up, they
+ * are the contour's segments). */
+function contourCrossings(
+  corners: ReadonlyArray<{ x: number; y: number; v: number }>,
+  threshold: number,
+): Array<{ x: number; y: number }> {
+  const out: Array<{ x: number; y: number }> = [];
+  for (let i = 0; i < corners.length; i++) {
+    const cur = corners[i] as { x: number; y: number; v: number };
+    const next = corners[(i + 1) % corners.length] as { x: number; y: number; v: number };
+    if (cur.v >= threshold !== next.v >= threshold) {
+      const t = (threshold - cur.v) / (next.v - cur.v);
+      out.push({ x: cur.x + (next.x - cur.x) * t, y: cur.y + (next.y - cur.y) * t });
+    }
+  }
+  return out;
+}
+
 function chunkCacheKey(cx: number, cy: number, bucket: ZoomBucket, overview: boolean): string {
   return `${bucket}|${overview ? "o" : "f"}|${cx}|${cy}`;
 }
 
-/** Water colour ramp from the shallows (level 0) to deep water — several soft steps instead of one
- * hard shallow/deep edge, which read as a blocky staircase at the 5 km/tile scale (Phase 23A). */
-const WATER_DEPTH_LEVELS = 10;
-/** Distance (tiles) from land at which water reaches full depth colour. */
+/** Water colour ramp from the shallows to deep water: a fine lookup table over the continuous
+ * distance-to-shore, so depth reads as a smooth gradient rather than square patches (Phase 25B). */
+const WATER_RAMP_STEPS = 48;
+/** Distance (tiles) from the shoreline at which water reaches full depth colour. */
 const WATER_DEPTH_REACH_TILES = 6;
-const WATER_DEPTH_COLORS: readonly string[] = Array.from({ length: WATER_DEPTH_LEVELS }, (_, i) =>
-  mixHex(WATER_SHALLOW_COLOR, WATER_DEEP_COLOR, i / (WATER_DEPTH_LEVELS - 1)),
+const WATER_RAMP_COLORS: readonly string[] = Array.from({ length: WATER_RAMP_STEPS }, (_, i) =>
+  mixHex(WATER_SHALLOW_COLOR, WATER_DEEP_COLOR, i / (WATER_RAMP_STEPS - 1)),
 );
 
 function mixHex(a: string, b: string, t: number): string {
@@ -186,24 +205,93 @@ function mixHex(a: string, b: string, t: number): string {
   return `#${c(ar, br)}${c(ag, bg)}${c(ab, bb)}`;
 }
 
-/** Depth level of a water tile: 0 next to land (or the map edge), growing with the (Euclidean, so
- * contours come out round rather than square) distance to the nearest land, up to the deepest level. */
-function waterDepthLevel(map: GameMap, x: number, y: number): number {
-  const reach = WATER_DEPTH_REACH_TILES;
-  let nearest = reach;
-  for (let dy = -reach; dy <= reach; dy++) {
-    for (let dx = -reach; dx <= reach; dx++) {
-      const d = Math.hypot(dx, dy);
-      if (d >= nearest) continue;
-      const nx = x + dx;
-      const ny = y + dy;
-      if (!inBounds(map, nx, ny) || (map.terrain[tileIndex(map, nx, ny)] as number) !== WATER_ID) {
-        nearest = d;
-      }
+/** Ramp colour for a distance to the shoreline (tiles; 0 = on the coast contour). */
+export function waterColorAtDistance(d: number): string {
+  const t = Math.min(1, Math.max(0, d) / WATER_DEPTH_REACH_TILES);
+  return WATER_RAMP_COLORS[Math.round(t * (WATER_RAMP_STEPS - 1))] as string;
+}
+
+/**
+ * Exact Euclidean distance (tiles, measured between tile centres) from every tile to the nearest
+ * non-water tile, off-map counting as land — Felzenszwalb's linear-time squared distance transform
+ * over the map padded with one land tile. Land tiles are 0. Computed once per map content version.
+ */
+export function shoreDistanceField(map: GameMap): Float32Array {
+  const w = map.width + 2;
+  const h = map.height + 2;
+  const INF = 1e12;
+  const f = new Float64Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const mx = x - 1;
+      const my = y - 1;
+      const water =
+        mx >= 0 &&
+        my >= 0 &&
+        mx < map.width &&
+        my < map.height &&
+        (map.terrain[my * map.width + mx] as number) === WATER_ID;
+      f[y * w + x] = water ? INF : 0;
     }
   }
-  const t = Math.max(0, nearest - 1) / (reach - 1);
-  return Math.min(WATER_DEPTH_LEVELS - 1, Math.round(t * (WATER_DEPTH_LEVELS - 1)));
+  const n = Math.max(w, h);
+  const v = new Int32Array(n);
+  const z = new Float64Array(n + 1);
+  const d = new Float64Array(n);
+  const pass = (
+    get: (i: number) => number,
+    set: (i: number, val: number) => void,
+    len: number,
+  ): void => {
+    let k = 0;
+    v[0] = 0;
+    z[0] = -INF;
+    z[1] = INF;
+    for (let q = 1; q < len; q++) {
+      let sx: number;
+      for (;;) {
+        const p = v[k] as number;
+        sx = (get(q) + q * q - (get(p) + p * p)) / (2 * q - 2 * p);
+        if (sx <= (z[k] as number) && k > 0) k--;
+        else break;
+      }
+      k++;
+      v[k] = q;
+      z[k] = sx;
+      z[k + 1] = INF;
+    }
+    k = 0;
+    for (let q = 0; q < len; q++) {
+      while ((z[k + 1] as number) < q) k++;
+      const p = v[k] as number;
+      d[q] = (q - p) * (q - p) + get(p);
+    }
+    for (let q = 0; q < len; q++) set(q, d[q] as number);
+  };
+  for (let x = 0; x < w; x++) {
+    pass(
+      (i) => f[i * w + x] as number,
+      (i, val) => {
+        f[i * w + x] = val;
+      },
+      h,
+    );
+  }
+  for (let y = 0; y < h; y++) {
+    pass(
+      (i) => f[y * w + i] as number,
+      (i, val) => {
+        f[y * w + i] = val;
+      },
+      w,
+    );
+  }
+  const out = new Float32Array(map.width * map.height);
+  for (let y = 0; y < map.height; y++) {
+    for (let x = 0; x < map.width; x++)
+      out[y * map.width + x] = Math.sqrt(f[(y + 1) * w + x + 1] as number);
+  }
+  return out;
 }
 
 interface ShimmerDot {
@@ -226,6 +314,8 @@ export class TerrainRenderer {
   private cities: readonly City[];
   private industries: readonly Industry[];
   private cityCenters = new Map<number, CityCenter>();
+  /** Distance-to-shore per tile, built lazily; dropped whenever the map content changes. */
+  private shoreDist: Float32Array | null = null;
   /** City tiles a station's platforms/building/improvements stand on: drawn without houses (PLAN 23B). */
   private stationFootprint: ReadonlySet<number> = new Set();
   private shimmerDots: ShimmerDot[] = [];
@@ -245,6 +335,7 @@ export class TerrainRenderer {
     this.industries = industries;
     this.cache.clear();
     this.hiCache.clear();
+    this.shoreDist = null;
     this.shimmerDots = [];
     this.lastShimmerUpdate = -Infinity;
     this.computeCityCenters();
@@ -256,6 +347,7 @@ export class TerrainRenderer {
    * the references themselves didn't change. Clears every cached chunk at every zoom bucket, same
    * as `setMap`, but keeps the shimmer animation state instead of resetting it. */
   refreshContent(): void {
+    this.shoreDist = null;
     this.cache.clear();
     this.hiCache.clear();
     this.computeCityCenters();
@@ -339,9 +431,9 @@ export class TerrainRenderer {
 
     // Cap how many never-before-seen chunks get rasterized in a single frame, so panning into
     // fresh territory can't stall the frame — the rest fill in over the next couple of frames.
-    // Overview chunks are cheap (flat fill, no hillshading/blend/decoration) so they're never budgeted.
+    // Overview chunks skip decorations but share the smooth borders/coast/water, so they are budgeted too.
     let chunksRenderedThisFrame = 0;
-    const CHUNK_RENDER_BUDGET = overview ? Infinity : bucket === 2 ? 6 : 4;
+    const CHUNK_RENDER_BUDGET = overview ? 8 : bucket === 2 ? 6 : 4;
 
     for (let cy = chunkMinY; cy <= chunkMaxY; cy++) {
       for (let cx = chunkMinX; cx <= chunkMaxX; cx++) {
@@ -356,7 +448,7 @@ export class TerrainRenderer {
         const tilesX = Math.min(CHUNK_TILES, this.map.width - cx * CHUNK_TILES);
         const tilesY = Math.min(CHUNK_TILES, this.map.height - cy * CHUNK_TILES);
         const px = TILE_SIZE * bucket;
-        const pad = overview ? 0 : CHUNK_PAD_TILES;
+        const pad = CHUNK_PAD_TILES;
         // Only the interior is composited (the pad just supplies neighbours' overflow), with the
         // chunk boundaries snapped to device pixels so neighbours abut exactly.
         drawChunkSnapped(
@@ -403,7 +495,7 @@ export class TerrainRenderer {
     // A ring of neighbouring tiles is drawn around the chunk (and only the interior is shown), so
     // trees, shadows and washes that spill over a chunk border continue into the next chunk
     // instead of being cut off flat along it.
-    const pad = overview ? 0 : CHUNK_PAD_TILES;
+    const pad = CHUNK_PAD_TILES;
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.ceil((tilesX + 2 * pad) * px));
     canvas.height = Math.max(1, Math.ceil((tilesY + 2 * pad) * px));
@@ -465,21 +557,15 @@ export class TerrainRenderer {
     const baseColor = renderColorFor(this.map, mapX, mapY);
     seedTile(mapX, mapY);
 
-    if (overview) {
-      ctx.fillStyle = baseColor;
-      ctx.fillRect(px, py, size, size);
-      return;
-    }
-
     if (!decor) {
       if (terrain === "water") {
-        ctx.fillStyle = baseColor;
-        ctx.fillRect(px, py, size, size);
+        this.drawWaterTile(ctx, mapX, mapY, px, py, size);
       } else {
         this.drawShadedTile(ctx, mapX, mapY, px, py, size, baseColor);
       }
       this.drawLandBorders(ctx, mapX, mapY, px, py, size);
       this.drawCoastlineContour(ctx, mapX, mapY, px, py, size, terrain === "water");
+      if (overview) this.drawOverviewCity(ctx, idx, px, py, size);
       return;
     }
 
@@ -508,6 +594,69 @@ export class TerrainRenderer {
     }
   }
 
+  /** Distance-to-shore (tiles) of tile (x, y); land and off-map are 0. */
+  private shoreDistanceAt(x: number, y: number): number {
+    if (!inBounds(this.map, x, y)) return 0;
+    this.shoreDist ??= shoreDistanceField(this.map);
+    return this.shoreDist[y * this.map.width + x] as number;
+  }
+
+  /** Water as a grid of subcells whose colour follows the bilinearly-interpolated distance to the
+   * coast contour (half a tile past the last water tile centre), so depth is a smooth gradient. */
+  private drawWaterTile(
+    ctx: CanvasRenderingContext2D,
+    mapX: number,
+    mapY: number,
+    px: number,
+    py: number,
+    size: number,
+  ): void {
+    const sub = size / SHADE_SUBCELLS;
+    const pad = 0.75;
+    for (let sy = 0; sy < SHADE_SUBCELLS; sy++) {
+      const fy = mapY - 0.5 + (sy + 0.5) / SHADE_SUBCELLS;
+      const y0 = Math.floor(fy);
+      const ty = fy - y0;
+      for (let sx = 0; sx < SHADE_SUBCELLS; sx++) {
+        const fx = mapX - 0.5 + (sx + 0.5) / SHADE_SUBCELLS;
+        const x0 = Math.floor(fx);
+        const tx = fx - x0;
+        const d =
+          (this.shoreDistanceAt(x0, y0) * (1 - tx) + this.shoreDistanceAt(x0 + 1, y0) * tx) *
+            (1 - ty) +
+          (this.shoreDistanceAt(x0, y0 + 1) * (1 - tx) +
+            this.shoreDistanceAt(x0 + 1, y0 + 1) * tx) *
+            ty;
+        ctx.fillStyle = waterColorAtDistance(d - 0.5);
+        // Overlap only between this tile's own subcells: bleeding past the tile border painted a
+        // hairline of water over the land tiles drawn before it.
+        const lo = (k: number): number => (k === 0 ? 0 : pad / 2);
+        const hi = (k: number): number => (k === SHADE_SUBCELLS - 1 ? 0 : pad / 2);
+        ctx.fillRect(
+          px + sx * sub - lo(sx),
+          py + sy * sub - lo(sy),
+          sub + lo(sx) + hi(sx),
+          sub + lo(sy) + hi(sy),
+        );
+      }
+    }
+  }
+
+  /** Overview only: a city tile as a small roof-coloured square, so towns show without their art. */
+  private drawOverviewCity(
+    ctx: CanvasRenderingContext2D,
+    idx: number,
+    px: number,
+    py: number,
+    size: number,
+  ): void {
+    const cityId = this.map.cityId[idx] as number;
+    if (cityId < 0 || !this.cities[cityId]) return;
+    ctx.fillStyle = CITY_ROOF_COLORS[cityId % CITY_ROOF_COLORS.length] as string;
+    const inset = size * 0.15;
+    ctx.fillRect(px + inset, py + inset, size - 2 * inset, size - 2 * inset);
+  }
+
   /** Fills the tile as a small grid of bilinearly-shaded subcells — smoother, stronger hillshading. */
   private drawShadedTile(
     ctx: CanvasRenderingContext2D,
@@ -526,7 +675,15 @@ export class TerrainRenderer {
         const fy = mapY - 0.5 + (sy + 0.5) / SHADE_SUBCELLS;
         const shade = hillshadeFactorAt(this.map, fx, fy);
         ctx.fillStyle = shadeColor(baseColor, shade);
-        ctx.fillRect(px + sx * sub - pad / 2, py + sy * sub - pad / 2, sub + pad, sub + pad);
+        // Overlap only between the tile's own subcells (see `drawWaterTile`).
+        const lo = (k: number): number => (k === 0 ? 0 : pad / 2);
+        const hi = (k: number): number => (k === SHADE_SUBCELLS - 1 ? 0 : pad / 2);
+        ctx.fillRect(
+          px + sx * sub - lo(sx),
+          py + sy * sub - lo(sy),
+          sub + lo(sx) + hi(sx),
+          sub + lo(sy) + hi(sy),
+        );
       }
     }
   }
@@ -769,10 +926,20 @@ export class TerrainRenderer {
 
     // Soft blurred stroke along the true contour so the boundary feathers instead of showing a
     // hard edge between the polygon fill and this tile's own base color.
+    // Only the contour itself is stroked, not the polygon's edges along the tile border (those
+    // drew faint tile-shaped outlines between neighbouring land tiles).
     ctx.shadowColor = withAlpha(fillColor, 0.5);
     ctx.shadowBlur = size * 0.22;
     ctx.strokeStyle = withAlpha(fillColor, 0.35);
     ctx.lineWidth = size * 0.1;
+    ctx.beginPath();
+    const crossings = contourCrossings(corners, 0.5);
+    for (let i = 0; i + 1 < crossings.length; i += 2) {
+      const a = crossings[i] as { x: number; y: number };
+      const b = crossings[i + 1] as { x: number; y: number };
+      ctx.moveTo(px + a.x, py + a.y);
+      ctx.lineTo(px + b.x, py + b.y);
+    }
     ctx.stroke();
     ctx.restore();
   }
