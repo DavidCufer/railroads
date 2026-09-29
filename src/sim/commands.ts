@@ -44,6 +44,7 @@ import { canPlaceStationAt, stationAtTile, stationCatchmentTiles } from "./stati
 import { stationCost, stationUpgradeCost } from "./stations/cost";
 import { defaultStationName } from "./stations/naming";
 import { computeStationEconomies } from "./stations/economy";
+import { destinationCounts } from "./stations/destinations";
 import type { Station } from "./stations/types";
 import { CARGO, type CargoType } from "../data/cargo";
 import {
@@ -312,6 +313,7 @@ export function refreshStationEconomy(state: GameState): void {
     state.stations,
     year,
     state.industryEconomy,
+    destinationCounts(state.trains),
   );
 }
 
@@ -670,6 +672,7 @@ export function setOrders(
 
   train.orders = orders.map((o) => ({ ...o }));
   train.currentOrderIndex = 0;
+  // (the destination bonus follows the orders at the next monthly economy refresh)
   return { ok: true, cost: 0 };
 }
 

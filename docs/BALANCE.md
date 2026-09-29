@@ -8,12 +8,12 @@ track/station upkeep included). Consist = min(loco max cars, 8). Cells: `revenue
 
 | Pop | Passengers | = cars | Mail | = cars |
 |---|---|---|---|---|
-| village 3000 | 9 | 0.2 | 3 | 0.1 |
-| town 12000 | 37 | 0.9 | 13 | 0.4 |
-| town 18000 | 55 | 1.4 | 19 | 0.6 |
-| city 40000 | 123 | 3.1 | 43 | 1.4 |
-| city 100000 | 308 | 7.7 | 107 | 3.6 |
-| metropolis 250000 | 769 | 19.2 | 268 | 8.9 |
+| village 3000 | 14 | 0.3 | 7 | 0.2 |
+| town 12000 | 55 | 1.4 | 28 | 0.9 |
+| town 18000 | 83 | 2.1 | 42 | 1.4 |
+| city 40000 | 185 | 4.6 | 94 | 3.1 |
+| city 100000 | 462 | 11.6 | 236 | 7.9 |
+| metropolis 250000 | 1154 | 28.9 | 589 | 19.6 |
 
 ## Coal (mine → steel mill)
 
@@ -46,34 +46,34 @@ track/station upkeep included). Consist = min(loco max cars, 8). Cells: `revenue
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 2k / -7k | 2k / -7k | 3k / -8k |
-| 1860 american-4-4-0 | 6 | 26k / 12k | 41k / 26k | 44k / 27k |
-| 1900 atlantic-4-4-2 | 6 | 38k / 12k | 75k / 49k | 111k / 82k |
-| 1950 road-switcher-diesel | 8 | 51k / 12k | 101k / 61k | 170k / 127k |
+| 1830 grasshopper-0-4-0 | 3 | 3k / -6k | 4k / -6k | 4k / -12k |
+| 1860 american-4-4-0 | 6 | 41k / 26k | 64k / 49k | 67k / 49k |
+| 1900 atlantic-4-4-2 | 6 | 59k / 33k | 118k / 91k | 170k / 141k |
+| 1950 road-switcher-diesel | 8 | 79k / 40k | 157k / 117k | 264k / 221k |
 
 ## Passengers City 40k ↔ City 40k
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 6k / -2k | 7k / -2k | 7k / -9k |
-| 1860 american-4-4-0 | 6 | 88k / 73k | 134k / 118k | 146k / 129k |
-| 1900 atlantic-4-4-2 | 6 | 126k / 100k | 250k / 223k | 362k / 333k |
-| 1950 road-switcher-diesel | 8 | 169k / 130k | 336k / 296k | 559k / 516k |
+| 1830 grasshopper-0-4-0 | 3 | 9k / 0k | 9k / -1k | 10k / -1k |
+| 1860 american-4-4-0 | 6 | 135k / 121k | 207k / 192k | 205k / 188k |
+| 1900 atlantic-4-4-2 | 6 | 196k / 170k | 387k / 361k | 556k / 527k |
+| 1950 road-switcher-diesel | 8 | 263k / 224k | 520k / 480k | 868k / 825k |
 
 ## Mail Town 12k ↔ Town 12k
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 3k / -6k | 3k / -6k | 3k / -13k |
-| 1860 american-4-4-0 | 6 | 29k / 14k | 41k / 26k | 14k / -3k |
-| 1900 atlantic-4-4-2 | 6 | 41k / 16k | 82k / 56k | 147k / 118k |
-| 1950 road-switcher-diesel | 8 | 56k / 17k | 110k / 70k | 222k / 179k |
+| 1830 grasshopper-0-4-0 | 3 | 3k / -6k | 3k / -6k | 4k / -7k |
+| 1860 american-4-4-0 | 6 | 34k / 19k | 49k / 34k | 17k / 0k |
+| 1900 atlantic-4-4-2 | 6 | 49k / 24k | 98k / 71k | 173k / 144k |
+| 1950 road-switcher-diesel | 8 | 66k / 28k | 131k / 91k | 264k / 221k |
 
 ## Mail City 40k ↔ City 40k
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 8k / -1k | 9k / -1k | 9k / -7k |
-| 1860 american-4-4-0 | 6 | 95k / 80k | 138k / 122k | 48k / 31k |
-| 1900 atlantic-4-4-2 | 6 | 138k / 112k | 273k / 247k | 488k / 459k |
-| 1950 road-switcher-diesel | 8 | 185k / 146k | 366k / 327k | 737k / 695k |
+| 1830 grasshopper-0-4-0 | 3 | 9k / 0k | 10k / 0k | 9k / -7k |
+| 1860 american-4-4-0 | 6 | 114k / 99k | 158k / 143k | 57k / 39k |
+| 1900 atlantic-4-4-2 | 6 | 164k / 139k | 324k / 298k | 563k / 534k |
+| 1950 road-switcher-diesel | 8 | 221k / 183k | 438k / 398k | 878k / 835k |

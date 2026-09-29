@@ -7,6 +7,7 @@ import type { GameState } from "../sim/state";
 import type { GameMap } from "../sim/map/types";
 import { TrackGraph } from "../sim/track/graph";
 import { computeStationEconomies } from "../sim/stations/economy";
+import { destinationCounts } from "../sim/stations/destinations";
 import type { SerializedGameMapV1, SerializedGameStateV3, SerializedTrainV3 } from "./format";
 import {
   decodeFloat32Array,
@@ -153,6 +154,7 @@ export function deserializeGameState(data: SerializedGameStateV3): GameState {
     state.stations,
     currentYear,
     state.industryEconomy,
+    destinationCounts(state.trains),
   );
   return state;
 }

@@ -412,9 +412,11 @@ describe("Phase 7.1 balance acceptance", () => {
     expect(ratio).toBeLessThanOrEqual(2.5);
   });
 
-  it("a coal+ore -> steel -> factory -> goods chain out-earns a passenger shuttle per train", () => {
+  it("a coal+ore -> steel -> factory -> goods chain out-earns a town passenger shuttle per train", () => {
+    // Phase 26A: passenger supply was raised ×1.5 (town↔town ≈ 1× coal, PLAN 26A), so the yardstick is
+    // now a Town (15k) shuttle; a 40k-city shuttle is a top-tier route that may beat a chain leg.
     const chain = buildChain(12 * WORLD_SCALE);
-    const pax = buildPassengerRoute(12 * WORLD_SCALE, 40_000, 4);
+    const pax = buildPassengerRoute(12 * WORLD_SCALE, 15_000, 4);
     const [, chainYr2] = yearlyProfits(chain, 2);
     const [, paxYr2] = yearlyProfits(pax, 2);
     const chainProfitPerTrain = (chainYr2 as number) / 3;

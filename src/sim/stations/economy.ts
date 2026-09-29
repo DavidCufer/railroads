@@ -20,6 +20,7 @@ import {
 import { cityTileAcceptance, cityTileSupply } from "../economy/cityStats";
 import type { City, Industry, IndustryEconomyState } from "../economy/types";
 import type { GameMap } from "../map/types";
+import { destinationSupplyMult } from "./destinations";
 import { hasImprovement } from "./improvements";
 import { stationCatchmentTiles } from "./placement";
 import type { Station } from "./types";
@@ -45,6 +46,7 @@ export function computeStationEconomies(
   stations: readonly Station[],
   currentYear: number,
   industryEconomy?: ReadonlyMap<number, IndustryEconomyState>,
+  destinations?: ReadonlyMap<number, number>,
 ): Map<number, StationEconomy> {
   const catchments = new Map<number, number[]>();
   for (const station of stations) {
@@ -137,6 +139,17 @@ export function computeStationEconomies(
     if (!hasImprovement(station, "postOffice")) continue;
     const economy = result.get(station.id) as StationEconomy;
     if (economy.supply.mail) economy.supply.mail *= POST_OFFICE_MAIL_SUPPLY_MULT;
+  }
+
+  // Destination bonus (Phase 26A): more distinct places reached => more passengers and mail.
+  if (destinations) {
+    for (const station of stations) {
+      const mult = destinationSupplyMult(destinations.get(station.id) ?? 0);
+      if (mult === 1) continue;
+      const economy = result.get(station.id) as StationEconomy;
+      if (economy.supply.passengers) economy.supply.passengers *= mult;
+      if (economy.supply.mail) economy.supply.mail *= mult;
+    }
   }
 
   // Round supply once, after all splitting/summing, to avoid compounding rounding error.

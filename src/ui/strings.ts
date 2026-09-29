@@ -61,6 +61,13 @@ export const strings = {
     civicNeedsRail: "Needs a rail link",
     civicInvestmentShort: "+15% pop",
     noStationIn: (name: string) => `No station in ${name} yet`,
+    nextTier: "Next tier",
+    nextTierValue: (tier: string, population: string, unlocks: string) =>
+      unlocks
+        ? `${tier} at ${population} — unlocks demand for ${unlocks}`
+        : `${tier} at ${population} — bigger, more passengers`,
+    topTier: "Largest size reached",
+    growthHint: "Growth: deliver passengers, mail, food and goods. Bigger cities send more people.",
   },
   industry: {
     produces: "Produces",

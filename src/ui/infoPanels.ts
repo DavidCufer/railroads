@@ -2,9 +2,14 @@
 import { CARGO, type CargoType } from "../data/cargo";
 import { INDUSTRIES, producersOf } from "../data/industries";
 import { nearestOf } from "../sim/economy/chains";
-import { CIVIC_INVESTMENT_COOLDOWN_YEARS } from "../data/cities";
+import {
+  CIVIC_INVESTMENT_COOLDOWN_YEARS,
+  CITY_TIER_DEFS,
+  CITY_TIERS,
+  type CityTier,
+} from "../data/cities";
 import type { Industry } from "../sim/economy/types";
-import { cityAcceptance, citySupply } from "../sim/economy/cityStats";
+import { cityAcceptance, citySupply, tierUnlocks } from "../sim/economy/cityStats";
 import { civicInvestment, computeCivicInvestmentPlan } from "../sim/commands";
 import { stationCatchmentTiles } from "../sim/stations/placement";
 import { STATION_ACCEPTANCE_THRESHOLD, STATION_TYPE_DEFS } from "../data/stations";
@@ -20,6 +25,25 @@ import { openPanel } from "./panel";
 import { showToast } from "./toast";
 import { strings } from "./strings";
 import { formatMoney, formatPopulation } from "./format";
+
+/** City panel "Next tier: City at 25k — unlocks demand for Fuel" plus the growth hint (PLAN 26A). */
+function nextTierRows(city: { tier: CityTier; population: number }, year: number): HTMLElement[] {
+  const next = CITY_TIERS[CITY_TIERS.indexOf(city.tier) + 1];
+  if (!next) return [row(strings.city.nextTier, strings.city.topTier)];
+  const unlocks = tierUnlocks(next, year)
+    .map((c) => CARGO[c].name)
+    .join(", ");
+  return [
+    row(
+      strings.city.nextTier,
+      strings.city.nextTierValue(
+        strings.city.tierNames[next],
+        formatPopulation(CITY_TIER_DEFS[next].minPop),
+        unlocks,
+      ),
+    ),
+  ];
+}
 
 export function row(label: string, value: string): HTMLElement {
   return h(
@@ -164,6 +188,7 @@ export function openCityPanel(
         ],
         strings.station.perMonthNote,
       ),
+      section(strings.city.nextTier, nextTierRows(city, currentYear), strings.city.growthHint),
       section(strings.station.accepts, [
         acceptEntries.length > 0
           ? h(

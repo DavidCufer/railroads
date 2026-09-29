@@ -122,7 +122,7 @@ export const CARGO: Record<CargoType, CargoDef> = {
     capacity: 30,
     unit: "bags",
     unitsNoun: "mail bags",
-    baseRate: 4_000,
+    baseRate: 2_150, // Phase 26A: 1.3× a passenger car (1,650), was 4,000 (2.4×)
     decayDays: 2,
     urgency: 0.8,
     color: "#D8453C",

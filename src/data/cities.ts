@@ -1,6 +1,7 @@
 /** City tiers and name-generator syllable tables (SPEC §8.3, §4.2 step 4). */
 
 import { AREA_SCALE, WORLD_SCALE } from "./scale";
+import type { CargoType } from "./cargo";
 
 export const CITY_TIERS = ["village", "town", "city", "metropolis"] as const;
 
@@ -21,8 +22,28 @@ export const CITY_TIER_DEFS: Record<CityTier, CityTierDef> = {
   metropolis: { id: "metropolis", minTiles: 31, maxTiles: 60, minPop: 150_000, maxPop: 400_000 },
 };
 
+/** Acceptance points per city tile, by tier — the explicit demand ladder (Phase 26A, SPEC §8.3). Bigger
+ * tiers demand more cargo types, so growing a city opens new customers for the player's freight:
+ * village = passengers, mail, food, lumber; town adds goods; city adds fuel (from 1890) and drops
+ * lumber; metropolis adds steel and takes more of everything processed. Cargo whose `era` is in the
+ * future is not demanded yet (src/sim/economy/cityStats.ts). */
+export const CITY_TIER_DEMAND_POINTS: Record<CityTier, Partial<Record<CargoType, number>>> = {
+  village: { passengers: 4, mail: 4, food: 2, lumber: 1 },
+  town: { passengers: 4, mail: 4, food: 2, goods: 2, lumber: 1 },
+  city: { passengers: 4, mail: 4, food: 2, goods: 2, fuel: 1 },
+  metropolis: { passengers: 4, mail: 4, food: 3, goods: 3, fuel: 2, lumber: 1, steel: 1 },
+};
+
 /** Minimum spacing (tiles, anchor to anchor) between two cities (SPEC §4.2 step 4). */
 export const CITY_MIN_SPACING = 8 * WORLD_SCALE;
+
+/** Phase 26A rebalance: the Phase 7.1 divisors left a 12k town with ~0.9 passenger car/month against
+ * a coal mine's 3, so passengers/mail earned ~0.6× freight per train (target 0.8–1.2×, PLAN 26A).
+ * Raised by this factor (i.e. divisors ÷ 1.5, roughly the SPEC's original pop/250 → pop/217). */
+export const CITY_SUPPLY_BOOST = 1.5;
+/** Mail is boosted more: a car pays 1.3× a passenger car now (was 2.4×), so it needs the volume to keep
+ * a mail train worth ~0.8× a passenger train on the same route. */
+export const CITY_MAIL_SUPPLY_BOOST = 2.2;
 
 /** Monthly passenger/mail supply per resident (SPEC §8.3: "passengers = pop/250, mail = pop/800").
  * **Deviation (Phase 7.1 balance pass)**: SPEC's pop/250 made two decent-sized cities' passenger
@@ -35,8 +56,14 @@ export const CITY_MIN_SPACING = 8 * WORLD_SCALE;
  * 20-unit "carloads" (PLAN: passengers 40/car, mail 30/car now) — divided by `cargoUnitFactor` (2×
  * for passengers, 1.5× for mail) so `population / divisor` still yields the same number of
  * carloads/month as before, just expressed in real people/bags. */
-export const CITY_PASSENGER_SUPPLY_DIVISOR = 650 / 2;
-export const CITY_MAIL_SUPPLY_DIVISOR = 1_400 / 1.5;
+export const CITY_PASSENGER_SUPPLY_DIVISOR = 650 / 2 / CITY_SUPPLY_BOOST;
+export const CITY_MAIL_SUPPLY_DIVISOR = 1_400 / 1.5 / CITY_MAIL_SUPPLY_BOOST;
+
+/** Destination bonus (Phase 26A): a station's passenger and mail supply grows by this fraction for
+ * every *additional* distinct station its passenger/mail trains reach (a plain A↔B shuttle has one
+ * destination and no bonus), up to `DESTINATION_BONUS_MAX` (+50 %). */
+export const DESTINATION_BONUS_PER_STOP = 0.1;
+export const DESTINATION_BONUS_MAX = 0.5;
 
 // --- Growth & Civic Investment (SPEC §8.3, Phase 9) --------------------------------------------
 

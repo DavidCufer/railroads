@@ -1,7 +1,9 @@
 /** Pure display stats derived from a city (SPEC §8.3) — no station coverage yet (Phase 5+). */
-import type { CargoType } from "../../data/cargo";
+import { CARGO, type CargoType } from "../../data/cargo";
 import {
   CITY_MAIL_SUPPLY_DIVISOR,
+  CITY_TIER_DEMAND_POINTS,
+  CITY_TIERS,
   CITY_PASSENGER_SUPPLY_DIVISOR,
   type CityTier,
 } from "../../data/cities";
@@ -39,18 +41,11 @@ export function cityTileAcceptance(
   tier: CityTier,
   currentYear: number,
 ): Partial<Record<CargoType, number>> {
-  const points: Partial<Record<CargoType, number>> = {
-    passengers: 4,
-    mail: 4,
-    goods: 2,
-    food: 2,
-  };
-  if (currentYear >= 1890) points.fuel = 1;
-  if (tier === "village" || tier === "town") points.lumber = 1;
-  if (tier === "metropolis") {
-    for (const cargo of ["steel", "goods", "food", "fuel", "lumber"] as CargoType[]) {
-      points[cargo] = (points[cargo] ?? 0) + 1;
-    }
+  const points: Partial<Record<CargoType, number>> = {};
+  for (const [cargo, v] of Object.entries(CITY_TIER_DEMAND_POINTS[tier]) as Array<
+    [CargoType, number]
+  >) {
+    if (currentYear >= CARGO[cargo].era) points[cargo] = v;
   }
   return points;
 }
@@ -66,4 +61,14 @@ export function cityAcceptance(
     points[cargo] = v * city.tiles.length;
   }
   return points;
+}
+
+/** Cargo types a city newly demands on reaching `tier` (empty for a village), for the city panel's
+ * "Next tier … unlocks demand for …" line. */
+export function tierUnlocks(tier: CityTier, currentYear: number): CargoType[] {
+  const index = CITY_TIERS.indexOf(tier);
+  if (index <= 0) return [];
+  const before = cityTileAcceptance(CITY_TIERS[index - 1] as CityTier, currentYear);
+  const now = cityTileAcceptance(tier, currentYear);
+  return (Object.keys(now) as CargoType[]).filter((c) => before[c] === undefined);
 }
