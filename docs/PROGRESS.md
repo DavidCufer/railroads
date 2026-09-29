@@ -4004,3 +4004,55 @@ shell and CSS safe areas. Screenshots (opened and checked) in `docs/screenshots/
 - A city's landmark (church / town hall) is not drawn if a station's footprint covers its tile.
 - Water/mountain tiles are not obstacles for the layout (only track, industries, other stations).
 - The building shift and mirrored side are render-only; the sim's catchment is unchanged.
+
+## 2026-09-29 — Phase 23A: World scale 2× (1 tile = 5 km)
+`npm run check` green (473 unit) and full e2e green (149). New: `src/data/scale.ts` (`WORLD_SCALE`, `AREA_SCALE`, `KM_PER_TILE`),
+`src/sim/regions/upsample.ts`, `tests/sim/regions/upsample.test.ts`, `e2e/phase23.spec.ts`. Screenshots (opened and checked):
+`phase-23-central-eu-overview.png` (zoom 0.5, Trieste–Ljubljana), `phase-23-central-eu-line-zoom1.png` (17-tile line + train),
+`phase-23-random-medium-overview.png`, `phase-23-coastline-zoom2.png`.
+
+### Conversion table (old → new, so km stay the same)
+| constant | old | new |
+| --- | --- | --- |
+| `KMH_PER_TILE_PER_DAY` | 30 | 15 (60 km/h = 4 tiles/day) |
+| revenue distance unit `REVENUE_DISTANCE_TILES` / `EXPECTED_TILES_PER_DAY` | 10 / 2 | 20 / 4 |
+| `MIN_REVENUE_DISTANCE_TILES` | 3 | 6 |
+| `TRACK_BASE_COST_PER_TILE`, `GRADE_SURCHARGE_PER_ELEVATION`, `ELECTRIFICATION_COST_PER_EDGE` | 4000, 2000, 6000 | 2000, 1000, 3000 |
+| bridge `waterCostPerTile` (stone/steel), `maxWaterSpan` | 60k/110k, 3/8 | 30k/55k, 6/16 (river bridges stay flat) |
+| `MAINTENANCE_SINGLE/DOUBLE/ELECTRIFIED_SURCHARGE` (per edge) | 10/16/5 | 5/8/2.5 (bridge maintenance unchanged) |
+| `WATER_TOWER_RANGE_TILES` | 40 | 80 |
+| `CHAIN_MAX_DISTANCE_TILES`; chains `PLACE_MIN/MAX`, reach, stacking, near-forest radius | 25; 5/22, 30, 4, 6 | 50; 10/44, 60, 8, 12 |
+| `maxTilesFromCity` (nearCity/nearForestOrCity), `NEW_INDUSTRY_CITY_BIAS_RADIUS`, `SAME_TYPE_SPACING` (x2 files) | 4–6, 20, 6 | 8–12, 40, 12 |
+| `CITY_MIN_SPACING`, city candidate block, `NEARBY_RADIUS` | 8, 4, 3 | 16, 8, 6 |
+| playability pair range | 15–30 | 30–60 |
+| `RIVER_SOURCE_MIN_SPACING`, `RIVER_MIN_LENGTH`, `LAKE_MIN_AREA` | 10, 12, 4 | 20, 24, 16 |
+| `MAP_SIZES` | 96×64 / 128×96 / 192×128 | 192×128 / 256×192 / 384×256 |
+| `CITY_COUNT_DENSITY`, raw-producer count divisor | per 1000 tiles, /1800 | ÷4 (same counts per size) |
+| goal `electrifiedTiles` (central-eu) | 200 | 400 |
+| pathfinder `MAX_BRIDGE_SEARCH_SPAN`, `searchPadding`, `MAX_EXPANSIONS` | 8, 24, 20k | 16, 48, 80k |
+Unchanged on purpose (sizes on screen, not distances): station catchment radii, city tile counts, industry footprints, port site
+radius, train/car lengths, `MIN_SPACING_TILES` (2, tied to train length), deadlock/loading times.
+
+### Regions, coasts, saves
+- Region JSON untouched; `loadRegion` upsamples 2× (coverage-blended + noise coast, noise-perturbed land classes, land-weighted elevation,
+  re-traced meandering rivers extended to sea/merge, cities regrown with the same tile count around the scaled anchor, hand-placed
+  industries nudged to the nearest free tile, ports to a coast tile).
+- Coast render: 4×4-smoothed marching squares (thin straits/spits keep their tile shape) and a 10-step shallow→deep water ramp.
+  Known: 1-tile-wide lake arms from the generator still look boxy.
+- Saves: version 4; v0–v3 saves are listed with "This save uses the old map scale and can't be loaded" and cannot be loaded (no migration).
+- Chain pass now undoes an unfeedable processor source and retries (found on seed 42 medium at the new scale).
+
+### Performance (headless Chromium, software rendering; before = a3a8fec)
+| | generate before → after | steady render ms before → after |
+| --- | --- | --- |
+| small | 63 → 180 ms | 0.28 → 0.28 |
+| medium | 90 → 295 ms | 0.31 → 0.19 |
+| large | 92 → 685 ms | 0.26 → 0.30 |
+| central-eu region load | 18 → 153 ms (incl. upsample) | 0.27 → 0.31 |
+Zoom-2 coast avg render 6.3 ms and random overview 8.6 ms right after teleporting (chunk bake). Large is 384 chunks per bucket, above
+the 350 LRU cap (documented; re-baking is cheap). Full-map e2e suites unchanged.
+
+### Deviations
+- Old saves are refused, not migrated. Bridge maintenance per bridge stays; river bridges stay flat priced.
+- e2e fixtures using seed-12345 coordinates were re-found on the new map (Dunville row y=145 etc.).
+

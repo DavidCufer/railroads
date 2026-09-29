@@ -731,27 +731,27 @@ Runs as two parallel sessions: **23A** (scale, sim + generation) and **23B** (pl
 Same parallel rules as Phases 19–22.
 
 ### 23A — World scale 2× (1 tile = 5 km)
-- [ ] All distance-based constants in `src/data/` converted so the *km-based* game stays the same: speeds (tiles/day
+- [x] All distance-based constants in `src/data/` converted so the *km-based* game stays the same: speeds (tiles/day
       doubles: KMH_PER_TILE_PER_DAY 30 → 15), revenue "per 20 tiles (100 km)", track/bridge/tunnel/electrification
       cost per tile halved, water-tower range 40 → 80, chain-input range 25 → 50, CITY_MIN_SPACING ×2, any goal or
       news thresholds in tiles, AI-free sanity checks (playability) in tiles. Station catchment radii stay in tiles
       (a station covers less land — intended). Grep for every tile-distance constant; list each conversion in
       PROGRESS.
-- [ ] Map sizes ×2 per side (small 192×128, medium 256×192, large 384×256); city and industry *counts* per map stay
+- [x] Map sizes ×2 per side (small 192×128, medium 256×192, large 384×256); city and industry *counts* per map stay
       the same as today for the same size name (density per tile ÷ 4), so things are further apart.
-- [ ] Region maps: upsample terrain 2× at load time with a smooth, deterministic edge refinement (noise-perturbed
+- [x] Region maps: upsample terrain 2× at load time with a smooth, deterministic edge refinement (noise-perturbed
       boundaries for coast/lake/forest/hills — not blocky 2×2 blocks); rivers re-traced at the new resolution; city
       and resource-zone coordinates ×2. Region JSON files stay as they are.
-- [ ] Coastline rendering: no staircase — smooth coast/lake edges (e.g. marching-squares contour with slight
+- [x] Coastline rendering: no staircase — smooth coast/lake edges (e.g. marching-squares contour with slight
       rounding, cached per chunk). Also applies to random maps.
-- [ ] Cities keep today's size in tiles (they become relatively smaller); industries keep their ~2×2 footprint.
-- [ ] Performance with 4× tiles: generation time, chunk cache memory, minimap, stress e2e frame times — report
+- [x] Cities keep today's size in tiles (they become relatively smaller); industries keep their ~2×2 footprint.
+- [x] Performance with 4× tiles: generation time, chunk cache memory, minimap, stress e2e frame times — report
       before/after; optimise if anything regresses noticeably (e.g. lazy chunk baking, cap cache size).
-- [ ] Balance tests still pass *without* loosening them (they should, since km-based economics are unchanged); add a
+- [x] Balance tests still pass *without* loosening them (they should, since km-based economics are unchanged); add a
       test that the same km route earns the same revenue before/after the conversion.
-- [ ] Saves: bump the save version; an old-scale save shows a clear message ("This save uses the old map scale and
+- [x] Saves: bump the save version; an old-scale save shows a clear message ("This save uses the old map scale and
       can't be loaded") instead of breaking. (Or migrate by ×2 coordinates if simple — your call, document it.)
-- [ ] Screenshots: `phase-23-central-eu-overview.png` (zoom 0.5, Trieste–Ljubljana area), same at zoom 1 with a line
+- [x] Screenshots: `phase-23-central-eu-overview.png` (zoom 0.5, Trieste–Ljubljana area), same at zoom 1 with a line
       and a train, a random medium map overview, a coastline close-up at zoom 2.
 
 ### 23B — Placement collisions, 0-4-0 art, Android shell

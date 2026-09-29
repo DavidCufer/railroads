@@ -4,7 +4,7 @@
  * shimmer is redrawn dynamically on top.
  */
 import { Camera, OVERVIEW_ZOOM_THRESHOLD, TILE_SIZE } from "./camera";
-import { shadeColor, withAlpha } from "./color";
+import { hexToRgb, shadeColor, withAlpha } from "./color";
 import { hillshadeFactorAt } from "./hillshade";
 import { rand, seedTile } from "./rng";
 import { drawCityRoofs } from "./cities";
@@ -32,10 +32,9 @@ type ZoomBucket = 2 | 1 | 0.5 | 0.25;
  * small LRU cache and only the chunks actually on screen are baked. */
 const HI_RES_CHUNK_CACHE_MAX = 12;
 
-/** Comfortably above a Large map's full chunk count at every zoom bucket at once (192x128 /
- * 16 tiles/chunk = 12x8 = 96 chunks/bucket x 3 buckets = 288), so ordinary play on the biggest
- * supported map essentially never evicts — this is a backstop against unbounded growth over a
- * long session of panning around, not a budget tuned to force eviction in normal play. */
+/** A backstop against unbounded growth, not a budget: a Large map is 24x16 = 384 chunks per zoom
+ * bucket since Phase 23A (5 km/tile), so a session that visits the whole map at several zoom levels
+ * evicts least-recently-used chunks (cheap to re-bake; measured steady-state render is unchanged). */
 const TERRAIN_CHUNK_CACHE_MAX = 350;
 
 const WATER_ID = terrainId("water");
@@ -62,7 +61,7 @@ function terrainColorFor(map: GameMap, idx: number): string {
 function renderColorFor(map: GameMap, x: number, y: number): string {
   const idx = tileIndex(map, x, y);
   if ((map.terrain[idx] as number) === WATER_ID) {
-    return isShallowWater(map, x, y) ? WATER_SHALLOW_COLOR : WATER_DEEP_COLOR;
+    return WATER_DEPTH_COLORS[waterDepthLevel(map, x, y)] as string;
   }
   return terrainColorFor(map, idx);
 }
@@ -99,14 +98,43 @@ function chunkCacheKey(cx: number, cy: number, bucket: ZoomBucket, overview: boo
   return `${bucket}|${overview ? "o" : "f"}|${cx}|${cy}`;
 }
 
-function isShallowWater(map: GameMap, x: number, y: number): boolean {
-  for (const [dx, dy] of DIRS8) {
-    const nx = x + dx;
-    const ny = y + dy;
-    if (!inBounds(map, nx, ny)) return true; // map edge reads as shallow/coastal
-    if ((map.terrain[tileIndex(map, nx, ny)] as number) !== WATER_ID) return true;
+/** Water colour ramp from the shallows (level 0) to deep water — several soft steps instead of one
+ * hard shallow/deep edge, which read as a blocky staircase at the 5 km/tile scale (Phase 23A). */
+const WATER_DEPTH_LEVELS = 10;
+/** Distance (tiles) from land at which water reaches full depth colour. */
+const WATER_DEPTH_REACH_TILES = 6;
+const WATER_DEPTH_COLORS: readonly string[] = Array.from({ length: WATER_DEPTH_LEVELS }, (_, i) =>
+  mixHex(WATER_SHALLOW_COLOR, WATER_DEEP_COLOR, i / (WATER_DEPTH_LEVELS - 1)),
+);
+
+function mixHex(a: string, b: string, t: number): string {
+  const [ar, ag, ab] = hexToRgb(a);
+  const [br, bg, bb] = hexToRgb(b);
+  const c = (u: number, v: number): string =>
+    Math.round(u + (v - u) * t)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${c(ar, br)}${c(ag, bg)}${c(ab, bb)}`;
+}
+
+/** Depth level of a water tile: 0 next to land (or the map edge), growing with the (Euclidean, so
+ * contours come out round rather than square) distance to the nearest land, up to the deepest level. */
+function waterDepthLevel(map: GameMap, x: number, y: number): number {
+  const reach = WATER_DEPTH_REACH_TILES;
+  let nearest = reach;
+  for (let dy = -reach; dy <= reach; dy++) {
+    for (let dx = -reach; dx <= reach; dx++) {
+      const d = Math.hypot(dx, dy);
+      if (d >= nearest) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (!inBounds(map, nx, ny) || (map.terrain[tileIndex(map, nx, ny)] as number) !== WATER_ID) {
+        nearest = d;
+      }
+    }
   }
-  return false;
+  const t = Math.max(0, nearest - 1) / (reach - 1);
+  return Math.min(WATER_DEPTH_LEVELS - 1, Math.round(t * (WATER_DEPTH_LEVELS - 1)));
 }
 
 interface ShimmerDot {
