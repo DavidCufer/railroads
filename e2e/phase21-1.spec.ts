@@ -104,6 +104,11 @@ async function buildStationAt(page: Page, x: number, y: number, type: string): P
   );
 }
 
+/** Hides the DOM chrome so the screenshot is the bare map. */
+async function hideUi(page: Page): Promise<void> {
+  await page.addStyleTag({ content: "#ui { display: none !important; }" });
+}
+
 async function setupFlat(page: Page, cx: number, cy: number, half: number): Promise<void> {
   await setup(page, {
     seed: 12345,
@@ -202,4 +207,56 @@ test.describe("Phase 21.1 — map polish", () => {
       clip: { x: 160, y: 30, width: 480, height: 320 },
     });
   });
+
+  const INDUSTRY_TYPES = [
+    "coalMine",
+    "ironMine",
+    "loggingCamp",
+    "sawmill",
+    "steelMill",
+    "factory",
+    "farm",
+    "ranch",
+    "oilWell",
+    "refinery",
+    "foodPlant",
+    "port",
+  ];
+
+  async function placeIndustries(page: Page, cx: number, cy: number): Promise<void> {
+    await setupFlat(page, cx, cy, 14);
+    await page.evaluate(
+      ({ cx, cy, types }) => {
+        const w = window.__game!.getMap().width;
+        types.forEach((type, i) => {
+          const x = cx - 10 + (i % 6) * 4;
+          const y = cy - 3 + Math.floor(i / 6) * 5;
+          window.__game!.debugPlaceIndustry(y * w + x, type);
+        });
+        (window.__game!.getState() as unknown as { mapContentVersion: number }).mapContentVersion++;
+      },
+      { cx, cy, types: INDUSTRY_TYPES },
+    );
+  }
+
+  test("industries zoom 1", async ({ page }) => {
+    await placeIndustries(page, 60, 60);
+    await hideUi(page);
+    await centerOn(page, 60 - 1, 60 + 0.5, 1);
+    await page.screenshot({ path: "docs/screenshots/phase-21-1-industries-zoom1.png" });
+  });
+
+  for (const [name, col, row] of [
+    ["a", 0, 0],
+    ["b", 3, 0],
+    ["c", 0, 1],
+    ["d", 3, 1],
+  ] as const) {
+    test(`industries zoom 2 ${name}`, async ({ page }) => {
+      await placeIndustries(page, 60, 60);
+      await hideUi(page);
+      await centerOn(page, 60 - 10 + col * 4 + 4, 60 - 3 + row * 5 + 0.5, 2);
+      await page.screenshot({ path: `docs/screenshots/phase-21-1-industries-zoom2-${name}.png` });
+    });
+  }
 });

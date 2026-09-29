@@ -26,7 +26,11 @@ import type { City, Industry } from "../sim/economy/types";
 import { ChunkCache } from "./chunkCache";
 
 const CHUNK_TILES = 16;
-type ZoomBucket = 1 | 0.5 | 0.25;
+type ZoomBucket = 2 | 1 | 0.5 | 0.25;
+
+/** Chunks baked at 2x (crisp when zoomed in past ~1.4x) are 4 MB each, so they live in their own
+ * small LRU cache and only the chunks actually on screen are baked. */
+const HI_RES_CHUNK_CACHE_MAX = 12;
 
 /** Comfortably above a Large map's full chunk count at every zoom bucket at once (192x128 /
  * 16 tiles/chunk = 12x8 = 96 chunks/bucket x 3 buckets = 288), so ordinary play on the biggest
@@ -41,6 +45,7 @@ const RIVER_ID = terrainId("river");
 const SHADE_SUBCELLS = 4;
 
 function pickBucket(zoom: number): ZoomBucket {
+  if (zoom >= 1.4) return 2;
   if (zoom >= 0.75) return 1;
   if (zoom >= OVERVIEW_ZOOM_THRESHOLD) return 0.5;
   return 0.25;
@@ -116,6 +121,7 @@ interface CityCenter {
 
 export class TerrainRenderer {
   private cache = new ChunkCache<HTMLCanvasElement>(TERRAIN_CHUNK_CACHE_MAX);
+  private hiCache = new ChunkCache<HTMLCanvasElement>(HI_RES_CHUNK_CACHE_MAX);
   private map: GameMap;
   private cities: readonly City[];
   private industries: readonly Industry[];
@@ -136,6 +142,7 @@ export class TerrainRenderer {
     this.cities = cities;
     this.industries = industries;
     this.cache.clear();
+    this.hiCache.clear();
     this.shimmerDots = [];
     this.lastShimmerUpdate = -Infinity;
     this.computeCityCenters();
@@ -148,13 +155,14 @@ export class TerrainRenderer {
    * as `setMap`, but keeps the shimmer animation state instead of resetting it. */
   refreshContent(): void {
     this.cache.clear();
+    this.hiCache.clear();
     this.computeCityCenters();
   }
 
   /** Number of chunk canvases currently cached (bounded by `TERRAIN_CHUNK_CACHE_MAX`) — exposed
    * for the Phase 12 memory-bounds e2e test. */
   get cacheSize(): number {
-    return this.cache.size;
+    return this.cache.size + this.hiCache.size;
   }
 
   /** Precomputes each city's footprint centroid and its farthest tile's distance from it, so
@@ -203,25 +211,27 @@ export class TerrainRenderer {
 
     const topLeft = camera.screenToWorld(0, 0, viewportW, viewportH);
     const bottomRight = camera.screenToWorld(viewportW, viewportH, viewportW, viewportH);
-    const chunkMinX = Math.max(0, Math.floor(topLeft.x / chunkWorldSize) - 1);
-    const chunkMinY = Math.max(0, Math.floor(topLeft.y / chunkWorldSize) - 1);
-    const chunkMaxX = Math.min(chunksX - 1, Math.floor(bottomRight.x / chunkWorldSize) + 1);
-    const chunkMaxY = Math.min(chunksY - 1, Math.floor(bottomRight.y / chunkWorldSize) + 1);
+    const margin = bucket === 2 ? 0 : 1;
+    const cache = bucket === 2 ? this.hiCache : this.cache;
+    const chunkMinX = Math.max(0, Math.floor(topLeft.x / chunkWorldSize) - margin);
+    const chunkMinY = Math.max(0, Math.floor(topLeft.y / chunkWorldSize) - margin);
+    const chunkMaxX = Math.min(chunksX - 1, Math.floor(bottomRight.x / chunkWorldSize) + margin);
+    const chunkMaxY = Math.min(chunksY - 1, Math.floor(bottomRight.y / chunkWorldSize) + margin);
 
     // Cap how many never-before-seen chunks get rasterized in a single frame, so panning into
     // fresh territory can't stall the frame — the rest fill in over the next couple of frames.
     // Overview chunks are cheap (flat fill, no hillshading/blend/decoration) so they're never budgeted.
     let chunksRenderedThisFrame = 0;
-    const CHUNK_RENDER_BUDGET = overview ? Infinity : 4;
+    const CHUNK_RENDER_BUDGET = overview ? Infinity : bucket === 2 ? 6 : 4;
 
     for (let cy = chunkMinY; cy <= chunkMaxY; cy++) {
       for (let cx = chunkMinX; cx <= chunkMaxX; cx++) {
         const key = chunkCacheKey(cx, cy, bucket, overview);
-        let canvas = this.cache.get(key);
+        let canvas = cache.get(key);
         if (!canvas) {
           if (chunksRenderedThisFrame >= CHUNK_RENDER_BUDGET) continue;
           canvas = this.renderChunk(cx, cy, bucket, overview);
-          this.cache.set(key, canvas);
+          cache.set(key, canvas);
           chunksRenderedThisFrame++;
         }
         const worldX = cx * chunkWorldSize;
@@ -274,7 +284,28 @@ export class TerrainRenderer {
       }
     }
     this.drawRivers(ctx, originX, originY, tilesX, tilesY, px, overview);
+    if (!overview) this.drawIndustries(ctx, originX, originY, tilesX, tilesY, px);
     return canvas;
+  }
+
+  /** Industry art spills half a tile past its tile, so it is drawn after the terrain of the whole
+   * chunk — including industries just outside it, whose overflow lands in this chunk. */
+  private drawIndustries(
+    ctx: CanvasRenderingContext2D,
+    originX: number,
+    originY: number,
+    tilesX: number,
+    tilesY: number,
+    px: number,
+  ): void {
+    this.industries.forEach((ind, i) => {
+      if (ind.x < originX - 1 || ind.x > originX + tilesX || ind.y < originY - 1) return;
+      if (ind.y > originY + tilesY) return;
+      // Only industries the map still lists on their tile (tests and demolition clear the map).
+      if ((this.map.industryId[tileIndex(this.map, ind.x, ind.y)] as number) !== i) return;
+      seedTile(ind.x, ind.y, 91);
+      drawIndustryIcon(ctx, ind.type, (ind.x - originX) * px, (ind.y - originY) * px, px);
+    });
   }
 
   private drawTile(
@@ -317,7 +348,7 @@ export class TerrainRenderer {
         : 1;
       drawCityRoofs(ctx, px, py, size, city.tier, closeness, center?.landmarkTile === idx);
     } else if (industryIdx >= 0 && this.industries[industryIdx]) {
-      drawIndustryIcon(ctx, (this.industries[industryIdx] as Industry).type, px, py, size);
+      // Drawn as a ~2x2 tile cluster by `drawIndustries` once the chunk's tiles are down.
     } else {
       this.drawDecoration(ctx, mapX, mapY, terrain, px, py, size);
     }
