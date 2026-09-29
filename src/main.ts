@@ -12,11 +12,16 @@ import {
   stationFootprintCityTiles,
   stationWorldOf,
 } from "./render/stations";
-import { drawStationSupplyBubbles } from "./render/stationSupplyBubbles";
+import { drawStationSupplyBubbles, stationLabelAnchor } from "./render/stationSupplyBubbles";
 import { drawStationCatchment, type StationCatchmentPreview } from "./render/stationPreview";
 import { drawTrains } from "./render/trains";
 import { emitIndustrySmoke } from "./render/industrySmoke";
-import { drawDeliveryLabels, isLabelExpired, type FloatingLabel } from "./render/deliveryLabels";
+import {
+  addFloatingLabel,
+  drawDeliveryLabels,
+  isLabelExpired,
+  type FloatingLabel,
+} from "./render/deliveryLabels";
 import {
   drawCatchmentsOverlay,
   drawCargoHeatmapOverlay,
@@ -104,6 +109,7 @@ import type { RegionId } from "./sim/regions";
 import type { BridgeType } from "./data/track";
 import { STATION_TYPE_DEFS, type StationImprovementType, type StationType } from "./data/stations";
 import { CARGO, type CargoType } from "./data/cargo";
+import type { DeliveryEvent } from "./sim/state";
 import { advanceOneHour } from "./sim/tick";
 import type { TrainOrder } from "./sim/trains/types";
 import type { Station } from "./sim/stations/types";
@@ -217,6 +223,33 @@ function main(): void {
   /** Floating `+$` delivery labels (SPEC §8.1) — drained from `state.pendingDeliveries` each tick,
    * pruned once their real-time animation finishes. */
   let floatingLabels: FloatingLabel[] = [];
+
+  const queueDeliveryLabel = (delivery: DeliveryEvent, now: number): void => {
+    const station = state.stations.find((s) => s.id === delivery.stationId);
+    if (!station) return;
+    // PLAN Phase 16: "+$1.2k · 28 passengers" — names what got delivered, not just the payout,
+    // so a floating label alone answers "how many units was that?" (SPEC §8.1's floating label
+    // didn't say, which was part of the units-confusion the Phase 16 play-test flagged).
+    const def = CARGO[delivery.cargoType];
+    const units = delivery.units;
+    const countText = units !== undefined ? `${Math.round(units)} ${def.unitsNoun}` : undefined;
+    addFloatingLabel(
+      floatingLabels,
+      {
+        stationTile: station.tile,
+        text: delivery.transferred
+          ? `${strings.trains.transferred}${countText ? ` · ${countText}` : ""}`
+          : countText
+            ? `+${formatMoney(delivery.revenue)} · ${countText}`
+            : `+${formatMoney(delivery.revenue)}`,
+        color: def.color,
+        startMs: now,
+        ...(delivery.transferred ? {} : { revenue: delivery.revenue, deliveries: 1 }),
+      },
+      formatMoney,
+      strings.trains.deliveriesMerged,
+    );
+  };
 
   function currentYear(): number {
     return calendarFromTicks(state.startYear, state.ticks).year;
@@ -798,26 +831,7 @@ function main(): void {
 
     if (state.pendingDeliveries.length > 0) {
       const now = performance.now();
-      for (const delivery of state.pendingDeliveries) {
-        const station = state.stations.find((s) => s.id === delivery.stationId);
-        if (!station) continue;
-        // PLAN Phase 16: "+$1.2k · 28 passengers" — names what got delivered, not just the payout,
-        // so a floating label alone answers "how many units was that?" (SPEC §8.1's floating label
-        // didn't say, which was part of the units-confusion the Phase 16 play-test flagged).
-        const def = CARGO[delivery.cargoType];
-        const units = delivery.units;
-        const countText = units !== undefined ? `${Math.round(units)} ${def.unitsNoun}` : undefined;
-        floatingLabels.push({
-          stationTile: station.tile,
-          text: delivery.transferred
-            ? `${strings.trains.transferred}${countText ? ` · ${countText}` : ""}`
-            : countText
-              ? `+${formatMoney(delivery.revenue)} · ${countText}`
-              : `+${formatMoney(delivery.revenue)}`,
-          color: def.color,
-          startMs: now,
-        });
-      }
+      for (const delivery of state.pendingDeliveries) queueDeliveryLabel(delivery, now);
       if (state.pendingDeliveries.some((d) => !d.transferred)) playSound("cashDing");
       state.pendingDeliveries.length = 0;
     }
@@ -945,7 +959,12 @@ function main(): void {
       );
       if (floatingLabels.length > 0) {
         floatingLabels = floatingLabels.filter((l) => !isLabelExpired(l, now));
-        drawDeliveryLabels(ctx, camera, viewportW, viewportH, state.map.width, floatingLabels, now);
+        drawDeliveryLabels(ctx, viewportW, viewportH, floatingLabels, now, (tile) => {
+          const station = state.stations.find((st) => st.tile === tile);
+          return station
+            ? stationLabelAnchor(camera, viewportW, viewportH, state, station)
+            : undefined;
+        });
       }
       if (overlayState.miniMap) {
         miniMapRenderer.draw(
@@ -1188,6 +1207,13 @@ function main(): void {
           /** Test-only: buys+orders `count` trains shuttling between adjacent stress-network
            * stations, via the real buyTrain/setOrders commands. */
           debugSpawnStressTrains: (count: number) => { spawned: number; failed: number };
+          /** Test-only: queues `count` delivery labels at a station. */
+          debugQueueDeliveries: (
+            stationId: number,
+            cargoType: CargoType,
+            count: number,
+            revenue: number,
+          ) => void;
           getFloatingLabels: () => Array<{ stationTile: number; text: string; color: string }>;
           buildImprovement: (
             stationId: number,
@@ -1565,6 +1591,12 @@ function main(): void {
           else failed++;
         }
         return { spawned, failed };
+      },
+      debugQueueDeliveries: (stationId, cargoType, count, revenue) => {
+        const now = performance.now();
+        for (let i = 0; i < count; i++) {
+          queueDeliveryLabel({ stationId, cargoType, revenue, units: 10 + i }, now + i * 60);
+        }
       },
       getFloatingLabels: () =>
         floatingLabels.map((l) => ({ stationTile: l.stationTile, text: l.text, color: l.color })),

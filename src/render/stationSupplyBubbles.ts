@@ -26,6 +26,43 @@ function getBubbleImage(cargo: CargoType): HTMLImageElement {
   return img;
 }
 
+/** The (up to two) top supplied cargo types a station shows as bubbles. */
+function topSupplied(state: GameState, station: GameState["stations"][number]): CargoType[] {
+  const economy = state.stationEconomy.get(station.id);
+  if (!economy) return [];
+  return (Object.entries(economy.supply) as Array<[CargoType, number]>)
+    .filter(([, amount]) => amount > 0.5)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, MAX_BUBBLES_PER_STATION)
+    .map(([cargo]) => cargo);
+}
+
+/** Screen-space point just above a station's building and its supply bubbles (if drawn) — where
+ * floating delivery labels stack upward from, so they never sit on top of the bubbles. */
+export function stationLabelAnchor(
+  camera: Camera,
+  viewportW: number,
+  viewportH: number,
+  state: GameState,
+  station: GameState["stations"][number],
+): { x: number; y: number } {
+  const size = TILE_SIZE * camera.zoom;
+  const tx = station.tile % state.map.width;
+  const ty = Math.floor(station.tile / state.map.width);
+  const screen = camera.worldToScreen(
+    (tx + 0.5) * TILE_SIZE,
+    (ty + 0.5) * TILE_SIZE,
+    viewportW,
+    viewportH,
+  );
+  let y = screen.y - size * stationTopExtent(station, stationWorldOf(state)) - 4;
+  if (camera.zoom >= MIN_ZOOM && topSupplied(state, station).length > 0) {
+    const r = BUBBLE_RADIUS * Math.min(1.3, camera.zoom);
+    y -= r * 2 + 6;
+  }
+  return { x: screen.x, y };
+}
+
 /** Draws up to two small pictogram bubbles above each station showing its top supplied cargo
  * types, once the camera is zoomed in enough for them to be legible. */
 export function drawStationSupplyBubbles(
@@ -40,13 +77,7 @@ export function drawStationSupplyBubbles(
   const r = BUBBLE_RADIUS * Math.min(1.3, camera.zoom);
 
   for (const station of state.stations) {
-    const economy = state.stationEconomy.get(station.id);
-    if (!economy) continue;
-    const top = (Object.entries(economy.supply) as Array<[CargoType, number]>)
-      .filter(([, amount]) => amount > 0.5)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, MAX_BUBBLES_PER_STATION)
-      .map(([cargo]) => cargo);
+    const top = topSupplied(state, station);
     if (top.length === 0) continue;
 
     const tx = station.tile % state.map.width;

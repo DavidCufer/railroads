@@ -224,6 +224,8 @@ export const strings = {
       `Waiting for platform at ${station} (${trains})`,
     /** Floating label for cargo left at a Warehouse hub (no payment yet). */
     transferred: "Transferred",
+    /** Merged floating delivery label ("+$1.9k · 3 deliveries"). */
+    deliveriesMerged: (n: number) => `${n} deliveries`,
     noRouteTo: (station: string) => `No route to ${station}`,
     editCars: "Edit cars",
     editCarsTitle: "Edit Consist",

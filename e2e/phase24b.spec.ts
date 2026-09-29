@@ -156,3 +156,46 @@ test.describe("Phase 24B — branch off double track", () => {
     }
   });
 });
+
+test.describe("Phase 24B — delivery labels", () => {
+  test("a burst of deliveries at one station stacks, never overlaps, and clears the supply bubbles", async ({
+    page,
+  }) => {
+    await setup(page);
+    const city = await page.evaluate(() => {
+      const c = window.__game!.getCities()[0]!;
+      const w = window.__game!.getMap().width;
+      return { x: c.tiles[0]! % w, y: Math.floor(c.tiles[0]! / w) };
+    });
+    const id = await page.evaluate(({ x, y }) => {
+      const w = window.__game!.getMap().width;
+      for (let dy = -3; dy <= 3; dy++) {
+        for (let dx = -8; dx <= 0; dx++) {
+          const row = [0, 1, 2, 3, 4].map((i) => (y + dy) * w + x + dx + i);
+          if (!window.__game!.buildTrackPath(row).ok) continue;
+          const r = window.__game!.buildStation(row[2]!, "station");
+          if (r.ok) {
+            return window.__game!.getStations().find((s) => s.tile === row[2])!.id;
+          }
+        }
+      }
+      return -1;
+    }, city);
+    expect(id).toBeGreaterThanOrEqual(0);
+    await page.evaluate(() => window.__game!.runDays(20));
+    const st = await page.evaluate(
+      (id) => window.__game!.getStations().find((s) => s.id === id)!,
+      id,
+    );
+    for (const z of [1, 2]) {
+      await centerOn(page, st.x, st.y, z);
+      await page.evaluate(
+        (id) => window.__game!.debugQueueDeliveries(id, "passengers", 7, 662),
+        id,
+      );
+      await page.waitForTimeout(700);
+      await page.screenshot({ path: `docs/screenshots/${SHOT}-delivery-labels-z${z}.png` });
+      await page.waitForTimeout(2600);
+    }
+  });
+});

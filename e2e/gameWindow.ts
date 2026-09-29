@@ -150,6 +150,12 @@ export interface GameWindow {
     stationSpacing?: number;
   }) => { edges: number; stations: number; stationIds: number[] };
   debugSpawnStressTrains: (count: number) => { spawned: number; failed: number };
+  debugQueueDeliveries: (
+    stationId: number,
+    cargoType: string,
+    count: number,
+    revenue: number,
+  ) => void;
   getFloatingLabels: () => Array<{ stationTile: number; text: string; color: string }>;
   buildImprovement: (stationId: number, type: string) => { ok: boolean; reason?: string };
   civicInvestment: (cityId: number) => { ok: boolean; reason?: string };
