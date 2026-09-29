@@ -25,6 +25,7 @@ import {
 import type { GameState } from "../sim/state";
 import { calendarFromTicks, DAYS_PER_YEAR, HOURS_PER_DAY } from "../sim/time";
 import { getTrainRuntime, isElectrificationOnlyBlocker } from "../sim/trains";
+import { booksProfit, trainProfitPerYear, trainProfitStatus } from "../sim/trains/profit";
 import type { Train, TrainCar, TrainOrder } from "../sim/trains/types";
 import { cardList, cardRow } from "./components/cardRow";
 import { emptyState } from "./components/emptyState";
@@ -334,11 +335,31 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
         "div",
         { className: "train-stats" },
         statRow(
+          profitTile(booksProfit(t.profit.thisYear), p.profitThisYear),
+          profitTile(booksProfit(t.profit.lastYear), p.profitLastYear),
+          profitTile(booksProfit(t.profit.lifetime), p.profitLifetime),
+        ),
+        h(
+          "div",
+          { className: "train-stat-line paid-back" },
+          icon("coin", "icon-sm"),
+          meter(
+            Math.max(0, booksProfit(t.profit.lifetime)),
+            Math.max(1, t.purchasePrice),
+            booksProfit(t.profit.lifetime) >= t.purchasePrice ? "go" : "brass",
+            p.paidBack(
+              Math.round(
+                (100 * Math.max(0, booksProfit(t.profit.lifetime))) / Math.max(1, t.purchasePrice),
+              ),
+              formatMoney(t.purchasePrice),
+            ),
+          ),
+        ),
+        statRow(
           statTile({
             icon: "coin",
-            value: formatMoney(t.lifetimeRevenue),
+            value: formatMoney(t.profit.thisYear.revenue),
             caption: p.earned,
-            tone: t.lifetimeRevenue > 0 ? "go" : "muted",
           }),
           statTile({
             icon: "wrench",
@@ -599,6 +620,15 @@ function openReplaceLocoPanel(container: HTMLElement, state: GameState, trainId:
   });
 }
 
+function profitTile(profit: number, caption: string): HTMLElement {
+  return statTile({
+    icon: profit >= 0 ? "trendUp" : "arrowDown",
+    value: `${profit >= 0 ? "+" : "−"}${formatMoney(Math.abs(profit))}`,
+    caption,
+    tone: profit >= 0 ? "go" : "signal",
+  });
+}
+
 // --- train list ----------------------------------------------------------------------------------
 
 function locoThumbFor(t: Train): Node {
@@ -612,14 +642,38 @@ export function openTrainListPanel(
   container: HTMLElement,
   state: GameState,
   onFocus: (trainId: number) => void,
+  sortBy: "name" | "profit" = "name",
 ): void {
+  const L = strings.trains.list;
+  const trains =
+    sortBy === "profit"
+      ? [...state.trains].sort(
+          (a, b) => trainProfitPerYear(b, state.ticks) - trainProfitPerYear(a, state.ticks),
+        )
+      : state.trains;
   const body: Node[] =
     state.trains.length === 0
       ? [emptyState(strings.trains.none, "trains")]
       : [
+          h(
+            "div",
+            { className: "segmented-row list-sort" },
+            ...(["name", "profit"] as const).map((key) =>
+              h(
+                "button",
+                {
+                  className: `segmented-btn${sortBy === key ? " active" : ""}`,
+                  onClick: () => openTrainListPanel(container, state, onFocus, key),
+                },
+                key === "name" ? L.sortName : L.sortProfit,
+              ),
+            ),
+          ),
           cardList(
-            ...state.trains.map((t) => {
+            ...trains.map((t) => {
               const st = STATUS_ICON[t.status];
+              const verdict = trainProfitStatus(t, state.ticks);
+              const perYear = trainProfitPerYear(t, state.ticks);
               return cardRow({
                 className: "train-list-row",
                 thumb: h("div", { className: "eng-thumb" }, locoThumbFor(t)),
@@ -629,6 +683,17 @@ export function openTrainListPanel(
                   { className: "card-meta-inline" },
                   icon(st.icon, `icon-xs tone-${st.tone}`),
                   statusText(state, t),
+                ),
+                trailing: h(
+                  "span",
+                  {
+                    className: `train-profit-col profit-${verdict}`,
+                    title: verdict === "bad" ? L.losing : "",
+                  },
+                  h("i", { className: "profit-dot" }),
+                  verdict === "new"
+                    ? "—"
+                    : `${perYear >= 0 ? "+" : "−"}${formatMoney(Math.abs(perYear))}${L.perYear}`,
                 ),
                 chevron: true,
                 onClick: () => {
@@ -645,5 +710,6 @@ export function openTrainListPanel(
     subtitle: strings.trains.listSubtitle(state.trains.length),
     thumb: icon("trains"),
     body,
+    key: `trainlist:${sortBy}`,
   });
 }

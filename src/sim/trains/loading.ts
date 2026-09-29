@@ -27,6 +27,7 @@ import {
   TICKS_PER_CAR_HANDLED,
 } from "../../data/trains";
 import { addRevenue } from "../finance/ledger";
+import { recordTrainRevenue } from "./profit";
 import { accrueCityGrowthScore } from "../economy/cityGrowth";
 import { getOrCreateIndustryEconomy } from "../economy/processing";
 import { calendarFromTicks, HOURS_PER_DAY } from "../time";
@@ -248,7 +249,7 @@ function settleUnload(state: GameState, train: Train, station: Station, car: Tra
 
     state.cash += revenue;
     addRevenue(state, cargo, revenue);
-    train.lifetimeRevenue += revenue;
+    recordTrainRevenue(train, revenue);
     state.pendingDeliveries.push({
       stationId: station.id,
       cargoType: cargo,

@@ -1,6 +1,8 @@
 /** Converts between `GameState` and the plain-JSON `SerializedGameStateV1` (SPEC §13). Pure,
  * DOM-free (only `btoa`/`atob`, available in Node/vitest and every browser) — testable without
  * IndexedDB or a browser, per CLAUDE.md's "simulation code must be testable without a DOM". */
+import { emptyTrainProfit } from "../sim/trains/profit";
+import type { TrainProfit } from "../sim/trains/types";
 import type { GameState } from "../sim/state";
 import type { GameMap } from "../sim/map/types";
 import { TrackGraph } from "../sim/track/graph";
@@ -100,7 +102,10 @@ export function deserializeGameState(data: SerializedGameStateV3): GameState {
 
   const trains = data.trains.map((t) => {
     const { blockPenalties, ...rest } = t;
-    return { ...rest, blockPenalties: entriesMap(blockPenalties) };
+    // `profit` is absent in saves written before Phase 24A.
+    const profit =
+      (rest as { profit?: TrainProfit }).profit ?? emptyTrainProfit(rest.lifetimeRevenue);
+    return { ...rest, profit, blockPenalties: entriesMap(blockPenalties) };
   });
 
   const state: GameState = {

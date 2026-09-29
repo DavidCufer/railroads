@@ -69,6 +69,21 @@ export interface WaitingOn {
   trainIds: number[];
 }
 
+/** Money a train earned and spent over some period (PLAN Phase 24A). */
+export interface TrainBooks {
+  revenue: number;
+  /** The locomotive's own maintenance. */
+  running: number;
+  /** Breakdown repairs. */
+  repairs: number;
+}
+
+export interface TrainProfit {
+  thisYear: TrainBooks;
+  lastYear: TrainBooks;
+  lifetime: TrainBooks;
+}
+
 export interface Train {
   id: number;
   name: string;
@@ -148,6 +163,8 @@ export interface Train {
   /** Cumulative revenue this train has ever earned (SPEC §10.2's "lifetime revenue", Phase 9's
    * train-profit-colors overlay) — never reset, including across a locomotive replacement. */
   lifetimeRevenue: number;
+  /** Per-train revenue and running costs (PLAN Phase 24A). */
+  profit: TrainProfit;
   /** Cached fractional (tile-space) position at the start and end of the most recent tick, for the
    * renderer to lerp between with the frame's accumulator alpha. */
   renderFromX: number;

@@ -57,6 +57,7 @@ import {
 } from "../data/trains";
 import { eraInflation } from "../data/finance";
 import { addExpense, computeCreditLimit } from "./finance/ledger";
+import { emptyTrainProfit } from "./trains/profit";
 import { DAYS_PER_YEAR, HOURS_PER_DAY } from "./time";
 import { dropCarCargo } from "./trains/loading";
 import { tileXY } from "./trains/geometry";
@@ -640,6 +641,7 @@ export function buyTrain(
     lastServicedTick: state.ticks, // bought at a station with an Engine Shed — freshly serviced
     tilesSinceWaterTower: 0,
     lifetimeRevenue: 0,
+    profit: emptyTrainProfit(),
     renderFromX: centerX,
     renderFromY: centerY,
     renderToX: centerX,

@@ -5,6 +5,7 @@
  * (`regionId`) — plus content the PLAN brief calls out by name: a real-world region id, a train
  * mid-route, an outstanding loan, goals/goalsCompleted, and news.
  */
+import { emptyTrainProfit } from "../../src/sim/trains/profit";
 import { describe, expect, it } from "vitest";
 import { serializeGameState, deserializeGameState } from "../../src/save/serialize";
 import { computeStationEconomies } from "../../src/sim/stations/economy";
@@ -102,6 +103,7 @@ function richFixture(): GameState {
     lastServicedTick: 50,
     tilesSinceWaterTower: 12,
     lifetimeRevenue: 15_430,
+    profit: emptyTrainProfit(15_430),
     renderFromX: b % width,
     renderFromY: Math.floor(b / width),
     renderToX: c % width,

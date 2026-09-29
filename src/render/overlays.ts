@@ -12,6 +12,7 @@ import { stationCatchmentTiles } from "../sim/stations/placement";
 import type { Station } from "../sim/stations/types";
 import type { GameMap } from "../sim/map/types";
 import type { TrackGraph } from "../sim/track/graph";
+import { trainProfitStatus } from "../sim/trains/profit";
 import type { Train } from "../sim/trains/types";
 import { DAYS_PER_YEAR, HOURS_PER_DAY } from "../sim/time";
 import { Camera, TILE_SIZE } from "./camera";
@@ -141,20 +142,11 @@ export function drawTrackTypeOverlay(
   ctx.restore();
 }
 
-/** Profit heuristic for a train (Phase 9's "train profit colors" overlay): average lifetime
- * revenue per day compared with its locomotive's daily maintenance cost. There's no full per-train
- * P&L (that would need attributing track/station upkeep down to individual trains), so this is a
- * deliberately simple proxy — good enough to flag "this train basically never delivers anything"
- * at a glance, which is the overlay's actual job. */
+/** Ring colour from the same per-train books the train panel and list show (PLAN Phase 24A). */
 function profitColor(train: Train, nowTicks: number): string {
-  const loco = locomotiveById(train.locoModelId);
-  if (!loco) return OVERLAY_PROFIT_NEUTRAL;
-  const ageDays = (nowTicks - train.purchaseTick) / HOURS_PER_DAY;
-  if (ageDays < 30) return OVERLAY_PROFIT_NEUTRAL; // too new to judge yet
-  const avgDailyRevenue = train.lifetimeRevenue / ageDays;
-  const dailyMaintenance = loco.maintenancePerYear / DAYS_PER_YEAR;
-  if (avgDailyRevenue > dailyMaintenance * 1.5) return OVERLAY_PROFIT_GOOD;
-  if (avgDailyRevenue < dailyMaintenance * 0.5) return OVERLAY_PROFIT_BAD;
+  const status = trainProfitStatus(train, nowTicks);
+  if (status === "good") return OVERLAY_PROFIT_GOOD;
+  if (status === "bad") return OVERLAY_PROFIT_BAD;
   return OVERLAY_PROFIT_NEUTRAL;
 }
 

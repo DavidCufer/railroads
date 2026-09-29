@@ -265,6 +265,7 @@ export const strings = {
       stopCount: (n: number) => `${n} / 8 stops`,
       yourTrain: "Your train",
     },
+    list: { sortName: "Name", sortProfit: "Profit", perYear: "/yr", losing: "Losing money" },
     stats: {
       speed: "Top speed",
       power: "Power",
@@ -289,6 +290,10 @@ export const strings = {
       moveDown: "Move down",
       changeRule: "Change loading rule",
       earned: "Earned",
+      profitThisYear: "Profit this year",
+      profitLastYear: "Last year",
+      profitLifetime: "Lifetime",
+      paidBack: (pct: number, price: string) => `Paid back ${pct}% of ${price}`,
       runningCost: "Running cost",
       capacity: "Capacity",
       load: "Load",

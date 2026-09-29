@@ -16,6 +16,7 @@ import {
 } from "../../data/trains";
 import { eraInflation } from "../../data/finance";
 import { addExpense } from "../finance/ledger";
+import { recordTrainRepair } from "./profit";
 import { pushNews } from "../news";
 import { nextFloat, nextInt } from "../rng";
 import type { GameState } from "../state";
@@ -50,6 +51,7 @@ export function monthlyBreakdownStep(state: GameState): void {
     const repairCost = BREAKDOWN_REPAIR_COST * inflation;
     state.cash -= repairCost;
     addExpense(state, "breakdownRepairs", repairCost);
+    recordTrainRepair(train, repairCost);
     pushNews(state, { kind: "breakdown", trainId: train.id });
   }
 }

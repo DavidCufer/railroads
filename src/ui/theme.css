@@ -3843,3 +3843,37 @@ button.rule-chip:active {
   font-size: var(--fs-2xs);
   color: var(--muted);
 }
+
+/* Per-train profit (Phase 24A) */
+.train-profit-col {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.profit-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.profit-good {
+  color: var(--go);
+}
+.profit-good .profit-dot {
+  background: var(--go);
+}
+.profit-bad {
+  color: var(--signal);
+}
+.profit-bad .profit-dot {
+  background: var(--signal);
+}
+.profit-ok .profit-dot {
+  background: var(--brass);
+}
+.list-sort {
+  margin-bottom: 8px;
+}

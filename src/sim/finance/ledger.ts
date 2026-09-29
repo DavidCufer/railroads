@@ -34,6 +34,7 @@ import {
 import type { CargoType } from "../../data/cargo";
 import { calendarFromTicks, DAYS_PER_YEAR, HOURS_PER_DAY } from "../time";
 import type { GameState } from "../state";
+import { recordTrainRunning, rollTrainYear } from "../trains/profit";
 import { NET_WORTH_HISTORY_MAX_SAMPLES } from "./types";
 
 type ExpenseCategory = Exclude<keyof LedgerPeriod, "passengers" | "mail" | "freight">;
@@ -117,9 +118,11 @@ export function monthlyFinanceStep(state: GameState): void {
     const loco = locomotiveById(train.locoModelId);
     if (!loco) continue;
     const ageYears = (state.ticks - train.purchaseTick) / (HOURS_PER_DAY * DAYS_PER_YEAR);
-    trainMaint += (loco.maintenancePerYear / 12) * maintenanceMultiplier(loco, ageYears, year);
+    const own =
+      (loco.maintenancePerYear / 12) * maintenanceMultiplier(loco, ageYears, year) * inflation;
+    trainMaint += own;
+    recordTrainRunning(train, own);
   }
-  trainMaint *= inflation;
 
   addExpense(state, "trackMaintenance", trackMaint);
   addExpense(state, "stationMaintenance", stationMaint);
@@ -173,4 +176,5 @@ export function monthlyFinanceStep(state: GameState): void {
 export function yearlyFinanceRollover(state: GameState): void {
   state.finance.lastYear = state.finance.thisYear;
   state.finance.thisYear = emptyLedgerPeriod();
+  for (const train of state.trains) rollTrainYear(train);
 }

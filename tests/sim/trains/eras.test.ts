@@ -5,6 +5,7 @@
  * already covered in route.test.ts; this file adds `isElectrificationOnlyBlocker`'s own tests
  * there too.
  */
+import { emptyTrainProfit } from "../../../src/sim/trains/profit";
 import { describe, expect, it } from "vitest";
 import {
   buildStation,
@@ -158,6 +159,7 @@ function bareTrain(
     ...(lastServicedTick !== undefined ? { lastServicedTick } : {}),
     tilesSinceWaterTower: 0,
     lifetimeRevenue: 0,
+    profit: emptyTrainProfit(0),
     renderFromX: 0.5,
     renderFromY: 0.5,
     renderToX: 0.5,
