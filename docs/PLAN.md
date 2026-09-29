@@ -862,15 +862,15 @@ borders, water).
 - [ ] Screenshots: two trains at an X crossing (one waiting), junction off double track with two trains, labels.
 
 ### 25B — Zoomed-out map and minimap
-- [ ] Below the zoom where industry art is drawn, draw each industry as a small **dot marker** (≈ 8–10 CSS px, cargo
+- [x] Below the zoom where industry art is drawn, draw each industry as a small **dot marker** (≈ 8–10 CSS px, cargo
       colour of its main product, dark outline), and stations as small white-bordered dots in the station colour;
       cities keep their label. Fade between marker and art around the threshold (no pop). Tappable as before.
-- [ ] Minimap: terrain colours by type — water (blue, deeper darker), grass/plains (green), forest (dark green),
+- [x] Minimap: terrain colours by type — water (blue, deeper darker), grass/plains (green), forest (dark green),
       hills (olive/ochre), mountains (grey-brown, peaks lighter), desert/other if present; cities as small red
       squares, industries as tiny dots in cargo colour (optional toggle if too noisy), track in dark lines, viewport
       rect. Cached; re-rendered only when track/terrain changes.
-- [ ] Low-zoom terrain: the smooth noise-perturbed borders from 24B must also apply at every zoom (the overview
+- [x] Low-zoom terrain: the smooth noise-perturbed borders from 24B must also apply at every zoom (the overview
       rendering path) — no staircases at zoom 0.25–1.
-- [ ] Water depth: remove the square depth patches (smooth depth gradient from distance-to-shore, cached).
-- [ ] Screenshots: overview at zoom 0.35 and 0.6 with markers, minimap close-up, mountain border at zoom 0.5,
+- [x] Water depth: remove the square depth patches (smooth depth gradient from distance-to-shore, cached).
+- [x] Screenshots: overview at zoom 0.35 and 0.6 with markers, minimap close-up, mountain border at zoom 0.5,
       open sea at zoom 1. Open and check each.

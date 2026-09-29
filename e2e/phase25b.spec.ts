@@ -47,6 +47,43 @@ test("random map", async ({ page }) => {
   for (const z of [0.35, 0.6, 1]) await shot(page, w / 2, h / 2, z, `random-z${z}`);
 });
 
+test("station and industry markers", async ({ page }) => {
+  await open(page, { seed: 777, size: "medium", waterLevel: "normal", startYear: 1848 });
+  await page.evaluate(() => window.__game!.debugSetCash(5_000_000));
+  const at = await page.evaluate(() => {
+    const g = window.__game!;
+    const map = g.getMap() as unknown as {
+      width: number;
+      terrain: Uint8Array;
+      industryId: Int16Array;
+      cityId: Int16Array;
+      riverNext: Int32Array;
+    };
+    const ind = g.getIndustries()[0]!;
+    const y = ind.y + 3;
+    const x0 = ind.x - 4;
+    for (let x = x0 - 1; x <= x0 + 10; x++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const idx = (y + dy) * map.width + x;
+        map.terrain[idx] = 0;
+        map.industryId[idx] = -1;
+        map.cityId[idx] = -1;
+        map.riverNext[idx] = -1;
+      }
+    }
+    (g.getState() as unknown as { mapContentVersion: number }).mapContentVersion++;
+    const tiles = Array.from({ length: 9 }, (_, k) => y * map.width + x0 + k);
+    const b = g.buildTrackPath(tiles);
+    if (!b.ok) throw new Error(b.reason);
+    for (const t of [tiles[0]!, tiles[8]!]) {
+      const r = g.buildStation(t, "depot");
+      if (!r.ok) throw new Error(r.reason);
+    }
+    return { x: x0 + 4, y };
+  });
+  for (const z of [0.35, 0.5, 0.6, 0.7]) await shot(page, at.x, at.y, z, `markers-stations-z${z}`);
+});
+
 test.describe("minimap", () => {
   test.use({ deviceScaleFactor: 3 });
   test("minimap close-ups", async ({ page }) => {

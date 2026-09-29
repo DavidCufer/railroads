@@ -4136,3 +4136,41 @@ the unprefixed `phase-24b-*` the fixed result): `phase-24b-branch-{diagonal,diag
 - Required spacing is now larger than the old 2 tiles head-to-head (leader length + 1), so shared lines carry slightly fewer trains.
 - "Last 30 days" is the last completed game month (30 days), not a rolling window.
 - No save version bump: `monthHistory` and `train.profit` default when missing.
+
+## 2026-09-29 — Phase 25B: Zoomed-out markers, minimap terrain, smooth borders and water at every zoom
+Render code only (`src/sim/**` untouched; 25A runs in parallel). `npm run check` (491 unit) and the full `npm run e2e` (160) green.
+New: `src/render/zoomMarkers.ts`, `tests/render/zoomMarkers.test.ts`, `e2e/phase25b.spec.ts`. Screenshots (opened and checked):
+`phase-25b-before-*` are the reproductions (Ljubljana/Trieste on Central Europe at z0.35/0.5/0.6/1, random seed 777 at z0.35/0.6/1);
+after: `phase-25b-ljubljana-z{0.35,0.5,0.6,1}`, `phase-25b-random-z{0.35,0.6,1}` (open sea at z1), `phase-25b-markers-stations-z{0.35,0.5,0.6,0.7}`
+(industry + station dots and the fade), `phase-25b-minimap-{central-eu,random}` (3× close-ups).
+
+### Reproduction
+Overview (zoom < 0.5) was a flat per-tile fill: staircase hill/mountain/forest borders and coast, no industries, no stations, and the
+Phase 23A 10-step water ramp showed as square depth patches at every zoom. The minimap was plain/water only.
+
+### Markers (`zoomMarkers.ts`, called from `main.ts` after the station bubbles)
+- Industry = 10 px dot in the colour of its biggest product (`CARGO[..].color`; processor with no product → first input), dark outline
+  plus a faint light halo (coal is near black); station = 8 px white-bordered dot in the station gold. Screen space, drawn per frame.
+- Alpha ramps 0 → 1 between zoom 0.8 and 0.5 (`markerAlpha`), so art and dot cross-fade; below 0.5 (no art baked) dots are opaque. Picking
+  is tile based and unchanged. City dots/labels unchanged.
+
+### Terrain at every zoom (`terrain.ts`)
+- Overview chunks now run the same ground pass as the other buckets (hillshaded subcells, `drawLandBorders`, `drawCoastlineContour`), minus
+  decorations/industries; 1-tile pad like the others. They are budgeted (8 new chunks/frame) instead of unbudgeted. Overview city tiles
+  are drawn as small roof-coloured squares (the art isn't baked there).
+- **Water depth**: `shoreDistanceField` = exact Euclidean distance transform (Felzenszwalb, off-map counts as shore), computed once per map
+  version (dropped in `setMap`/`refreshContent`). Water tiles are 4×4 subcells whose colour comes from the bilinearly interpolated distance
+  (minus ½ tile, so depth is 0 on the coast contour) through a 48-step ramp reaching full depth at 6 tiles: a smooth gradient, no patches.
+- Fixed two hairline artefacts uncovered by the new path: subcell overlap no longer bleeds past the tile border (water/land tiles drew a
+  1 px line over already-painted neighbours), and the coast feather strokes only the contour segment, not the polygon's tile-border edges.
+- Perf (headless): overview avg render 8.6 → 10.7 ms in the random-overview e2e; steady state unchanged (chunks cached).
+
+### Minimap (`minimap.ts`, palette `MINIMAP_*`)
+Box-filtered ground colour per class (plain green, forest dark green, hills olive, mountain grey-brown lightened towards snow with
+elevation, desert sand, swamp, river teal), water shallow→deep by shore distance; dark track lines; industries as 2 px dots in cargo colour
+on a dark pip; cities as red squares sized by tier. Rebuilt only when `trackVersion`/`mapContentVersion` change (industries now passed in).
+
+### Deviations / known
+- Marker fade is a zoom ramp (0.8 → 0.5) rather than tied to a single art threshold, because art is baked into chunks and can't be faded.
+- Minimap industry dots are always on (no toggle); at Large map scale they are noisy but readable.
+- Station name plates can overlap each other at zoom 0.35 when two stations are close (pre-existing declutter behaviour).
