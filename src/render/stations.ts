@@ -3,20 +3,14 @@
  * Stations are few enough per game (dozens, not thousands like track/terrain) that drawing them
  * directly every frame — no offscreen chunk cache — is simplest and plenty fast.
  */
-import type { StationImprovementType, StationType } from "../data/stations";
 import type { CityTier } from "../data/cities";
 import type { City } from "../sim/economy/types";
 import { DIRS8 } from "../sim/map/grid";
 import type { TrackGraph } from "../sim/track/graph";
 import { Camera, TILE_SIZE } from "./camera";
 import { cityWorldCenter, measureTextWidthCached } from "./labels";
-import {
-  STATION_BUILDING_COLOR,
-  STATION_BUILDING_ROOF_COLOR,
-  STATION_IMPROVEMENT_COLORS,
-  STATION_LABEL_COLOR,
-  STATION_PLATFORM_COLOR,
-} from "./palette";
+import { STATION_LABEL_COLOR } from "./palette";
+import { drawImprovementMarker, drawStationBuilding, type StationMarkerType } from "./stationArt";
 import type { Station } from "../sim/stations/types";
 import { DOUBLE_TRACK_SPACING_TILES } from "./trackPath";
 import { intersectsReserved, type ReservedScreenRect } from "./reservedRects";
@@ -35,125 +29,14 @@ function tileWorldOrigin(tile: number, mapWidth: number): [number, number] {
   return [(tile % mapWidth) * TILE_SIZE, Math.floor(tile / mapWidth) * TILE_SIZE];
 }
 
-/** Building half-width (fraction of a tile) and platform length by type — visibly bigger for a
- * terminal than a depot, per SPEC §6.1. */
-/* Phase 5 review carry-over: a Terminal needs to read as clearly bigger than a Depot, not just a
- * slightly larger version of the same box — so the terminal building here is nearly double the
- * depot's linear size (not ~1.5×) on top of getting the second roof block. */
-const TYPE_SCALE: Record<StationType, { building: number; platform: number; roofCount: number }> = {
-  depot: { building: 0.3, platform: 0.5, roofCount: 1 },
-  station: { building: 0.42, platform: 0.75, roofCount: 1 },
-  terminal: { building: 0.58, platform: 0.95, roofCount: 2 },
-};
-
-function drawStationIcon(
-  ctx: CanvasRenderingContext2D,
-  type: StationType,
-  px: number,
-  py: number,
-  size: number,
-): void {
-  const { building, platform, roofCount } = TYPE_SCALE[type];
-  const cx = px + size / 2;
-  const cy = py + size / 2;
-
-  // Platform: a light strip along the tile, under/behind the building.
-  ctx.fillStyle = STATION_PLATFORM_COLOR;
-  const platformLen = size * platform;
-  const platformH = size * 0.14;
-  ctx.fillRect(cx - platformLen / 2, cy + size * 0.22, platformLen, platformH);
-
-  // Building block(s), with a peaked-roof accent — a second, offset block for the terminal so it
-  // reads as visibly larger/busier than a depot's single small building.
-  const buildW = size * building;
-  const buildH = size * building * 0.72;
-  for (let i = 0; i < roofCount; i++) {
-    const offset = roofCount > 1 ? (i - (roofCount - 1) / 2) * buildW * 0.9 : 0;
-    const bx = cx + offset - buildW / 2;
-    const by = cy - size * 0.08 - buildH;
-
-    ctx.fillStyle = STATION_BUILDING_COLOR;
-    ctx.fillRect(bx, by, buildW, buildH);
-
-    ctx.fillStyle = STATION_BUILDING_ROOF_COLOR;
-    ctx.beginPath();
-    ctx.moveTo(bx - size * 0.03, by);
-    ctx.lineTo(bx + buildW / 2, by - buildH * 0.45);
-    ctx.lineTo(bx + buildW + size * 0.03, by);
-    ctx.closePath();
-    ctx.fill();
-  }
-}
-
-/** PLAN Phase 16.1 (play-test 3: "stations on double track are passing loops"): draws a station
- * that has a double-track edge touching it as two parallel platform tracks straight through the
- * tile instead of one — the two lanes of the lane model (`laneGeometry.ts`, symmetric at
- * ±`DOUBLE_TRACK_SPACING_TILES / 2` of the centerline), so the icon lines up with the rails drawn
- * under it. Symmetric, so any touching double edge's direction gives the same picture; `dirIndex`
- * just rotates the icon along the track. Both the platform and the building sit beyond the outer
- * lane's rail (not squeezed
- * into the narrow gap between the two tracks, which the 0.28-tile spacing leaves no room to read
- * cleanly) — PLAN: "never under the rails". */
-function drawPassingLoopStationIcon(
-  ctx: CanvasRenderingContext2D,
-  type: StationType,
-  px: number,
-  py: number,
-  size: number,
-  dirIndex: number,
-): void {
-  const { building, platform, roofCount } = TYPE_SCALE[type];
-  const cx = px + size / 2;
-  const cy = py + size / 2;
+/** Track direction at the station, folded so the building never ends up upside down. */
+function stationAngle(dirIndex: number): number {
   const [dx, dy] = DIRS8[dirIndex] as readonly [number, number];
-  const angle = Math.atan2(dy, dx);
-
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(angle);
-
-  const laneSpacing = (size * DOUBLE_TRACK_SPACING_TILES) / 2;
-  const platformLen = size * platform;
-
-  // Clearance past the diverging track's own outer rail/tie extent (matches `track.ts`'s
-  // `tieHalfLenTiles`, 4.2/32 tile) plus a small visible gap, so nothing here ever touches a rail.
-  const trackClearance = size * 0.16;
-
-  // Platform strip beyond the diverging track.
-  const platformNear = laneSpacing + trackClearance;
-  const platformH = size * 0.12;
-  ctx.fillStyle = STATION_PLATFORM_COLOR;
-  ctx.fillRect(-platformLen / 2, platformNear, platformLen, platformH);
-
-  // Building beyond the platform, roof peak pointing further outward — same silhouette as the
-  // single-track icon, just translated/rotated onto this side of the passing loop.
-  const buildW = size * building;
-  const buildH = size * building * 0.72;
-  const buildingNear = platformNear + platformH + size * 0.05;
-  for (let i = 0; i < roofCount; i++) {
-    const offset = roofCount > 1 ? (i - (roofCount - 1) / 2) * buildW * 0.9 : 0;
-    const bx = offset - buildW / 2;
-    const by = buildingNear;
-
-    ctx.fillStyle = STATION_BUILDING_COLOR;
-    ctx.fillRect(bx, by, buildW, buildH);
-
-    ctx.fillStyle = STATION_BUILDING_ROOF_COLOR;
-    ctx.beginPath();
-    ctx.moveTo(bx - size * 0.03, by + buildH);
-    ctx.lineTo(bx + buildW / 2, by + buildH + buildH * 0.45);
-    ctx.lineTo(bx + buildW + size * 0.03, by + buildH);
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  ctx.restore();
+  return dx < 0 ? Math.atan2(-dy, -dx) : Math.atan2(dy, dx);
 }
 
-/** Marker type drawn beside a station — the six generic improvements plus Engine Shed/Water Tower,
- * which keep their own bespoke boolean fields (Phase 6/8) rather than living in
- * `station.improvements`. */
-type StationMarkerType = StationImprovementType | "engineShed" | "waterTower";
+/** Clearance from the track centre line to the platform edge: past the rails' tie ends. */
+const PLATFORM_CLEARANCE = 0.17;
 
 /** Active improvements at `station`, in a fixed display order (SPEC §6.2). */
 function activeImprovements(station: Station): StationMarkerType[] {
@@ -162,104 +45,6 @@ function activeImprovements(station: Station): StationMarkerType[] {
   if (station.hasWaterTower) list.push("waterTower");
   list.push(...station.improvements);
   return list;
-}
-
-/** A distinct-shaped marker per improvement type — each reads as its own small building or sign
- * next to the station, not a dot (SPEC §6.2, Phase 9 review: "should visibly change the station
- * graphic"; Phase 11 review: "clearly visible small building/sign next to the station" — the
- * original markers were legible only as colored specks at zoom 2). A soft ground shadow under
- * every marker gives it the same "sits on the ground" weight as the station building itself.
- * Only drawn from zoom 1 up — below that the whole station icon itself is barely a few px, and
- * these would just be noise. */
-function drawImprovementMarker(
-  ctx: CanvasRenderingContext2D,
-  type: StationMarkerType,
-  cx: number,
-  cy: number,
-  r: number,
-): void {
-  const color = STATION_IMPROVEMENT_COLORS[type] ?? "#B8BDC4";
-
-  ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
-  ctx.beginPath();
-  ctx.ellipse(cx, cy + r * 0.75, r * 0.7, r * 0.22, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = color;
-  switch (type) {
-    case "waterTower":
-      // A small tank on a stalk.
-      ctx.fillRect(cx - r * 0.12, cy, r * 0.24, r);
-      ctx.beginPath();
-      ctx.arc(cx, cy - r * 0.15, r * 0.55, 0, Math.PI * 2);
-      ctx.fill();
-      break;
-    case "hotel":
-      // A taller block with a small peaked roof.
-      ctx.fillRect(cx - r * 0.5, cy - r * 0.3, r, r * 1.3);
-      ctx.beginPath();
-      ctx.moveTo(cx - r * 0.6, cy - r * 0.3);
-      ctx.lineTo(cx, cy - r * 0.9);
-      ctx.lineTo(cx + r * 0.6, cy - r * 0.3);
-      ctx.closePath();
-      ctx.fill();
-      break;
-    case "postOffice":
-      // A small envelope.
-      ctx.fillRect(cx - r * 0.65, cy - r * 0.45, r * 1.3, r * 0.9);
-      ctx.strokeStyle = "rgba(255,255,255,0.75)";
-      ctx.lineWidth = Math.max(1, r * 0.12);
-      ctx.beginPath();
-      ctx.moveTo(cx - r * 0.65, cy - r * 0.45);
-      ctx.lineTo(cx, cy);
-      ctx.lineTo(cx + r * 0.65, cy - r * 0.45);
-      ctx.stroke();
-      break;
-    case "warehouse":
-      // A wide barn-like block.
-      ctx.fillRect(cx - r * 0.75, cy - r * 0.5, r * 1.5, r);
-      ctx.beginPath();
-      ctx.moveTo(cx - r * 0.85, cy - r * 0.5);
-      ctx.lineTo(cx, cy - r * 1.0);
-      ctx.lineTo(cx + r * 0.85, cy - r * 0.5);
-      ctx.closePath();
-      ctx.fill();
-      break;
-    case "coldStorage":
-      // A pale box with a snowflake dot.
-      ctx.fillRect(cx - r * 0.55, cy - r * 0.55, r * 1.1, r * 1.1);
-      ctx.fillStyle = "#2E5E8C";
-      ctx.beginPath();
-      ctx.arc(cx, cy, r * 0.18, 0, Math.PI * 2);
-      ctx.fill();
-      break;
-    case "freightYard":
-      // Two short parallel siding lines.
-      ctx.strokeStyle = color;
-      ctx.lineWidth = Math.max(1, r * 0.22);
-      ctx.beginPath();
-      ctx.moveTo(cx - r * 0.7, cy - r * 0.3);
-      ctx.lineTo(cx + r * 0.7, cy - r * 0.3);
-      ctx.moveTo(cx - r * 0.7, cy + r * 0.3);
-      ctx.lineTo(cx + r * 0.7, cy + r * 0.3);
-      ctx.stroke();
-      break;
-    case "livestockPens":
-      // A small fenced square.
-      ctx.strokeStyle = color;
-      ctx.lineWidth = Math.max(1, r * 0.22);
-      ctx.strokeRect(cx - r * 0.55, cy - r * 0.55, r * 1.1, r * 1.1);
-      break;
-    case "engineShed":
-    default:
-      // A small shed with a round "wheel" accent.
-      ctx.fillRect(cx - r * 0.55, cy - r * 0.35, r * 1.1, r * 0.9);
-      ctx.fillStyle = "#B59A5C";
-      ctx.beginPath();
-      ctx.arc(cx, cy + r * 0.1, r * 0.2, 0, Math.PI * 2);
-      ctx.fill();
-      break;
-  }
 }
 
 /** Draws a small row of improvement markers below the station's platform (SPEC §6.2, Phase 9) —
@@ -302,12 +87,25 @@ export function drawStations(
     const [wx, wy] = tileWorldOrigin(station.tile, mapWidth);
     const s = camera.worldToScreen(wx, wy, viewportW, viewportH);
     if (s.x < -size || s.y < -size || s.x > viewportW + size || s.y > viewportH + size) continue;
-    const doubleEdge = graph.edgesAt(station.tile).find((e) => e.double);
-    if (doubleEdge) {
-      drawPassingLoopStationIcon(ctx, station.type, s.x, s.y, size, doubleEdge.direction);
-    } else {
-      drawStationIcon(ctx, station.type, s.x, s.y, size);
-    }
+    const edges = graph.edgesAt(station.tile);
+    const doubleEdge = edges.find((e) => e.double);
+    const edge = doubleEdge ?? edges[0];
+    const angle = edge ? stationAngle(edge.direction) : 0;
+    // A passing loop keeps the building beyond the outer lane's rail (PLAN 16.1: never under rails).
+    const near = doubleEdge
+      ? size * (DOUBLE_TRACK_SPACING_TILES / 2 + 0.16)
+      : size * PLATFORM_CLEARANCE;
+    drawStationBuilding(
+      ctx,
+      station.type,
+      s.x + size / 2,
+      s.y + size / 2,
+      size,
+      angle,
+      near,
+      -1,
+      doubleEdge !== undefined,
+    );
     drawImprovementMarkers(ctx, station, s.x, s.y, size);
   }
 }
@@ -338,7 +136,12 @@ export function drawStationLabels(
     // A station inside a city's footprint can land its label right on top of the city's own name
     // (drawn at the footprint centroid, which the station tile may sit very close to) — if so,
     // push the station label down to clear it instead of overlapping (Phase 5 review carry-over).
-    let labelY = s.y + 2;
+    // Drop the label below the improvement markers' rows (zoom ≥ 0.6, three per row).
+    const markerRows =
+      camera.zoom * TILE_SIZE >= TILE_SIZE * 0.6
+        ? Math.ceil(activeImprovements(station).length / 3)
+        : 0;
+    let labelY = s.y + 2 + markerRows * TILE_SIZE * camera.zoom * 0.44;
     const cityId = cityIdAt(station.tile);
     const city = cityId >= 0 ? cities[cityId] : undefined;
     // A station named after the city it sits in (the common case — SPEC §6.1's default naming)
