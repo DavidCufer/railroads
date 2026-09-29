@@ -712,3 +712,62 @@ Phase 22's train screens look great; the map now lags behind them. Review of the
   zoom 1.5, overview at zoom 0.5.
 - [x] Stations & platforms   - [x] Improvements layout   - [x] Blob fix   - [x] Industries   - [x] Cities
 - [x] Perf / caching          - [x] Screenshots reviewed
+
+## Phase 23 — Play-test 6: world scale, placement collisions, status bar
+Player report (Trieste–Ljubljana, 1840, on the phone):
+1. "The scale seems off. Cities, farms and objects are too close. There is not enough space, the lines seem short.
+   Long trains span a fair portion of the track." Today 1 tile = 10 km (KMH_PER_TILE_PER_DAY = 30, revenue "per 10
+   tiles (100 km)"), but a town is drawn ~5 tiles wide (≈ 50 km) and industries are now ~2×2 tile clusters, so art
+   and distances disagree. Ljubljana–Trieste is only ~12 tiles.
+2. "When creating a station in the city it is crowded over the existing buildings; a depot was created over the
+   tracks." Station buildings/improvements are drawn on top of houses and across track; on diagonal track the
+   station platforms are drawn axis-aligned (Trieste Food Plant station).
+3. "The Grasshopper 0-4-0 is missing a front wheel." A 0-4-0 correctly shows two wheels per side, but the drivers
+   sit far back, leaving a long unsupported front overhang, so it reads as a missing wheel.
+4. (Seen in the screenshots) the Android status bar (clock, signal, battery) draws over the top bar; coastlines are
+   blocky staircases at zoom.
+
+Runs as two parallel sessions: **23A** (scale, sim + generation) and **23B** (placement, art, Android shell).
+Same parallel rules as Phases 19–22.
+
+### 23A — World scale 2× (1 tile = 5 km)
+- [ ] All distance-based constants in `src/data/` converted so the *km-based* game stays the same: speeds (tiles/day
+      doubles: KMH_PER_TILE_PER_DAY 30 → 15), revenue "per 20 tiles (100 km)", track/bridge/tunnel/electrification
+      cost per tile halved, water-tower range 40 → 80, chain-input range 25 → 50, CITY_MIN_SPACING ×2, any goal or
+      news thresholds in tiles, AI-free sanity checks (playability) in tiles. Station catchment radii stay in tiles
+      (a station covers less land — intended). Grep for every tile-distance constant; list each conversion in
+      PROGRESS.
+- [ ] Map sizes ×2 per side (small 192×128, medium 256×192, large 384×256); city and industry *counts* per map stay
+      the same as today for the same size name (density per tile ÷ 4), so things are further apart.
+- [ ] Region maps: upsample terrain 2× at load time with a smooth, deterministic edge refinement (noise-perturbed
+      boundaries for coast/lake/forest/hills — not blocky 2×2 blocks); rivers re-traced at the new resolution; city
+      and resource-zone coordinates ×2. Region JSON files stay as they are.
+- [ ] Coastline rendering: no staircase — smooth coast/lake edges (e.g. marching-squares contour with slight
+      rounding, cached per chunk). Also applies to random maps.
+- [ ] Cities keep today's size in tiles (they become relatively smaller); industries keep their ~2×2 footprint.
+- [ ] Performance with 4× tiles: generation time, chunk cache memory, minimap, stress e2e frame times — report
+      before/after; optimise if anything regresses noticeably (e.g. lazy chunk baking, cap cache size).
+- [ ] Balance tests still pass *without* loosening them (they should, since km-based economics are unchanged); add a
+      test that the same km route earns the same revenue before/after the conversion.
+- [ ] Saves: bump the save version; an old-scale save shows a clear message ("This save uses the old map scale and
+      can't be loaded") instead of breaking. (Or migrate by ×2 coordinates if simple — your call, document it.)
+- [ ] Screenshots: `phase-23-central-eu-overview.png` (zoom 0.5, Trieste–Ljubljana area), same at zoom 1 with a line
+      and a train, a random medium map overview, a coastline close-up at zoom 2.
+
+### 23B — Placement collisions, 0-4-0 art, Android shell
+- [ ] Station footprint owns its tiles: city houses on the station's footprint tiles (platforms + building) are not
+      drawn (render-side; the city keeps its population), so a station in a city carves a clean site.
+- [ ] Station building, platforms and every improvement never overlap: track (other than the station's own track),
+      other stations, industries. Pick the side of the track with more free space for the building; lay improvements
+      out on free tiles nearby (both sides allowed), compact fallback if space is tight. Unit-test the layout function
+      (no overlaps with track/industry tiles for straight, diagonal, curved and junction cases).
+- [ ] On diagonal track, platforms, canopy, shed and building follow the track direction (rotated 45°), as on
+      straight track.
+- [ ] Steam side views: no long unsupported overhangs. Front driver (or leading truck) sits under the smokebox /
+      cylinders; for 0-4-0 and 2-2-0 space the drivers so the front one is under the cylinder block. Check all 12
+      steam engines in the gallery.
+- [ ] Android: run the game full-screen (hide status and navigation bars, immersive sticky) via the Android theme /
+      MainActivity — no new plugin dependency. Web/PWA fallback: `viewport-fit=cover` + `env(safe-area-inset-*)`
+      padding on the top bar and side rails so nothing is ever under a notch or status bar.
+- [ ] Screenshots: station inside a dense city (before/after), station with all improvements next to a junction,
+      station on diagonal track, gallery steam page, top bar with simulated safe-area insets.
