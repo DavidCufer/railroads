@@ -1,67 +1,71 @@
 /**
- * Train UI (SPEC §7, PLAN Phase 6): the Buy Train dialog (loco list, car picker, tap-the-map
- * orders editor), the per-train management panel (status/orders/consist/sell), and the train list.
- * Bodies scroll and the action row stays pinned as `openPanel`'s `footer` (see src/ui/panel.ts),
- * a real flex sibling outside the scrollport, so everything still fits an 800×360 view.
+ * Train UI (STYLE §11.2): the per-train panel (side-view hero strip with fill meters, status line,
+ * Route / Stats tabs, action-bar footer), the Edit cars sheet (reuses the consist builder), the
+ * Replace-locomotive picker and the train list. The buy wizard lives in `buyTrainWizard.ts`.
  */
-import { CARGO, CARGO_TYPES, type CargoType } from "../data/cargo";
+import { CARGO, type CargoType } from "../data/cargo";
 import {
+  BREAKDOWN_AGE_DIVISOR_YEARS,
+  BREAKDOWN_BASE_CHANCE_BY_RELIABILITY,
   buyableLocomotivesIn,
   locomotiveById,
   NEW_LOCOMOTIVE_BADGE_YEARS,
   type LocomotiveDef,
 } from "../data/trains";
 import {
-  buyTrain,
-  computeBuyTrainPlan,
   computeEditConsistPlan,
   computeReplaceLocoPlan,
   computeSellTrainPlan,
   editConsist,
   replaceLocomotive,
   sellTrain,
+  setOrderRule,
   setOrders,
 } from "../sim/commands";
 import type { GameState } from "../sim/state";
-import { calendarFromTicks } from "../sim/time";
+import { calendarFromTicks, DAYS_PER_YEAR, HOURS_PER_DAY } from "../sim/time";
 import { getTrainRuntime, isElectrificationOnlyBlocker } from "../sim/trains";
-import type { LoadingRule, Train, TrainCar, TrainOrder } from "../sim/trains/types";
-import { chipTextColor, row } from "./infoPanels";
-import { h } from "./h";
-import { icon } from "./icons";
-import { closePanel, openPanel } from "./panel";
-import { strings } from "./strings";
+import type { Train, TrainCar, TrainOrder } from "../sim/trains/types";
+import { cardList, cardRow } from "./components/cardRow";
+import { emptyState } from "./components/emptyState";
+import { footerButton } from "./components/footer";
+import { meter, pips } from "./components/meter";
+import { section } from "./components/section";
+import { statRow, statTile } from "./components/statTile";
+import { stackedBar } from "./components/charts";
+import { tabs } from "./components/tabs";
+import { consistBuilder } from "./consistBuilder";
 import { formatMoney } from "./format";
-import { showToast } from "./toast";
-import { playSound } from "./sound";
+import { chipTextColor } from "./infoPanels";
+import { h } from "./h";
+import { icon, type IconName } from "./icons";
+import { closePanel, openPanel } from "./panel";
+import { routeTimeline, type TimelineMarker } from "./routeTimeline";
+import { openSheet } from "./sheet";
 import { formatSpeed, loadSettings } from "./settings";
+import { strings } from "./strings";
+import { showToast } from "./toast";
+import { consistStrip, locoArt, tractionIcon, wheelGlyphEl } from "./trainArt";
+import type { Tone } from "./components/tone";
 
-const LOADING_RULES: readonly LoadingRule[] = [
-  "auto",
-  "fullLoad",
-  "unloadOnly",
-  "passThrough",
-  "transfer",
-];
+export { openBuyTrainPanel, type BuyTrainHandlers } from "./buyTrainWizard";
+
+/** Map-pick hooks for adding stops to an existing train from its Route tab (set once by main). */
+export interface StationPickHooks {
+  pickStationOnMap: (onPicked: (stationId: number) => void) => void;
+  cancelPickStationOnMap: () => void;
+}
+let pickHooks: StationPickHooks | null = null;
+export function setStationPickHooks(hooks: StationPickHooks): void {
+  pickHooks = hooks;
+}
 
 function currentYear(state: GameState): number {
   return calendarFromTicks(state.startYear, state.ticks).year;
 }
 
-/** Buy Train/Edit Consist car-picker button label (PLAN Phase 16: "show capacity per car type",
- * e.g. "Passenger car · 40 seats") — passengers get "seats" specifically (an exception to the
- * general `CargoDef.unit`, which is "" for passengers so the general "N passengers" phrasing reads
- * naturally elsewhere without a redundant unit word). */
-function carTypeLabel(cargo: CargoType): string {
-  const def = CARGO[cargo];
-  const capacity = cargo === "passengers" ? `${def.capacity} seats` : `${def.capacity} ${def.unit}`;
-  return `${def.carLabel} · ${capacity}`;
-}
-
 /** SPEC §7.3: "clear reason in the UI: 'Route not electrified'" — checked only when the train is
- * actually stuck with no route and its locomotive is electric; a route that fails for any other
- * reason (a genuinely disconnected network, a wooden bridge too weak for it) falls back to the
- * plain "No route ⚠" status text instead. */
+ * actually stuck with no route and its locomotive is electric. */
 function electrifiedRouteBlocked(state: GameState, train: Train, loco: LocomotiveDef): boolean {
   if (train.status !== "noRoute" || loco.type !== "electric") return false;
   const order = train.orders[train.currentOrderIndex];
@@ -87,9 +91,8 @@ function electrifiedRouteBlocked(state: GameState, train: Train, loco: Locomotiv
 }
 
 /** SPEC §7.5: "the train panel says what they are waiting for" — names the station a
- * `waitingForBlock`/`waitingForStation` train is trying to reach next, falling back to the plain
- * status label when there's nothing to name (e.g. a target station just got bulldozed). */
-function statusText(state: GameState, train: Train): string {
+ * `waitingForBlock`/`waitingForStation` train is trying to reach next. */
+export function statusText(state: GameState, train: Train): string {
   const waiting =
     train.status === "waitingForBlock" ||
     train.status === "waitingForStation" ||
@@ -108,10 +111,8 @@ function statusText(state: GameState, train: Train): string {
     }
   }
   const order = train.orders[train.currentOrderIndex];
-  if (train.status === "noRoute" && order) {
-    const name = state.stations.find((s) => s.id === order.stationId)?.name;
-    if (name) return strings.trains.noRouteTo(name);
-  }
+  const orderStation = order && state.stations.find((s) => s.id === order.stationId)?.name;
+  if (train.status === "noRoute" && orderStation) return strings.trains.noRouteTo(orderStation);
   const targetName =
     train.waitingForStationId !== undefined
       ? state.stations.find((s) => s.id === train.waitingForStationId)?.name
@@ -122,323 +123,487 @@ function statusText(state: GameState, train: Train): string {
   if (targetName && train.status === "waitingForStation") {
     return strings.trains.waitingForPlatform(targetName);
   }
+  if (train.status === "moving" && orderStation) {
+    return strings.trains.panel.moving(
+      orderStation,
+      formatSpeed(train.speed, loadSettings().units),
+    );
+  }
+  if (train.status === "loading" && orderStation) {
+    return strings.trains.panel.atStop(orderStation);
+  }
   return strings.trains.statusNames[train.status];
 }
 
-/** A car chip showing its current load (SPEC §10.2's "current load" in the train panel, PLAN Phase
- * 16: "each car shows cargo + fill... a small fill bar per car") — solid cargo color, "Empty" only
- * when truly empty, otherwise the fill as "Passengers 28 / 40"/"Coal 20 / 20 t" plus a thin bar. */
-function carChip(car: TrainCar): HTMLElement {
+const STATUS_ICON: Record<Train["status"], { icon: IconName; tone: Tone }> = {
+  moving: { icon: "arrowRight", tone: "steel" },
+  loading: { icon: "cargo", tone: "brass" },
+  waitingForBlock: { icon: "signal", tone: "signal" },
+  waitingForStation: { icon: "signal", tone: "signal" },
+  noRoute: { icon: "warning", tone: "signal" },
+  stuck: { icon: "warning", tone: "signal" },
+  broken: { icon: "wrench", tone: "signal" },
+};
+
+function stationName(state: GameState, id: number): string {
+  return state.stations.find((s) => s.id === id)?.name ?? "?";
+}
+
+/** Status line under the hero: icon + text (+ the electrification reason when that is why). */
+function statusLine(state: GameState, train: Train, loco: LocomotiveDef | undefined): HTMLElement {
+  const st = STATUS_ICON[train.status];
+  const kids: Array<Node | string> = [
+    icon(st.icon, `icon-sm tone-${st.tone}`),
+    h("span", { className: "train-status-text" }, statusText(state, train)),
+  ];
+  if (loco && electrifiedRouteBlocked(state, train, loco)) {
+    kids.push(h("span", { className: "train-route-warning" }, strings.trains.routeNotElectrified));
+  }
+  if (train.pendingConsist) {
+    kids.push(
+      h("span", { className: "train-consist-pending" }, strings.trains.consistChangeQueued),
+    );
+  }
+  const problem =
+    train.status === "noRoute" || train.status === "stuck" || train.status === "broken";
+  const waiting = train.status === "waitingForBlock" || train.status === "waitingForStation";
+  return h(
+    "div",
+    {
+      className: `train-status-line${problem ? " problem" : ""}${waiting ? " train-waiting" : ""}`,
+      "data-testid": "train-status",
+    },
+    ...kids,
+  );
+}
+
+/** "Coal 20 / 40 t" in the cargo colour; dimmed "Empty" when nothing is loaded. */
+function carLoadChip(car: TrainCar): HTMLElement {
   const def = CARGO[car.cargoType];
   const loaded = car.loadedUnits > 0;
   const label = loaded
     ? `${def.name} ${Math.round(car.loadedUnits)} / ${def.capacity}${def.unit ? ` ${def.unit}` : ""}`
     : `${strings.trains.empty} (${def.name})`;
-  const pct = Math.max(0, Math.min(100, (car.loadedUnits / def.capacity) * 100));
   return h(
-    "div",
-    { className: "supply-chip-stack" },
-    h(
-      "span",
-      {
-        className: `chip${loaded ? "" : " chip-dim"}`,
-        style: { background: def.color, color: chipTextColor(def.color) },
-      },
-      label,
-    ),
-    h(
-      "div",
-      { className: "cargo-bar-track mini" },
-      h("div", {
-        className: "cargo-bar-fill",
-        style: { width: `${pct}%`, background: "var(--brass)" },
-      }),
-    ),
+    "span",
+    {
+      className: `chip${loaded ? "" : " chip-dim"}`,
+      style: { background: def.color, color: chipTextColor(def.color) },
+    },
+    label,
   );
 }
 
-export { openBuyTrainPanel, type BuyTrainHandlers } from "./buyTrainWizard";
+function heroStrip(state: GameState, train: Train): HTMLElement {
+  return h(
+    "div",
+    { className: "train-hero" },
+    consistStrip({
+      locoId: train.locoModelId,
+      cars: train.cars.map((c) => ({
+        cargoType: c.cargoType,
+        fill01: c.loadedUnits / CARGO[c.cargoType].capacity,
+        loaded: c.loadedUnits > 0,
+      })),
+      year: currentYear(state),
+      height: 40,
+      fillMeters: true,
+    }),
+  );
+}
 
-/** Opens the management panel for an existing train: status, consist, orders, sell. */
+function timelineMarker(train: Train): TimelineMarker | undefined {
+  if (train.orders.length === 0) return undefined;
+  return train.status === "loading"
+    ? { kind: "at", index: train.currentOrderIndex }
+    : { kind: "toward", index: train.currentOrderIndex };
+}
+
+// --- train panel ---------------------------------------------------------------------------------
+
+type TrainTab = "route" | "stats";
+
+/** Opens the management panel for an existing train. */
 export function openTrainPanel(container: HTMLElement, state: GameState, trainId: number): void {
+  let tab: TrainTab = "route";
+  let armed = false;
+  let picking = false;
+
   const render = (): void => {
     const train = state.trains.find((t) => t.id === trainId);
     if (!train) return;
     const loco = locomotiveById(train.locoModelId);
+    const p = strings.trains.panel;
 
-    const isProblemStatus =
-      train.status === "noRoute" || train.status === "stuck" || train.status === "broken";
-    const isWaiting = train.status === "waitingForBlock" || train.status === "waitingForStation";
-    const body: Node[] = [
-      h(
-        "div",
-        { className: "panel-row" },
-        h("span", { className: "label" }, strings.trains.status),
-        h(
-          "span",
-          { className: isProblemStatus ? "train-route-warning" : isWaiting ? "train-waiting" : "" },
-          isProblemStatus ? icon("warning", "icon-sm") : null,
-          isWaiting ? icon("signal", "icon-sm") : null,
-          statusText(state, train),
-        ),
-      ),
-      ...(loco && electrifiedRouteBlocked(state, train, loco)
-        ? [
-            h(
-              "div",
-              { className: "panel-row train-route-warning" },
-              icon("warning", "icon-sm"),
-              strings.trains.routeNotElectrified,
-            ),
-          ]
-        : []),
-      row(strings.trains.locomotive, loco?.name ?? "?"),
-      row(strings.trains.speed, formatSpeed(train.speed, loadSettings().units)),
-      h("div", { className: "panel-section-title" }, strings.trains.consist),
-      h(
-        "div",
-        { className: "panel-row", style: { flexWrap: "wrap" } },
-        ...(train.cars.length > 0 ? train.cars.map((c) => carChip(c)) : ["—"]),
-      ),
-      ...(train.pendingConsist
-        ? [
-            h(
-              "div",
-              { className: "panel-row train-consist-pending" },
-              strings.trains.consistChangeQueued,
-            ),
-          ]
-        : []),
-      h(
-        "div",
-        { className: "action-grid" },
-        h(
-          "button",
-          {
-            className: "action-btn",
-            onClick: () => openEditConsistPanel(container, state, trainId),
+    const heroHost = h("div", { className: "train-live" });
+    const fillLive = (): void => {
+      const t = state.trains.find((x) => x.id === trainId);
+      if (!t) return;
+      heroHost.replaceChildren(heroStrip(state, t), statusLine(state, t, loco));
+    };
+    fillLive();
+
+    const tabBody = h("div", { className: "train-tab-body" });
+    const fillTab = (): void => {
+      const t = state.trains.find((x) => x.id === trainId);
+      if (!t) return;
+      tabBody.replaceChildren(tab === "route" ? routeTab(t) : statsTab(t));
+    };
+
+    const applyRule = (index: number, rule: TrainOrder["rule"]): void => {
+      const result = setOrderRule(state, trainId, index, rule);
+      if (!result.ok) showToast(container, strings.build.reasons[result.reason], "warn");
+      fillTab();
+    };
+
+    const changeOrders = (next: TrainOrder[]): void => {
+      const result = setOrders(state, trainId, next);
+      if (!result.ok) showToast(container, strings.build.reasons[result.reason], "warn");
+      fillTab();
+    };
+
+    function routeTab(t: Train): Node {
+      const canPick = pickHooks !== null && t.orders.length < 8;
+      const pickBtn = h(
+        "button",
+        {
+          className: `train-pick-station-btn${picking ? " active" : ""}`,
+          disabled: !canPick,
+          onClick: () => {
+            if (!pickHooks) return;
+            if (picking) {
+              picking = false;
+              pickHooks.cancelPickStationOnMap();
+              fillTab();
+              return;
+            }
+            picking = true;
+            fillTab();
+            pickHooks.pickStationOnMap((sid) => {
+              picking = false;
+              const cur = state.trains.find((x) => x.id === trainId);
+              if (cur && cur.orders.length < 8) {
+                changeOrders([...cur.orders, { stationId: sid, rule: "auto" }]);
+              } else fillTab();
+            });
           },
+        },
+        icon("plus", "icon-sm"),
+        h("span", null, picking ? strings.trains.tapAStation : p.addStop),
+      );
+      return h(
+        "div",
+        { className: "route-tab" },
+        t.orders.length === 0
+          ? emptyState(p.stopsNeeded, "mapPin")
+          : routeTimeline({
+              stops: t.orders.map((o) => ({
+                name: stationName(state, o.stationId),
+                rule: o.rule,
+              })),
+              marker: timelineMarker(t),
+              onRule: applyRule,
+              onRemove: (i) =>
+                changeOrders(t.orders.filter((_, j) => j !== i).map((o) => ({ ...o }))),
+              onMove: (i, dir) => {
+                const next = t.orders.map((o) => ({ ...o }));
+                const a = next[i];
+                const b = next[i + dir];
+                if (!a || !b) return;
+                next[i] = b;
+                next[i + dir] = a;
+                changeOrders(next);
+              },
+            }),
+        pickHooks ? pickBtn : null,
+      );
+    }
+
+    function statsTab(t: Train): Node {
+      const l = locomotiveById(t.locoModelId);
+      const ageFrac = (state.ticks - t.purchaseTick) / (HOURS_PER_DAY * DAYS_PER_YEAR);
+      const baseChance = l ? (BREAKDOWN_BASE_CHANCE_BY_RELIABILITY[l.reliability] ?? 0.02) : 0.02;
+      const monthly = baseChance * (1 + ageFrac / BREAKDOWN_AGE_DIVISOR_YEARS);
+      const capacity = t.cars.reduce((sum, c) => sum + CARGO[c.cargoType].capacity, 0);
+      const loaded = t.cars.reduce((sum, c) => sum + c.loadedUnits, 0);
+      const byCargo = new Map<CargoType, number>();
+      for (const c of t.cars) {
+        byCargo.set(c.cargoType, (byCargo.get(c.cargoType) ?? 0) + CARGO[c.cargoType].capacity);
+      }
+      return h(
+        "div",
+        { className: "train-stats" },
+        statRow(
+          statTile({
+            icon: "coin",
+            value: formatMoney(t.lifetimeRevenue),
+            caption: p.earned,
+            tone: t.lifetimeRevenue > 0 ? "go" : "muted",
+          }),
+          statTile({
+            icon: "wrench",
+            value: `${formatMoney(l?.maintenancePerYear ?? 0)}${strings.trains.stats.perYear}`,
+            caption: p.runningCost,
+          }),
+          statTile({ icon: "calendar", value: p.ageYears(Math.floor(ageFrac)), caption: p.age }),
+        ),
+        h(
+          "div",
+          { className: "train-stat-line" },
+          icon("reliability", "icon-sm"),
+          h("span", { className: "train-stat-label" }, p.reliability),
+          pips(l?.reliability ?? 0),
           h(
             "span",
-            { className: "action-btn-label" },
-            icon("edit", "icon-sm"),
-            strings.trains.editCars,
+            { className: "train-stat-note tabular" },
+            p.breakdownChance((monthly * 100).toFixed(1)),
           ),
         ),
-        h(
-          "button",
-          {
-            className: "action-btn",
-            onClick: () => openReplaceLocoPanel(container, state, trainId),
-          },
-          h(
-            "span",
-            { className: "action-btn-label" },
-            icon("wrench", "icon-sm"),
-            strings.trains.replace,
+        section(p.load, [
+          h("div", { className: "chip-row" }, ...t.cars.map((c) => carLoadChip(c))),
+        ]),
+        section(p.capacity, [
+          stackedBar(
+            [...byCargo].map(([cargo, cap]) => ({
+              key: cargo,
+              value: cap,
+              color: CARGO[cargo].color,
+              label: CARGO[cargo].name,
+              display: String(cap),
+            })),
+            p.noCars,
           ),
-        ),
-      ),
-      h("div", { className: "panel-section-title" }, strings.trains.orders),
-      ...(train.orders.length > 0
-        ? train.orders.map((o, i) =>
-            row(
-              `${i + 1}.`,
-              `${state.stations.find((s) => s.id === o.stationId)?.name ?? "?"} (${strings.trains.loadingRules[o.rule]})`,
-            ),
-          )
-        : [h("div", { className: "panel-row" }, "—")]),
-    ];
+          capacity > 0
+            ? meter(loaded, capacity, "brass", p.loadedOf(Math.round(loaded), capacity))
+            : null,
+        ]),
+      );
+    }
+
+    fillTab();
+
+    // Live refresh of the hero + status line (and the timeline marker), without rebuilding the
+    // panel — so taps and scroll position are never disturbed.
+    const sig = (t: Train): string =>
+      `${t.status}|${t.currentOrderIndex}|${Math.round(t.speed)}|${t.cars.map((c) => Math.round(c.loadedUnits)).join(",")}|${t.waitingOn?.stationId ?? ""}`;
+    let lastSig = sig(train);
+    const timer = window.setInterval(() => {
+      if (!heroHost.isConnected) {
+        window.clearInterval(timer);
+        return;
+      }
+      const t = state.trains.find((x) => x.id === trainId);
+      if (!t) return;
+      const s = sig(t);
+      if (s === lastSig) return;
+      lastSig = s;
+      fillLive();
+      if (tab === "route" && !picking) fillTab();
+    }, 800);
 
     const sellPlan = computeSellTrainPlan(state, trainId);
-    const sellBtn = h(
-      "button",
-      {
-        className: "btn-danger train-sell-btn",
-        onClick: (e: Event) => {
-          // Two-tap confirm: selling is irreversible, so the first tap only arms the button.
-          const btn = e.currentTarget as HTMLButtonElement;
-          if (btn.dataset.armed !== "1") {
-            btn.dataset.armed = "1";
-            btn.textContent = strings.trains.sellConfirm;
-            return;
-          }
-          const result = sellTrain(state, trainId);
-          if (!result.ok) {
-            showToast(container, strings.build.reasons[result.reason], "warn");
-            return;
-          }
-          closePanel();
-        },
+    const sellBtn = footerButton({
+      icon: "trash",
+      label: strings.trains.sell,
+      title: `${strings.trains.sell} +${formatMoney(sellPlan.refund)}`,
+      kind: "danger",
+      className: "train-sell-btn btn-danger",
+      onClick: () => {
+        // Two-tap confirm: selling is irreversible, so the first tap only arms the button.
+        if (!armed) {
+          armed = true;
+          const label = sellBtn.lastElementChild;
+          if (label) label.textContent = strings.trains.sellFor(formatMoney(sellPlan.refund));
+          return;
+        }
+        const result = sellTrain(state, trainId);
+        if (!result.ok) {
+          showToast(container, strings.build.reasons[result.reason], "warn");
+          return;
+        }
+        closePanel();
       },
-      `${strings.trains.sell} (+${formatMoney(sellPlan.refund)})`,
-    );
+    });
 
-    openPanel(container, { title: train.name, body, footer: [sellBtn] });
+    const thumb = loco ? h("div", { className: "loco-crop" }, locoArt(loco, 36)) : icon("trains");
+    const glyph = loco ? wheelGlyphEl(loco) : null;
+
+    openPanel(container, {
+      title: train.name,
+      subtitle: h(
+        "span",
+        { className: "train-subtitle" },
+        loco ? icon(tractionIcon(loco), "icon-xs") : null,
+        loco?.name ?? "?",
+        glyph,
+      ),
+      thumb,
+      tabs: tabs(
+        [
+          { id: "route", label: p.tabs.route, icon: "mapPin" },
+          { id: "stats", label: p.tabs.stats, icon: "trendUp" },
+        ] as const,
+        tab,
+        (id) => {
+          tab = id;
+          armed = false;
+          render();
+        },
+      ),
+      body: [heroHost, tabBody],
+      footer: [
+        footerButton({
+          icon: "edit",
+          label: strings.trains.editCars,
+          kind: "secondary",
+          className: "train-edit-btn",
+          onClick: () => openEditConsistSheet(container, state, trainId),
+        }),
+        footerButton({
+          icon: "swap",
+          label: strings.trains.replace,
+          kind: "secondary",
+          className: "train-replace-btn",
+          onClick: () => openReplaceLocoPanel(container, state, trainId),
+        }),
+        sellBtn,
+      ],
+      key: `train:${trainId}`,
+      onClose: () => {
+        window.clearInterval(timer);
+        if (picking) {
+          picking = false;
+          pickHooks?.cancelPickStationOnMap();
+        }
+      },
+    });
   };
 
   render();
 }
 
-/** Opens the "Edit cars" dialog for an existing train (PLAN Phase 15): the same add/remove car
- * picker as the Buy Train dialog, seeded with the train's current consist. Confirming applies
- * immediately if the train is at a station right now, or queues it for the next stop otherwise
- * (`editConsist` in commands.ts decides which). */
-function openEditConsistPanel(container: HTMLElement, state: GameState, trainId: number): void {
+// --- edit cars (full-screen sheet, same builder as the wizard's step 2) -------------------------
+
+function openEditConsistSheet(container: HTMLElement, state: GameState, trainId: number): void {
   const train = state.trains.find((t) => t.id === trainId);
   if (!train) return;
   const loco = locomotiveById(train.locoModelId);
   const year = currentYear(state);
-  let cars: CargoType[] = train.cars.map((c) => c.cargoType);
+  const cars: CargoType[] = train.cars.map((c) => c.cargoType);
+  const confirmBtn = footerButton({
+    label: strings.trains.confirm,
+    icon: "check",
+    kind: "primary",
+  });
+  confirmBtn.classList.add("edit-confirm", "wizard-next");
 
-  const carPickerEl = h("div", { className: "train-car-picker" });
-  const carListEl = h("div", { className: "train-car-list" });
-  const confirmBtn = h("button", { className: "panel-action-build" });
-  const cancelBtn = h(
-    "button",
-    {
-      className: "panel-action-cancel",
-      "aria-label": strings.ui.close,
-      onClick: () => openTrainPanel(container, state, trainId),
+  const builder = consistBuilder({
+    getLoco: () => loco,
+    year,
+    cars,
+    stripHeight: 56,
+    onChange: () => {
+      builder.refresh();
+      updateConfirm();
     },
-    icon("close"),
-  );
-
-  function render(): void {
-    carPickerEl.replaceChildren(
-      ...CARGO_TYPES.filter(
-        (c) =>
-          CARGO[c].era <= year && (!loco?.passengerMailOnly || c === "passengers" || c === "mail"),
-      ).map((c) =>
-        h(
-          "button",
-          {
-            className: "train-car-add-btn",
-            disabled: !loco || cars.length >= loco.maxCars,
-            style: { background: CARGO[c].color },
-            onClick: () => {
-              cars.push(c);
-              render();
-            },
-          },
-          carTypeLabel(c),
-        ),
-      ),
-    );
-    carListEl.replaceChildren(
-      ...cars.map((c, i) =>
-        h(
-          "button",
-          {
-            className: "train-car-chip",
-            style: { background: CARGO[c].color },
-            onClick: () => {
-              cars.splice(i, 1);
-              render();
-            },
-          },
-          CARGO[c].name,
-          icon("close", "icon-sm"),
-        ),
-      ),
-    );
-
+  });
+  function updateConfirm(): void {
     const plan = computeEditConsistPlan(state, trainId, cars);
-    const affordable = plan.netCost <= state.cash;
-    confirmBtn.textContent = `${strings.trains.confirm} (${formatMoney(plan.netCost)})`;
-    confirmBtn.disabled = !plan.valid || !affordable;
+    const label = confirmBtn.lastElementChild;
+    const sign = plan.netCost < 0 ? "+" : "";
+    if (label) {
+      label.textContent = `${strings.trains.confirm} · ${sign}${formatMoney(Math.abs(plan.netCost))}`;
+    }
+    confirmBtn.disabled = !plan.valid || plan.netCost > state.cash;
   }
+  updateConfirm();
 
+  const sheet = openSheet(container, {
+    className: "sheet-edit",
+    title: `${strings.trains.editCarsTitle} · ${train.name}`,
+    subtitle: train.status !== "loading" ? strings.trains.consistChangeQueued : undefined,
+    body: [builder.el],
+    footer: [
+      footerButton({
+        label: strings.ui.close,
+        kind: "secondary",
+        onClick: () => sheet.close(),
+      }),
+      confirmBtn,
+    ],
+  });
   confirmBtn.addEventListener("click", () => {
     const result = editConsist(state, trainId, cars);
     if (!result.ok) {
       showToast(container, strings.build.reasons[result.reason], "warn");
       return;
     }
+    sheet.close();
     openTrainPanel(container, state, trainId);
   });
-
-  openPanel(container, {
-    title: strings.trains.editCarsTitle,
-    body: [
-      h("div", { className: "panel-section-title" }, strings.trains.cars),
-      carPickerEl,
-      carListEl,
-      ...(train.status !== "loading"
-        ? [
-            h(
-              "div",
-              { className: "panel-row train-consist-pending" },
-              strings.trains.consistChangeQueued,
-            ),
-          ]
-        : []),
-    ],
-    footer: [confirmBtn, cancelBtn],
-  });
-
-  render();
 }
 
-/** Opens the locomotive picker for `trainId`'s "Replace Locomotive" action (SPEC §7.6: pay the new
- * loco's price minus a trade-in credit for the old one, keep cars and orders). Tapping a model
- * replaces immediately (no separate confirm bar, matching the Station upgrade button's flow). */
+// --- replace locomotive --------------------------------------------------------------------------
+
+/** The locomotive picker for "Replace" (SPEC §7.6: pay the new loco's price minus a trade-in credit
+ * for the old one, keep cars and orders). Tapping a model replaces immediately. */
 function openReplaceLocoPanel(container: HTMLElement, state: GameState, trainId: number): void {
   const year = currentYear(state);
-  const available = buyableLocomotivesIn(year);
+  const available = buyableLocomotivesIn(year)
+    .slice()
+    .sort((a, b) => b.introYear - a.introYear);
 
-  const list = h("div", { className: "train-loco-list" });
-  list.replaceChildren(
-    ...available.map((loco) => {
-      const plan = computeReplaceLocoPlan(state, trainId, loco.id);
-      const btn = h(
-        "button",
-        {
-          className: "train-loco-btn",
-          disabled: !plan.valid || plan.netCost > state.cash,
-          onClick: () => {
-            const result = replaceLocomotive(state, trainId, loco.id);
-            if (!result.ok) {
-              showToast(container, strings.build.reasons[result.reason], "warn");
-              return;
-            }
-            openTrainPanel(container, state, trainId);
-          },
-        },
-        h(
-          "span",
-          { className: "train-loco-name" },
-          `${loco.name} (${strings.trains.locoTypes[loco.type]})`,
-          loco.introYear + NEW_LOCOMOTIVE_BADGE_YEARS >= year &&
-            h("span", { className: "train-loco-new-badge" }, strings.trains.newBadge),
-        ),
-        h(
-          "span",
-          { className: "train-loco-stats" },
-          plan.valid
-            ? `${formatMoney(plan.netCost)} (${strings.trains.tradeInCredit} ${formatMoney(plan.tradeInValue)})`
-            : "—",
-        ),
-      );
-      return btn;
-    }),
-  );
-
-  const cancelBtn = h(
-    "button",
-    {
-      className: "panel-action-cancel",
-      "aria-label": strings.ui.close,
-      onClick: () => openTrainPanel(container, state, trainId),
-    },
-    icon("close"),
-  );
+  const rows = available.map((loco) => {
+    const plan = computeReplaceLocoPlan(state, trainId, loco.id);
+    const isNew = loco.introYear + NEW_LOCOMOTIVE_BADGE_YEARS >= year;
+    return cardRow({
+      className: "train-loco-btn eng-card",
+      thumb: h("div", { className: "eng-thumb" }, locoArt(loco, 32)),
+      title: h(
+        "span",
+        { className: "eng-card-title" },
+        h("span", { className: "eng-card-name" }, loco.name),
+        isNew ? h("span", { className: "new-chip" }, strings.trains.newBadge) : null,
+      ),
+      meta: plan.valid
+        ? `${strings.trains.tradeInCredit} ${formatMoney(plan.tradeInValue)}`
+        : strings.trains.replaceUnavailable,
+      trailing: plan.valid ? formatMoney(plan.netCost) : "—",
+      disabled: !plan.valid || plan.netCost > state.cash,
+      onClick: () => {
+        const result = replaceLocomotive(state, trainId, loco.id);
+        if (!result.ok) {
+          showToast(container, strings.build.reasons[result.reason], "warn");
+          return;
+        }
+        openTrainPanel(container, state, trainId);
+      },
+    });
+  });
 
   openPanel(container, {
     title: strings.trains.replaceTitle,
-    body: [list],
-    footer: [cancelBtn],
+    subtitle: state.trains.find((t) => t.id === trainId)?.name,
+    thumb: icon("swap"),
+    body: [cardList(...rows)],
+    footer: [
+      footerButton({
+        icon: "arrowLeft",
+        label: strings.ui.back,
+        kind: "secondary",
+        className: "panel-action-cancel",
+        onClick: () => openTrainPanel(container, state, trainId),
+      }),
+    ],
+    key: `train-replace:${trainId}`,
   });
+}
+
+// --- train list ----------------------------------------------------------------------------------
+
+function locoThumbFor(t: Train): Node {
+  const def = locomotiveById(t.locoModelId);
+  return def ? locoArt(def, 32) : icon("steam");
 }
 
 /** Opens the train list; tapping a row focuses the camera on that train (via `onFocus`) and opens
@@ -450,21 +615,35 @@ export function openTrainListPanel(
 ): void {
   const body: Node[] =
     state.trains.length === 0
-      ? [h("div", { className: "panel-row" }, strings.trains.none)]
-      : state.trains.map((t) =>
-          h(
-            "button",
-            {
-              className: "train-list-row",
-              onClick: () => {
-                onFocus(t.id);
-                openTrainPanel(container, state, t.id);
-              },
-            },
-            h("span", null, t.name),
-            h("span", { className: "train-list-status" }, statusText(state, t)),
+      ? [emptyState(strings.trains.none, "trains")]
+      : [
+          cardList(
+            ...state.trains.map((t) => {
+              const st = STATUS_ICON[t.status];
+              return cardRow({
+                className: "train-list-row",
+                thumb: h("div", { className: "eng-thumb" }, locoThumbFor(t)),
+                title: t.name,
+                meta: h(
+                  "span",
+                  { className: "card-meta-inline" },
+                  icon(st.icon, `icon-xs tone-${st.tone}`),
+                  statusText(state, t),
+                ),
+                chevron: true,
+                onClick: () => {
+                  onFocus(t.id);
+                  openTrainPanel(container, state, t.id);
+                },
+              });
+            }),
           ),
-        );
+        ];
 
-  openPanel(container, { title: strings.trains.listTitle, body });
+  openPanel(container, {
+    title: strings.trains.listTitle,
+    subtitle: strings.trains.listSubtitle(state.trains.length),
+    thumb: icon("trains"),
+    body,
+  });
 }

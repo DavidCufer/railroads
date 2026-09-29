@@ -31,6 +31,7 @@ import type { GameState } from "../sim/state";
 import { calendarFromTicks } from "../sim/time";
 import { cargoChip, cargoDemandTile } from "./infoPanels";
 import { h } from "./h";
+import { locoArt } from "./trainArt";
 import { icon, type IconName } from "./icons";
 import { cardList, cardRow } from "./components/cardRow";
 import { emptyState } from "./components/emptyState";
@@ -349,14 +350,7 @@ const STATUS_ICONS: Record<string, { icon: IconName; tone: Tone }> = {
   broken: { icon: "wrench", tone: "signal" },
 };
 
-const LOCO_TYPE_ICONS: Record<string, IconName> = {
-  steam: "steam",
-  diesel: "diesel",
-  electric: "electrify",
-};
-
-/** Trains that call here as card rows: loco thumb (a plain traction-type icon until the side views
- * land), name, status icon + next stop. */
+/** Trains that call here as card rows: loco side view, name, status icon + next stop. */
 function trainsTab(state: GameState, station: Station, handlers?: StationPanelHandlers): Node {
   const serving = state.trains.filter((t) => t.orders.some((o) => o.stationId === station.id));
   if (serving.length === 0) return emptyState(strings.trains.none, "trains");
@@ -368,7 +362,7 @@ function trainsTab(state: GameState, station: Station, handlers?: StationPanelHa
       const statusIcon = icon(st.icon, `icon-sm tone-${st.tone}`);
       return cardRow({
         className: "train-loco-btn",
-        thumb: icon(LOCO_TYPE_ICONS[loco?.type ?? "steam"] ?? "steam"),
+        thumb: h("div", { className: "eng-thumb" }, loco ? locoArt(loco, 32) : icon("steam")),
         title: t.name,
         meta: h(
           "span",

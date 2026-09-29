@@ -287,8 +287,9 @@ test.describe("Phase 6 — Trains", () => {
       el.scrollTop = el.scrollHeight;
     });
     await page.waitForTimeout(50);
-    await expect(page.locator("text=Glenbury Crossing (Auto)")).toBeVisible();
-    await expect(page.locator("text=Ashtown Crossing (Auto)")).toBeVisible();
+    await expect(page.locator(".tl-station", { hasText: "Glenbury Crossing" })).toBeVisible();
+    await expect(page.locator(".tl-station", { hasText: "Ashtown Crossing" })).toBeVisible();
+    await expect(page.locator(".rule-chip", { hasText: "Auto" }).first()).toBeVisible();
     await page.screenshot({ path: "docs/screenshots/phase-6-train-panel.png" });
   });
 
@@ -318,22 +319,23 @@ test.describe("Phase 6 — Trains", () => {
     await page.waitForTimeout(300);
     await expect(page.locator(".panel-title").last()).toHaveText("Train 1");
 
-    await page.locator(".action-btn", { hasText: "Edit cars" }).click();
+    await page.locator(".train-edit-btn").click();
     await page.waitForTimeout(200);
-    await expect(page.locator(".panel-title").last()).toHaveText("Edit Consist");
+    await expect(page.locator(".sheet-title")).toContainText("Edit Consist");
     await page.locator(".train-car-add-btn", { hasText: "Coal" }).click();
     await page.locator(".train-car-add-btn", { hasText: "Grain" }).click();
     await page.waitForTimeout(50);
     await page.screenshot({ path: "docs/screenshots/phase-15-consist-editor.png" });
-    await page.locator(".panel-action-build").last().click();
+    await page.locator(".edit-confirm").click();
     await page.waitForTimeout(200);
 
     const trains = await page.evaluate(() => window.__game!.getTrains());
     const train = trains.find((t) => t.id === trainId);
     expect(train?.cars).toEqual(["coal", "grain"]);
     await expect(page.locator(".panel-title").last()).toHaveText(train!.name);
-    await expect(page.locator(".chip", { hasText: "Coal" })).toBeVisible();
-    await expect(page.locator(".chip", { hasText: "Grain" })).toBeVisible();
+    // The hero strip draws each car (one button-less vehicle per car, tagged with its cargo).
+    await expect(page.locator('.train-hero .consist-veh[data-cargo="coal"]')).toBeVisible();
+    await expect(page.locator('.train-hero .consist-veh[data-cargo="grain"]')).toBeVisible();
   });
 
   test("double track allows two trains to run in opposite directions concurrently", async ({

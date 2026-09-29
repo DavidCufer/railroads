@@ -72,7 +72,7 @@ async function noHorizontalOverflow(page: Page, rootSel: string): Promise<void> 
     const box = root.getBoundingClientRect();
     const out: string[] = [];
     for (const el of root.querySelectorAll<HTMLElement>("*")) {
-      if (el.closest(".consist-strip, .eng-list, .cb-palette, .roster-strip")) continue;
+      if (el.closest(".consist-strip, .eng-list, .cb-palette, .roster-strip, .loco-crop")) continue;
       const r = el.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue;
       if (r.right > box.right + 1 || r.left < box.left - 1)
@@ -126,5 +126,39 @@ test.describe("Phase 22 — train screens", () => {
     const trains = await page.evaluate(() => window.__game!.getTrains());
     expect(trains).toHaveLength(1);
     expect(trains[0]!.cars.length).toBe(2);
+  });
+
+  test("train panel: hero strip, status, route timeline, stats, rule change", async ({ page }) => {
+    await setup(page);
+    const ids = await buildWorld(page, true);
+    await page.evaluate(() => window.__game!.runDays(6));
+    await page.evaluate((id) => window.__game!.debugOpenTrain(id), ids.train);
+    await expect(page.locator(".panel-title")).toHaveText("Train 1");
+    await expect(page.locator(".train-hero .consist-veh")).toHaveCount(3); // 2 cars + loco
+    await expect(page.locator('[data-testid="train-status"]')).toBeVisible();
+    await expect(page.locator('[data-testid="tl-stop"]')).toHaveCount(2);
+    await noHorizontalOverflow(page, ".panel");
+    await shot(page, "train-panel");
+
+    // Tap a stop's rule chip: it cycles Auto → Full load, keeping the train's progress.
+    const before = await page.evaluate(() => window.__game!.getTrains()[0]!.status);
+    await page.locator('[data-testid="rule-chip"]').first().click();
+    await expect(page.locator('[data-testid="rule-chip"]').first()).toContainText("Full load");
+    const after = await page.evaluate(() => window.__game!.getTrains()[0]!.status);
+    expect(after).toBe(before);
+
+    await page.locator(".tab", { hasText: "Stats" }).click();
+    await expect(page.locator(".train-stats")).toBeVisible();
+    await shot(page, "train-stats");
+    await page.locator(".tab", { hasText: "Route" }).click();
+
+    // A third stop through the map-pick hook (as if the player tapped a station).
+    await page.locator(".train-pick-station-btn").click();
+    await page.evaluate((sid) => window.__game!.debugPickStation(sid), ids.a);
+    await expect(page.locator('[data-testid="tl-stop"]')).toHaveCount(3);
+    await page.locator(".panel-body").evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+    });
+    await shot(page, "train-route");
   });
 });

@@ -102,7 +102,12 @@ import { advanceOneHour } from "./sim/tick";
 import type { TrainOrder } from "./sim/trains/types";
 import type { Station } from "./sim/stations/types";
 import { debugTriggerCrash, installErrorBoundary } from "./ui/errorBoundary";
-import { openBuyTrainPanel, openTrainListPanel, openTrainPanel } from "./ui/trainPanels";
+import {
+  openBuyTrainPanel,
+  openTrainListPanel,
+  openTrainPanel,
+  setStationPickHooks,
+} from "./ui/trainPanels";
 import { createTrainListButton } from "./ui/toolbar";
 import { createNewsButton, formatNewsItem, openNewsPanel } from "./ui/newsPanel";
 import { openFinancePanel } from "./ui/financePanel";
@@ -395,6 +400,15 @@ function main(): void {
       },
     });
   }
+
+  setStationPickHooks({
+    pickStationOnMap: (onPicked) => {
+      stationPickHandler = onPicked;
+    },
+    cancelPickStationOnMap: () => {
+      stationPickHandler = null;
+    },
+  });
 
   function handleTap(canvasX: number, canvasY: number): void {
     const viewportW = window.innerWidth;

@@ -3366,3 +3366,120 @@ button.rule-chip:active {
   border-radius: 999px;
   font-size: var(--fs-xs);
 }
+
+/* ---------- train panel v2 ---------- */
+
+.train-live {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.train-hero {
+  background: #ece4d2;
+  border-radius: var(--radius-m);
+  padding: 6px 6px 2px;
+}
+.train-status-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 22px;
+  font-size: var(--fs-s);
+}
+.train-status-line.problem .train-status-text {
+  color: #e58b78;
+}
+.train-status-text {
+  font-weight: 600;
+  min-width: 0;
+}
+.train-route-warning {
+  color: #e58b78;
+  font-size: var(--fs-xs);
+}
+.train-consist-pending {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+.train-tab-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-3);
+}
+.loco-crop {
+  width: 44px;
+  height: 36px;
+  display: flex;
+  justify-content: flex-end;
+  overflow: hidden;
+  border-radius: var(--radius-s);
+}
+.loco-crop .art-canvas {
+  max-width: none;
+}
+.has-thumb .panel-thumb:has(.loco-crop) {
+  width: 44px;
+}
+.train-subtitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.train-stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-3);
+}
+.train-stat-line {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+}
+.train-stat-label {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.train-stat-note {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+.tl-stop.next::before {
+  top: 0;
+}
+.card-row.train-list-row .eng-thumb {
+  width: 80px;
+}
+.card-row.train-loco-btn .eng-thumb {
+  width: 80px;
+}
+.card-row.train-loco-btn:not(.eng-card) {
+  display: flex;
+}
+.panel:has(.train-live) .panel-body {
+  gap: 6px;
+}
+.route-tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+}
+.route-tab .tl-row {
+  min-height: 40px;
+}
+.train-sell-btn {
+  flex: 1.35 !important;
+}
+.train-hero {
+  padding: 4px 6px 1px;
+}
+.train-sell-btn {
+  flex: 0 0 auto !important;
+  min-width: 88px;
+}
+.panel:has(.train-live) .panel-body {
+  padding-top: 8px;
+}

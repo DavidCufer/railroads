@@ -457,6 +457,9 @@ test.describe("Phase 7 — cargo flow and economy", () => {
     await page.mouse.click(viewport.width / 2, viewport.height / 2);
     await page.waitForTimeout(300);
     await expect(page.locator(".panel-title")).toHaveText(trainNow.name);
+    // The hero strip draws the cars; the Stats tab names each car's load ("Coal 20 / 20 t").
+    await expect(page.locator('.train-hero .consist-veh[data-cargo="coal"]').first()).toBeVisible();
+    await page.locator(".tab", { hasText: "Stats" }).click();
     await expect(page.locator(".chip", { hasText: "Coal" }).first()).toBeVisible();
     // PLAN Phase 16: each car chip now shows its fill ("Coal 20 / 20 t") plus a small bar, not just
     // the cargo name.
