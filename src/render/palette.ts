@@ -117,7 +117,22 @@ export const OVERLAY_PROFIT_NEUTRAL = "#B8BDC4";
 /** Mini-map (SPEC §10.1). */
 export const MINIMAP_BG = "rgba(10, 12, 16, 0.9)";
 export const MINIMAP_VIEWPORT_BORDER = "#F2B544";
-export const MINIMAP_TRACK_COLOR = "rgba(230, 224, 210, 0.8)";
+export const MINIMAP_TRACK_COLOR = "rgba(28, 24, 22, 0.92)";
+export const MINIMAP_CITY_COLOR = "#D8453C";
+/** Mini-map ground colours (Phase 25B): distinct per class, stronger than the on-map tones. */
+export const MINIMAP_TERRAIN_COLORS: Record<Terrain, string> = {
+  plain: "#9CC26A",
+  forest: "#3E7A3A",
+  hills: "#B0A24C",
+  mountain: "#7E6E60",
+  desert: "#E0C88A",
+  swamp: "#5E8A72",
+  water: "#2E5E8C",
+  river: "#8BB8A8",
+};
+export const MINIMAP_WATER_SHALLOW = "#5B9BCB";
+export const MINIMAP_WATER_DEEP = "#1F4670";
+export const MINIMAP_PEAK_COLOR = "#E4E0D8";
 export const MINIMAP_STATION_COLOR = "#F2B544";
 
 /** Industry structure colors — kept muted/industrial, distinct from the natural terrain palette. */

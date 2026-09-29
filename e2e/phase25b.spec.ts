@@ -46,3 +46,28 @@ test("random map", async ({ page }) => {
   ]);
   for (const z of [0.35, 0.6, 1]) await shot(page, w / 2, h / 2, z, `random-z${z}`);
 });
+
+test.describe("minimap", () => {
+  test.use({ deviceScaleFactor: 3 });
+  test("minimap close-ups", async ({ page }) => {
+    await page.setViewportSize({ width: 800, height: 360 });
+    for (const [name, opts] of [
+      ["central-eu", { seed: 1, region: "central-eu" }],
+      ["random", { seed: 777, size: "medium", waterLevel: "normal", startYear: 1848 }],
+    ] as const) {
+      await page.goto("/?debug=1");
+      await page.waitForFunction(() => window.__game !== undefined);
+      await page.evaluate((o) => window.__game?.regenerate(o as never), opts);
+      // Hide the debug controls that sit over the minimap.
+      await page.evaluate(() => {
+        document.querySelector<HTMLElement>("#debug-overlay")?.style.setProperty("display", "none");
+        document.querySelector("select")?.parentElement?.style.setProperty("display", "none");
+      });
+      await page.waitForTimeout(700);
+      await page.screenshot({
+        path: `docs/screenshots/${PREFIX}-minimap-${name}.png`,
+        clip: { x: 60, y: 200, width: 150, height: 160 },
+      });
+    }
+  });
+});

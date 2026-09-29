@@ -985,6 +985,7 @@ function main(): void {
           state.trackGraph,
           state.stations,
           state.cities,
+          state.industries,
           state.trackVersion,
           state.mapContentVersion,
         );

@@ -10,19 +10,54 @@ import type { GameMap } from "../sim/map/types";
 import type { TrackGraph } from "../sim/track/graph";
 import type { Station } from "../sim/stations/types";
 import type { City } from "../sim/economy/types";
-import { terrainId } from "../sim/map/terrain";
+import { terrainId, type Terrain } from "../sim/map/terrain";
+import type { Industry } from "../sim/economy/types";
+import { shoreDistanceField } from "./terrain";
+import { industryMarkerColor } from "./zoomMarkers";
 import { Camera, TILE_SIZE } from "./camera";
 import {
-  CITY_ROOF_COLORS,
   MINIMAP_BG,
+  MINIMAP_CITY_COLOR,
+  MINIMAP_PEAK_COLOR,
+  MINIMAP_TERRAIN_COLORS,
+  MINIMAP_WATER_DEEP,
+  MINIMAP_WATER_SHALLOW,
   MINIMAP_STATION_COLOR,
   MINIMAP_TRACK_COLOR,
   MINIMAP_VIEWPORT_BORDER,
-  TERRAIN_COLORS,
-  WATER_DEEP_COLOR,
 } from "./palette";
 
 const WATER_ID = terrainId("water");
+const MOUNTAIN_ID = terrainId("mountain");
+/** Tiles from the shore at which mini-map water reaches its deepest colour. */
+const WATER_DEPTH_REACH = 8;
+const CITY_SQUARE_PX: Record<City["tier"], number> = {
+  village: 2,
+  town: 3,
+  city: 4,
+  metropolis: 5,
+};
+
+type Rgb = readonly [number, number, number];
+function rgbOf(hex: string): Rgb {
+  return [
+    parseInt(hex.slice(1, 3), 16),
+    parseInt(hex.slice(3, 5), 16),
+    parseInt(hex.slice(5, 7), 16),
+  ];
+}
+function mixRgb(a: Rgb, b: Rgb, t: number): Rgb {
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+}
+const WATER_SHALLOW_RGB = rgbOf(MINIMAP_WATER_SHALLOW);
+const WATER_DEEP_RGB = rgbOf(MINIMAP_WATER_DEEP);
+const MOUNTAIN_RGB = rgbOf(MINIMAP_TERRAIN_COLORS.mountain);
+const PEAK_RGB = rgbOf(MINIMAP_PEAK_COLOR);
+const PLAIN_RGB = rgbOf(MINIMAP_TERRAIN_COLORS.plain);
+const TERRAIN_RGB: Array<Rgb | undefined> = [];
+for (const t of Object.keys(MINIMAP_TERRAIN_COLORS) as Terrain[]) {
+  TERRAIN_RGB[terrainId(t)] = rgbOf(MINIMAP_TERRAIN_COLORS[t]);
+}
 
 export interface MiniMapRect {
   x: number;
@@ -57,6 +92,7 @@ export class MiniMapRenderer {
   private buildCache(
     trackGraph: TrackGraph,
     cities: readonly City[],
+    industries: readonly Industry[],
     sizePx: number,
   ): HTMLCanvasElement {
     const map = this.map;
@@ -68,39 +104,60 @@ export class MiniMapRenderer {
     canvas.height = h;
     const cctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 
+    // Ground: every mini-map pixel is the average colour of the tiles under it (a box filter, so
+    // forests, hills and coasts stay soft instead of aliasing to one sampled tile).
+    const shore = shoreDistanceField(map);
+    const tileRgb = new Uint8Array(map.width * map.height * 3);
+    for (let idx = 0; idx < map.width * map.height; idx++) {
+      const id = map.terrain[idx] as number;
+      let rgb: readonly [number, number, number];
+      if (id === WATER_ID) {
+        rgb = mixRgb(
+          WATER_SHALLOW_RGB,
+          WATER_DEEP_RGB,
+          Math.min(1, Math.max(0, (shore[idx] as number) - 1) / WATER_DEPTH_REACH),
+        );
+      } else if (id === MOUNTAIN_ID) {
+        // Peaks lighter: the higher the mountain tile, the closer to the snow colour.
+        const peak = Math.min(1, Math.max(0, ((map.elevation[idx] as number) - 6) / 6));
+        rgb = mixRgb(MOUNTAIN_RGB, PEAK_RGB, peak * 0.85);
+      } else {
+        rgb = TERRAIN_RGB[id] ?? PLAIN_RGB;
+      }
+      tileRgb[idx * 3] = rgb[0];
+      tileRgb[idx * 3 + 1] = rgb[1];
+      tileRgb[idx * 3 + 2] = rgb[2];
+    }
     const img = cctx.createImageData(w, h);
     for (let py = 0; py < h; py++) {
-      const ty = Math.min(map.height - 1, Math.floor((py / h) * map.height));
+      const ty0 = Math.min(map.height - 1, Math.floor((py / h) * map.height));
+      const ty1 = Math.min(map.height, Math.max(ty0 + 1, Math.ceil(((py + 1) / h) * map.height)));
       for (let px = 0; px < w; px++) {
-        const tx = Math.min(map.width - 1, Math.floor((px / w) * map.width));
-        const idx = ty * map.width + tx;
-        const isWater = (map.terrain[idx] as number) === WATER_ID;
-        const hex = isWater ? WATER_DEEP_COLOR : TERRAIN_COLORS.plain;
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
+        const tx0 = Math.min(map.width - 1, Math.floor((px / w) * map.width));
+        const tx1 = Math.min(map.width, Math.max(tx0 + 1, Math.ceil(((px + 1) / w) * map.width)));
+        let r = 0;
+        let g = 0;
+        let b = 0;
+        let n = 0;
+        for (let ty = ty0; ty < ty1; ty++) {
+          for (let tx = tx0; tx < tx1; tx++) {
+            const o = (ty * map.width + tx) * 3;
+            r += tileRgb[o] as number;
+            g += tileRgb[o + 1] as number;
+            b += tileRgb[o + 2] as number;
+            n++;
+          }
+        }
         const o = (py * w + px) * 4;
-        img.data[o] = r;
-        img.data[o + 1] = g;
-        img.data[o + 2] = b;
+        img.data[o] = r / n;
+        img.data[o + 1] = g / n;
+        img.data[o + 2] = b / n;
         img.data[o + 3] = 255;
       }
     }
     cctx.putImageData(img, 0, 0);
 
-    // Cities: a small tinted patch per footprint tile, cycling the same roof colors used on-map.
-    for (const city of cities) {
-      cctx.fillStyle = CITY_ROOF_COLORS[city.id % CITY_ROOF_COLORS.length] as string;
-      for (const idx of city.tiles) {
-        const x = idx % map.width;
-        const y = Math.floor(idx / map.width);
-        const px = Math.floor((x / map.width) * w);
-        const py = Math.floor((y / map.height) * h);
-        cctx.fillRect(px, py, 1, 1);
-      }
-    }
-
-    // Track: thin lines between edge endpoints.
+    // Track: thin dark lines between edge endpoints.
     cctx.strokeStyle = MINIMAP_TRACK_COLOR;
     cctx.lineWidth = 1;
     cctx.beginPath();
@@ -113,6 +170,36 @@ export class MiniMapRenderer {
       cctx.lineTo(bx, by);
     }
     cctx.stroke();
+
+    // Industries: tiny dots in the colour of their main product, on a dark pip so they read on any
+    // ground.
+    industries.forEach((ind, i) => {
+      if ((map.industryId[ind.y * map.width + ind.x] as number) !== i) return;
+      const x = Math.floor(((ind.x + 0.5) / map.width) * w);
+      const y = Math.floor(((ind.y + 0.5) / map.height) * h);
+      cctx.fillStyle = "rgba(14, 14, 18, 0.75)";
+      cctx.fillRect(x - 1, y - 1, 3, 3);
+      cctx.fillStyle = industryMarkerColor(ind.type);
+      cctx.fillRect(x, y, 2, 2);
+    });
+
+    // Cities: small red squares at the footprint centre, bigger for bigger cities.
+    for (const city of cities) {
+      if (city.tiles.length === 0) continue;
+      let sx = 0;
+      let sy = 0;
+      for (const idx of city.tiles) {
+        sx += idx % map.width;
+        sy += Math.floor(idx / map.width);
+      }
+      const side = CITY_SQUARE_PX[city.tier];
+      const x = Math.round(((sx / city.tiles.length + 0.5) / map.width) * w - side / 2);
+      const y = Math.round(((sy / city.tiles.length + 0.5) / map.height) * h - side / 2);
+      cctx.fillStyle = "rgba(14, 14, 18, 0.7)";
+      cctx.fillRect(x - 0.5, y - 0.5, side + 1, side + 1);
+      cctx.fillStyle = MINIMAP_CITY_COLOR;
+      cctx.fillRect(x, y, side, side);
+    }
 
     return canvas;
   }
@@ -158,6 +245,7 @@ export class MiniMapRenderer {
     trackGraph: TrackGraph,
     stations: readonly Station[],
     cities: readonly City[],
+    industries: readonly Industry[],
     trackVersion: number,
     mapContentVersion: number,
     sizePx: number = MINIMAP_SIZE_PX,
@@ -165,7 +253,7 @@ export class MiniMapRenderer {
     const rect = this.screenRect(viewportH, sizePx);
     const key = `${sizePx}|${trackVersion}|${mapContentVersion}`;
     if (!this.cache || this.cacheKey !== key) {
-      this.cache = this.buildCache(trackGraph, cities, sizePx);
+      this.cache = this.buildCache(trackGraph, cities, industries, sizePx);
       this.cacheKey = key;
     }
 
