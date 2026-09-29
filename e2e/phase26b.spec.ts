@@ -270,3 +270,22 @@ test.describe("Phase 26B — station Build tab and Help", () => {
     await page.screenshot({ path: shot("help-money") });
   });
 });
+
+test.describe("Phase 26B — map edge", () => {
+  test("the camera stops at a quarter screen past the edge and the margin is sea, not black", async ({
+    page,
+  }) => {
+    await setup(page);
+    await page.evaluate(() => window.__game!.camera.setZoom(1));
+    await page.evaluate(() => window.__game!.camera.pan(1e6, 1e6)); // drag toward the top-left corner
+    await page.waitForTimeout(300);
+    const center = await page.evaluate(() => window.__game!.camera.getCenter());
+    // At zoom 1 the centre may sit at most a quarter of the viewport inside the corner.
+    expect(center.x).toBeCloseTo(PHONE_VIEWPORT.width / 4, 0);
+    expect(center.y).toBeCloseTo(PHONE_VIEWPORT.height / 4, 0);
+    await page.screenshot({ path: shot("map-edge-corner") });
+    await page.evaluate(() => window.__game!.camera.setZoom(0.5));
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: shot("map-edge-zoomed-out") });
+  });
+});

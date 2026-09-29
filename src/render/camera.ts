@@ -6,6 +6,9 @@ export const MAX_ZOOM = 2;
 /** Below this zoom, the renderer switches to the simplified "overview" style. */
 export const OVERVIEW_ZOOM_THRESHOLD = 0.5;
 
+/** Fraction of the viewport that may show past the map edge (PLAN Phase 26B: ~1/4 screen). */
+export const EDGE_MARGIN_FRACTION = 0.25;
+
 function clamp(v: number, min: number, max: number): number {
   return v < min ? min : v > max ? max : v;
 }
@@ -25,6 +28,9 @@ export class Camera {
   x: number;
   y: number;
   zoom = 1;
+  /** Viewport size in CSS px, set by the renderer each frame; 0 until known. */
+  private viewportW = 0;
+  private viewportH = 0;
 
   constructor(
     private mapTilesWidth: number,
@@ -79,6 +85,8 @@ export class Camera {
     viewportW: number,
     viewportH: number,
   ): void {
+    this.viewportW = viewportW;
+    this.viewportH = viewportH;
     const before = this.screenToWorld(screenX, screenY, viewportW, viewportH);
     this.zoom = clamp(this.zoom * factor, MIN_ZOOM, MAX_ZOOM);
     const after = this.screenToWorld(screenX, screenY, viewportW, viewportH);
@@ -87,10 +95,28 @@ export class Camera {
     this.clampToMap();
   }
 
-  private clampToMap(): void {
-    // Allow a little overscroll so a small map doesn't feel glued to the edges, but keep the
-    // camera center within the map's bounding box.
-    this.x = clamp(this.x, 0, this.worldWidth);
-    this.y = clamp(this.y, 0, this.worldHeight);
+  /** Tells the camera the viewport size (CSS px) and re-clamps — called every frame, so a resize,
+   * a rotation or a direct `x`/`y` assignment can't leave the view outside the map. */
+  setViewport(width: number, height: number): void {
+    this.viewportW = width;
+    this.viewportH = height;
+    this.clampToMap();
+  }
+
+  /** Re-applies the pan limits (call after setting `zoom`, `x` or `y` directly). */
+  clampToMap(): void {
+    this.x = this.clampAxis(this.x, this.worldWidth, this.viewportW);
+    this.y = this.clampAxis(this.y, this.worldHeight, this.viewportH);
+  }
+
+  /** At most `EDGE_MARGIN_FRACTION` of the viewport may show beyond the map edge on either side;
+   * a map smaller than the view on that axis is centred. */
+  private clampAxis(v: number, world: number, viewport: number): number {
+    if (viewport <= 0) return clamp(v, 0, world);
+    const half = viewport / (2 * this.zoom);
+    const margin = (viewport * EDGE_MARGIN_FRACTION) / this.zoom;
+    const min = half - margin;
+    const max = world - half + margin;
+    return min > max ? world / 2 : clamp(v, min, max);
   }
 }

@@ -4257,3 +4257,33 @@ Findings: (1) Town↔Town passengers at 100 km earn ~0.6× coal (target 0.8–1.
 (2) Revenue is ∝ distance for a loco that keeps its speed bonus: 1900 coal 61k → 121k → 227k for 50/100/200 km, so a long line beats a short one.
 (3) The 1830 grasshopper (25 km/h, ~11 km/h with 3 loaded cars) barely covers its upkeep on any line and *loses* on long ones (200 km: coal 7k revenue) —
 slow engines lose the time bonus; the player's "$3k passengers / $14k freight a year" is this early-game regime.
+
+## 2026-09-29 — Phase 26B: news, junction art, station upgrade explanations + Help, map edge
+UI/render only (`src/sim/**` gets only the news collapse + a `clearAllNews` command). `npm run check` (517 unit) and full `npm run e2e` (169) green. New: `e2e/phase26b.spec.ts`,
+`tests/sim/news.test.ts`, `tests/render/camera.test.ts`, `src/ui/{helpPanel,stationUpgrades}.ts`, `src/render/mapEdge.ts`. Screenshots (opened and checked, 800×360 @2x, `docs/screenshots/phase-26b-*`):
+`news-collapsed`, `news-clear-confirm`, `news-cleared`, `junction-{wye,crossing,branch-station,dense-north,dense-south,dense-crossing}-z{1.5,2}-{before,after}`, `station-build-tab{,-scrolled}`, `help-{upgrades,money}`, `map-edge-{corner,zoomed-out}`.
+
+### News
+- `pushNews` (sim) folds repeats of the same kind + place (nearest station for jams/washouts; train for breakdown/no-route/undeliverable) within 60 days into the earlier item: `count` +1, `tick` = latest, no new toast.
+  A traffic jam repeating at the same place within 30 days is dropped outright. Constants in `data/news.ts`. `count` is optional on `NewsItem`, so no save bump.
+- News panel shows "… ×3" and a pinned **Clear all** footer button with the Sell-style two-tap confirm (`clearAllNews` command → `clearNews`).
+
+### Junction art
+- Reproduced with a double main, double wye + stem, a single line crossing the stem, a double branch next to a station, two close double turnouts, a forking double branch, a single/double pair crossing on
+  diagonals and a double×double crossing (`e2e/phase26b.spec.ts`, `SHOT=before|after`). The Phase 17/24B lane geometry (connector arcs, turnout shift, one tie set per strand) already produced clean
+  turnouts and wyes in these layouts; the visible defect was the **black junction dot** sitting on the rails at every degree-≥3 node. It is no longer drawn (the sharp-turn warning marker stays).
+- Not changed: overlapping tie sets where a double line crosses another line (reads as a crossing plate); I found no layout where curves overlapped. If the player still sees a specific overlap, we need that save.
+
+### Station Build tab + Help
+- Each improvement is a card row: icon, name, one-line benefit (`strings.station.improvementBenefit`), cost / check, and a "why" hint from the surroundings (`stationUpgrades.ts`): Post Office/Hotel "No town or city in range",
+  Livestock Pens "A livestock ranch is in range / not yet", Cold Storage likewise for food/livestock. Water Tower and the (free) Engine Shed have benefit lines; the Engine Shed line says "repair crews start here" (26A's feature).
+- The upgrade card shows what the next type adds: catchment N×N · platforms · loading speed · max cars, from `STATION_TYPE_DEFS`.
+- ☰ menu → **Help** (`helpPanel.ts`): tabs "Station upgrades" (types + improvements) and "How money works".
+
+### Camera / map edge
+- `Camera.setViewport` (called every frame) + `clampToMap`: the view centre is limited so at most 25 % of the viewport shows past the map edge on each side (`EDGE_MARGIN_FRACTION`); a map smaller than the view is centred.
+- The margin is painted deep-sea blue (`drawSeaBackdrop`) with a soft shoreline shadow along the border (`drawMapEdge`), not transparent/black.
+
+### Deviations / known
+- Help money text is generic (26A owns the balance numbers); update `strings.help.money` if 26A changes the rules it describes.
+- Debug `camera.setCenter` is clamped on the next frame like any other camera move.

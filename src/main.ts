@@ -28,6 +28,7 @@ import {
   drawTrackTypeOverlay,
   drawTrainProfitOverlay,
 } from "./render/overlays";
+import { drawMapEdge, drawSeaBackdrop } from "./render/mapEdge";
 import { MiniMapRenderer } from "./render/minimap";
 import { drawZoomMarkers } from "./render/zoomMarkers";
 import type { ReservedScreenRect } from "./render/reservedRects";
@@ -871,7 +872,8 @@ function main(): void {
       const viewportW = window.innerWidth;
       const viewportH = window.innerHeight;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, viewportW, viewportH);
+      camera.setViewport(viewportW, viewportH);
+      drawSeaBackdrop(ctx, viewportW, viewportH);
 
       if (state.mapContentVersion !== lastMapContentVersion) {
         lastMapContentVersion = state.mapContentVersion;
@@ -882,6 +884,7 @@ function main(): void {
 
       const renderStart = performance.now();
       terrainRenderer.draw(ctx, camera, viewportW, viewportH, now);
+      drawMapEdge(ctx, camera, viewportW, viewportH);
       trackRenderer.draw(ctx, camera, viewportW, viewportH);
       if (settings.grid) {
         drawGridOverlay(ctx, camera, viewportW, viewportH, state.map.width, state.map.height);

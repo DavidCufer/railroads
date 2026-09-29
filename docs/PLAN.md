@@ -926,21 +926,21 @@ Two parallel sessions: **26A** (sim/economy: 3, 4, 6) and **26B** (UI/render: 1,
       resource / resort on the map, a repair crew on its way + train panel status.
 
 ### 26B — News, junction art, station upgrade explanations, map edge
-- [ ] News panel: **Clear all** button (with the same two-tap confirm style as Sell); repeated news of the same kind
+- [x] News panel: **Clear all** button (with the same two-tap confirm style as Sell); repeated news of the same kind
       and place within 60 days collapse into one item with a count ("Traffic jam near Highford ×3"); traffic-jam news
       at most once per 30 days per place.
-- [ ] Complex double-track junctions: when several junctions/turnouts are close together (a double-track wye,
+- [x] Complex double-track junctions: when several junctions/turnouts are close together (a double-track wye,
       crossovers, a branch whose branch is a double line), the lane geometry must still be clean: no overlapping tie
       fans, no stray junction dots on top of rails (draw the node marker only in debug or remove it), turnouts meet
       the correct lanes, curves don't overlap each other. Reproduce the player's layout (double main with a double
       wye and a crossing) in e2e, screenshot at zoom 1.5/2 before/after, iterate until it looks like a real layout.
-- [ ] Station **Build** tab explains upgrades visually: each improvement tile shows icon, name, cost, a one-line
+- [x] Station **Build** tab explains upgrades visually: each improvement tile shows icon, name, cost, a one-line
       benefit ("Mail +50% here", "Breakdowns −50% for trains serviced here; repair crews start here"), and a small
       "Why?" hint when relevant (e.g. Livestock Pens greyed with "A livestock farm is in range" when useful). Station
       type upgrade (Depot → Station → Terminal) shows what it adds (catchment 3×3 → 5×5 → 7×7, platforms 2/3/5,
       faster loading). A tiny **Help** entry in the menu with a one-screen "Station upgrades" and "How money works"
       explainer (icons + short lines, strings.ts).
-- [ ] Camera: can't pan beyond the map (clamp so at most ~1/4 screen of margin shows), and whatever margin shows is
+- [x] Camera: can't pan beyond the map (clamp so at most ~1/4 screen of margin shows), and whatever margin shows is
       drawn as deep sea/"map edge" styling, not black.
-- [ ] Screenshots: news with Clear all + collapsed item, the player's junction before/after, station Build tab, Help
+- [x] Screenshots: news with Clear all + collapsed item, the player's junction before/after, station Build tab, Help
       screen, map edge. Open and check each.
