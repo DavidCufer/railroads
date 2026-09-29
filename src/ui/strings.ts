@@ -15,7 +15,6 @@ export const strings = {
     menu: "Menu",
     cash: "Finance",
     era: (name: string, year: number) => `Newest engine: ${name} (${year}) — open Roster`,
-    rosterSoon: "The locomotive roster is coming soon",
   },
   menu: {
     title: "Menu",
@@ -184,7 +183,7 @@ export const strings = {
     empty: "Empty",
     none: "No trains yet.",
     listTitle: "Trains",
-    addStop: "+ Add stop (tap a station)",
+    addStop: "Add stop",
     tapAStation: "Tap a station on the map…",
     trainsButton: "Trains",
     newBadge: "New!",
@@ -234,7 +233,146 @@ export const strings = {
     replace: "Replace",
     replaceTitle: "Replace Locomotive",
     tradeInCredit: "Trade-in credit",
+    /** Phase 22 (STYLE §11): buy wizard, train panel v2. */
+    wizard: {
+      title: (station: string) => `Buy train · ${station}`,
+      steps: { engine: "Engine", cars: "Cars", route: "Route" },
+      stepLabel: (n: number, name: string) => `${n} ${name}`,
+      next: "Next",
+      back: "Back",
+      filters: { all: "All", steam: "Steam", diesel: "Diesel", electric: "Electric" },
+      introYear: (year: number) => `Since ${year}`,
+      lockedElectric: "Needs electrified track at this station",
+      passengerMailOnly: "Passenger and mail cars only",
+      stats: {
+        speed: "Top speed",
+        speedShort: "Speed",
+        power: "Power",
+        cars: "Max cars",
+        reliability: "Reliability",
+        price: "Price",
+        running: "Running cost",
+      },
+      perYear: (money: string) => `${money}/yr`,
+      carsCount: (n: number) => `${n} cars`,
+      consistEmpty: "Tap a car below to add it to the train",
+      removeCar: (name: string) => `Remove ${name}`,
+      addCar: (name: string) => `Add ${name}`,
+      carsUsed: (used: number, max: number) => `${used} / ${max} cars`,
+      suggested: "Suggested",
+      suggestFor: (a: string, b: string) => `${a} ↔ ${b}`,
+      applySuggestion: "Use",
+      paletteCapacity: (n: number, unit: string) => `${n}${unit ? ` ${unit}` : ""}`,
+      routeTitle: "Route",
+      routeHint: "Tap a station on the map to add a stop",
+      needTwoStops: "Add at least two stops",
+      clearCars: "Clear",
+    },
+    panel: {
+      tabs: { route: "Route", stats: "Stats" },
+      rename: "Rename train",
+      returnsTo: (station: string) => `Then back to ${station}`,
+      here: "Train is here",
+      changeRule: "Tap to change the loading rule",
+      moveUp: "Move stop up",
+      moveDown: "Move stop down",
+      removeStop: "Remove stop",
+      addStop: "Add stop",
+      editCars: "Edit cars",
+      replace: "Replace",
+      sell: "Sell",
+      loadingPct: (pct: number) => `Loading ${pct}%`,
+      headingTo: (station: string, speed: string) => `→ ${station} · ${speed}`,
+      atStation: (station: string) => `At ${station}`,
+      noOrders: "No route yet. Add two stops to send it out.",
+      stats: {
+        lifetime: "Revenue",
+        age: "Age",
+        reliability: "Reliability",
+        value: "Sale value",
+        topSpeed: "Top speed",
+        cars: "Cars",
+        traction: "Traction",
+        power: "Power",
+      },
+      years: (y: number) => (y < 1 ? "<1 yr" : `${y.toFixed(y < 10 ? 1 : 0)} yr`),
+      loadNote: "Cargo aboard",
+      noCars: "No cars",
+    },
+    replacePanel: {
+      title: "Replace engine",
+      subtitle: "Keeps cars and route, trade-in credit applies",
+      netCost: (money: string) => `${money} net`,
+      current: "Current",
+      cant: "Can't haul this consist",
+    },
   },
+  roster: {
+    title: "Engine shed",
+    subtitle: (available: number, total: number) => `${available} of ${total} locomotives`,
+    rows: { steam: "Steam", diesel: "Diesel", electric: "Electric" },
+    silhouette: "Not yet built",
+    comingIn: (year: number) => `${year}`,
+    owned: (n: number) => (n === 0 ? "None owned" : `${n} in service`),
+    wheels: "Wheel arrangement",
+    available: "In production",
+    retired: "Steam is phased out for new orders",
+    detailBack: "Roster",
+    introduced: (year: number) => `Introduced ${year}`,
+  },
+  newEngine: {
+    overline: "NEW LOCOMOTIVE",
+    roster: "Roster",
+    ok: "OK",
+    intro: (year: number) => `Since ${year}`,
+  },
+  /** Short original notes per locomotive (STYLE §11.3): factual, no trademarks. */
+  rosterNotes: {
+    "grasshopper-0-4-0":
+      "An early beam engine: a rocking overhead beam turned the wheels. Slow, light and short-lived, but it proved a railway could beat a horse.",
+    "planet-2-2-0":
+      "One pair of leading wheels, one pair of drivers and cylinders tucked inside the frame. Steadier running and quick for its day.",
+    "norris-4-2-0":
+      "A four-wheel swivelling truck made curves and rough track safer. One driving axle gave speed, but little grip on wet rails.",
+    "american-4-4-0":
+      "The 4-4-0 'American' type hauled most of the continent's trains in the mid-1800s: four guiding wheels for curves, four drivers for speed.",
+    "mogul-2-6-0":
+      "Six small drivers behind a two-wheel pilot truck gave freight work the pulling power it needed on rough, lightly built track.",
+    "consolidation-2-8-0":
+      "Eight drivers spread the weight and multiplied the pull. The workhorse of heavy freight for half a century.",
+    "ten-wheeler-4-6-0":
+      "Six drivers and a four-wheel leading truck: more grip than a 4-4-0 and fast enough for passenger trains. A dependable all-rounder.",
+    "atlantic-4-4-2":
+      "A trailing axle allowed a wide firebox, and with it more steam for sustained speed. Built for fast express runs on level main lines.",
+    "pacific-4-6-2":
+      "Tall drivers, a wide firebox and a trailing truck: the classic express passenger engine of the early twentieth century.",
+    "mikado-2-8-2":
+      "A trailing truck let designers fit a bigger firebox under a heavy freight engine, giving more power at speed than the older 2-8-0.",
+    "hudson-4-6-4":
+      "Four trailing wheels carried a huge firebox behind tall drivers. Made for sustained high-speed passenger running.",
+    "articulated-4-8-8-4":
+      "Two sets of drivers and cylinders under one long boiler, the front set hinged to take curves. Among the most powerful steam engines ever built.",
+    "early-electric":
+      "A boxcab that draws current from an overhead wire. Quiet, clean and strong at starting, ideal for tunnels and busy lines.",
+    "streamliner-diesel":
+      "A diesel-electric in a smooth, rounded shell. Ready to run at any hour without water stops, it made fast lightweight trains practical.",
+    "e-unit-electric":
+      "A streamlined electric with a cab at both ends, so it never needs turning. Built for fast passenger service on wired main lines.",
+    "cab-unit-diesel":
+      "A full-width body with the cab at one end and the engine room behind. Units can be coupled in sets for long freight and passenger trains.",
+    "road-switcher-diesel":
+      "A long hood, a short hood and an off-centre cab give the crew a clear view both ways. Handles shunting and main-line freight alike.",
+    "modern-electric":
+      "Solid-state motor control and a single-arm pantograph make smooth, efficient power for fast passenger and freight trains.",
+    "high-horsepower-diesel":
+      "Turbocharged engines and six powered axles put more pull into every litre of fuel. Roof fans cool the radiators.",
+    "heavy-diesel":
+      "The largest single-unit diesel on the roster: six axles, a wide hood and huge tractive effort for long freight over steep grades.",
+    "high-speed-trainset":
+      "A low, wedge-nosed power car with a continuous window band, built for passengers and mail at speeds far beyond conventional trains.",
+    "heavy-freight-electric":
+      "The strongest electric here: six powered axles hauling long freight trains, returning power to the wire when braking.",
+  } as Record<string, string>,
   finance: {
     title: "Finance",
     subtitle: "Company accounts",

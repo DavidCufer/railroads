@@ -457,9 +457,12 @@ test.describe("Phase 7 — cargo flow and economy", () => {
     await page.mouse.click(viewport.width / 2, viewport.height / 2);
     await page.waitForTimeout(300);
     await expect(page.locator(".panel-title")).toHaveText(trainNow.name);
-    await expect(page.locator(".chip", { hasText: "Coal" }).first()).toBeVisible();
-    // PLAN Phase 16: each car chip now shows its fill ("Coal 20 / 20 t") plus a small bar, not just
-    // the cargo name.
+    // PLAN Phase 16 / 22: a loaded car shows its cargo pictogram above it and a fill meter below;
+    // the Stats tab lists "Coal" with its fill.
+    await expect(page.locator(".slot-cargo").first()).toBeVisible();
+    await expect(page.locator(".slot-meter").first()).toBeVisible();
+    await page.locator(".tab", { hasText: "Stats" }).click();
+    await expect(page.locator(".car-load-row", { hasText: "Coal" }).first()).toBeVisible();
     await page.screenshot({ path: "docs/screenshots/phase-16-train-panel-fill.png" });
   });
 });

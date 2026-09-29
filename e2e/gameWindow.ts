@@ -120,6 +120,7 @@ export interface GameWindow {
   ) => Array<{ cargoType: string; loadedUnits: number; capacity: number }>;
   debugPreviewBuild: (path: number[]) => void;
   debugOpenStation: (stationId: number) => void;
+  debugAnnounceLoco: (locoId: string) => void;
   getStationTransfer: (stationId: number) => Array<{
     cargoType: string;
     units: number;

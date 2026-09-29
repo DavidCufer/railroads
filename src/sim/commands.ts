@@ -671,6 +671,39 @@ export function setOrders(
   return { ok: true, cost: 0 };
 }
 
+/** Replaces a live train's orders (PLAN Phase 22: change a stop's loading rule, add, remove or
+ * reorder stops from the train panel) *without* resetting its progress: the train keeps heading for
+ * (or loading at) the same station when that station is still on the list; otherwise it restarts at
+ * the top. Same 2–8 stop validation as `setOrders`. */
+export function editOrders(
+  state: GameState,
+  trainId: number,
+  orders: readonly TrainOrder[],
+): CommandResult {
+  const train = state.trains.find((t) => t.id === trainId);
+  if (!train) return { ok: false, reason: "invalid-train" };
+  if (orders.length < 2 || orders.length > 8) return { ok: false, reason: "invalid-orders" };
+  const stationIds = new Set(state.stations.map((s) => s.id));
+  if (orders.some((o) => !stationIds.has(o.stationId)))
+    return { ok: false, reason: "invalid-orders" };
+
+  const currentStation = train.orders[train.currentOrderIndex]?.stationId;
+  const previousIndex = train.currentOrderIndex;
+  train.orders = orders.map((o) => ({ ...o }));
+  let best = 0;
+  let bestDistance = Infinity;
+  train.orders.forEach((o, i) => {
+    if (o.stationId !== currentStation) return;
+    const distance = Math.abs(i - previousIndex);
+    if (distance < bestDistance) {
+      best = i;
+      bestDistance = distance;
+    }
+  });
+  train.currentOrderIndex = best;
+  return { ok: true, cost: 0 };
+}
+
 /** Matches a new car list against the train's current cars by cargo type, in order, so cars that
  * persist keep their existing load rather than being treated as sold-and-rebought (PLAN Phase 15's
  * "Edit consist on an existing train"). Greedy: the first `newTypes[i]` of a given type reuses the

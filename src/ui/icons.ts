@@ -77,7 +77,12 @@ export type IconName =
   | "waterTower"
   | "lock"
   | "tags"
-  | "trash";
+  | "trash"
+  | "gauge"
+  | "cars"
+  | "clock"
+  | "arrowUpDown"
+  | "plus";
 
 const STROKE =
   'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
@@ -146,6 +151,11 @@ const ICONS: Record<IconName, string> = {
   waterTower: `<svg viewBox="0 0 24 24" ${STROKE}><rect x="6" y="4" width="12" height="7" rx="2"/><line x1="8" y1="11" x2="6" y2="21"/><line x1="16" y1="11" x2="18" y2="21"/><line x1="12" y1="11" x2="12" y2="21"/></svg>`,
   lock: `<svg viewBox="0 0 24 24" ${STROKE}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`,
   trash: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>`,
+  gauge: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M4.5 17a8.5 8.5 0 1 1 15 0"/><line x1="12" y1="14" x2="16" y2="9"/><circle cx="12" cy="14" r="1.2" fill="currentColor" stroke="none"/></svg>`,
+  cars: `<svg viewBox="0 0 24 24" ${STROKE}><rect x="2" y="8" width="8" height="8" rx="1.5"/><rect x="12" y="8" width="8" height="8" rx="1.5"/><line x1="10" y1="12" x2="12" y2="12"/><line x1="4" y1="19" x2="18" y2="19"/></svg>`,
+  clock: `<svg viewBox="0 0 24 24" ${STROKE}><circle cx="12" cy="12" r="8.5"/><polyline points="12 7 12 12 15.5 14"/></svg>`,
+  arrowUpDown: `<svg viewBox="0 0 24 24" ${STROKE}><line x1="8" y1="19" x2="8" y2="5"/><polyline points="4 9 8 5 12 9"/><line x1="16" y1="5" x2="16" y2="19"/><polyline points="12 15 16 19 20 15"/></svg>`,
+  plus: `<svg viewBox="0 0 24 24" ${STROKE}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
   tags: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M4 4h8l8 8-8 8-8-8z"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/></svg>`,
 };
 

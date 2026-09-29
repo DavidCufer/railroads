@@ -142,6 +142,31 @@ export interface ConsistSpec {
   year: number;
 }
 
+export interface ConsistLayout {
+  /** Total drawing width in art units (height is always `ART_HEIGHT_UNITS`). */
+  totalUnits: number;
+  /** Left edge and width of each car in art units, indexed like `spec.cars` (index 0 is next to the loco). */
+  cars: Array<{ x: number; w: number }>;
+  loco: { x: number; w: number };
+}
+
+/** Where each vehicle sits inside `consistSideCanvas(spec, …)`, so UI can overlay fill meters, badges
+ * and tap targets on the picture. */
+export function consistLayout(spec: ConsistSpec): ConsistLayout {
+  const def = locomotiveById(spec.locoModelId);
+  if (!def) throw new Error(`unknown locomotive ${spec.locoModelId}`);
+  const era = eraBucket(spec.year);
+  const cars: Array<{ x: number; w: number }> = new Array(spec.cars.length);
+  let x = 0;
+  for (let idx = spec.cars.length - 1; idx >= 0; idx--) {
+    const w = carWidth((spec.cars[idx] as { cargoType: CargoType }).cargoType, era);
+    cars[idx] = { x, w };
+    x += w + COUPLER_GAP;
+  }
+  const locoW = locoWidthUnits(def);
+  return { totalUnits: x + locoW, cars, loco: { x, w: locoW } };
+}
+
 /** Whole train side view: cars (rear, left) … locomotive (front, right), 1.2u couplers. */
 export function consistSideCanvas(spec: ConsistSpec, height: number): ArtCanvas {
   const def = locomotiveById(spec.locoModelId);

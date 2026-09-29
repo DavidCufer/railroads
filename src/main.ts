@@ -103,6 +103,8 @@ import type { TrainOrder } from "./sim/trains/types";
 import type { Station } from "./sim/stations/types";
 import { debugTriggerCrash, installErrorBoundary } from "./ui/errorBoundary";
 import { openBuyTrainPanel, openTrainListPanel, openTrainPanel } from "./ui/trainPanels";
+import { openRoster } from "./ui/roster";
+import { announceNewEngine } from "./ui/newEngineCard";
 import { createTrainListButton } from "./ui/toolbar";
 import { createNewsButton, formatNewsItem, openNewsPanel } from "./ui/newsPanel";
 import { openFinancePanel } from "./ui/financePanel";
@@ -342,7 +344,7 @@ function main(): void {
   function openStationById(stationId: number): void {
     openStationPanel(ui, state, stationId, {
       onBuyTrain: () => openBuyTrain(stationId),
-      onOpenTrain: (trainId) => openTrainPanel(ui, state, trainId),
+      onOpenTrain: (trainId) => openTrainPanel(ui, state, trainId, stationPicking),
     });
   }
 
@@ -351,7 +353,7 @@ function main(): void {
   }
 
   function openPicked(pick: PickCandidate): void {
-    if (pick.kind === "train") openTrainPanel(ui, state, pick.id);
+    if (pick.kind === "train") openTrainPanel(ui, state, pick.id, stationPicking);
     else if (pick.kind === "station") openStationById(pick.id);
     else if (pick.kind === "industry") {
       const industry = state.industries[pick.id];
@@ -384,6 +386,16 @@ function main(): void {
     if (outcome.type === "single") onPick(outcome.pick);
     else if (outcome.type === "choose") showChooser(ui, canvasX, canvasY, outcome.options, onPick);
   }
+
+  /** Tap-a-station hooks shared by the buy wizard and the train panel's "Add stop". */
+  const stationPicking = {
+    pickStationOnMap: (onPicked: (stationId: number) => void): void => {
+      stationPickHandler = onPicked;
+    },
+    cancelPickStationOnMap: (): void => {
+      stationPickHandler = null;
+    },
+  };
 
   function openBuyTrain(stationId: number): void {
     openBuyTrainPanel(ui, state, stationId, {
@@ -801,7 +813,14 @@ function main(): void {
 
     if (state.pendingNews.length > 0) {
       for (const item of state.pendingNews) {
-        showToast(ui, formatNewsItem(state, item), "warn");
+        if (item.kind === "newLocomotive") {
+          // STYLE §11.4: a card instead of only a toast; the news list still records it.
+          announceNewEngine(ui, state, item.locoId, {
+            onOpenRoster: (locoId) => openRoster(ui, state, { focus: locoId }),
+          });
+        } else {
+          showToast(ui, formatNewsItem(state, item), "warn");
+        }
       }
       state.pendingNews.length = 0;
       newsButton.refreshBadge(state);
@@ -958,7 +977,7 @@ function main(): void {
     onSetSpeed: (speed: GameSpeed) => loop.setSpeed(speed),
     getSpeed: () => loop.getSpeed(),
     onOpenFinance: () => openFinancePanel(ui, state),
-    onOpenRoster: () => showToast(ui, strings.topBar.rosterSoon, "info"),
+    onOpenRoster: () => openRoster(ui, state),
     onOpenMenu: () =>
       openMenuPanel(ui, {
         getOverlayState: () => overlayState,
@@ -970,7 +989,7 @@ function main(): void {
         },
         onSaveGame: () => openSaveScreen(),
         onOpenSettings: () => openSettingsOverlay(),
-        onOpenRoster: () => showToast(ui, strings.topBar.rosterSoon, "info"),
+        onOpenRoster: () => openRoster(ui, state),
       }),
   });
   const toolbar = createToolbar(ui, (tool) => setTool(tool));
@@ -984,13 +1003,18 @@ function main(): void {
     newsButton.refreshBadge(state);
   });
   createTrainListButton(floatingPill, () => {
-    openTrainListPanel(ui, state, (trainId) => {
-      const train = state.trains.find((t) => t.id === trainId);
-      if (train) {
-        camera.x = train.renderToX * TILE_SIZE;
-        camera.y = train.renderToY * TILE_SIZE;
-      }
-    });
+    openTrainListPanel(
+      ui,
+      state,
+      (trainId) => {
+        const train = state.trains.find((t) => t.id === trainId);
+        if (train) {
+          camera.x = train.renderToX * TILE_SIZE;
+          camera.y = train.renderToY * TILE_SIZE;
+        }
+      },
+      stationPicking,
+    );
   });
 
   loop.start();
@@ -1133,6 +1157,8 @@ function main(): void {
           /** Test-only: opens a station's panel directly (a tap on a tile with a train opens the
            * train instead). */
           debugOpenStation: (stationId: number) => void;
+          /** Test-only: shows the new-locomotive announcement card for a model. */
+          debugAnnounceLoco: (locoId: string) => void;
           getStationTransfer: (stationId: number) => Array<{
             cargoType: string;
             units: number;
@@ -1350,6 +1376,10 @@ function main(): void {
           capacity: CARGO[c.cargoType].capacity,
         })),
       debugOpenStation: (stationId) => openStationById(stationId),
+      debugAnnounceLoco: (locoId) =>
+        announceNewEngine(ui, state, locoId, {
+          onOpenRoster: (id) => openRoster(ui, state, { focus: id }),
+        }),
       debugPreviewBuild: (path) => {
         const plan = computeBuildPlan(state, path);
         ghost = {

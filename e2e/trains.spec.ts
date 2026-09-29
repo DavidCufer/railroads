@@ -238,9 +238,12 @@ test.describe("Phase 6 — Trains", () => {
     await page.locator(".station-buy-train-btn").click();
     await page.waitForTimeout(300);
 
-    await expect(page.locator(".panel-title")).toHaveText("Buy Train");
+    await expect(page.locator(".sheet-title")).toContainText("Buy train");
     await expect(page.locator(".train-loco-btn").first()).toBeVisible();
+    await page.locator(".wizard-next").click();
     await page.locator(".train-car-add-btn", { hasText: "Coal" }).click();
+    await page.locator(".wizard-next").click();
+    await expect(page.locator(".panel-title")).toHaveText("Buy Train");
 
     // The panel covers the right ~45% of the viewport, so re-center each target tile toward the
     // left before tapping it — otherwise the tap would land on the panel instead of the map.
@@ -257,12 +260,6 @@ test.describe("Phase 6 — Trains", () => {
 
     await expect(page.locator(".train-order-row")).toHaveCount(2);
     await expect(page.locator(".panel-action-build")).toBeEnabled();
-    // Clicking the Coal car button auto-scrolled the panel to bring it into view; scroll back to
-    // the top so the screenshot shows the locomotive picker too, not just the lower half. Only
-    // `.panel-body` scrolls (Phase 7.1: see index.html).
-    await page.locator(".panel-body").evaluate((el) => {
-      el.scrollTop = 0;
-    });
     await page.waitForTimeout(50);
     await page.screenshot({ path: "docs/screenshots/phase-6-buy-train-dialog.png" });
 
@@ -278,15 +275,9 @@ test.describe("Phase 6 — Trains", () => {
     await page.mouse.click(pTrain.x, pTrain.y);
     await page.waitForTimeout(300);
     await expect(page.locator(".panel-title")).toHaveText(trains[0]!.name);
-    // Scroll to the bottom so the screenshot shows the full orders list above the pinned Sell
-    // button (this panel's content is slightly taller than the 800×360 viewport). Only
-    // `.panel-body` scrolls (Phase 7.1: see index.html).
-    await page.locator(".panel-body").evaluate((el) => {
-      el.scrollTop = el.scrollHeight;
-    });
     await page.waitForTimeout(50);
-    await expect(page.locator("text=Glenbury Crossing (Auto)")).toBeVisible();
-    await expect(page.locator("text=Ashtown Crossing (Auto)")).toBeVisible();
+    await expect(page.locator(".tl-name", { hasText: "Glenbury Crossing" })).toBeVisible();
+    await expect(page.locator(".tl-name", { hasText: "Ashtown Crossing" })).toBeVisible();
     await page.screenshot({ path: "docs/screenshots/phase-6-train-panel.png" });
   });
 
@@ -316,22 +307,23 @@ test.describe("Phase 6 — Trains", () => {
     await page.waitForTimeout(300);
     await expect(page.locator(".panel-title").last()).toHaveText("Train 1");
 
-    await page.locator(".action-btn", { hasText: "Edit cars" }).click();
+    await page.locator(".train-edit-cars-btn").click();
     await page.waitForTimeout(200);
-    await expect(page.locator(".panel-title").last()).toHaveText("Edit Consist");
+    await expect(page.locator(".sheet-title")).toHaveText("Edit Consist");
     await page.locator(".train-car-add-btn", { hasText: "Coal" }).click();
     await page.locator(".train-car-add-btn", { hasText: "Grain" }).click();
     await page.waitForTimeout(50);
     await page.screenshot({ path: "docs/screenshots/phase-15-consist-editor.png" });
-    await page.locator(".panel-action-build").last().click();
+    await page.locator(".sheet .panel-action-build").click();
     await page.waitForTimeout(200);
 
     const trains = await page.evaluate(() => window.__game!.getTrains());
     const train = trains.find((t) => t.id === trainId);
     expect(train?.cars).toEqual(["coal", "grain"]);
     await expect(page.locator(".panel-title").last()).toHaveText(train!.name);
-    await expect(page.locator(".chip", { hasText: "Coal" })).toBeVisible();
-    await expect(page.locator(".chip", { hasText: "Grain" })).toBeVisible();
+    await page.locator(".tab", { hasText: "Stats" }).click();
+    await expect(page.locator(".car-load-row", { hasText: "Coal" })).toBeVisible();
+    await expect(page.locator(".car-load-row", { hasText: "Grain" })).toBeVisible();
   });
 
   test("double track allows two trains to run in opposite directions concurrently", async ({

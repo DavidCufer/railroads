@@ -43,6 +43,7 @@ import { closePanel, openPanel } from "./panel";
 import { strings } from "./strings";
 import { formatMoney } from "./format";
 import { showToast } from "./toast";
+import { locoThumb } from "./train/pictures";
 
 function currentYear(state: GameState): number {
   return calendarFromTicks(state.startYear, state.ticks).year;
@@ -349,14 +350,7 @@ const STATUS_ICONS: Record<string, { icon: IconName; tone: Tone }> = {
   broken: { icon: "wrench", tone: "signal" },
 };
 
-const LOCO_TYPE_ICONS: Record<string, IconName> = {
-  steam: "steam",
-  diesel: "diesel",
-  electric: "electrify",
-};
-
-/** Trains that call here as card rows: loco thumb (a plain traction-type icon until the side views
- * land), name, status icon + next stop. */
+/** Trains that call here as card rows: loco side-view thumb, name, status icon + next stop. */
 function trainsTab(state: GameState, station: Station, handlers?: StationPanelHandlers): Node {
   const serving = state.trains.filter((t) => t.orders.some((o) => o.stationId === station.id));
   if (serving.length === 0) return emptyState(strings.trains.none, "trains");
@@ -368,7 +362,7 @@ function trainsTab(state: GameState, station: Station, handlers?: StationPanelHa
       const statusIcon = icon(st.icon, `icon-sm tone-${st.tone}`);
       return cardRow({
         className: "train-loco-btn",
-        thumb: icon(LOCO_TYPE_ICONS[loco?.type ?? "steam"] ?? "steam"),
+        thumb: loco ? locoThumb(loco, 64, 28) : icon("trains"),
         title: t.name,
         meta: h(
           "span",
