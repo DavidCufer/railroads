@@ -323,3 +323,27 @@ test.describe("Phase 24B — terrain borders", () => {
     }
   });
 });
+
+test.describe("Phase 24B — trains at a turnout", () => {
+  test("a train takes the branch off double track", async ({ page }) => {
+    await setup(page);
+    await clearArea(page, 55, 100, 20, 40);
+    const main = range(20, (i) => ({ x: 60 + i, y: 30 }));
+    await build(page, main, main);
+    const branch = [{ x: 68, y: 30 }, ...range(6, (i) => ({ x: 69 + i, y: 31 + i }))];
+    await build(page, branch);
+    const a = await station(page, 60, 30, "depot");
+    const b = await station(page, 74, 36, "depot");
+    await train(page, a, [a, b], ["passengers", "mail"]);
+    await centerOn(page, 68, 31.5, 2);
+    let n = 0;
+    for (let i = 0; i < 16 && n < 4; i++) {
+      await page.evaluate(() => window.__game!.runDays(0.5));
+      const t0 = (await page.evaluate(() => window.__game!.getTrains()))[0]!;
+      if (Math.abs(t0.renderX - 68.5) < 2.2 && Math.abs(t0.renderY - 30.5) < 2.2) {
+        await page.screenshot({ path: `docs/screenshots/${SHOT}-turnout-train-${n++}.png` });
+      }
+    }
+    expect(n).toBeGreaterThan(0);
+  });
+});

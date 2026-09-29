@@ -4056,3 +4056,53 @@ the 350 LRU cap (documented; re-baking is cheap). Full-map e2e suites unchanged.
 - Old saves are refused, not migrated. Bridge maintenance per bridge stays; river bridges stay flat priced.
 - e2e fixtures using seed-12345 coordinates were re-found on the new map (Dunville row y=145 etc.).
 
+## 2026-09-29 — Phase 24B: Render polish (turnouts, delivery labels, chunk seams, terrain borders)
+Render/label code only (`src/sim/**` untouched). `npm run check` (485 unit) and the full `npm run e2e` (153) were green at the last code push
+(`c9d74e4`); the turnout-train e2e and docs were added in the follow-up commit. New: `e2e/phase24b.spec.ts`, `src/render/pixelSnap.ts`, `tests/render/deliveryLabels.test.ts`, turnout tests in
+`tests/render/laneGeometry.test.ts`. Screenshots (opened and checked; `docs/screenshots/phase-24b-before-*` are the reproductions,
+the unprefixed `phase-24b-*` the fixed result): `phase-24b-branch-{diagonal,diag-double,straight}-z{1.5,2}`,
+`phase-24b-delivery-labels-z{1,2}`, `phase-24b-seams-z{0.9,1,1.37,2}`, `phase-24b-borders-{forest-grass,forest-grass-z1,hills-grass,hills-mountain,overview}`.
+
+### Double-track branch geometry (`laneGeometry.ts`, `track.ts`)
+- Cause of the "odd tie fan": the branch strand ended at the junction node on the *centerline* between the two lanes, with a ghost
+  second lane fanning out over 1.5 tiles (single edge next to a "split" node), and the connector arc was itself drawn double, so the
+  branch's arc crossed the other lane's rail.
+- Now (`turnoutShift`): a **single** branch leaving a **straight double line** at 45° diverges from the near (outer) lane. The
+  connector arc's vertex moves from the node to where the branch line meets that lane, `√2·w` along the branch; the arc starts
+  tangent on the outer lane line, is one track (`forceSingle`), and the branch strand is trimmed `√2·w` further (`startShift`).
+  Both sides of the line work (each connector shifts to its own side). Branch strands get no junction ghost funnel
+  (`noJunctionGhost`); the junction dot is not drawn on a turnout; turnout arc ties start 0.5 tiles in (the main's ties cover the lane).
+- Unit tests: arc starts on the lane line, never crosses the other lane, branch stays single and begins exactly where the arc ends.
+
+### Delivery labels (`deliveryLabels.ts`, `stationSupplyBubbles.ts`, `main.ts`)
+- Per station the live labels form a stack: newest at the bottom, older ones slide up (eased) one line (24 px) each and fade; max 4
+  rows; life 2.4 s, only 10 px of drift, so labels never move through each other. A burst (≥ 3 live labels at a station, newest
+  < 1 s old) merges into the newest as "+$1.9k · 4 deliveries" (`addFloatingLabel`, string in `strings.trains.deliveriesMerged`).
+- Anchor = just above the station building and its supply bubbles (`stationLabelAnchor`), so labels clear the bubbles; x is clamped
+  into the viewport. Test hook `debugQueueDeliveries`. Unit tests for ranking and merge rules.
+
+### Chunk seams (`pixelSnap.ts`, `terrain.ts`, `track.ts`)
+- Reproduction: at fractional zoom chunk canvases were drawn at fractional device-pixel edges (each edge anti-aliased against the
+  page), and trees / shadows / washes were **cut flat at chunk borders** (visible in `phase-24b-before-seams-z1.37.png`). The e2e
+  metric compares the border column/row's mean neighbour-difference with the median of all columns: before, borders were 3–4 vs a
+  0.25 median (test failed); after ≈ median.
+- Fix: (1) terrain chunks are baked with a 1-tile pad and only the interior is composited, so overflow continues across borders;
+  (2) both terrain and track chunks are composited with every boundary snapped to a whole device pixel, computed from the same world
+  coordinate for both neighbours (`drawChunkSnapped`). Terrain now draws ground for the whole padded chunk first, then decorations.
+- Cost: terrain bake ≈ +27 % tiles per chunk; steady-state render unchanged in the e2e stress/perf specs.
+
+### Terrain borders (`terrain.ts`, `drawLandBorders`)
+- Replaces the jittered-blob `drawEdgeBlend`. Per class (plain/forest/hills/mountain/desert/swamp) a kernel-smoothed share field at tile
+  corners (same [1 3 3 1]² kernel as the coast, water excluded and normalised away) is bilinearly sampled on the 4×4 shading subcells
+  with a two-octave value-noise wobble (sign flips with class order so both sides of a border trace one curve); marching-squares
+  polygons of the neighbour class form a clip path in which that class is painted with hillshading. A tile the contour would flip
+  entirely keeps its class (thin strips survive). Clip/fill overlap the tile border by 1.5 px so no hairline appears.
+- River tiles take the majority ground class of their neighbours (no more chain of grass squares under a river in hills).
+- Cached per chunk like everything else; forest/hill decorations are still per tile.
+
+### Deviations / known
+- A **double** branch off double track keeps the Phase 17 double-double fork (lanes merge through the junction node); only single
+  branches get the outer-lane turnout. Trains taking a turnout still follow the centerline fillet on lane +1, so they can be off the
+  drawn arc by up to about a lane spacing (0.28 tile) near the junction. Checked in `phase-24b-turnout-train-{0..3}.png`: the train follows the arc and stays on the branch rails, with only a slight offset at the join; left as is.
+- Water depth steps in open water remain blocky (Phase 23A ramp); not part of this item.
+

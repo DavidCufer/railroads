@@ -814,16 +814,17 @@ Two parallel sessions: **24A** (sim, generation, finance/train UI) and **24B** (
       Central Europe around Ljubljana/Trieste showing the new industry spacing.
 
 ### 24B — Render polish
-- [ ] Double-track branch geometry: a single (or double) branch leaving diagonal/straight double track diverges
+- [x] Double-track branch geometry (single branch done; a *double* branch keeps the Phase 17 double-double fork, see
+      PROGRESS): a single (or double) branch leaving diagonal/straight double track diverges
       from the *outer* lane with a proper turnout (ties lengthen smoothly, no crossing tie fans, no rail crossing the
       other lane unless it is a real crossover). Screenshots at zoom 1.5/2 for branch off diagonal double track (the
       player's case), off straight double, and both-sided branches.
-- [ ] Delivery labels: never overlap. Per station, labels queue and stack upward (newest at the bottom, older ones
+- [x] Delivery labels: never overlap. Per station, labels queue and stack upward (newest at the bottom, older ones
       pushed up and faded), or merge deliveries within ~1 s into one label ("+$1.9k · 3 deliveries"); world-anchored,
       readable at every zoom; collision with the station's supply bubbles avoided.
-- [ ] Chunk seams: find and remove the hairline seams between cached terrain/track chunks (pixel alignment,
+- [x] Chunk seams: find and remove the hairline seams between cached terrain/track chunks (pixel alignment,
       rounding at fractional zoom, bleed/overlap of 1px, or imageSmoothing on edges). e2e screenshot at zoom 1, 1.37,
       2 across a chunk border shows no line (pixel-check the border column against its neighbours).
-- [ ] Terrain borders: grass↔hills, grass↔forest, hills↔mountains get the same smooth, noise-perturbed contour
+- [x] Terrain borders: grass↔hills, grass↔forest, hills↔mountains get the same smooth, noise-perturbed contour
       treatment as the coast (no staircases), cached per chunk.
-- [ ] Screenshots before/after for each item; open and check them.
+- [x] Screenshots before/after for each item; open and check them.
