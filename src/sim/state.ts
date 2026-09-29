@@ -40,6 +40,10 @@ export interface DeliveryEvent {
   /** Cargo handed to a Warehouse hub instead of being sold (PLAN Phase 18 C): `revenue` is 0 and the
    * floating label reads "Transferred". */
   transferred?: boolean;
+  /** The train and sim tick of the unload, so all cars of one cargo type unloaded in one arrival
+   * fold into a single event (PLAN Phase 25A: one label per cargo type per train arrival). */
+  trainId?: number;
+  tick?: number;
 }
 
 /** Cargo dropped at a Warehouse station for another train to pick up (PLAN Phase 18 C, "transfer

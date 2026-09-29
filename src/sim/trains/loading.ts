@@ -31,7 +31,7 @@ import { recordTrainRevenue } from "./profit";
 import { accrueCityGrowthScore } from "../economy/cityGrowth";
 import { getOrCreateIndustryEconomy } from "../economy/processing";
 import { calendarFromTicks, HOURS_PER_DAY } from "../time";
-import type { GameState, StationCargoPile } from "../state";
+import type { DeliveryEvent, GameState, StationCargoPile } from "../state";
 import type { Station } from "../stations/types";
 import { hasImprovement, stationLoadSpeedMult, stationStorageCap } from "../stations/improvements";
 import { stationAtTile, stationCatchmentTiles } from "../stations/placement";
@@ -224,6 +224,26 @@ function carloadEquivalent(cargo: CargoType, units: number): number {
   return units / cargoUnitFactor(cargo);
 }
 
+/** Queues a delivery event, folding it into the event already queued for the same train, station,
+ * cargo type and tick (one unload pass) — a mixed train produces one label per cargo type, not one
+ * per car (PLAN Phase 25A). */
+function queueDelivery(state: GameState, train: Train, event: DeliveryEvent): void {
+  const same = state.pendingDeliveries.find(
+    (e) =>
+      e.trainId === train.id &&
+      e.tick === state.ticks &&
+      e.stationId === event.stationId &&
+      e.cargoType === event.cargoType &&
+      !!e.transferred === !!event.transferred,
+  );
+  if (same) {
+    same.revenue += event.revenue;
+    if (event.units !== undefined) same.units = (same.units ?? 0) + event.units;
+    return;
+  }
+  state.pendingDeliveries.push({ ...event, trainId: train.id, tick: state.ticks });
+}
+
 function settleUnload(state: GameState, train: Train, station: Station, car: TrainCar): void {
   const cargo = car.cargoType;
   const unitsDelivered = car.loadedUnits;
@@ -260,7 +280,7 @@ function settleUnload(state: GameState, train: Train, station: Station, car: Tra
     state.cash += revenue;
     addRevenue(state, cargo, revenue);
     recordTrainRevenue(train, revenue);
-    state.pendingDeliveries.push({
+    queueDelivery(state, train, {
       stationId: station.id,
       cargoType: cargo,
       revenue,
@@ -326,7 +346,7 @@ function applyTransfer(state: GameState, train: Train, station: Station, carInde
     delete car.loadedTile;
     delete car.loadedTick;
   }
-  state.pendingDeliveries.push({
+  queueDelivery(state, train, {
     stationId: station.id,
     cargoType: car.cargoType,
     revenue: 0,
