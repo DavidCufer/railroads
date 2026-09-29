@@ -3963,3 +3963,44 @@ Stress e2e unchanged (avgRenderMs well under its asserts). 2× chunks cost more 
 - Platform clipping only looks at straight continuation of the station's own track direction (up to 3 tiles each way).
 - The fields around farms are still drawn by terrain.ts on neighbouring plain tiles (unchanged from Phase 21).
 - Added the 2× terrain bake (see above); the track layer is still baked at 1× (thin lines stay acceptable).
+
+## 2026-09-29 — Phase 23B: Placement collisions, 0-4-0 art, Android shell
+
+Parallel with 23A (world scale); this session only touched station/improvement render + layout, steam side views, the Android
+shell and CSS safe areas. Screenshots (opened and checked) in `docs/screenshots/phase-23b-*` (spec `e2e/phase23b.spec.ts`;
+`SHOT=before` writes the `-before` set): `city-{depot,station,terminal}`, `junction-{depot,station}`, `diagonal-bend`,
+`diagonal-improvements`, `gallery-steam` (before/after), `safe-area-top-bar-after`.
+
+### Reproduced first (before images)
+- Station in a dense city: brick building, platforms and improvements drawn on top of houses.
+- Depot at a junction: the hut sat on the branch line. Station with all improvements next to a junction: pens, hotel, yard on track.
+- "Axis-aligned platforms on diagonal track": `artOptions` took `edges[0]` of the station tile. Once a branch is added at the
+  station tile (or a second track passes), `edges[0]` can be the branch, so the whole station turned to the branch's direction.
+
+### What changed
+- New pure module `render/stationLayout.ts` (unit-tested in `tests/render/stationLayout.test.ts`, 29 cases incl. straight, diagonal,
+  curve beyond, junction on the station tile / both sides, industry, neighbouring station). It works in the station's local
+  frame: foreign track segments + industry / other-station tile squares (within 5 tiles) are obstacles; the station's own line is
+  excluded. It (1) picks the building side with more free room (art is mirrored when it is the +y side), (2) shifts the building
+  along the track (0, ±0.5, ±1) if both sides are blocked at the centre, (3) clips each platform / the terminal shed to the longest
+  clear run (omitted when < 0.6 tile), (4) places every improvement at its preferred spot, else scans rows and positions on both
+  sides at scale 1 / 0.8 / 0.62; an improvement that fits nowhere is not drawn (the sim still has it).
+- `render/stations.ts`: direction is now the pair of opposite edges (prefers a passing loop) instead of `edges[0]`; layouts are cached
+  per station and re-derived when `trackVersion`/`mapContentVersion`/improvements change; `drawStations`, `drawStationLabels` and
+  `stationTopExtent` take a `StationWorld` (`stationWorldOf(state)`). Name plate and supply bubbles use the laid-out extent.
+- City carve: `stationFootprintCityTiles` → `TerrainRenderer.setStationFootprint` (chunks re-baked only when the set changes);
+  those city tiles draw plaza + streets and no houses/landmark. The city keeps its population.
+- Steam art: no leading truck (0-4-0) puts the cylinders just behind the smokebox front; 0-4-0 and 2-2-0 tuck the front driver under
+  the cylinder block. All 12 steam engines checked in `phase-23b-gallery-steam-after.png`; unit test bounds the nose (smokebox
+  front to the front-most wheel edge ≤ 6 units).
+- Android: `windowFullscreen` in both themes, cutout `shortEdges` and re-hide of the bars on focus in `MainActivity` (immersive
+  sticky was already there); no new dependency. Not testable here — verified by the `android.yml` workflow.
+- Safe areas: `--safe-*` CSS variables from `env(safe-area-inset-*)`; top bar, toolbar, panel, float pill, quick-build, toasts, confirm
+  bar, hint card, sheets (+ header), title version and debug overlay add them (padding on `#ui` never moved absolutely positioned
+  children — that was the actual bug). Mini-map and JS-positioned popups use `render/safeInsets.ts`. e2e simulates insets by
+  overriding the variables and asserts nothing is inside them.
+
+### Deviations
+- A city's landmark (church / town hall) is not drawn if a station's footprint covers its tile.
+- Water/mountain tiles are not obstacles for the layout (only track, industries, other stations).
+- The building shift and mirrored side are render-only; the sim's catchment is unchanged.

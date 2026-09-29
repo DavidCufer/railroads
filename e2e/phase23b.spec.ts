@@ -1,4 +1,4 @@
-import { test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import "./gameWindow";
 
 /**
@@ -215,5 +215,41 @@ test.describe("Phase 23B — station placement", () => {
     await hideUi(page);
     await centerOn(page, cx, cy, 1.6);
     await page.screenshot({ path: shot("diagonal-improvements") });
+  });
+
+  test("top bar and rails clear simulated safe-area insets", async ({ page }) => {
+    await setupFlat(page, 60, 60, 9);
+    const inset = { top: 24, left: 44, right: 20, bottom: 12 };
+    await page.addStyleTag({
+      content: `:root{--safe-top:${inset.top}px;--safe-left:${inset.left}px;--safe-right:${inset.right}px;--safe-bottom:${inset.bottom}px}`,
+    });
+    await page.setViewportSize({ width: 801, height: 360 }); // fires resize
+    await page.waitForTimeout(300);
+    const boxes = await page.evaluate(() => {
+      const r = (sel: string) => {
+        const e = document.querySelector(sel);
+        if (!e) return null;
+        const b = e.getBoundingClientRect();
+        return { top: b.top, left: b.left, right: b.right, bottom: b.bottom };
+      };
+      const first = document.querySelector(".top-bar > *");
+      const fb = first?.getBoundingClientRect();
+      return {
+        bar: r(".top-bar"),
+        firstChild: fb ? { top: fb.top, left: fb.left } : null,
+        toolbar: r(".toolbar"),
+        pill: r(".float-pill"),
+        vw: window.innerWidth,
+        vh: window.innerHeight,
+      };
+    });
+    expect(boxes.firstChild!.top).toBeGreaterThanOrEqual(inset.top);
+    expect(boxes.firstChild!.left).toBeGreaterThanOrEqual(inset.left);
+    expect(boxes.toolbar!.top).toBeGreaterThanOrEqual(inset.top + 44);
+    expect(boxes.toolbar!.left).toBeGreaterThanOrEqual(inset.left);
+    expect(boxes.toolbar!.bottom).toBeLessThanOrEqual(boxes.vh - inset.bottom);
+    expect(boxes.pill!.right).toBeLessThanOrEqual(boxes.vw - inset.right);
+    expect(boxes.pill!.bottom).toBeLessThanOrEqual(boxes.vh - inset.bottom);
+    await page.screenshot({ path: shot("safe-area-top-bar") });
   });
 });

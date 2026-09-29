@@ -755,19 +755,19 @@ Same parallel rules as Phases 19–22.
       and a train, a random medium map overview, a coastline close-up at zoom 2.
 
 ### 23B — Placement collisions, 0-4-0 art, Android shell
-- [ ] Station footprint owns its tiles: city houses on the station's footprint tiles (platforms + building) are not
+- [x] Station footprint owns its tiles: city houses on the station's footprint tiles (platforms + building) are not
       drawn (render-side; the city keeps its population), so a station in a city carves a clean site.
-- [ ] Station building, platforms and every improvement never overlap: track (other than the station's own track),
+- [x] Station building, platforms and every improvement never overlap: track (other than the station's own track),
       other stations, industries. Pick the side of the track with more free space for the building; lay improvements
       out on free tiles nearby (both sides allowed), compact fallback if space is tight. Unit-test the layout function
       (no overlaps with track/industry tiles for straight, diagonal, curved and junction cases).
-- [ ] On diagonal track, platforms, canopy, shed and building follow the track direction (rotated 45°), as on
+- [x] On diagonal track, platforms, canopy, shed and building follow the track direction (rotated 45°), as on
       straight track.
-- [ ] Steam side views: no long unsupported overhangs. Front driver (or leading truck) sits under the smokebox /
+- [x] Steam side views: no long unsupported overhangs. Front driver (or leading truck) sits under the smokebox /
       cylinders; for 0-4-0 and 2-2-0 space the drivers so the front one is under the cylinder block. Check all 12
       steam engines in the gallery.
-- [ ] Android: run the game full-screen (hide status and navigation bars, immersive sticky) via the Android theme /
+- [x] Android: run the game full-screen (hide status and navigation bars, immersive sticky) via the Android theme /
       MainActivity — no new plugin dependency. Web/PWA fallback: `viewport-fit=cover` + `env(safe-area-inset-*)`
       padding on the top bar and side rails so nothing is ever under a notch or status bar.
-- [ ] Screenshots: station inside a dense city (before/after), station with all improvements next to a junction,
+- [x] Screenshots: station inside a dense city (before/after), station with all improvements next to a junction,
       station on diagonal track, gallery steam page, top bar with simulated safe-area insets.

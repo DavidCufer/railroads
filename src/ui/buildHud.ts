@@ -3,6 +3,7 @@
  * finger, so the label is never hidden under it), and the confirm bar shown on release
  * (✓ Build($X) / ✕, with a tap-to-cycle bridge-type chip when the path crosses water/a river).
  */
+import { safeInsets } from "../render/safeInsets";
 import { h } from "./h";
 import { icon } from "./icons";
 import { strings } from "./strings";
@@ -39,8 +40,14 @@ export function showDragCostLabel(
   const labelH = 28;
   let left = screenX - labelW / 2;
   let top = screenY - OFFSET_Y - labelH;
-  left = Math.max(8, Math.min(viewportW - labelW - 8, left));
-  top = Math.max(52, Math.min(viewportH - labelH - 8, top));
+  left = Math.max(
+    8 + safeInsets().left,
+    Math.min(viewportW - labelW - 8 - safeInsets().right, left),
+  );
+  top = Math.max(
+    52 + safeInsets().top,
+    Math.min(viewportH - labelH - 8 - safeInsets().bottom, top),
+  );
   el.style.left = `${left}px`;
   el.style.top = `${top}px`;
   el.style.display = "block";

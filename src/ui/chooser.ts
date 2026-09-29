@@ -1,4 +1,5 @@
 /** Small "which one did you mean?" popup shown at the tap point (PLAN Phase 17 C). */
+import { safeInsets } from "../render/safeInsets";
 import { h } from "./h";
 import { icon, type IconName } from "./icons";
 import type { PickCandidate, PickKind } from "./picking";
@@ -51,8 +52,15 @@ export function showChooser(
   container.appendChild(el);
   // Keep the popup on-screen: anchor under the tap, flip/clamp near the edges.
   const rect = el.getBoundingClientRect();
-  const left = Math.max(8, Math.min(x - rect.width / 2, window.innerWidth - rect.width - 8));
-  const top = Math.max(8, Math.min(y + 12, window.innerHeight - rect.height - 8));
+  const inset = safeInsets();
+  const left = Math.max(
+    8 + inset.left,
+    Math.min(x - rect.width / 2, window.innerWidth - rect.width - 8 - inset.right),
+  );
+  const top = Math.max(
+    8 + inset.top,
+    Math.min(y + 12, window.innerHeight - rect.height - 8 - inset.bottom),
+  );
   el.style.left = `${left}px`;
   el.style.top = `${top}px`;
   current = el;

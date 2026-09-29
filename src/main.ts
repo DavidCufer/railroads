@@ -5,6 +5,7 @@ import { TerrainRenderer } from "./render/terrain";
 import { TrackRenderer } from "./render/track";
 import { drawBuildPreview, type BuildMode, type GhostPreview } from "./render/buildPreview";
 import { drawCityLabels, cityWorldCenter } from "./render/labels";
+import { refreshSafeInsets } from "./render/safeInsets";
 import {
   drawStations,
   drawStationLabels,
@@ -171,6 +172,7 @@ function main(): void {
     const canvasEl = canvas as HTMLCanvasElement;
     canvasEl.width = Math.round(window.innerWidth * dpr);
     canvasEl.height = Math.round(window.innerHeight * dpr);
+    refreshSafeInsets();
   }
   resize();
   window.addEventListener("resize", resize);

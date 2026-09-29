@@ -64,6 +64,14 @@ body {
   color: var(--text);
   font-family: var(--font-ui);
 }
+/* Safe-area insets (PLAN 23B): notch / status bar / gesture bar. Every absolutely positioned piece of chrome
+   adds these, since padding on #ui does not move absolutely positioned children. */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
 #app {
   position: fixed;
   inset: 0;
@@ -81,8 +89,7 @@ body {
   inset: 0;
   pointer-events: none;
   /* Respect Android safe-area insets (notches, gesture nav, display cutouts) — SPEC §10. */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
-    env(safe-area-inset-left);
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
   box-sizing: border-box;
   /* UI scale setting (SPEC §13): scale from the top-left, compensating width/height so the
      scaled box still exactly covers the viewport instead of leaving a gap (scale < 1) or
@@ -175,11 +182,13 @@ input {
   top: 0;
   left: 0;
   right: 0;
-  height: 44px;
+  height: calc(44px + var(--safe-top));
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: var(--gap-3);
-  padding: 0 var(--gap-3);
+  padding: var(--safe-top) max(var(--gap-3), var(--safe-right)) 0
+    max(var(--gap-3), var(--safe-left));
   background: rgba(20, 26, 34, 0.92);
   color: var(--text);
   font: var(--fs-s) var(--font-ui);
@@ -287,9 +296,9 @@ input {
 
 .toolbar {
   position: absolute;
-  left: 6px;
-  top: 50px;
-  bottom: 6px;
+  left: calc(6px + var(--safe-left));
+  top: calc(50px + var(--safe-top));
+  bottom: calc(6px + var(--safe-bottom));
   width: 56px;
   display: flex;
   flex-direction: column;
@@ -339,9 +348,9 @@ input {
 
 .panel {
   position: absolute;
-  top: 44px;
-  right: 0;
-  bottom: 0;
+  top: calc(44px + var(--safe-top));
+  right: var(--safe-right);
+  bottom: var(--safe-bottom);
   width: var(--panel-w);
   background: var(--ink-800);
   color: var(--text);
@@ -835,8 +844,8 @@ button.chip {
 
 .float-pill {
   position: absolute;
-  right: 8px;
-  bottom: 8px;
+  right: calc(8px + var(--safe-right));
+  bottom: calc(8px + var(--safe-bottom));
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1151,7 +1160,7 @@ button.chip {
 
 .toast-container {
   position: absolute;
-  top: 52px; /* below the 44px top bar, never over it */
+  top: calc(52px + var(--safe-top)); /* below the 44px top bar, never over it */
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -1209,7 +1218,7 @@ button.chip {
 .confirm-bar {
   position: absolute;
   left: 50%;
-  bottom: 16px;
+  bottom: calc(16px + var(--safe-bottom));
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -1262,12 +1271,12 @@ button.chip {
 
 .quick-build-toggle {
   position: absolute;
-  right: 8px;
+  right: calc(8px + var(--safe-right));
   /* PLAN Phase 15 play-test fix: this used to share `bottom: 8px` with `.train-list-button`,
    * overlapping it — the Trains/News/Goals round buttons are always present (stacked at 8/64/120,
    * each 48px), so this sits in the same bottom-right corner just above all three
    * (120 + 48 + 8px gap) instead of on top of the lowest one. */
-  bottom: 158px;
+  bottom: calc(158px + var(--safe-bottom));
   display: flex;
   align-items: center;
   gap: var(--gap-2);
@@ -1383,8 +1392,8 @@ button.chip {
 
 #debug-overlay {
   position: absolute;
-  left: 68px;
-  bottom: 8px;
+  left: calc(68px + var(--safe-left));
+  bottom: calc(8px + var(--safe-bottom));
   max-width: 46vw;
   background: rgba(20, 26, 34, 0.85);
   color: var(--text);
@@ -1526,8 +1535,8 @@ button.chip {
 }
 .title-version {
   position: absolute;
-  right: var(--gap-3);
-  bottom: var(--gap-2);
+  right: calc(var(--gap-3) + var(--safe-right));
+  bottom: calc(var(--gap-2) + var(--safe-bottom));
   color: var(--muted);
   font-size: var(--fs-xs);
 }
@@ -1881,7 +1890,7 @@ button.chip {
 .hint-card {
   position: absolute;
   left: 50%;
-  bottom: 64px;
+  bottom: calc(64px + var(--safe-bottom));
   transform: translateX(-50%);
   max-width: min(90vw, 420px);
   display: flex;
@@ -2572,15 +2581,17 @@ button.card-row:disabled {
   color: var(--text);
   font: var(--fs-s) var(--font-ui);
   min-height: 0;
+  padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left);
+  box-sizing: border-box;
 }
 .sheet-header {
   flex: 0 0 auto;
-  height: 44px;
+  height: calc(44px + var(--safe-top));
   box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: var(--gap-3);
-  padding: 0 var(--gap-2) 0 var(--gap-4);
+  padding: var(--safe-top) var(--gap-2) 0 var(--gap-4);
   border-bottom: 1px solid var(--ink-600);
   position: relative;
 }

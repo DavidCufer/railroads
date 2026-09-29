@@ -5,6 +5,7 @@
  * actually changes (`trackVersion`/`mapContentVersion`), not every frame; only the viewport
  * rectangle and station dots are redrawn per frame, both cheap.
  */
+import { safeInsets } from "./safeInsets";
 import type { GameMap } from "../sim/map/types";
 import type { TrackGraph } from "../sim/track/graph";
 import type { Station } from "../sim/stations/types";
@@ -122,8 +123,8 @@ export class MiniMapRenderer {
     const width = sizePx;
     const height = Math.max(1, Math.round(sizePx * aspect));
     return {
-      x: MINIMAP_MARGIN_LEFT,
-      y: viewportH - MINIMAP_MARGIN_BOTTOM - height,
+      x: MINIMAP_MARGIN_LEFT + safeInsets().left,
+      y: viewportH - MINIMAP_MARGIN_BOTTOM - safeInsets().bottom - height,
       width,
       height,
     };
