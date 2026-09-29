@@ -844,7 +844,7 @@ Two parallel sessions: **25A** (sim: crossings + label aggregation) and **25B** 
 borders, water).
 
 ### 25A — Crossing interlock and per-cargo labels
-- [ ] Crossings and junction nodes are mutually exclusive: a node where two routes cross or merge (diamond crossing,
+- [x] Crossings and junction nodes are mutually exclusive: a node where two routes cross or merge (diamond crossing,
       junction) can be occupied by one train at a time. Keep the §7.5 model (full path reserved at departure), and
       add a **dynamic node claim**: a moving train claims the crossing/junction node when its head is within braking
       distance and releases it when its tail clears; a train whose next node is claimed by another train brakes and
@@ -852,14 +852,14 @@ borders, water).
       (the holder already owns its whole path to the next station, so it never stops on the crossing) and prove it
       with the phantom-jam stress test extended with crossing layouts (X crossing, junction off single, junction off
       double) — no two trains ever overlap a crossing node, no wait > the stress threshold.
-- [ ] Two trains whose reserved paths cross at a node where they would meet head-on on the *same* block still follow
+- [x] Two trains whose reserved paths cross at a node where they would meet head-on on the *same* block still follow
       the existing opposing-traffic rules (no regression).
-- [ ] Render: a proper diamond crossing where two lines cross without a junction (rails cross with check-rail
+- [x] Render: a proper diamond crossing where two lines cross without a junction (rails cross with check-rail
       detail, ties continuous under both).
-- [ ] Delivery labels: aggregate per train arrival per cargo type (money + units), still stacked/merged per station
+- [x] Delivery labels: aggregate per train arrival per cargo type (money + units), still stacked/merged per station
       as in 24B. Unit test the aggregation; e2e screenshot of a mixed train (3 grain + 2 mail) unloading → exactly two
       labels.
-- [ ] Screenshots: two trains at an X crossing (one waiting), junction off double track with two trains, labels.
+- [x] Screenshots: two trains at an X crossing (one waiting), junction off double track with two trains, labels.
 
 ### 25B — Zoomed-out map and minimap
 - [x] Below the zoom where industry art is drawn, draw each industry as a small **dot marker** (≈ 8–10 CSS px, cargo

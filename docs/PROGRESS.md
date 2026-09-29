@@ -4174,3 +4174,60 @@ on a dark pip; cities as red squares sized by tier. Rebuilt only when `trackVers
 - Marker fade is a zoom ramp (0.8 → 0.5) rather than tied to a single art threshold, because art is baked into chunks and can't be faded.
 - Minimap industry dots are always on (no toggle); at Large map scale they are noisy but readable.
 - Station name plates can overlap each other at zoom 0.35 when two stations are close (pre-existing declutter behaviour).
+
+## 2026-09-29 — Phase 25A: crossing interlock, diamond crossings, per-cargo delivery labels
+`npm run check` green (510 unit) and full e2e green (164, 4 of them new). New: `src/sim/trains/crossing.ts`, `tests/sim/trains/{crossing,crossingStress,deliveryAggregation}.test.ts`,
+`tests/sim/trains/crossingHelpers.ts`, `e2e/phase25a.spec.ts`. Screenshots (opened and checked, 800×360 @2x): `phase-25a-crossing-{orthogonal,diagonal-diagonal,diagonal-orthogonal}-z{2,3}-{before,after}.png`
+(zoom 3 is clamped to 2 by the camera, so the z2/z3 pairs are the same view), `phase-25a-x-crossing-one-waiting-z2-after.png`, `phase-25a-x-crossing-waiting-panel-after.png`,
+`phase-25a-junction-double-one-waiting-z2-after.png`, `phase-25a-delivery-labels-per-cargo-after.png`.
+
+### Reproduction (the player's bug)
+`tests/sim/trains/crossing.test.ts` builds an X crossing (two lines, a train each, equal distance, same start) and a junction (main line + 45° branch, one train each). Before the fix both
+overlap on the crossing node (X: ticks 48–5x, junction: tick 363) — blocks are chains *between* boundary nodes, so two trains on different blocks never conflicted at the node they share.
+The test's overlap check is independent of the sim: it samples points along each train's body (`crossingHelpers.bodyPoints`) and flags two bodies within 0.3 tiles of the same junction node.
+
+### Node claims (`crossing.ts`, called from `movement.ts`)
+- A *conflict node* = degree ≥ 3, not a station. Each train keeps `nodeClaims` (plain JSON on the train, so it travels through saves; absent in old saves) and `crossingWait`.
+- Once per tick, for a train that already holds its section: releases claims whose node its tail is 0.35 tiles past; looks at the junction nodes on its route up to the end of the section;
+  if the first is within 4 tiles it forms a **cluster** (successive junction nodes closer than one train length + 4.7 tiles) and claims all of it or none. Blocked ⇒ speed capped by a braking
+  curve to stop 0.35 tiles short of the first node, and the movement loop is hard-clamped there. Constants in `data/trains.ts` (`CROSSING_*`).
+- Exempt: opposing movements over the same two *double* legs (separate lanes); claims of a train that is queued behind us on a shared block (`isAheadOnSharedBlock`), which could otherwise
+  wait for a node it can never reach; a train never claims past a leader that is nearer than the node. Standing still in a station, or turning round at one, drops all claims.
+- A junction built under a moving train (or one closer than the clearance) claims only the nodes it can no longer stop short of.
+- Train panel: "Waiting at crossing for Train N" (`strings.trains.waitingAtCrossing`); `__game.getTrains()[i].waitingAtCrossing` for e2e.
+
+### Why it cannot deadlock (argument)
+1. A train that waits for a claim holds **no** claim: the previous cluster ends more than one train length + the lookahead behind the next one, so by the time the head is within lookahead of the
+   next cluster the tail has cleared the previous one (clusters are exactly the sets where that would fail). Station stops drop claims.
+2. So a claim is only ever held by a train that is *moving through* its reserved section, which by §7.5 owns every block up to its next station and never stops on the line for a block. It
+   waits only for (a) a leader it follows, which is ahead of it (never a claim-holder that waits for it, see the exemption above), or (b) a cluster held by a train satisfying the same
+   argument. The wait-for graph "waits for a claim held by" therefore only points at trains that are making progress; a cycle would need a holder that waits, contradicting 1.
+3. Remaining hazards found by the stress test and fixed: a follower's claim stalling its own leader (two trains leaving a station in one tick), stale same-direction "leader" entries of a
+   train that has reversed, claims carried through a reversal at a station, and a forced claim dragging a whole cluster. Safety net for anything unforeseen: a train that has waited ≥ 30 days
+   for a cluster *and* is in a wait-for cycle that exists only because of junction holds (would dissolve without them) takes it if it is the lowest-id junction waiter in the cycle
+   (`setCrossingForcedReporter`; the stress tests fail if it ever fires). Cycles made only of station/line waits and queues are the older §7.5 logic's business.
+
+### Tests
+- `crossing.test.ts` (X, junction) — fails before, passes after. `crossingStress.test.ts`: X, X with a station next to the crossing, junction off single, junction off double, two crossings one
+  tile apart × 3 seeds × 400 days with 4–6 trains of 1–4 cars (grasshopper and 4-4-0): no body overlap on any junction node (except grandfathered/station cases), no crossing wait > 100 days,
+  the safety net never fires, every train arrives ≥ 2 times.
+- `phantomJam.test.ts` extended: hourly overlap check on every junction the random network builds (lane-separated double-track pairs, stations and junctions built under a train are excused),
+  crossing-wait limit = the station threshold (100 days; 250 big), safety-net reporter. The 6 default seeds pass. **`STRESS_BIG=1`**: seeds 1–4, 6–9, 11, 12 pass; seeds 5 and 10 now hit
+  the *old* class of failure (a platform wait > 250 days in a cycle of full stations, no crossing claims involved: every waiting train has `claims []`). The unmodified `main` fails the same way on
+  BIG seeds 14, 16, 22, 29 (checked), i.e. timing changes move which seeds jam; not fixed here (station-slot deadlocks are outside this phase).
+- `deliveryAggregation.test.ts`: 3 grain + 2 mail cars → exactly two events with summed units/revenue; a single-cargo train → one.
+
+### Diamond crossing (`render/track.ts`)
+A node with exactly four single, unbridged legs a quarter turn apart and no station (so no turn between the lines exists) is drawn as a diamond: one tie plate under both lines, the four running rails
+carried straight across, check rails inside them on both approaches and a frog at each of the four rail intersections; no junction dot. Diagonal × orthogonal crossings have legal 45° bends and stay
+ordinary junctions with connector arcs. Double-track crossings keep the old drawing.
+
+### Delivery labels
+`queueDelivery` (loading.ts) folds all cars of a cargo type unloaded by one train in one tick into a single `DeliveryEvent` (`trainId`, `tick` added, optional). Label text is unchanged
+("+$11k · 60 tons of grain"); the 24B burst merge across trains is untouched.
+
+### Deviations / known
+- Trains now stop short of a junction on the open line (previously only at stations) — by design of this phase.
+- Two trains on a double-track main and a single branch joining the near lane are serialised at the junction even when the main train uses the far lane (conservative).
+- No save version bump: `nodeClaims`/`crossingWait`/`DeliveryEvent.trainId,tick` are optional and default when missing.
+

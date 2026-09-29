@@ -24,6 +24,7 @@ import {
   TRACK_COLOR,
 } from "./palette";
 import { hasSharpJunction } from "../sim/track/turn";
+import { directionBetween } from "../sim/trains/geometry";
 import type { TrackGraph } from "../sim/track/graph";
 import type { TrackEdge } from "../sim/track/types";
 import { ChunkCache } from "./chunkCache";
@@ -288,7 +289,8 @@ export class TrackRenderer {
         if (turnouts.has(node)) continue;
         const [x, y] = tileXY(node, this.mapWidth);
         if (x < rangeMinX || x > rangeMaxX || y < rangeMinY || y > rangeMaxY) continue;
-        this.drawJunction(ctx, node, frame);
+        if (this.isDiamond(node)) this.drawDiamond(ctx, node, frame);
+        else this.drawJunction(ctx, node, frame);
       }
     }
 
@@ -451,6 +453,119 @@ export class TrackRenderer {
       ctx.moveTo(x0, y0);
       ctx.lineTo(x1, y1);
       ctx.stroke();
+    }
+  }
+
+  /** A node where two single-track lines cross at 90° with no way to turn from one onto the other:
+   * four legs a quarter-turn apart, all plain (single, not bridged), not a station. Drawn as a
+   * diamond crossing (PLAN Phase 25A) instead of two overlapping tie sets under a junction dot. */
+  private isDiamond(node: number): boolean {
+    if (this.stationTiles.has(node)) return false;
+    const edges = this.graph.edgesAt(node);
+    if (edges.length !== 4) return false;
+    const dirs: number[] = [];
+    for (const e of edges) {
+      if (e.double || e.bridge) return false;
+      const other = e.a === node ? e.b : e.a;
+      dirs.push(directionBetween(node, other, this.mapWidth));
+    }
+    dirs.sort((p, q) => p - q);
+    return (
+      dirs[1] === (dirs[0] as number) + 2 &&
+      dirs[2] === (dirs[0] as number) + 4 &&
+      dirs[3] === (dirs[0] as number) + 6
+    );
+  }
+
+  /** Diamond crossing: one tie plate under both lines (the two tie sets no longer cross), the four
+   * rails carried straight across it, a frog at each rail intersection and check rails inside the
+   * running rails on both approaches. */
+  private drawDiamond(ctx: CanvasRenderingContext2D, node: number, f: Frame): void {
+    const [tx, ty] = tileXY(node, this.mapWidth);
+    const cx = tx + 0.5;
+    const cy = ty + 0.5;
+    const edges = this.graph.edgesAt(node);
+    const first = edges[0] as TrackEdge;
+    const dir = directionBetween(node, first.a === node ? first.b : first.a, this.mapWidth);
+    const base = (dir * Math.PI) / 4;
+    const pt = (u: number, n: number, angle: number): [number, number] => [
+      (cx + Math.cos(angle) * u - Math.sin(angle) * n - f.originX) * f.px,
+      (cy + Math.sin(angle) * u + Math.cos(angle) * n - f.originY) * f.px,
+    ];
+    const scale = f.scale;
+    const railGap = 2.2 / TILE_SIZE;
+    const plate = 4.4 / TILE_SIZE;
+    const reach = plate + 0.06;
+
+    // Tie plate: a square aligned with the lines, dark sleepers laid across each direction.
+    ctx.fillStyle = TIE_COLOR;
+    ctx.beginPath();
+    for (const [i, [u, n]] of (
+      [
+        [-plate, -plate],
+        [plate, -plate],
+        [plate, plate],
+        [-plate, plate],
+      ] as const
+    ).entries()) {
+      const [x, y] = pt(u, n, base);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(30, 22, 16, 0.55)";
+    ctx.lineWidth = Math.max(1, 1.2 * scale);
+    for (const angle of [base, base + Math.PI / 2]) {
+      for (const u of [-0.5 * plate, 0.5 * plate]) {
+        const [x0, y0] = pt(u, -plate, angle);
+        const [x1, y1] = pt(u, plate, angle);
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+      }
+    }
+
+    // Running rails straight across, then check rails just inside them on each approach.
+    ctx.strokeStyle = TRACK_COLOR;
+    ctx.lineCap = "butt";
+    for (const angle of [base, base + Math.PI / 2]) {
+      ctx.lineWidth = Math.max(1, 1.1 * scale);
+      for (const side of [-1, 1]) {
+        const [x0, y0] = pt(-reach, side * railGap, angle);
+        const [x1, y1] = pt(reach, side * railGap, angle);
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+      }
+      ctx.lineWidth = Math.max(0.8, 0.9 * scale);
+      const inner = railGap - 1.5 / TILE_SIZE;
+      for (const side of [-1, 1]) {
+        for (const end of [-1, 1]) {
+          const [x0, y0] = pt(end * (railGap + 0.05), side * inner, angle);
+          const [x1, y1] = pt(end * (plate - 0.005), side * inner, angle);
+          ctx.beginPath();
+          ctx.moveTo(x0, y0);
+          ctx.lineTo(x1, y1);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Frogs where the running rails of the two lines meet.
+    ctx.fillStyle = JUNCTION_DOT_COLOR;
+    const half = 1.2 * scale;
+    for (const a of [-1, 1]) {
+      for (const b of [-1, 1]) {
+        const [x, y] = pt(a * railGap, b * railGap, base);
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(base);
+        ctx.fillRect(-half, -half, half * 2, half * 2);
+        ctx.restore();
+      }
     }
   }
 

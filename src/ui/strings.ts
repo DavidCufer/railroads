@@ -222,6 +222,8 @@ export const strings = {
       `Waiting for ${trains} (single track to ${station})`,
     waitingForTrainAtPlatform: (station: string, trains: string) =>
       `Waiting for platform at ${station} (${trains})`,
+    /** PLAN Phase 25A: halted just short of a junction/crossing another train is using. */
+    waitingAtCrossing: (trains: string) => `Waiting at crossing for ${trains}`,
     /** Floating label for cargo left at a Warehouse hub (no payment yet). */
     transferred: "Transferred",
     /** Merged floating delivery label ("+$1.9k · 3 deliveries"). */

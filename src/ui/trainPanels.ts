@@ -112,6 +112,12 @@ export function statusText(state: GameState, train: Train): string {
         : strings.trains.waitingForTrainAtPlatform(stationName, who);
     }
   }
+  if (train.crossingWait && train.status === "moving") {
+    const names = train.crossingWait.trainIds
+      .map((id) => state.trains.find((t) => t.id === id)?.name)
+      .filter((n): n is string => n !== undefined);
+    if (names.length > 0) return strings.trains.waitingAtCrossing(names.slice(0, 3).join(", "));
+  }
   const order = train.orders[train.currentOrderIndex];
   const orderStation = order && state.stations.find((s) => s.id === order.stationId)?.name;
   if (train.status === "noRoute" && orderStation) return strings.trains.noRouteTo(orderStation);

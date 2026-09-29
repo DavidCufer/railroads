@@ -1172,6 +1172,7 @@ function main(): void {
             cars: string[];
             orders: Array<{ stationId: number; rule: string }>;
             currentOrderIndex: number;
+            waitingAtCrossing: boolean;
           }>;
           getTrainCars: (
             trainId: number,
@@ -1401,6 +1402,7 @@ function main(): void {
             cars: t.cars.map((c) => c.cargoType),
             orders: t.orders.map((o) => ({ stationId: o.stationId, rule: o.rule })),
             currentOrderIndex: t.currentOrderIndex,
+            waitingAtCrossing: t.crossingWait !== undefined && t.speed === 0,
           };
         }),
       getTrainCars: (trainId) =>

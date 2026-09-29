@@ -114,6 +114,7 @@ export interface GameWindow {
     cars: string[];
     orders: Array<{ stationId: number; rule: string }>;
     currentOrderIndex: number;
+    waitingAtCrossing: boolean;
   }>;
   getTrainCars: (
     trainId: number,
