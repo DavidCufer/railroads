@@ -68,9 +68,9 @@ describe("defaultStationName", () => {
     const state = makeTestState(map);
     const city = makeCity({ tiles: [tileAt(map, 0, 1)] });
     map.cityId[tileAt(map, 0, 1)] = 0;
-    // Junction at (2,1): branch north from the mainline.
+    // Junction at (2,1): a 45° turnout off the mainline.
     buildTrack(state, [tileAt(map, 1, 1), tileAt(map, 2, 1), tileAt(map, 3, 1)]);
-    buildTrack(state, [tileAt(map, 2, 1), tileAt(map, 2, 0)]);
+    buildTrack(state, [tileAt(map, 2, 1), tileAt(map, 3, 0)]);
     // Dead-end station tile adjacent to the junction.
     buildTrack(state, [tileAt(map, 3, 1), tileAt(map, 4, 1)]);
 

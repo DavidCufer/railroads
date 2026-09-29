@@ -11,6 +11,7 @@ import { DIRS8, inBounds, tileIndex } from "../map/grid";
 import { terrainAt } from "../map/terrain";
 import type { GameMap } from "../map/types";
 import { directionIndex, directionSteps, type TrackGraph } from "./graph";
+import { legsConnect, outwardLegs } from "./turn";
 import { bridgeCost, cheapestBridgeType, isLand, normalEdgeCost, type CostContext } from "./cost";
 
 /** Extra cost per 45° of direction change, to bias the search toward straight runs. Comparable in
@@ -39,6 +40,9 @@ export interface PathfindOptions {
   /** Restrict travel to any existing edge (single or double) of this graph — Electrify mode (SPEC
    * §5.2: "drag along existing track (single or double)"). */
   existingAnyTrack?: TrackGraph;
+  /** New-track mode (PLAN Phase 18 A): never route through a turn sharper than 45°, nor join existing
+   * track at one (the build itself would be refused, see `findSharpSteps`). Station tiles are exempt. */
+  respectTurns?: { graph: TrackGraph; stationTiles: ReadonlySet<number> };
   /** Extra tiles of margin around the start/goal bounding box the search may explore. */
   searchPadding?: number;
 }
@@ -195,6 +199,18 @@ function stateKey(tile: number, dir: number): string {
   return `${tile}|${dir}`;
 }
 
+/** Can a new edge leaving `node` in direction `dir` connect to what is already there? */
+function endAccepts(
+  graph: TrackGraph,
+  stationTiles: ReadonlySet<number>,
+  node: number,
+  dir: number,
+): boolean {
+  if (stationTiles.has(node)) return true;
+  const legs = outwardLegs(graph, node);
+  return legs.length === 0 || legs.some((leg) => legsConnect(dir, leg));
+}
+
 /**
  * Finds a build path from `start` to `goal` (both tile indices). Returns the node list (land
  * tiles only — bridges skip their spanned tiles) or null if no path was found within the search
@@ -259,6 +275,16 @@ export function findBuildPath(
       if (nx < minX || nx > maxX || ny < minY || ny > maxY) continue;
       const dir = directionIndex(Math.sign(nx - x), Math.sign(ny - y));
       const turnSteps = current.dir < 0 ? 0 : directionSteps(current.dir, dir);
+      if (options.respectTurns) {
+        if (turnSteps > 1) continue;
+        const { graph, stationTiles } = options.respectTurns;
+        if (!graph.hasEdge(current.tile, neighbor.tile)) {
+          if (current.dir < 0 && !endAccepts(graph, stationTiles, current.tile, dir)) continue;
+          if (neighbor.tile === goal && !endAccepts(graph, stationTiles, goal, (dir + 4) % 8)) {
+            continue;
+          }
+        }
+      }
       const turnPenalty = turnSteps * TURN_PENALTY_PER_STEP;
       const zigzagPenalty = turnSteps === 1 && arrivedViaTurn ? CONSECUTIVE_TURN_PENALTY : 0;
       const tentativeG = currentG + neighbor.cost + turnPenalty + zigzagPenalty;

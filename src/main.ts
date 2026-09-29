@@ -349,7 +349,16 @@ function main(): void {
     else if (pick.kind === "station") openStationById(pick.id);
     else if (pick.kind === "industry") {
       const industry = state.industries[pick.id];
-      if (industry) openIndustryPanel(ui, industry);
+      if (industry) {
+        openIndustryPanel(ui, industry, {
+          industries: state.industries,
+          startYear: state.startYear,
+          onCenter: (target) => {
+            camera.x = (target.x + 0.5) * TILE_SIZE;
+            camera.y = (target.y + 0.5) * TILE_SIZE;
+          },
+        });
+      }
     } else openCityById(pick.id);
   }
 
@@ -500,7 +509,15 @@ function main(): void {
 
   function updateDragVisuals(canvasX: number, canvasY: number): void {
     if (!dragState) return;
-    ghost = { mode: dragState.mode, path: dragState.path, ok: dragState.ok };
+    const sharp = dragState.mode === "track" ? (dragState.plan as BuildPlan).sharpSteps : [];
+    ghost = {
+      mode: dragState.mode,
+      path: dragState.path,
+      ok: dragState.ok,
+      ...(sharp.length > 0
+        ? { badSegments: sharp.map((st) => [st.a, st.b] as [number, number]) }
+        : {}),
+    };
     showDragCostLabel(
       ui,
       canvasX,
@@ -620,7 +637,15 @@ function main(): void {
         // whatever track already exists along the way.
         path = bresenhamTiles(state.map.width, start, goal);
       } else {
-        path = findBuildPath(state.map, start, goal, currentYear());
+        // Prefer a route that obeys the 45° turn rule; if none exists, still show the best route
+        // so the offending segment can be drawn red (buildTrack will refuse it, PLAN Phase 18 A).
+        path =
+          findBuildPath(state.map, start, goal, currentYear(), {
+            respectTurns: {
+              graph: state.trackGraph,
+              stationTiles: new Set(state.stations.map((st) => st.tile)),
+            },
+          }) ?? findBuildPath(state.map, start, goal, currentYear());
       }
       if (path && path.length >= 2) {
         dragState.path = path;
@@ -637,6 +662,9 @@ function main(): void {
       if (!committed || dragState.path.length < 2) {
         cancelDrag();
         return;
+      }
+      if (dragState.mode === "track" && (dragState.plan as BuildPlan).sharpSteps.length > 0) {
+        showToast(ui, strings.build.reasons.sharpTurn, "warn");
       }
       if (quickBuild) {
         commit();

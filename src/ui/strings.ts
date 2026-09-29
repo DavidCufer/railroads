@@ -60,11 +60,22 @@ export const strings = {
     consumes: "Consumes",
     perMonth: "/mo",
     availableFrom: "Available from",
+    /** PLAN Phase 18 D: "Makes Goods from Steel or Lumber" / "Needs Coal and Iron ore". */
+    makes: "Makes",
+    makesFrom: "from",
+    needs: "Needs",
+    or: "or",
+    and: "and",
+    nearestSources: "Nearest sources",
+    tilesAway: (n: number) => `${n} ${n === 1 ? "tile" : "tiles"}`,
+    noSourceNearby: "None on the map yet",
+    showOnMap: "Show on map",
   },
   build: {
     reasons: {
       "no-path": "Drag to draw a path first",
       blocked: "No valid route or bridge there",
+      sharpTurn: "Too sharp — trains can't turn more than 45° here",
       "cant-afford": "Not enough cash",
       "no-track-to-upgrade": "No single track to upgrade there",
       "not-era-available": "Not available yet",

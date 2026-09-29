@@ -396,6 +396,33 @@ input {
 .chip.chip-dim {
   opacity: 0.45;
 }
+/* Industry panel (PLAN Phase 18 D): the recipe line and the tappable "nearest source" rows. */
+.industry-recipe {
+  justify-content: flex-start;
+}
+.industry-recipe strong {
+  color: var(--text);
+}
+button.industry-source {
+  min-height: 44px;
+  padding: 0 var(--gap-3);
+  border: none;
+  border-radius: var(--radius-s);
+  background: var(--ink-700);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-s);
+  text-align: left;
+  cursor: pointer;
+  justify-content: flex-start;
+}
+button.industry-source:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+button.industry-source .label {
+  flex: 1;
+}
 .chip.chip-lg {
   min-height: 34px;
   padding: 3px var(--gap-2) 3px 3px;

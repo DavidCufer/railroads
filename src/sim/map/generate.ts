@@ -23,6 +23,7 @@ import { priorityFloodFill, type FloodFillResult } from "./flood";
 import { fillLakes, removeTinyWaterBodies } from "./lakes";
 import { carveRivers, type RiverInfo } from "./rivers";
 import { placeCities } from "../economy/cities";
+import { ensureIndustryChains } from "../economy/chains";
 import { placeIndustries } from "../economy/industries";
 import { countPlayablePairs } from "../economy/playability";
 import type { City, Industry } from "../economy/types";
@@ -173,7 +174,15 @@ export function generateMap(
   const rivers = carveRivers(map, rng, flood.parent);
 
   let cities = placeCities(map, rng, options);
-  let industries = placeIndustries(map, rng, cities, startYear, options);
+  // The chain pass runs on a *copy* of the rng: it must not advance the shared stream, or every map
+  // (city retry, names, ...) would change for every seed just because inputs were added (PLAN 18 D).
+  let industries = ensureIndustryChains(
+    map,
+    { ...rng },
+    cities,
+    placeIndustries(map, rng, cities, startYear, options),
+    startYear,
+  );
 
   // Playability (SPEC §4.2 step 6): ensure enough nearby town/city pairs to build a first route
   // between. One deterministic retry (same rng stream, just a bigger city-count target) if not.
@@ -184,7 +193,13 @@ export function generateMap(
       ...options,
       cityCount: bumpCityCount(options.cityCount ?? "normal"),
     });
-    industries = placeIndustries(map, rng, cities, startYear, options);
+    industries = ensureIndustryChains(
+      map,
+      { ...rng },
+      cities,
+      placeIndustries(map, rng, cities, startYear, options),
+      startYear,
+    );
   }
 
   return { map, rivers, cities, industries, flood };

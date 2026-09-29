@@ -43,7 +43,8 @@ describe("canPlaceStationAt", () => {
     const map = makeTestMap(["ppppp", "ppppp", "ppppp"]);
     const state = makeTestState(map);
     buildTrack(state, [tileAt(map, 0, 1), tileAt(map, 1, 1), tileAt(map, 2, 1)]);
-    buildTrack(state, [tileAt(map, 1, 1), tileAt(map, 1, 0)]);
+    // A 45° turnout (a 90° branch off a straight line is no longer buildable, PLAN Phase 18 A).
+    expect(buildTrack(state, [tileAt(map, 1, 1), tileAt(map, 2, 0)]).ok).toBe(true);
     expect(canPlaceStationAt(map, state.trackGraph, tileAt(map, 1, 1))).toBe(false);
   });
 

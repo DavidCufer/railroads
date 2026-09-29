@@ -57,3 +57,8 @@ export function countPlayablePairs(map: GameMap, cities: City[]): number {
   }
   return pairs;
 }
+
+// PLAN Phase 18 D: "playable" also means a complete chain to Goods within reach of a city. The
+// chain-completion pass (chains.ts) guarantees it during generation, so it is not a retry trigger
+// (a retry would replace the cities and change the whole map); tests assert it on many seeds.
+export { hasGoodsChainNearCity } from "./chains";

@@ -209,3 +209,26 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
     recipeMode: "any",
   },
 };
+
+// --- Production chains (PLAN Phase 18 D) --------------------------------------------------------
+
+/** A processor's inputs should have a source within this many tiles (map generation guarantees it;
+ * the industry panel lists the nearest source of each input). */
+export const CHAIN_MAX_DISTANCE_TILES = 25;
+
+/** Raw/processed producers of `cargo` (industries whose `produces` include it). */
+export function producersOf(cargo: CargoType): IndustryType[] {
+  return INDUSTRY_TYPES.filter((t) => t !== "port" && (INDUSTRIES[t].produces[cargo] ?? 0) > 0);
+}
+
+/** What a processor needs, as groups that must *all* be satisfied, each satisfied by *any one*
+ * listed producer type: Steel Mill → [[Coal Mine], [Iron Mine]] (AND); Factory → [[Steel Mill,
+ * Sawmill]] (OR); Food Plant → [[Farm, Ranch]] (OR). Derived from `consumes` + `recipeMode` so it
+ * cannot drift from the production rules. Empty for raw producers and ports. */
+export function inputGroups(type: IndustryType): IndustryType[][] {
+  const def = INDUSTRIES[type];
+  const cargos = Object.keys(def.consumes) as CargoType[];
+  if (cargos.length === 0) return [];
+  if (def.recipeMode === "all") return cargos.map((c) => producersOf(c));
+  return [Array.from(new Set(cargos.flatMap((c) => producersOf(c))))];
+}

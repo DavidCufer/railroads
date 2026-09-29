@@ -21,6 +21,9 @@ export interface GhostPreview {
   path: readonly number[];
   /** True if the whole path is currently buildable and within cash. */
   ok: boolean;
+  /** Segments (tile pairs) that break the 45° turn rule (PLAN Phase 18 A) — drawn as a heavy red
+   * overlay so the player sees which part to redraw. */
+  badSegments?: ReadonlyArray<readonly [number, number]>;
 }
 
 function tileCenterWorld(tile: number, mapWidth: number): [number, number] {
@@ -62,6 +65,28 @@ export function drawBuildPreview(
     else ctx.lineTo(s.x, s.y);
   }
   ctx.stroke();
+
+  if (preview.badSegments && preview.badSegments.length > 0) {
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "rgba(20, 10, 10, 0.9)";
+    ctx.lineWidth = Math.max(4, 9 * camera.zoom);
+    for (const pass of [0, 1]) {
+      if (pass === 1) {
+        ctx.strokeStyle = GHOST_BLOCKED_COLOR;
+        ctx.lineWidth = Math.max(2.5, 5.5 * camera.zoom);
+      }
+      ctx.beginPath();
+      for (const [a, b] of preview.badSegments) {
+        const [ax, ay] = tileCenterWorld(a, mapWidth);
+        const [bx, by] = tileCenterWorld(b, mapWidth);
+        const sa = camera.worldToScreen(ax, ay, viewportW, viewportH);
+        const sb = camera.worldToScreen(bx, by, viewportW, viewportH);
+        ctx.moveTo(sa.x, sa.y);
+        ctx.lineTo(sb.x, sb.y);
+      }
+      ctx.stroke();
+    }
+  }
 
   // Endpoint dots.
   ctx.globalAlpha = 1;

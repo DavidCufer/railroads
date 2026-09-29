@@ -1,6 +1,8 @@
 /** Turns a committed region JSON (`src/data/regions/<id>.json`) into the same
  * `{map, cities, industries}` shape `generateMap` produces (SPEC §4.3), so `createGameState`
  * (src/sim/state.ts) can treat a real-world region and a random map identically from there on. */
+import { ensureIndustryChains } from "../economy/chains";
+import { createRng } from "../rng";
 import type { GameMap } from "../map/types";
 import type { City, Industry } from "../economy/types";
 import { decodeElevationRaw, decodeUint8 } from "./codec";
@@ -26,6 +28,8 @@ export interface LoadedRegion {
 
 /** Minimum river flow (source) and per-step increase toward the mouth, purely cosmetic (render
  * width tapering) — mirrors the random generator's rivers looking thin near their source. */
+/** Seed offset for the region chain-completion pass (kept fixed so regions load identically). */
+const REGION_CHAIN_SEED = 0x1d5;
 const RIVER_FLOW_BASE = 40;
 const RIVER_FLOW_STEP = 10;
 const RIVER_FLOW_MAX = 500;
@@ -83,15 +87,25 @@ export function loadRegion(json: RegionJson): LoadedRegion {
     }
   }
 
-  const industries: Industry[] = json.industries.map((i) => ({
+  const handPlaced: Industry[] = json.industries.map((i) => ({
     id: i.id,
     type: i.type,
     x: i.x,
     y: i.y,
   }));
-  for (const industry of industries) {
+  for (const industry of handPlaced) {
     map.industryId[industry.y * width + industry.x] = industry.id;
   }
+  // PLAN Phase 18 D: keep the hand-placed industries, but add any missing inputs nearby so every
+  // processor has a working supply chain. Seeded from the region itself, so it is deterministic.
+  const industries = ensureIndustryChains(
+    map,
+    createRng(REGION_CHAIN_SEED + json.startYear + width * height),
+    cities,
+    handPlaced,
+    json.startYear,
+    { keepExisting: true },
+  );
 
   return { map, cities, industries, pendingCityFoundings, startYear: json.startYear };
 }

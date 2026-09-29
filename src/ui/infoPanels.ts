@@ -1,6 +1,7 @@
 /** Info-mode panels: tap a city or industry to see its basic info (SPEC §10.2, PLAN Phase 3). */
 import { CARGO, type CargoType } from "../data/cargo";
-import { INDUSTRIES } from "../data/industries";
+import { INDUSTRIES, producersOf } from "../data/industries";
+import { nearestOf } from "../sim/economy/chains";
 import { CIVIC_INVESTMENT_COOLDOWN_YEARS } from "../data/cities";
 import type { Industry } from "../sim/economy/types";
 import { cityAcceptance, citySupply } from "../sim/economy/cityStats";
@@ -227,12 +228,85 @@ export function openCityPanel(
   render();
 }
 
-export function openIndustryPanel(container: HTMLElement, industry: Industry): void {
+export interface IndustryPanelContext {
+  /** All industries on the map, to find the nearest source of each input. */
+  industries: readonly Industry[];
+  startYear: number;
+  /** Centres the map on an industry (the nearest-source rows are tappable). */
+  onCenter?: (industry: Industry) => void;
+}
+
+/** "Makes Goods from Steel or Lumber" (either input works) / "Needs Coal and Iron ore" (all needed),
+ * with the joining word emphasised. Null for industries with no inputs. */
+function recipeLine(type: Industry["type"]): HTMLElement | null {
+  const def = INDUSTRIES[type];
+  const inputs = Object.keys(def.consumes) as CargoType[];
+  if (inputs.length === 0) return null;
+  const joiner = def.recipeMode === "all" ? strings.industry.and : strings.industry.or;
+  const list: Array<Node | string> = [];
+  inputs.forEach((cargo, i) => {
+    if (i > 0) list.push(" ", h("strong", null, joiner), " ");
+    list.push(CARGO[cargo].name);
+  });
+  const outputs = (Object.keys(def.produces) as CargoType[]).map((c) => CARGO[c].name).join(", ");
+  return h(
+    "div",
+    { className: "panel-row industry-recipe" },
+    def.recipeMode === "all"
+      ? h("span", null, `${strings.industry.needs} `, ...list)
+      : h(
+          "span",
+          null,
+          `${strings.industry.makes} ${outputs} ${strings.industry.makesFrom} `,
+          ...list,
+        ),
+  );
+}
+
+/** One row per input cargo: its pictogram and the nearest producer of it (name + distance),
+ * tappable to centre the map there. */
+function nearestSourceRows(
+  container: HTMLElement,
+  industry: Industry,
+  ctx: IndustryPanelContext,
+): HTMLElement[] {
+  const def = INDUSTRIES[industry.type];
+  return (Object.keys(def.consumes) as CargoType[]).map((cargo) => {
+    const types = producersOf(cargo).filter((t) => INDUSTRIES[t].era <= ctx.startYear);
+    const near = nearestOf(ctx.industries, types, industry);
+    const label = near
+      ? `${INDUSTRIES[near.industry.type].name} · ${strings.industry.tilesAway(Math.round(near.distance))}`
+      : strings.industry.noSourceNearby;
+    return h(
+      "button",
+      {
+        className: `panel-row industry-source${near ? "" : " chip-dim"}`,
+        disabled: !near || !ctx.onCenter,
+        "aria-label": near ? `${strings.industry.showOnMap}: ${label}` : label,
+        onClick: () => {
+          if (near) ctx.onCenter?.(near.industry);
+          void container;
+        },
+      },
+      cargoIcon(cargo, "cargo-icon-sm"),
+      h("span", { className: "label" }, CARGO[cargo].name),
+      h("span", null, label),
+    );
+  });
+}
+
+export function openIndustryPanel(
+  container: HTMLElement,
+  industry: Industry,
+  ctx?: IndustryPanelContext,
+): void {
   const def = INDUSTRIES[industry.type];
   const produces = Object.entries(def.produces) as Array<[CargoType, number]>;
   const consumes = Object.entries(def.consumes) as Array<[CargoType, number]>;
 
   const body: Node[] = [row(strings.industry.availableFrom, String(def.era))];
+  const recipe = recipeLine(industry.type);
+  if (recipe) body.push(recipe);
 
   if (produces.length > 0) {
     body.push(h("div", { className: "panel-section-title" }, strings.industry.produces));
@@ -257,6 +331,10 @@ export function openIndustryPanel(container: HTMLElement, industry: Industry): v
         ),
       ),
     );
+    if (ctx) {
+      body.push(h("div", { className: "panel-section-title" }, strings.industry.nearestSources));
+      body.push(...nearestSourceRows(container, industry, ctx));
+    }
   }
 
   openPanel(container, { title: def.name, body });

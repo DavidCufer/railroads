@@ -30,6 +30,7 @@ import { applyCivicInvestmentGrowth, getOrCreateCityGrowth } from "./economy/cit
 import type { City } from "./economy/types";
 import { pushNews } from "./news";
 import { directionIndex } from "./track/graph";
+import { findSharpSteps } from "./track/turn";
 import {
   doubleUpgradeCost,
   electrifyCost,
@@ -64,6 +65,7 @@ import type { Train, TrainCar, TrainOrder } from "./trains/types";
 export type CommandReasonCode =
   | "no-path"
   | "blocked"
+  | "sharpTurn"
   | "cant-afford"
   | "no-track-to-upgrade"
   | "not-era-available"
@@ -108,6 +110,9 @@ export interface BuildPlan {
   toBuild: PathStep[];
   cost: number;
   valid: boolean;
+  /** New steps that would meet track at a turn sharper than 45° (PLAN Phase 18 A) — a subset of
+   * `toBuild`; non-empty makes the plan invalid. */
+  sharpSteps: PathStep[];
 }
 
 /** Prices `path` as a Track-mode build (SPEC §5.3), without mutating state. Edges that already
@@ -117,12 +122,18 @@ export function computeBuildPlan(
   path: readonly number[],
   preferredBridgeType?: BridgeType,
 ): BuildPlan {
-  if (path.length < 2) return { steps: [], toBuild: [], cost: 0, valid: false };
+  if (path.length < 2) return { steps: [], toBuild: [], cost: 0, valid: false, sharpSteps: [] };
   const steps = evaluatePath(state.map, path, costContext(state), preferredBridgeType);
-  const valid = pathIsValid(steps);
   const toBuild = steps.filter((s) => !state.trackGraph.hasEdge(s.a, s.b));
+  const sharpSteps = findSharpSteps(
+    state.trackGraph,
+    state.map.width,
+    new Set(state.stations.map((st) => st.tile)),
+    toBuild,
+  );
+  const valid = pathIsValid(steps) && sharpSteps.length === 0;
   const cost = toBuild.reduce((sum, s) => sum + s.cost, 0);
-  return { steps, toBuild, cost, valid };
+  return { steps, toBuild, cost, valid, sharpSteps };
 }
 
 export interface UpgradePlan {
@@ -184,6 +195,7 @@ export function buildTrack(
 ): CommandResult {
   if (path.length < 2) return { ok: false, reason: "no-path" };
   const plan = computeBuildPlan(state, path, preferredBridgeType);
+  if (plan.sharpSteps.length > 0) return { ok: false, reason: "sharpTurn" };
   if (!plan.valid) return { ok: false, reason: "blocked" };
   if (plan.cost > state.cash) return { ok: false, reason: "cant-afford" };
 
