@@ -942,6 +942,7 @@ function main(): void {
         state.cities,
         (tile) => state.map.cityId[tile] ?? -1,
         reserved,
+        state.trackGraph,
       );
       if (floatingLabels.length > 0) {
         floatingLabels = floatingLabels.filter((l) => !isLabelExpired(l, now));

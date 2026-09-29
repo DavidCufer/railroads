@@ -13,15 +13,6 @@ const BUBBLE_RADIUS = 9;
 const MAX_BUBBLES_PER_STATION = 2;
 const MIN_ZOOM = 0.75;
 
-/** Converts `#rrggbb` to `rgba(r,g,b,alpha)` — same tint STYLE §5 gives the DOM cargo pictogram
- * tiles, so a bubble reads the same way whether it's a dark cargo (coal) or a light one. */
-function hexToRgba(hex: string, alpha: number): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
 const bubbleImages = new Map<CargoType, HTMLImageElement>();
 
 function getBubbleImage(cargo: CargoType): HTMLImageElement {
@@ -74,19 +65,30 @@ export function drawStationSupplyBubbles(
       continue;
     }
 
-    const rowY = screen.y - size * 0.7 - r;
+    const rowY = screen.y - size * 0.75 - r;
     const spacing = r * 2 + 3;
     const startX = screen.x - ((top.length - 1) * spacing) / 2;
     top.forEach((cargo, i) => {
       const bx = startX + i * spacing;
+      // Cream badge with a cargo-coloured ring, so dark cargoes (coal) still read; a small tail
+      // points down at the station.
+      ctx.beginPath();
+      ctx.moveTo(bx - r * 0.35, rowY + r * 0.85);
+      ctx.lineTo(bx, rowY + r * 1.45);
+      ctx.lineTo(bx + r * 0.35, rowY + r * 0.85);
+      ctx.closePath();
+      ctx.fillStyle = "#F2E8D5";
+      ctx.fill();
       ctx.beginPath();
       ctx.arc(bx, rowY, r, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(28, 36, 48, 0.75)";
+      ctx.fillStyle = "rgba(20, 16, 10, 0.25)";
       ctx.fill();
-      ctx.fillStyle = hexToRgba(CARGO[cargo].color, 0.55);
+      ctx.beginPath();
+      ctx.arc(bx, rowY - 0.5, r, 0, Math.PI * 2);
+      ctx.fillStyle = "#F2E8D5";
       ctx.fill();
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = "rgba(238, 231, 218, 0.6)";
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = CARGO[cargo].color;
       ctx.stroke();
       const img = getBubbleImage(cargo);
       if (img.complete && img.naturalWidth > 0) {

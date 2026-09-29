@@ -10,7 +10,12 @@ import type { TrackGraph } from "../sim/track/graph";
 import { Camera, TILE_SIZE } from "./camera";
 import { cityWorldCenter, measureTextWidthCached } from "./labels";
 import { STATION_LABEL_COLOR } from "./palette";
-import { drawImprovementMarker, drawStationBuilding, type StationMarkerType } from "./stationArt";
+import {
+  drawStationArt,
+  stationArtBottom,
+  type StationArtOptions,
+  type StationMarkerType,
+} from "./stationArt";
 import type { Station } from "../sim/stations/types";
 import { DOUBLE_TRACK_SPACING_TILES } from "./trackPath";
 import { intersectsReserved, type ReservedScreenRect } from "./reservedRects";
@@ -32,7 +37,7 @@ function tileWorldOrigin(tile: number, mapWidth: number): [number, number] {
 /** Track direction at the station, folded so the building never ends up upside down. */
 function stationAngle(dirIndex: number): number {
   const [dx, dy] = DIRS8[dirIndex] as readonly [number, number];
-  return dx < 0 ? Math.atan2(-dy, -dx) : Math.atan2(dy, dx);
+  return dx < 0 || (dx === 0 && dy < 0) ? Math.atan2(-dy, -dx) : Math.atan2(dy, dx);
 }
 
 /** Clearance from the track centre line to the platform edge: past the rails' tie ends. */
@@ -47,30 +52,57 @@ function activeImprovements(station: Station): StationMarkerType[] {
   return list;
 }
 
-/** Draws a small row of improvement markers below the station's platform (SPEC §6.2, Phase 9) —
- * caps how many render per station so a heavily-improved one doesn't spill markers into the tile
- * below (there are only 8 possible, so this rarely matters, but wraps to a second row past 4). */
-function drawImprovementMarkers(
-  ctx: CanvasRenderingContext2D,
+/** Tiles of unbroken straight track continuing from `tile` along direction `dirIndex` (capped). */
+function straightReach(
+  graph: TrackGraph,
+  tile: number,
+  dirIndex: number,
+  mapWidth: number,
+): number {
+  const [dx, dy] = DIRS8[dirIndex] as readonly [number, number];
+  let n = 0;
+  let cur = tile;
+  for (; n < 3; n++) {
+    const x = (cur % mapWidth) + dx;
+    const y = Math.floor(cur / mapWidth) + dy;
+    const next = y * mapWidth + x;
+    if (x < 0 || y < 0 || !graph.hasEdge(cur, next)) break;
+    cur = next;
+  }
+  // A diagonal step is √2 long along the track.
+  return n * Math.hypot(dx, dy);
+}
+
+/** Everything the station art needs for one station at the current graph state. */
+function artOptions(
   station: Station,
-  px: number,
-  py: number,
+  graph: TrackGraph,
+  mapWidth: number,
   size: number,
-): void {
-  const improvements = activeImprovements(station);
-  if (improvements.length === 0 || size < TILE_SIZE * 0.6) return;
-  const cx = px + size / 2;
-  const rowY = py + size * 0.98;
-  const r = size * 0.17;
-  const spacing = size * 0.44;
-  const perRow = 3;
-  improvements.forEach((type, i) => {
-    const row = Math.floor(i / perRow);
-    const col = i % perRow;
-    const countThisRow = Math.min(perRow, improvements.length - row * perRow);
-    const startX = cx - ((countThisRow - 1) * spacing) / 2;
-    drawImprovementMarker(ctx, type, startX + col * spacing, rowY + row * spacing, r);
-  });
+): StationArtOptions {
+  const edges = graph.edgesAt(station.tile);
+  const doubleEdge = edges.find((e) => e.double);
+  const edge = doubleEdge ?? edges[0];
+  const dirIndex = edge ? edge.direction : 0;
+  const angle = edge ? stationAngle(dirIndex) : 0;
+  // Forward is the folded direction the art's +x axis follows; the graph edge may point either way.
+  const [fdx, fdy] = DIRS8[dirIndex] as readonly [number, number];
+  const forward = fdx < 0 || (fdx === 0 && fdy < 0) ? (dirIndex + 4) % 8 : dirIndex;
+  const near = doubleEdge ? DOUBLE_TRACK_SPACING_TILES / 2 + 0.16 : PLATFORM_CLEARANCE;
+  return {
+    type: station.type,
+    u: size,
+    angle,
+    near,
+    loop: doubleEdge !== undefined,
+    reach: edge
+      ? [
+          straightReach(graph, station.tile, (forward + 4) % 8, mapWidth),
+          straightReach(graph, station.tile, forward, mapWidth),
+        ]
+      : [0, 0],
+    improvements: activeImprovements(station),
+  };
 }
 
 export function drawStations(
@@ -86,27 +118,10 @@ export function drawStations(
   for (const station of stations) {
     const [wx, wy] = tileWorldOrigin(station.tile, mapWidth);
     const s = camera.worldToScreen(wx, wy, viewportW, viewportH);
-    if (s.x < -size || s.y < -size || s.x > viewportW + size || s.y > viewportH + size) continue;
-    const edges = graph.edgesAt(station.tile);
-    const doubleEdge = edges.find((e) => e.double);
-    const edge = doubleEdge ?? edges[0];
-    const angle = edge ? stationAngle(edge.direction) : 0;
-    // A passing loop keeps the building beyond the outer lane's rail (PLAN 16.1: never under rails).
-    const near = doubleEdge
-      ? size * (DOUBLE_TRACK_SPACING_TILES / 2 + 0.16)
-      : size * PLATFORM_CLEARANCE;
-    drawStationBuilding(
-      ctx,
-      station.type,
-      s.x + size / 2,
-      s.y + size / 2,
-      size,
-      angle,
-      near,
-      -1,
-      doubleEdge !== undefined,
-    );
-    drawImprovementMarkers(ctx, station, s.x, s.y, size);
+    const margin = size * 3.5;
+    if (s.x < -margin || s.y < -margin || s.x > viewportW + margin || s.y > viewportH + margin)
+      continue;
+    drawStationArt(ctx, s.x + size / 2, s.y + size / 2, artOptions(station, graph, mapWidth, size));
   }
 }
 
@@ -139,6 +154,7 @@ export function drawStationLabels(
   cities: readonly City[] = [],
   cityIdAt: (tile: number) => number = () => -1,
   reserved: readonly ReservedScreenRect[] = [],
+  graph?: TrackGraph,
 ): void {
   ctx.font = `600 ${FONT_PX}px sans-serif`;
   ctx.textAlign = "center";
@@ -153,12 +169,11 @@ export function drawStationLabels(
     // A station inside a city's footprint can land its label right on top of the city's own name
     // (drawn at the footprint centroid, which the station tile may sit very close to) — if so,
     // push the station label down to clear it instead of overlapping (Phase 5 review carry-over).
-    // Drop the label below the improvement markers' rows (zoom ≥ 0.6, three per row).
-    const markerRows =
-      camera.zoom * TILE_SIZE >= TILE_SIZE * 0.6
-        ? Math.ceil(activeImprovements(station).length / 3)
-        : 0;
-    let labelY = s.y + 2 + markerRows * TILE_SIZE * camera.zoom * 0.44;
+    // Drop the name plate below the art (improvements included).
+    const bottom = graph
+      ? stationArtBottom(artOptions(station, graph, mapWidth, TILE_SIZE * camera.zoom))
+      : 0.5;
+    let labelY = s.y - TILE_SIZE * camera.zoom * 0.5 + bottom * TILE_SIZE * camera.zoom + 2;
     const cityId = cityIdAt(station.tile);
     const city = cityId >= 0 ? cities[cityId] : undefined;
     // A station named after the city it sits in (the common case — SPEC §6.1's default naming)
