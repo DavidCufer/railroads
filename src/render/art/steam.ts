@@ -75,10 +75,15 @@ export function steamLayout(def: LocomotiveDef): SteamLayout {
   for (let i = 0; i < leadN; i++)
     leadAxles.push(Tc + (leadN === 1 ? 0 : (i === 0 ? 1 : -1) * 2.25));
   const sp = D * 1.3;
-  const cylBack0 = Tc - 3.6;
+  // No leading truck (0-4-0): the cylinders sit right behind the smokebox front instead of behind an
+  // absent truck, so the engine has no long unsupported nose.
+  const cylBack0 = w.lead === 0 ? -5.2 : Tc - 3.6;
   const cylinders: SteamLayout["cylinders"] = [];
   const drivers: number[][] = [];
-  let cursor = cylBack0 - D / 2 - 3.2; // first driver centre of group 0
+  // First driver centre of group 0. Small engines (0-4-0, 2-2-0) tuck the front driver under the cylinder
+  // block, just behind the crosshead, so the front is carried by wheels rather than overhanging.
+  const compact = w.lead <= 2 && w.groups.length === 1 && (w.groups[0] as number) <= 4;
+  let cursor = compact ? cylBack0 - 3.3 : cylBack0 - D / 2 - 3.2;
   w.groups.forEach((g, gi) => {
     const n = g / 2;
     const xs: number[] = [];

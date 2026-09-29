@@ -17,6 +17,7 @@ import {
   type EraBucket,
 } from "../../src/render/art";
 import { steamLivery } from "../../src/render/art/livery";
+import { steamLayout } from "../../src/render/art/steam";
 
 let calls = 0;
 function fakeCtx(): CanvasRenderingContext2D {
@@ -117,5 +118,25 @@ describe("side views", () => {
     );
     expect(widths.size).toBe(LOCOMOTIVES.filter((l) => l.type !== "steam").length);
     expect(steamLivery({ introYear: 1848 }).body).not.toBe(steamLivery({ introYear: 1912 }).body);
+  });
+
+  it("steam engines have no long unsupported nose (PLAN 23B)", () => {
+    for (const def of LOCOMOTIVES.filter((l) => l.type === "steam")) {
+      const lay = steamLayout(def);
+      // The smokebox front is x = 0; the frontmost wheel edge is a lead-truck wheel or the front driver.
+      const truck = lay.leadAxles.length > 0 ? Math.max(...lay.leadAxles) + 2 : -Infinity;
+      const driver = (lay.drivers[0]![0] as number) + lay.D / 2;
+      expect(-Math.max(truck, driver), def.name).toBeLessThanOrEqual(6);
+    }
+  });
+  it("puts the front driver of a 0-4-0 and 2-2-0 under the cylinder block", () => {
+    for (const id of ["grasshopper-0-4-0", "planet-2-2-0"]) {
+      const def = LOCOMOTIVES.find((l) => l.id === id);
+      if (!def) throw new Error(`missing ${id}`);
+      const lay = steamLayout(def);
+      const cyl = lay.cylinders[0]!;
+      const x = lay.drivers[0]![0] as number;
+      expect(x + lay.D / 2).toBeGreaterThan(cyl.back);
+    }
   });
 });
