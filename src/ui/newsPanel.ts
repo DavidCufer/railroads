@@ -7,8 +7,13 @@ import { locomotiveById } from "../data/trains";
 import { markAllNewsRead, unreadNewsCount, type NewsItem } from "../sim/news";
 import type { GameState } from "../sim/state";
 import { describeGoal } from "./goalStrings";
+import { calendarFromTicks } from "../sim/time";
+import { cardList, cardRow } from "./components/cardRow";
+import { emptyState } from "./components/emptyState";
+import type { Tone } from "./components/tone";
+import { formatDate } from "./format";
 import { h } from "./h";
-import { icon } from "./icons";
+import { icon, type IconName } from "./icons";
 import { openPanel } from "./panel";
 import { strings } from "./strings";
 
@@ -72,15 +77,46 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
   }
 }
 
+const NEWS_ICONS: Record<NewsItem["kind"], { icon: IconName; tone: Tone }> = {
+  newLocomotive: { icon: "steam", tone: "brass" },
+  breakdown: { icon: "wrench", tone: "signal" },
+  washout: { icon: "water", tone: "signal" },
+  trafficJam: { icon: "warning", tone: "signal" },
+  noRoute: { icon: "warning", tone: "signal" },
+  cityGrowth: { icon: "city", tone: "go" },
+  civicInvestment: { icon: "coin", tone: "go" },
+  cityFounded: { icon: "village", tone: "go" },
+  goalCompleted: { icon: "trophy", tone: "brass" },
+};
+
 export function openNewsPanel(container: HTMLElement, state: GameState): void {
+  const unreadFrom = state.newsReadUpTo;
   const items = [...state.news].reverse();
   const body: Node[] =
     items.length === 0
-      ? [h("div", { className: "panel-row" }, strings.news.empty)]
-      : items.map((item) => h("div", { className: "news-item" }, formatNewsItem(state, item)));
+      ? [emptyState(strings.news.empty, "news")]
+      : [
+          cardList(
+            ...items.map((item) => {
+              const meta = NEWS_ICONS[item.kind];
+              const loco = item.kind === "newLocomotive" ? locomotiveById(item.locoId) : undefined;
+              const thumbIcon: IconName = loco
+                ? loco.type === "electric"
+                  ? "electrify"
+                  : loco.type
+                : meta.icon;
+              return cardRow({
+                className: `news-item${item.id > unreadFrom ? " unread" : ""}`,
+                thumb: h("span", { className: `news-thumb tone-${meta.tone}` }, icon(thumbIcon)),
+                title: formatNewsItem(state, item),
+                meta: formatDate(calendarFromTicks(state.startYear, item.tick)),
+              });
+            }),
+          ),
+        ];
 
   markAllNewsRead(state);
-  openPanel(container, { title: strings.news.title, body });
+  openPanel(container, { title: strings.news.title, thumb: icon("news"), body, key: "news" });
 }
 
 export interface NewsButtonController {

@@ -18,6 +18,13 @@ const TOOLS: Array<{ id: ToolId; label: string; icon: IconName; enabled: boolean
   { id: "info", label: strings.toolbar.info, icon: "info", enabled: true },
 ];
 
+/** The vertical pill holding Goals / News / Trains (STYLE §8.3); each button keeps its own class. */
+export function createFloatingPill(container: HTMLElement): HTMLElement {
+  const pill = h("div", { className: "float-pill" });
+  container.appendChild(pill);
+  return pill;
+}
+
 export interface ToolbarController {
   root: HTMLElement;
   setActive: (tool: ToolId) => void;
@@ -29,7 +36,9 @@ export function createToolbar(
 ): ToolbarController {
   const buttonById = new Map<ToolId, HTMLButtonElement>();
 
-  const buttons = TOOLS.map((tool) => {
+  const buttons: HTMLElement[] = [];
+  TOOLS.forEach((tool) => {
+    if (tool.id === "info") buttons.push(h("div", { className: "toolbar-gap" }));
     const btn = h(
       "button",
       {
@@ -46,7 +55,7 @@ export function createToolbar(
       h("span", null, tool.label),
     );
     buttonById.set(tool.id, btn);
-    return btn;
+    buttons.push(btn);
   });
 
   function setActive(tool: ToolId): void {

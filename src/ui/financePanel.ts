@@ -1,179 +1,197 @@
 /**
- * Finance panel (SPEC §10.2): cash, loans (borrow/repay), this-year-vs-last-year ledger table, and
- * a simple cash/net-worth line chart from the monthly samples in `GameState.finance.netWorthHistory`.
+ * Finance panel (SPEC §10.2, STYLE §8.4): tabs **Overview** (Cash / Net worth / Loans tiles, net-worth
+ * sparkline, credit meter) and **This year** (income + cost stacked bars with legends, this/last
+ * year switch). Borrow / Repay / Yearly Report live in the footer on both tabs.
  */
-import { LOAN_INCREMENT, ledgerNetProfit, type LedgerPeriod } from "../data/finance";
+import { LOAN_INCREMENT, ledgerExpenses, ledgerNetProfit, ledgerRevenue } from "../data/finance";
 import { creditLimit, repayLoan, takeLoan } from "../sim/commands";
 import { netWorth } from "../sim/finance/ledger";
-import type { NetWorthSample } from "../sim/finance/types";
 import type { GameState } from "../sim/state";
-import { UI_ACCENT, UI_GOOD } from "../render/palette";
+import { drawSparkline, stackedBar } from "./components/charts";
+import { costParts, incomeParts } from "./components/ledgerParts";
+import { footerButton } from "./components/footer";
+import { meter } from "./components/meter";
+import { section } from "./components/section";
+import { statRow, statTile } from "./components/statTile";
+import { tabs } from "./components/tabs";
 import { h } from "./h";
+import { icon } from "./icons";
 import { openPanel } from "./panel";
 import { strings } from "./strings";
 import { formatMoney } from "./format";
 import { showToast } from "./toast";
 import { openYearlyReport } from "./yearlyReport";
 
-function ledgerRows(period: LedgerPeriod): Node[] {
-  return [
-    h("div", { className: "panel-section-title" }, strings.finance.revenue),
-    row(strings.finance.passengers, formatMoney(period.passengers)),
-    row(strings.finance.mail, formatMoney(period.mail)),
-    row(strings.finance.freight, formatMoney(period.freight)),
-    h("div", { className: "panel-section-title" }, strings.finance.expenses),
-    row(strings.finance.trainMaintenance, formatMoney(period.trainMaintenance)),
-    row(strings.finance.trackMaintenance, formatMoney(period.trackMaintenance)),
-    row(strings.finance.stationMaintenance, formatMoney(period.stationMaintenance)),
-    row(strings.finance.breakdownRepairs, formatMoney(period.breakdownRepairs)),
-    row(strings.finance.interest, formatMoney(period.interest)),
-    row(strings.finance.construction, formatMoney(period.construction)),
-    row(strings.finance.rollingStock, formatMoney(period.rollingStock)),
-    h(
-      "div",
-      { className: "panel-row ledger-net-row" },
-      h("span", { className: "label" }, strings.finance.netProfit),
-      h("span", null, formatMoney(ledgerNetProfit(period))),
-    ),
-  ];
-}
+type FinanceTab = "overview" | "year";
+type YearView = "thisYear" | "lastYear";
 
-function row(label: string, value: string): HTMLElement {
-  return h(
-    "div",
-    { className: "panel-row" },
-    h("span", { className: "label" }, label),
-    h("span", null, value),
-  );
-}
-
-const CHART_W = 300;
-const CHART_H = 84;
-
-function drawChart(canvas: HTMLCanvasElement, history: readonly NetWorthSample[]): void {
-  const context = canvas.getContext("2d");
-  if (!context) return;
-  const ctx: CanvasRenderingContext2D = context;
-  ctx.clearRect(0, 0, CHART_W, CHART_H);
-
-  if (history.length < 2) {
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
-    ctx.font = "11px sans-serif";
-    ctx.fillText("Not enough history yet", 8, CHART_H / 2);
-    return;
-  }
-
-  const cashVals = history.map((s) => s.cash);
-  const netWorthVals = history.map((s) => s.netWorth);
-  const all = [...cashVals, ...netWorthVals, 0];
-  const min = Math.min(...all);
-  const max = Math.max(...all, 1);
-  const pad = 4;
-
-  const xAt = (i: number): number => pad + (i / (history.length - 1)) * (CHART_W - pad * 2);
-  const yAt = (v: number): number =>
-    CHART_H - pad - ((v - min) / (max - min || 1)) * (CHART_H - pad * 2);
-
-  function line(values: number[], color: string): void {
-    ctx.beginPath();
-    values.forEach((v, i) => (i === 0 ? ctx.moveTo(xAt(i), yAt(v)) : ctx.lineTo(xAt(i), yAt(v))));
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
-  line(cashVals, UI_GOOD);
-  line(netWorthVals, UI_ACCENT);
-}
+const CHART_W = 360;
+const CHART_H = 48;
 
 export function openFinancePanel(container: HTMLElement, state: GameState): void {
+  let tab: FinanceTab = "overview";
+  let yearView: YearView = "thisYear";
+
   const render = (): void => {
     const limit = creditLimit(state);
+    const loans = state.finance.loans;
+    let canvas: HTMLCanvasElement | null = null;
+    const body: Node[] = [];
 
-    const body: Node[] = [
-      row(strings.finance.cash, formatMoney(state.cash)),
-      row(strings.finance.netWorth, formatMoney(netWorth(state))),
-      row(strings.finance.loans, formatMoney(state.finance.loans)),
-      row(strings.finance.creditLimit, formatMoney(limit)),
-      h(
-        "div",
-        { className: "panel-row finance-loan-actions" },
-        h(
-          "button",
-          {
-            className: "finance-loan-btn",
-            disabled: state.finance.loans + LOAN_INCREMENT > limit,
-            onClick: () => {
-              const result = takeLoan(state, LOAN_INCREMENT);
-              if (!result.ok) showToast(container, strings.build.reasons[result.reason], "warn");
-              render();
-            },
-          },
-          strings.finance.borrow,
+    if (tab === "overview") {
+      body.push(
+        statRow(
+          statTile({
+            icon: "coin",
+            value: formatMoney(state.cash),
+            caption: strings.finance.cash,
+            tone: state.cash < 0 ? "signal" : "brass",
+          }),
+          statTile({
+            icon: "trendUp",
+            value: formatMoney(netWorth(state)),
+            caption: strings.finance.netWorth,
+          }),
+          statTile({
+            icon: "finance",
+            value: formatMoney(loans),
+            caption: strings.finance.loans,
+            tone: loans > 0 ? "signal" : undefined,
+          }),
         ),
+      );
+      canvas = h("canvas", {
+        className: "finance-chart",
+        width: String(CHART_W * 2),
+        height: String(CHART_H * 2),
+        role: "img",
+        "aria-label": strings.finance.chartTitle,
+      });
+      body.push(
+        canvas,
         h(
-          "button",
-          {
-            className: "finance-loan-btn",
-            disabled: state.finance.loans <= 0,
-            onClick: () => {
-              const result = repayLoan(state, LOAN_INCREMENT);
-              if (!result.ok) showToast(container, strings.build.reasons[result.reason], "warn");
-              render();
-            },
-          },
-          strings.finance.repay,
+          "div",
+          { className: "credit-row", title: strings.finance.creditNote },
+          h("span", { className: "panel-section-title" }, strings.finance.creditLimit),
+          meter(
+            loans,
+            limit,
+            loans / Math.max(1, limit) > 0.8 ? "signal" : "brass",
+            `${formatMoney(loans)} / ${formatMoney(limit)}`,
+          ),
         ),
-      ),
-    ];
-
-    if (state.finance.bankrupt) {
+      );
+      if (state.finance.bankrupt) {
+        body.push(
+          h("div", { className: "finance-bankrupt-warning" }, strings.finance.bankruptWarning),
+        );
+      }
+    } else {
+      const period = yearView === "thisYear" ? state.finance.thisYear : state.finance.lastYear;
+      const profit = ledgerNetProfit(period);
       body.push(
         h(
           "div",
-          { className: "panel-row finance-bankrupt-warning" },
-          strings.finance.bankruptWarning,
+          { className: "segmented-row year-switch" },
+          ...(["thisYear", "lastYear"] as const).map((view) =>
+            h(
+              "button",
+              {
+                className: `segmented-btn${yearView === view ? " active" : ""}`,
+                onClick: () => {
+                  yearView = view;
+                  render();
+                },
+              },
+              view === "thisYear" ? strings.finance.thisYear : strings.finance.lastYear,
+            ),
+          ),
         ),
+        statRow(
+          statTile({
+            icon: "arrowUp",
+            value: formatMoney(ledgerRevenue(period)),
+            caption: strings.finance.revenue,
+            tone: "go",
+          }),
+          statTile({
+            icon: "arrowDown",
+            value: formatMoney(ledgerExpenses(period)),
+            caption: strings.finance.expenses,
+            tone: "signal",
+          }),
+          statTile({
+            icon: "coin",
+            value: formatMoney(profit),
+            caption: strings.finance.netProfit,
+            tone: profit >= 0 ? "go" : "signal",
+          }),
+        ),
+        section(strings.finance.revenue, [
+          stackedBar(incomeParts(period), strings.finance.noneYet),
+        ]),
+        section(strings.finance.expenses, [stackedBar(costParts(period), strings.finance.noneYet)]),
       );
     }
 
-    body.push(h("div", { className: "panel-section-title" }, strings.finance.chartTitle));
-    const canvas = h("canvas", {
-      className: "finance-chart",
-      width: String(CHART_W),
-      height: String(CHART_H),
-    });
-    body.push(canvas);
-    body.push(
-      h(
-        "div",
-        { className: "finance-chart-legend" },
-        h("span", { className: "legend-dot", style: { background: UI_GOOD } }, ""),
-        h("span", null, strings.finance.chartCash),
-        h("span", { className: "legend-dot", style: { background: UI_ACCENT } }, ""),
-        h("span", null, strings.finance.chartNetWorth),
-      ),
-    );
-
-    body.push(h("div", { className: "panel-section-title" }, strings.finance.thisYear));
-    body.push(...ledgerRows(state.finance.thisYear));
-    body.push(h("div", { className: "panel-section-title" }, strings.finance.lastYear));
-    body.push(...ledgerRows(state.finance.lastYear));
-
-    const yearlyReportBtn = h(
-      "button",
-      {
-        className: "panel-action-build",
+    const footer: Node[] = [
+      footerButton({
+        kind: "primary",
+        icon: "arrowUp",
+        label: strings.finance.borrow,
+        title: strings.finance.borrowTip,
+        className: "finance-loan-btn",
+        disabled: loans + LOAN_INCREMENT > limit,
+        onClick: () => {
+          const result = takeLoan(state, LOAN_INCREMENT);
+          if (!result.ok) showToast(container, strings.build.reasons[result.reason], "warn");
+          render();
+        },
+      }),
+      footerButton({
+        icon: "arrowDown",
+        label: strings.finance.repay,
+        title: strings.finance.repayTip,
+        className: "finance-loan-btn",
+        disabled: loans <= 0,
+        onClick: () => {
+          const result = repayLoan(state, LOAN_INCREMENT);
+          if (!result.ok) showToast(container, strings.build.reasons[result.reason], "warn");
+          render();
+        },
+      }),
+      footerButton({
+        icon: "news",
+        label: strings.finance.yearlyReport,
+        className: "fbtn-wide",
         onClick: () => openYearlyReport(container, state),
-      },
-      strings.finance.yearlyReport,
-    );
+      }),
+    ];
 
     openPanel(container, {
       title: strings.finance.title,
+      subtitle: strings.finance.subtitle,
+      thumb: icon("finance"),
+      tabs: tabs(
+        [
+          { id: "overview", label: strings.finance.tabs.overview, icon: "trendUp" },
+          { id: "year", label: strings.finance.tabs.year, icon: "news" },
+        ] as const,
+        tab,
+        (id) => {
+          tab = id;
+          render();
+        },
+      ),
       body,
-      footer: [yearlyReportBtn],
+      footer,
+      key: `finance:${tab}`,
     });
-    drawChart(canvas, state.finance.netWorthHistory);
+    if (canvas)
+      drawSparkline(
+        canvas,
+        state.finance.netWorthHistory.map((s) => s.netWorth),
+      );
   };
 
   render();

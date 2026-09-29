@@ -195,7 +195,6 @@ test.describe("Phase 5 — stations", () => {
     // The name appears once, as the title (STYLE review) — no separate rename field until the
     // pencil-icon edit button is tapped.
     await expect(page.locator(".panel-title")).toHaveText("Ashtown");
-    await expect(page.locator(".station-upgrade-btn")).toContainText("Upgrade to Station");
     await expect(page.locator(".station-name-input")).toHaveCount(0);
     // Supplies render as pictogram chips (STYLE §6) with a thin waiting-cargo bar underneath each
     // one — no days have run yet, so the bars are all at 0%, but the chip stacks themselves (and
@@ -204,6 +203,11 @@ test.describe("Phase 5 — stations", () => {
     await expect(page.locator(".chip-row").first()).toBeVisible();
 
     await page.screenshot({ path: "docs/screenshots/phase-5-station-panel.png" });
+
+    // The upgrade action lives in the Build tab (STYLE §8.4).
+    await page.locator(".tab", { hasText: "Build" }).click();
+    await expect(page.locator(".station-upgrade-btn")).toContainText("Upgrade to Station");
+    await page.locator(".tab", { hasText: "Cargo" }).click();
 
     // Tapping the pencil icon turns the title into an inline edit field, pre-filled with the
     // current name.
@@ -220,6 +224,7 @@ test.describe("Phase 5 — stations", () => {
 
     // Upgrade (the panel fully re-renders; give the old copy time to be removed from the DOM
     // before re-querying, since it lingers briefly for its slide-out transition).
+    await page.locator(".tab", { hasText: "Build" }).click();
     await page.locator(".station-upgrade-btn").click();
     await page.waitForTimeout(300);
     await expect(page.locator(".station-upgrade-btn")).toContainText("Upgrade to Terminal");

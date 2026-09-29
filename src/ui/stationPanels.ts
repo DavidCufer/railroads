@@ -12,7 +12,8 @@ import {
   STATION_TYPES,
   STATION_TYPE_DEFS,
 } from "../data/stations";
-import type { StationType } from "../data/stations";
+import type { StationImprovementType, StationType } from "../data/stations";
+import { locomotiveById } from "../data/trains";
 import {
   buildImprovement,
   buildStation,
@@ -28,9 +29,16 @@ import { previewStationEconomy, stationStorageCap, type StationEconomy } from ".
 import type { Station } from "../sim/stations/types";
 import type { GameState } from "../sim/state";
 import { calendarFromTicks } from "../sim/time";
-import { cargoChip, cargoDemandTile, row } from "./infoPanels";
+import { cargoChip, cargoDemandTile } from "./infoPanels";
 import { h } from "./h";
-import { icon } from "./icons";
+import { icon, type IconName } from "./icons";
+import { cardList, cardRow } from "./components/cardRow";
+import { emptyState } from "./components/emptyState";
+import { footerButton } from "./components/footer";
+import { section } from "./components/section";
+import { statRow, statTile } from "./components/statTile";
+import { tabs } from "./components/tabs";
+import type { Tone } from "./components/tone";
 import { closePanel, openPanel } from "./panel";
 import { strings } from "./strings";
 import { formatMoney } from "./format";
@@ -75,7 +83,7 @@ function supplyChipStack(
         h(
           "span",
           { className: "cargo-waiting-label" },
-          strings.station.waitingCount(String(Math.round(waiting.amount)), CARGO[cargo].unitsNoun),
+          strings.station.waitingCount(String(Math.round(waiting.amount))),
         ),
       );
     }
@@ -105,46 +113,48 @@ function economyBody(
     ? CARGO_TYPES.filter((c) => !suppliedCargo.has(c) && (waitingPile[c]?.amount ?? 0) > 0.5)
     : [];
 
-  const body: Node[] = [];
-  body.push(h("div", { className: "panel-section-title" }, strings.station.supplies));
-  body.push(
-    supplyEntries.length > 0 || extraWaiting.length > 0
-      ? h(
-          "div",
-          { className: "chip-row" },
-          ...supplyEntries.map(([cargo, amount]) =>
-            supplyChipStack(
-              container,
-              cargo,
-              amount,
-              station
-                ? {
-                    amount: waitingPile?.[cargo]?.amount ?? 0,
-                    cap: stationStorageCap(station, cargo),
-                  }
-                : undefined,
-            ),
-          ),
-          ...extraWaiting.map((cargo) =>
-            supplyChipStack(container, cargo, 0, {
-              amount: waitingPile?.[cargo]?.amount ?? 0,
-              cap: station ? stationStorageCap(station, cargo) : 1,
-            }),
-          ),
-        )
-      : h("div", { className: "panel-row" }, "—"),
-  );
-  body.push(h("div", { className: "panel-section-title" }, strings.station.accepts));
-  body.push(
-    acceptEntries.length > 0
-      ? h(
-          "div",
-          { className: "chip-row" },
-          ...acceptEntries.map(([cargo, points]) => cargoDemandTile(container, cargo, points)),
-        )
-      : h("div", { className: "panel-row" }, "—"),
-  );
-  return body;
+  return [
+    section(
+      strings.station.supplies,
+      [
+        supplyEntries.length > 0 || extraWaiting.length > 0
+          ? h(
+              "div",
+              { className: "chip-row" },
+              ...supplyEntries.map(([cargo, amount]) =>
+                supplyChipStack(
+                  container,
+                  cargo,
+                  amount,
+                  station
+                    ? {
+                        amount: waitingPile?.[cargo]?.amount ?? 0,
+                        cap: stationStorageCap(station, cargo),
+                      }
+                    : undefined,
+                ),
+              ),
+              ...extraWaiting.map((cargo) =>
+                supplyChipStack(container, cargo, 0, {
+                  amount: waitingPile?.[cargo]?.amount ?? 0,
+                  cap: station ? stationStorageCap(station, cargo) : 1,
+                }),
+              ),
+            )
+          : emptyState(strings.station.noSupplies, "cargo"),
+      ],
+      strings.station.perMonthNote,
+    ),
+    section(strings.station.accepts, [
+      acceptEntries.length > 0
+        ? h(
+            "div",
+            { className: "chip-row" },
+            ...acceptEntries.map(([cargo, points]) => cargoDemandTile(container, cargo, points)),
+          )
+        : emptyState(strings.station.noDemands, "cargo"),
+    ]),
+  ];
 }
 
 /** "Waiting for transfer: 40 t coal from Idrija" (PLAN Phase 18 C): the Warehouse hub's transfer
@@ -164,39 +174,53 @@ function transferSection(container: HTMLElement, state: GameState, station: Stat
     g.units += lot.units;
     groups.set(key, g);
   }
-  const body: Node[] = [
-    h("div", { className: "panel-section-title" }, strings.station.transferTitle),
-  ];
   if (groups.size === 0) {
-    body.push(h("div", { className: "panel-row" }, strings.station.transferEmpty));
-    return body;
+    return [
+      section(strings.station.transferTitle, [
+        emptyState(strings.station.transferEmpty, "warehouse"),
+      ]),
+    ];
   }
-  for (const g of groups.values()) {
+  const rows = [...groups.values()].map((g) => {
     const def = CARGO[g.cargo];
-    body.push(
-      h(
-        "div",
-        { className: "panel-row transfer-row" },
-        cargoChip(container, g.cargo, Math.round(g.units), def.unit ? ` ${def.unit}` : ""),
-        h("span", null, strings.station.transferFrom(def.name.toLowerCase(), g.origin)),
-      ),
+    return h(
+      "div",
+      { className: "panel-row transfer-row" },
+      cargoChip(container, g.cargo, Math.round(g.units), def.unit ? ` ${def.unit}` : ""),
+      h("span", null, strings.station.transferFrom(def.name.toLowerCase(), g.origin)),
     );
-  }
-  return body;
+  });
+  return [section(strings.station.transferTitle, rows)];
 }
 
-/** Compact 2-column key/value grid (STYLE §6: stats at the bottom, below the actionable
- * sections) — type, catchment, max train length, storage/cargo, monthly maintenance. */
+const TYPE_ICONS: Record<StationType, IconName> = {
+  depot: "depot",
+  station: "station",
+  terminal: "terminal",
+};
+
+/** The station type's numbers as stat tiles (STYLE §8.2): catchment, max train length, storage per
+ * cargo, monthly maintenance. */
 function statsGrid(type: StationType): Node {
   const def = STATION_TYPE_DEFS[type];
-  return h(
-    "div",
-    { className: "stats-grid" },
-    row(strings.station.type, strings.station.types[type]),
-    row(strings.station.catchment, `${def.catchmentRadius * 2 + 1}×${def.catchmentRadius * 2 + 1}`),
-    row(strings.station.maxTrainLength, String(def.maxTrainLength)),
-    row(strings.station.storagePerCargo, String(def.storagePerCargo)),
-    row(strings.station.monthlyMaintenance, formatMoney(def.monthlyMaintenance)),
+  const side = def.catchmentRadius * 2 + 1;
+  return statRow(
+    statTile({ icon: "target", value: `${side}×${side}`, caption: strings.station.catchment }),
+    statTile({
+      icon: "trains",
+      value: String(def.maxTrainLength),
+      caption: strings.station.maxTrainLength,
+    }),
+    statTile({
+      icon: "cargo",
+      value: String(def.storagePerCargo),
+      caption: strings.station.storagePerCargo,
+    }),
+    statTile({
+      icon: "coin",
+      value: formatMoney(def.monthlyMaintenance),
+      caption: strings.station.monthlyMaintenance,
+    }),
   );
 }
 
@@ -234,6 +258,7 @@ export function openStationPlacementPanel(
           update();
         },
       },
+      icon(TYPE_ICONS[type], "type-icon"),
       h("span", null, strings.station.types[type]),
       h("span", { className: "cost" }, formatMoney(def.cost)),
     );
@@ -243,16 +268,13 @@ export function openStationPlacementPanel(
 
   const statsEl = h("div", { className: "station-stats" });
   const economyEl = h("div", { className: "station-economy" });
-  const buildBtn = h("button", { className: "panel-action-build" });
-  const cancelBtn = h(
-    "button",
-    {
-      className: "panel-action-cancel",
-      "aria-label": strings.ui.close,
-      onClick: () => closePanel(),
-    },
-    icon("close"),
-  );
+  const buildBtn = footerButton({ kind: "primary", className: "panel-action-build" });
+  const cancelBtn = footerButton({
+    icon: "close",
+    ariaLabel: strings.ui.close,
+    className: "panel-action-cancel",
+    onClick: () => closePanel(),
+  });
 
   buildBtn.addEventListener("click", () => {
     const result = buildStation(state, tile, selectedType);
@@ -282,7 +304,10 @@ export function openStationPlacementPanel(
 
     statsEl.replaceChildren(statsGrid(selectedType));
     economyEl.replaceChildren(...economyBody(container, economy));
-    buildBtn.textContent = `${strings.station.build} (${formatMoney(plan.cost)})`;
+    buildBtn.replaceChildren(
+      icon("hammer", "icon-sm"),
+      h("span", null, `${strings.station.build} · ${formatMoney(plan.cost)}`),
+    );
     buildBtn.disabled = !plan.valid || !affordable;
 
     callbacks.onPreview(tile, selectedType, plan.valid);
@@ -290,12 +315,232 @@ export function openStationPlacementPanel(
 
   openPanel(container, {
     title: strings.station.newStationTitle,
+    thumb: icon("station"),
     body: [h("div", { className: "station-type-picker" }, ...typeButtons), statsEl, economyEl],
     footer: [buildBtn, cancelBtn],
     onClose: () => callbacks.onClose(),
   });
 
   update();
+}
+
+type StationTab = "cargo" | "trains" | "build";
+
+function nearestCityName(state: GameState, tile: number): string | null {
+  const width = state.map.width;
+  const tx = tile % width;
+  const ty = Math.floor(tile / width);
+  let best: { name: string; d: number } | null = null;
+  for (const city of state.cities) {
+    for (const ct of city.tiles) {
+      const d = Math.hypot((ct % width) - tx, Math.floor(ct / width) - ty);
+      if (!best || d < best.d) best = { name: city.name, d };
+    }
+  }
+  return best?.name ?? null;
+}
+
+const STATUS_ICONS: Record<string, { icon: IconName; tone: Tone }> = {
+  moving: { icon: "play", tone: "steel" },
+  loading: { icon: "cargo", tone: "brass" },
+  waitingForBlock: { icon: "signal", tone: "signal" },
+  waitingForStation: { icon: "signal", tone: "signal" },
+  noRoute: { icon: "warning", tone: "signal" },
+  stuck: { icon: "warning", tone: "signal" },
+  broken: { icon: "wrench", tone: "signal" },
+};
+
+const LOCO_TYPE_ICONS: Record<string, IconName> = {
+  steam: "steam",
+  diesel: "diesel",
+  electric: "electrify",
+};
+
+/** Trains that call here as card rows: loco thumb (a plain traction-type icon until the side views
+ * land), name, status icon + next stop. */
+function trainsTab(state: GameState, station: Station, handlers?: StationPanelHandlers): Node {
+  const serving = state.trains.filter((t) => t.orders.some((o) => o.stationId === station.id));
+  if (serving.length === 0) return emptyState(strings.trains.none, "trains");
+  return cardList(
+    ...serving.map((t) => {
+      const st = STATUS_ICONS[t.status] ?? STATUS_ICONS["moving"]!;
+      const next = state.stations.find((x) => x.id === t.orders[t.currentOrderIndex]?.stationId);
+      const loco = locomotiveById(t.locoModelId);
+      const statusIcon = icon(st.icon, `icon-sm tone-${st.tone}`);
+      return cardRow({
+        className: "train-loco-btn",
+        thumb: icon(LOCO_TYPE_ICONS[loco?.type ?? "steam"] ?? "steam"),
+        title: t.name,
+        meta: h(
+          "span",
+          { className: "card-meta-inline" },
+          statusIcon,
+          next
+            ? `${strings.trains.statusNames[t.status]} · ${next.name}`
+            : strings.trains.statusNames[t.status],
+        ),
+        chevron: true,
+        onClick: () => handlers?.onOpenTrain?.(t.id),
+      });
+    }),
+  );
+}
+
+const IMPROVEMENT_ICONS: Record<StationImprovementType, IconName> = {
+  postOffice: "news",
+  hotel: "hotel",
+  warehouse: "warehouse",
+  coldStorage: "snowflake",
+  freightYard: "freightYard",
+  livestockPens: "pens",
+};
+
+/** Build tab: upgrade card, improvements grid (built ones checked), water tower, engine shed, stats. */
+function buildTab(
+  container: HTMLElement,
+  state: GameState,
+  station: Station,
+  render: () => void,
+): Node[] {
+  const stationId = station.id;
+  const out: Node[] = [];
+  const nextType = STATION_TYPES[STATION_TYPES.indexOf(station.type) + 1] as
+    StationType | undefined;
+  if (nextType) {
+    const plan = computeStationUpgradePlan(state, stationId, nextType);
+    out.push(
+      h(
+        "button",
+        {
+          className: "station-upgrade-btn upgrade-card",
+          disabled: plan.cost > state.cash,
+          onClick: () => {
+            const result = upgradeStation(state, stationId, nextType);
+            if (!result.ok) {
+              showToast(container, strings.build.reasons[result.reason], "warn");
+              return;
+            }
+            render();
+          },
+        },
+        icon(TYPE_ICONS[nextType], "upgrade-icon"),
+        h(
+          "span",
+          { className: "upgrade-text" },
+          h(
+            "span",
+            { className: "upgrade-title" },
+            `${strings.station.upgradeToPrefix}${strings.station.types[nextType]}`,
+          ),
+          h("span", { className: "upgrade-cost" }, formatMoney(plan.cost)),
+        ),
+        icon("arrowUp", "icon-sm"),
+      ),
+    );
+  }
+
+  const cells: Node[] = STATION_IMPROVEMENT_TYPES.map((type) => {
+    const def = STATION_IMPROVEMENTS[type];
+    const built = station.improvements.includes(type);
+    const label = h(
+      "span",
+      { className: "action-btn-label" },
+      icon(IMPROVEMENT_ICONS[type], "icon-sm"),
+      strings.station.improvementNames[type],
+    );
+    if (built) {
+      return h(
+        "div",
+        { className: "action-btn station-improvement-btn done" },
+        label,
+        h("span", { className: "action-btn-detail" }, icon("check", "icon-sm")),
+      );
+    }
+    const plan = computeImprovementPlan(state, stationId, type);
+    const notYetAvailable = def.availableYear !== undefined && !plan.valid && plan.cost === 0;
+    return h(
+      "button",
+      {
+        className: "action-btn station-improvement-btn",
+        title: def.description,
+        disabled: !plan.valid || plan.cost > state.cash,
+        onClick: () => {
+          const result = buildImprovement(state, stationId, type);
+          if (!result.ok) {
+            showToast(container, strings.build.reasons[result.reason], "warn");
+            return;
+          }
+          render();
+        },
+      },
+      label,
+      h(
+        "span",
+        { className: "action-btn-detail" },
+        notYetAvailable
+          ? strings.station.improvementAvailableFrom(def.availableYear as number)
+          : formatMoney(plan.cost),
+      ),
+    );
+  });
+
+  if (station.hasWaterTower) {
+    cells.push(
+      h(
+        "div",
+        { className: "action-btn done" },
+        h(
+          "span",
+          { className: "action-btn-label" },
+          icon("waterTower", "icon-sm"),
+          strings.station.waterTowerBuilt,
+        ),
+        h("span", { className: "action-btn-detail" }, icon("check", "icon-sm")),
+      ),
+    );
+  } else {
+    const waterTowerPlan = computeWaterTowerPlan(state, stationId);
+    cells.push(
+      h(
+        "button",
+        {
+          className: "action-btn station-water-tower-btn",
+          disabled: waterTowerPlan.cost > state.cash,
+          onClick: () => {
+            const result = buildWaterTower(state, stationId);
+            if (!result.ok) {
+              showToast(container, strings.build.reasons[result.reason], "warn");
+              return;
+            }
+            render();
+          },
+        },
+        h(
+          "span",
+          { className: "action-btn-label" },
+          icon("waterTower", "icon-sm"),
+          strings.station.buildWaterTower,
+        ),
+        h("span", { className: "action-btn-detail" }, formatMoney(waterTowerPlan.cost)),
+      ),
+    );
+  }
+  out.push(
+    section(strings.station.improvements, [h("div", { className: "action-grid" }, ...cells)]),
+  );
+
+  if (station.hasEngineShed) {
+    out.push(
+      h(
+        "div",
+        { className: "icon-row muted-row" },
+        icon("shed", "icon-sm"),
+        strings.station.engineShedFree,
+      ),
+    );
+  }
+  out.push(section(strings.ui.stats, [statsGrid(station.type)]));
+  return out;
 }
 
 export interface StationPanelHandlers {
@@ -315,13 +560,12 @@ export function openStationPanel(
   handlers?: StationPanelHandlers,
 ): void {
   let editingName = false;
+  let tab: StationTab = "cargo";
 
   const render = (): void => {
     const station = state.stations.find((s) => s.id === stationId);
     if (!station) return;
     const economy = state.stationEconomy.get(stationId);
-    const nextType = STATION_TYPES[STATION_TYPES.indexOf(station.type) + 1] as
-      StationType | undefined;
 
     const titleNode = editingName
       ? h(
@@ -370,165 +614,55 @@ export function openStationPanel(
 
     const body: Node[] = [];
 
-    if (economy) {
-      const pile = state.stationCargo.get(stationId);
-      body.push(...economyBody(container, economy, pile, station));
-    }
-    body.push(...transferSection(container, state, station));
-
-    const servingTrains = state.trains.filter((t) =>
-      t.orders.some((o) => o.stationId === stationId),
-    );
-    body.push(h("div", { className: "panel-section-title" }, strings.trains.listTitle));
-    body.push(
-      servingTrains.length > 0
-        ? h(
-            "div",
-            { className: "train-loco-list" },
-            ...servingTrains.map((t) =>
-              h(
-                "button",
-                {
-                  className: "train-loco-btn",
-                  onClick: () => handlers?.onOpenTrain?.(t.id),
-                },
-                h("span", null, t.name),
-                h("span", { className: "train-loco-stats" }, strings.trains.statusNames[t.status]),
-              ),
-            ),
-          )
-        : h("div", { className: "panel-row" }, strings.trains.none),
-    );
-
-    body.push(h("div", { className: "panel-section-title" }, strings.station.improvements));
-    body.push(
-      h(
-        "div",
-        { className: "action-grid" },
-        ...STATION_IMPROVEMENT_TYPES.map((type) => {
-          const def = STATION_IMPROVEMENTS[type];
-          const built = station.improvements.includes(type);
-          if (built) {
-            return h(
-              "div",
-              { className: "action-btn station-improvement-btn done" },
-              h(
-                "span",
-                { className: "action-btn-label" },
-                icon("check", "icon-sm"),
-                strings.station.improvementNames[type],
-              ),
-            );
-          }
-          const plan = computeImprovementPlan(state, stationId, type);
-          const notYetAvailable = def.availableYear !== undefined && !plan.valid && plan.cost === 0;
-          return h(
-            "button",
-            {
-              className: "action-btn station-improvement-btn",
-              disabled: !plan.valid || plan.cost > state.cash,
-              onClick: () => {
-                const result = buildImprovement(state, stationId, type);
-                if (!result.ok) {
-                  showToast(container, strings.build.reasons[result.reason], "warn");
-                  return;
-                }
-                render();
-              },
-            },
-            h("span", { className: "action-btn-label" }, strings.station.improvementNames[type]),
-            h(
-              "span",
-              { className: "action-btn-detail" },
-              notYetAvailable
-                ? strings.station.improvementAvailableFrom(def.availableYear as number)
-                : formatMoney(plan.cost),
-            ),
-          );
-        }),
-      ),
-    );
-
-    if (station.hasEngineShed && handlers) {
-      body.push(
-        h(
-          "button",
-          { className: "station-buy-train-btn", onClick: () => handlers.onBuyTrain() },
-          icon("trains", "icon-sm"),
-          strings.trains.buyTitle,
-        ),
-      );
-    } else if (station.hasEngineShed) {
-      body.push(
-        h(
-          "div",
-          { className: "icon-row" },
-          icon("shed", "icon-sm"),
-          strings.station.engineShedFree,
-        ),
-      );
-    }
-
-    if (station.hasWaterTower) {
-      body.push(
-        h(
-          "div",
-          { className: "icon-row" },
-          icon("water", "icon-sm"),
-          strings.station.waterTowerBuilt,
-        ),
-      );
+    if (tab === "cargo") {
+      if (economy) {
+        const pile = state.stationCargo.get(stationId);
+        body.push(...economyBody(container, economy, pile, station));
+      }
+      body.push(...transferSection(container, state, station));
+    } else if (tab === "trains") {
+      body.push(trainsTab(state, station, handlers));
     } else {
-      const waterTowerPlan = computeWaterTowerPlan(state, stationId);
-      body.push(
-        h(
-          "button",
-          {
-            className: "station-water-tower-btn",
-            disabled: waterTowerPlan.cost > state.cash,
-            onClick: () => {
-              const result = buildWaterTower(state, stationId);
-              if (!result.ok) {
-                showToast(container, strings.build.reasons[result.reason], "warn");
-                return;
-              }
-              render();
-            },
-          },
-          icon("water", "icon-sm"),
-          `${strings.station.buildWaterTower} (${formatMoney(waterTowerPlan.cost)})`,
-        ),
-      );
+      body.push(...buildTab(container, state, station, render));
     }
-
-    body.push(h("div", { className: "panel-section-title" }, strings.ui.stats));
-    body.push(statsGrid(station.type));
 
     const footer: Node[] = [];
-    if (nextType) {
-      const plan = computeStationUpgradePlan(state, stationId, nextType);
+    if (station.hasEngineShed && handlers) {
       footer.push(
-        h(
-          "button",
-          {
-            className: "station-upgrade-btn",
-            disabled: plan.cost > state.cash,
-            onClick: () => {
-              const result = upgradeStation(state, stationId, nextType);
-              if (!result.ok) {
-                showToast(container, strings.build.reasons[result.reason], "warn");
-                return;
-              }
-              render();
-            },
-          },
-          icon("arrowUp", "icon-sm"),
-          `${strings.station.upgradeToPrefix}${strings.station.types[nextType]} (${formatMoney(plan.cost)})`,
-        ),
+        footerButton({
+          kind: "primary",
+          icon: "trains",
+          label: strings.trains.buyTitle,
+          className: "station-buy-train-btn",
+          onClick: () => handlers.onBuyTrain(),
+        }),
       );
     }
 
-    openPanel(container, { title: titleNode, body, footer });
+    const nearestCity = nearestCityName(state, station.tile);
+    const subtitle = `${strings.station.types[station.type]}${nearestCity ? ` · ${nearestCity}` : ""}`;
+    const tabRow = tabs(
+      [
+        { id: "cargo", label: strings.station.tabs.cargo, icon: "cargo" },
+        { id: "trains", label: strings.station.tabs.trains, icon: "trains" },
+        { id: "build", label: strings.station.tabs.build, icon: "hammer" },
+      ] as const,
+      tab,
+      (id) => {
+        tab = id;
+        render();
+      },
+    );
+
+    openPanel(container, {
+      title: titleNode,
+      subtitle,
+      thumb: icon(TYPE_ICONS[station.type]),
+      tabs: tabRow,
+      body,
+      footer,
+      key: `station:${stationId}:${tab}`,
+    });
     if (editingName) {
       const input = container.querySelector<HTMLInputElement>(".station-name-input");
       input?.focus();

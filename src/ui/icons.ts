@@ -43,7 +43,41 @@ export type IconName =
   | "arrowFlat"
   | "shed"
   | "edit"
-  | "signal";
+  | "signal"
+  | "coin"
+  | "chevronRight"
+  | "arrowDown"
+  | "steam"
+  | "diesel"
+  | "roster"
+  | "depot"
+  | "terminal"
+  | "village"
+  | "town"
+  | "city"
+  | "metropolis"
+  | "factory"
+  | "cargo"
+  | "hammer"
+  | "save"
+  | "load"
+  | "quit"
+  | "layers"
+  | "target"
+  | "flame"
+  | "palette"
+  | "trendUp"
+  | "map"
+  | "mapPin"
+  | "hotel"
+  | "warehouse"
+  | "snowflake"
+  | "freightYard"
+  | "pens"
+  | "waterTower"
+  | "lock"
+  | "tags"
+  | "trash";
 
 const STROKE =
   'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
@@ -79,6 +113,40 @@ const ICONS: Record<IconName, string> = {
   shed: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M3 11 L12 4 L21 11 V20 H3 Z"/><line x1="12" y1="4" x2="12" y2="20"/></svg>`,
   edit: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M4 20l1-4.5L15.5 5 19 8.5 8.5 19 4 20z"/><line x1="13.5" y1="6.5" x2="17" y2="10"/></svg>`,
   signal: `<svg viewBox="0 0 24 24" ${STROKE}><circle cx="12" cy="12" r="6" fill="currentColor" stroke="none"/></svg>`,
+  coin: `<svg viewBox="0 0 24 24" ${STROKE}><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.6 10c0-1.1 1-1.8 2.4-1.8s2.4.7 2.4 1.7-.9 1.4-2.4 1.7c-1.4.3-2.4.8-2.4 1.8s1 1.7 2.4 1.7 2.4-.7 2.4-1.7"/></svg>`,
+  chevronRight: `<svg viewBox="0 0 24 24" ${STROKE}><polyline points="9 5 16 12 9 19"/></svg>`,
+  arrowDown: `<svg viewBox="0 0 24 24" ${STROKE}><line x1="12" y1="5" x2="12" y2="19"/><polyline points="6 13 12 19 18 13"/></svg>`,
+  steam: `<svg viewBox="0 0 24 24" ${STROKE}><rect x="3" y="10" width="11" height="6" rx="1"/><rect x="14" y="7" width="6" height="9" rx="1"/><line x1="6" y1="10" x2="6" y2="6"/><circle cx="7" cy="18.5" r="1.5"/><circle cx="12" cy="18.5" r="1.5"/><circle cx="17.5" cy="18.5" r="1.5"/></svg>`,
+  diesel: `<svg viewBox="0 0 24 24" ${STROKE}><rect x="3" y="8" width="18" height="8" rx="2"/><line x1="8" y1="8" x2="8" y2="16"/><rect x="11" y="5" width="6" height="3"/><circle cx="7" cy="18.5" r="1.5"/><circle cx="17" cy="18.5" r="1.5"/></svg>`,
+  roster: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg>`,
+  depot: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M4 20V11l8-6 8 6v9"/><rect x="9" y="14" width="6" height="6"/></svg>`,
+  terminal: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M3 20V10c0-4 4-6 9-6s9 2 9 6v10"/><line x1="3" y1="20" x2="21" y2="20"/><line x1="8" y1="20" x2="8" y2="12"/><line x1="16" y1="20" x2="16" y2="12"/></svg>`,
+  village: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M5 20v-8l5-4 5 4v8"/><path d="M15 20v-6l4-3 2 1.5V20"/><line x1="3" y1="20" x2="21" y2="20"/></svg>`,
+  town: `<svg viewBox="0 0 24 24" ${STROKE}><rect x="4" y="10" width="6" height="10"/><rect x="10" y="6" width="6" height="14"/><path d="M16 12h4v8h-4"/><line x1="3" y1="20" x2="21" y2="20"/></svg>`,
+  city: `<svg viewBox="0 0 24 24" ${STROKE}><rect x="4" y="9" width="5" height="11"/><rect x="9" y="4" width="6" height="16"/><rect x="15" y="11" width="5" height="9"/><line x1="11" y1="8" x2="13" y2="8"/><line x1="11" y1="12" x2="13" y2="12"/></svg>`,
+  metropolis: `<svg viewBox="0 0 24 24" ${STROKE}><rect x="3" y="12" width="4" height="8"/><rect x="7" y="7" width="4" height="13"/><path d="M13 20V3l3 2 3-2v17"/><line x1="2" y1="20" x2="22" y2="20"/></svg>`,
+  factory: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M3 20V10l6 3V10l6 3V6h4v14z"/><line x1="7" y1="20" x2="7" y2="17"/><line x1="12" y1="20" x2="12" y2="17"/></svg>`,
+  cargo: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/></svg>`,
+  hammer: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M14 4l6 6-3 1-2-2-8 9-3-3 9-8-2-2z"/></svg>`,
+  save: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M5 4h11l3 3v13H5z"/><rect x="8" y="4" width="7" height="5"/><rect x="8" y="14" width="8" height="6"/></svg>`,
+  load: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M3 8a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>`,
+  quit: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M9 4H5v16h4"/><line x1="10" y1="12" x2="20" y2="12"/><polyline points="16 8 20 12 16 16"/></svg>`,
+  layers: `<svg viewBox="0 0 24 24" ${STROKE}><polygon points="12,4 21,9 12,14 3,9"/><polyline points="3 13.5 12 18.5 21 13.5"/></svg>`,
+  target: `<svg viewBox="0 0 24 24" ${STROKE}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></svg>`,
+  flame: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M12 3c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-4-1-6 1-10z"/></svg>`,
+  palette: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M12 4a8 8 0 1 0 0 16c1.5 0 2-1 1.5-2s0-2 1.5-2h2a3 3 0 0 0 3-3c0-5-4-9-8-9z"/><circle cx="8" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="10" r="1" fill="currentColor" stroke="none"/></svg>`,
+  trendUp: `<svg viewBox="0 0 24 24" ${STROKE}><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>`,
+  map: `<svg viewBox="0 0 24 24" ${STROKE}><polygon points="3,6 9,4 15,6 21,4 21,18 15,20 9,18 3,20"/><line x1="9" y1="4" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="20"/></svg>`,
+  mapPin: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2"/></svg>`,
+  hotel: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M3 19V7M3 14h18v5M3 11h8a3 3 0 0 1 3 3"/><circle cx="7" cy="9" r="1.5"/></svg>`,
+  warehouse: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M3 10l9-6 9 6v10H3z"/><rect x="8" y="12" width="8" height="8"/><line x1="8" y1="16" x2="16" y2="16"/></svg>`,
+  snowflake: `<svg viewBox="0 0 24 24" ${STROKE}><line x1="12" y1="3" x2="12" y2="21"/><line x1="4.2" y1="7.5" x2="19.8" y2="16.5"/><line x1="4.2" y1="16.5" x2="19.8" y2="7.5"/><polyline points="9.5 4.5 12 7 14.5 4.5"/><polyline points="9.5 19.5 12 17 14.5 19.5"/></svg>`,
+  freightYard: `<svg viewBox="0 0 24 24" ${STROKE}><line x1="3" y1="7" x2="21" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="17" x2="21" y2="17"/><rect x="8" y="9" width="8" height="6" fill="var(--ink-800)"/></svg>`,
+  pens: `<svg viewBox="0 0 24 24" ${STROKE}><line x1="3" y1="20" x2="21" y2="20"/><line x1="5" y1="20" x2="5" y2="9"/><line x1="12" y1="20" x2="12" y2="9"/><line x1="19" y1="20" x2="19" y2="9"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="16" x2="21" y2="16"/></svg>`,
+  waterTower: `<svg viewBox="0 0 24 24" ${STROKE}><rect x="6" y="4" width="12" height="7" rx="2"/><line x1="8" y1="11" x2="6" y2="21"/><line x1="16" y1="11" x2="18" y2="21"/><line x1="12" y1="11" x2="12" y2="21"/></svg>`,
+  lock: `<svg viewBox="0 0 24 24" ${STROKE}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`,
+  trash: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>`,
+  tags: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M4 4h8l8 8-8 8-8-8z"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/></svg>`,
 };
 
 /** Builds a `<span class="icon">` wrapping the named icon's inline SVG markup. */

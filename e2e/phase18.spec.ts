@@ -112,6 +112,7 @@ test.describe("Phase 18 — play-test 5", () => {
     await centerOn(page, 74, ROW_Y, 1.5);
     await page.evaluate((id) => window.__game!.debugOpenStation(id), ids.a);
     await page.waitForTimeout(300);
+    await page.locator(".tab", { hasText: "Trains" }).click();
     await page.locator(".train-loco-btn", { hasText: waiting!.name }).click();
     await page.waitForTimeout(300);
     await expect(page.locator(".panel")).toContainText("Waiting for platform at");
@@ -134,9 +135,12 @@ test.describe("Phase 18 — play-test 5", () => {
     await page.mouse.click(p.x, p.y);
     await page.waitForTimeout(300);
     await expect(page.locator(".panel-title")).toHaveText("Factory");
-    await expect(page.locator(".industry-recipe")).toContainText(
+    // The recipe is drawn with pictograms; its sentence rides in the aria-label.
+    await expect(page.locator(".industry-recipe")).toHaveAttribute(
+      "aria-label",
       "Makes Goods from Steel or Lumber",
     );
+    await expect(page.locator(".industry-recipe")).toContainText("or");
     const rows = page.locator("button.industry-source");
     await expect(rows).toHaveCount(2);
     await expect(rows.first()).toContainText("tile");

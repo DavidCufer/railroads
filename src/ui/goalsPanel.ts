@@ -7,6 +7,9 @@ import { evaluateGoals } from "../sim/goals/evaluate";
 import type { Goal } from "../sim/goals/types";
 import type { GameState } from "../sim/state";
 import { describeGoal, goalTargetYear } from "./goalStrings";
+import { footerButton } from "./components/footer";
+import { emptyState } from "./components/emptyState";
+import { meter } from "./components/meter";
 import { h } from "./h";
 import { icon } from "./icons";
 import { closePanel, openPanel } from "./panel";
@@ -14,52 +17,56 @@ import { strings } from "./strings";
 
 function goalCard(state: GameState, status: ReturnType<typeof evaluateGoals>[number]): HTMLElement {
   const goal = status.goal;
+  const pct = Math.round(status.progress * 100);
   return h(
     "div",
     { className: `goal-card goal-tier-${goal.tier}${status.complete ? " goal-complete" : ""}` },
     h(
-      "div",
-      { className: "goal-card-header" },
-      h("span", { className: "goal-tier-badge" }, strings.goals.tierNames[goal.tier]),
-      h("span", { className: "goal-year" }, strings.goals.byYear(goalTargetYear(goal))),
+      "span",
+      { className: "goal-medal", "aria-label": strings.goals.tierNames[goal.tier] },
+      icon("trophy"),
     ),
-    h("div", { className: "goal-desc" }, describeGoal(state, goal)),
     h(
       "div",
-      { className: "cargo-bar-row" },
+      { className: "goal-main" },
+      h("div", { className: "goal-desc" }, describeGoal(state, goal)),
       h(
         "div",
-        { className: "cargo-bar-track" },
-        h("div", {
-          className: "cargo-bar-fill",
-          style: {
-            width: `${Math.round(status.progress * 100)}%`,
-            background: status.complete ? "var(--go)" : "var(--brass)",
-          },
-        }),
+        { className: "goal-sub" },
+        h("span", { className: "goal-tier-badge" }, strings.goals.tierNames[goal.tier]),
+        h("span", { className: "goal-year" }, strings.goals.byYear(goalTargetYear(goal))),
+        status.overdue ? h("span", { className: "goal-overdue" }, strings.goals.overdue) : null,
       ),
-      h(
-        "span",
-        { className: "cargo-bar-value" },
-        status.complete ? icon("check", "icon-sm") : `${Math.round(status.progress * 100)}%`,
-      ),
+      meter(status.progress, 1, status.complete ? "go" : "brass"),
     ),
-    status.overdue ? h("div", { className: "goal-overdue" }, strings.goals.overdue) : null,
+    h(
+      "span",
+      { className: `goal-value${status.complete ? " tone-go" : ""}` },
+      status.complete ? icon("check", "icon-sm") : `${pct}%`,
+    ),
   );
 }
 
 export function openGoalsPanel(container: HTMLElement, state: GameState): void {
   const statuses = evaluateGoals(state);
+  const done = statuses.filter((s) => s.complete).length;
   const body: Node[] =
     statuses.length === 0
-      ? [h("div", { className: "panel-row" }, strings.goals.none)]
+      ? [emptyState(strings.goals.none, "goals")]
       : statuses.map((status) => goalCard(state, status));
-  openPanel(container, { title: strings.goals.title, body });
+  openPanel(container, {
+    title: strings.goals.title,
+    subtitle: statuses.length > 0 ? strings.goals.doneCount(done, statuses.length) : undefined,
+    thumb: icon("goals"),
+    body,
+    key: "goals",
+  });
 }
 
 export function openGoalCelebration(container: HTMLElement, state: GameState, goal: Goal): void {
   openPanel(container, {
     title: strings.celebration.title,
+    thumb: icon("trophy"),
     body: [
       h(
         "div",
@@ -70,11 +77,12 @@ export function openGoalCelebration(container: HTMLElement, state: GameState, go
       h("div", { className: "panel-row" }, describeGoal(state, goal)),
     ],
     footer: [
-      h(
-        "button",
-        { className: "panel-action-build", onClick: () => closePanel() },
-        strings.celebration.close,
-      ),
+      footerButton({
+        kind: "primary",
+        label: strings.celebration.close,
+        className: "panel-action-build",
+        onClick: () => closePanel(),
+      }),
     ],
   });
 }

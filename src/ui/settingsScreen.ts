@@ -5,7 +5,11 @@
  * container, so this module doesn't need to know which context it's in beyond the handlers passed
  * to it.
  */
+import { cardList } from "./components/cardRow";
+import { section } from "./components/section";
+import { toggleRow } from "./components/toggleRow";
 import { h } from "./h";
+import { icon, type IconName } from "./icons";
 import { screenHeader } from "./screenHeader";
 import { strings } from "./strings";
 import {
@@ -41,22 +45,30 @@ export interface SettingsScreenHandlers {
   onChange?: (settings: Settings, quickBuild: boolean) => void;
 }
 
-function toggleRow(
-  label: string,
-  desc: string | undefined,
-  active: boolean,
-  onClick: () => void,
-): HTMLElement {
+interface Segment {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}
+
+/** An icon + label row with a segmented control on the right (units, UI scale). */
+function optionRow(iconName: IconName, label: string, segments: Segment[]): HTMLElement {
   return h(
-    "button",
-    { className: `settings-toggle-row${active ? " active" : ""}`, onClick },
+    "div",
+    { className: "option-row settings-option-row" },
+    icon(iconName, "toggle-icon"),
+    h("span", { className: "option-label" }, label),
     h(
       "div",
-      { className: "settings-toggle-text" },
-      h("div", { className: "settings-toggle-label" }, label),
-      desc ? h("div", { className: "settings-toggle-desc" }, desc) : null,
+      { className: "segmented-row" },
+      ...segments.map((seg) =>
+        h(
+          "button",
+          { className: `segmented-btn${seg.active ? " active" : ""}`, onClick: seg.onClick },
+          seg.label,
+        ),
+      ),
     ),
-    h("span", { className: "switch" }),
   );
 }
 
@@ -80,62 +92,67 @@ export function renderSettingsScreen(handlers: SettingsScreenHandlers): HTMLElem
       h(
         "div",
         { className: "new-game-content settings-content" },
-        h(
-          "div",
-          { className: "option-row" },
-          h("span", { className: "option-label" }, s.units),
-          h(
-            "div",
-            { className: "segmented-row" },
-            ...(["kmh", "mph"] as Units[]).map((u) =>
-              h(
-                "button",
-                {
-                  className: `segmented-btn${settings.units === u ? " active" : ""}`,
-                  onClick: () => {
-                    settings = { ...settings, units: u };
-                    commit();
-                  },
+        section(s.groupPlay, [
+          cardList(
+            optionRow(
+              "tags",
+              s.units,
+              (["kmh", "mph"] as Units[]).map((u) => ({
+                label: s.unitsNames[u],
+                active: settings.units === u,
+                onClick: () => {
+                  settings = { ...settings, units: u };
+                  commit();
                 },
-                s.unitsNames[u],
-              ),
+              })),
+            ),
+            toggleRow({
+              icon: "hammer",
+              label: s.quickBuild,
+              desc: s.quickBuildDesc,
+              on: quickBuild,
+              onToggle: () => {
+                quickBuild = !quickBuild;
+                commit();
+              },
+            }),
+          ),
+        ]),
+        section(s.groupDisplay, [
+          cardList(
+            toggleRow({
+              icon: settings.sound ? "sound" : "soundOff",
+              label: s.sound,
+              desc: s.soundDesc,
+              on: settings.sound,
+              onToggle: () => {
+                settings = { ...settings, sound: !settings.sound };
+                commit();
+              },
+            }),
+            toggleRow({
+              icon: "layers",
+              label: s.grid,
+              on: settings.grid,
+              onToggle: () => {
+                settings = { ...settings, grid: !settings.grid };
+                commit();
+              },
+            }),
+            optionRow(
+              "settings",
+              s.uiScale,
+              UI_SCALE_CHOICES.map((scale) => ({
+                label: s.uiScaleNames[String(scale) as "0.85" | "1" | "1.15"],
+                active: settings.uiScale === scale,
+                onClick: () => {
+                  settings = { ...settings, uiScale: scale };
+                  commit();
+                },
+              })),
             ),
           ),
-        ),
-        toggleRow(s.quickBuild, s.quickBuildDesc, quickBuild, () => {
-          quickBuild = !quickBuild;
-          commit();
-        }),
-        toggleRow(s.sound, s.soundDesc, settings.sound, () => {
-          settings = { ...settings, sound: !settings.sound };
-          commit();
-        }),
-        toggleRow(s.grid, undefined, settings.grid, () => {
-          settings = { ...settings, grid: !settings.grid };
-          commit();
-        }),
-        h(
-          "div",
-          { className: "option-row" },
-          h("span", { className: "option-label" }, s.uiScale),
-          h(
-            "div",
-            { className: "segmented-row" },
-            ...UI_SCALE_CHOICES.map((scale) =>
-              h(
-                "button",
-                {
-                  className: `segmented-btn${settings.uiScale === scale ? " active" : ""}`,
-                  onClick: () => {
-                    settings = { ...settings, uiScale: scale };
-                    commit();
-                  },
-                },
-                s.uiScaleNames[String(scale) as "0.85" | "1" | "1.15"],
-              ),
-            ),
-          ),
-        ),
+        ]),
       ),
     );
   }

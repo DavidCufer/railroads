@@ -40,6 +40,15 @@
   --fs-l: 18px;
   --fs-xl: 24px;
   --fs-hero: 44px;
+  /* v2 (STYLE §8.1) */
+  --ink-750: #212a36;
+  --line: rgba(238, 231, 218, 0.08);
+  --brass-soft: rgba(201, 162, 58, 0.16);
+  --go-soft: rgba(78, 143, 90, 0.18);
+  --signal-soft: rgba(194, 69, 45, 0.18);
+  --steel-soft: rgba(111, 138, 166, 0.18);
+  --fs-2xs: 10px;
+  --panel-w: clamp(320px, 46vw, 420px);
 }
 
 /* ---------- base ---------- */
@@ -176,19 +185,70 @@ input {
   font: var(--fs-s) var(--font-ui);
 }
 .top-bar .cash {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 12px 0 8px;
+  border-radius: 999px;
   font-weight: 700;
   color: var(--brass);
-  background: none;
-  border: none;
-  min-height: 44px;
-  padding: 0 var(--gap-1);
+  background: var(--ink-700);
+  border: 1px solid var(--line);
   font-variant-numeric: tabular-nums;
   font-size: var(--fs-m);
+}
+.top-bar .cash .icon {
+  color: var(--brass);
+}
+.top-bar .cash.flash-go {
+  animation: cash-flash-go 600ms ease-out;
+}
+.top-bar .cash.flash-signal {
+  animation: cash-flash-signal 600ms ease-out;
+}
+@keyframes cash-flash-go {
+  0% {
+    background: var(--go);
+    color: var(--paper);
+  }
+  100% {
+    background: var(--ink-700);
+  }
+}
+@keyframes cash-flash-signal {
+  0% {
+    background: var(--signal);
+    color: var(--paper);
+  }
+  100% {
+    background: var(--ink-700);
+  }
 }
 .top-bar .date {
   opacity: 0.9;
   font-family: var(--font-display);
   font-size: var(--fs-m);
+  white-space: nowrap;
+}
+.top-bar .era-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 26px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--brass-soft);
+  color: var(--brass);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.top-bar .era-badge .era-icon {
+  display: inline-flex;
 }
 .top-bar .spacer {
   flex: 1;
@@ -227,32 +287,41 @@ input {
 
 .toolbar {
   position: absolute;
-  left: 8px;
-  top: 44px;
-  bottom: 0;
+  left: 6px;
+  top: 50px;
+  bottom: 6px;
+  width: 56px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: var(--gap-2);
-  padding: var(--gap-2);
+  align-items: center;
+  gap: 2px;
+  padding: 4px 0;
   background: rgba(20, 26, 34, 0.92);
   border-radius: var(--radius-m);
-  max-height: calc(100% - 8px);
   box-sizing: border-box;
+  max-height: calc(100% - 56px);
+}
+.toolbar-gap {
+  width: 32px;
+  height: 1px;
+  margin: 4px 0;
+  background: var(--ink-600);
 }
 .toolbar button {
   width: 48px;
-  height: 48px;
+  height: 44px;
   border-radius: var(--radius-s);
   border: none;
   background: transparent;
   color: var(--text);
-  font: var(--fs-xs) var(--font-ui);
+  font: 600 var(--fs-2xs) var(--font-ui);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
+  padding: 0;
 }
 .toolbar button .icon {
   width: 22px;
@@ -266,15 +335,14 @@ input {
   opacity: 0.4;
 }
 
-/* ---------- panel shell (STYLE §3) ---------- */
+/* ---------- panel shell (STYLE §3, §8.2) ---------- */
 
 .panel {
   position: absolute;
   top: 44px;
   right: 0;
   bottom: 0;
-  width: min(45%, 420px);
-  min-width: 260px;
+  width: var(--panel-w);
   background: var(--ink-800);
   color: var(--text);
   border-radius: var(--radius-l) 0 0 var(--radius-l);
@@ -290,63 +358,104 @@ input {
 .panel.panel-open {
   transform: translateX(0);
 }
+.panel.panel-instant {
+  transition: none;
+}
+/* PanelHeader v2: 52px, optional 40px thumb, hairline + a short brass accent under the thumb. */
 .panel-header {
+  position: relative;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: var(--gap-3) var(--gap-4) var(--gap-2);
-  background: inherit;
+  align-items: center;
+  gap: var(--gap-3);
+  height: 52px;
+  padding: 0 var(--gap-2) 0 var(--gap-4);
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--ink-600);
   flex: 0 0 auto;
+}
+.panel-header::after {
+  content: "";
+  position: absolute;
+  left: var(--gap-4);
+  bottom: -1px;
+  width: 36px;
+  height: 2px;
+  background: var(--brass);
+}
+.panel-thumb {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--paper-dim);
+}
+.panel-thumb .icon {
+  width: 28px;
+  height: 28px;
+}
+.panel-thumb .cargo-icon {
+  width: 36px;
+  height: 36px;
+}
+.panel-header-text {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 .panel-title {
   font-family: var(--font-display);
   font-size: var(--fs-l);
+  line-height: 1.15;
   color: var(--paper);
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .panel-subtitle {
   display: flex;
   align-items: center;
   gap: var(--gap-1);
   color: var(--muted);
-  font-size: var(--fs-s);
-  margin-top: 2px;
+  font-size: var(--fs-xs);
+  margin-top: 1px;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.panel-subtitle > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gap-1);
 }
 .panel-subtitle .icon {
-  width: 14px;
-  height: 14px;
-}
-.panel-header-text {
-  min-width: 0;
+  width: 12px;
+  height: 12px;
 }
 .panel-close {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-s);
   border: none;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text);
-  flex-shrink: 0;
+  background: transparent;
+  color: var(--muted);
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-/* The 2px brass rule under the header (STYLE §3), inset by --gap-4. */
-.panel-rule {
-  height: 2px;
-  background: var(--brass);
-  margin: 0 var(--gap-4) var(--gap-2);
-  flex: 0 0 auto;
+.panel-close:active {
+  background: var(--ink-700);
+  color: var(--text);
 }
 .panel-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--gap-1) var(--gap-4) var(--gap-4);
+  padding: var(--gap-3) var(--gap-4) var(--gap-4);
   display: flex;
   flex-direction: column;
-  gap: var(--gap-4);
+  gap: var(--gap-3);
 }
 .panel-body > * {
   flex-shrink: 0;
@@ -444,9 +553,10 @@ button.chip {
   align-items: stretch;
 }
 .cargo-bar-track.mini {
-  height: 3px;
+  height: 4px;
+  min-width: 56px;
   border-radius: 999px;
-  background: var(--ink-700);
+  background: var(--ink-600);
   overflow: hidden;
 }
 .cargo-bar-track.mini .cargo-bar-fill {
@@ -469,21 +579,27 @@ button.chip {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  justify-content: center;
   gap: 2px;
-  min-height: 44px;
-  padding: var(--gap-2);
+  min-height: 48px;
+  padding: 6px 10px;
+  box-sizing: border-box;
   border-radius: var(--radius-m);
   border: 1px solid var(--ink-600);
-  background: transparent;
+  background: var(--ink-750);
   color: var(--text);
   text-align: left;
+  font-family: var(--font-ui);
+}
+.action-btn:active:not(:disabled) {
+  background: var(--ink-700);
 }
 .action-btn:disabled {
   opacity: 0.4;
 }
 .action-btn-label {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--gap-1);
   font-size: var(--fs-s);
   font-weight: 600;
@@ -499,8 +615,18 @@ button.chip {
   color: var(--muted);
 }
 .action-btn.done {
-  border-color: var(--go);
+  border-color: transparent;
+  background: var(--go-soft);
   color: var(--go);
+}
+.action-btn.done .action-btn-detail {
+  color: var(--go);
+}
+.city-civic-investment-btn {
+  border-color: var(--brass-dk);
+}
+.city-civic-investment-btn .action-btn-label {
+  color: var(--brass);
 }
 .action-btn.active {
   background: var(--brass);
@@ -579,21 +705,65 @@ button.chip {
   font-variant-numeric: tabular-nums;
 }
 
-/* Panel footer — pinned action row, real flex sibling of .panel-body (never scrolls). */
+/* Footer v2: 56px, one row — a primary (+ secondary) or an action bar of compact buttons. */
 .panel-actions {
   display: flex;
+  align-items: center;
   gap: var(--gap-2);
   flex: 0 0 auto;
-  padding: var(--gap-2) var(--gap-4) var(--gap-3);
+  height: 56px;
+  padding: 0 var(--gap-4);
+  box-sizing: border-box;
   background: var(--ink-800);
-  box-shadow: 0 -6px 10px -6px rgba(0, 0, 0, 0.4);
+  border-top: 1px solid var(--ink-600);
 }
 .panel-actions button {
   flex: 1;
-  min-height: 44px;
+  padding: 0 8px;
+  min-height: 40px;
   border-radius: var(--radius-m);
   border: none;
-  font: 600 var(--fs-m) var(--font-ui);
+  font: 600 var(--fs-s) var(--font-ui);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap-2);
+}
+.fbtn {
+  min-width: 0;
+  white-space: nowrap;
+}
+.fbtn > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fbtn-primary {
+  background: var(--brass);
+  color: var(--ink-900);
+}
+.fbtn-primary:disabled {
+  background: var(--ink-700);
+  color: var(--muted);
+}
+.fbtn-secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--ink-600) !important;
+}
+.fbtn-secondary:active {
+  background: var(--ink-700);
+}
+.fbtn-danger {
+  background: transparent;
+  color: var(--signal);
+  border: 1px solid var(--signal) !important;
+}
+.fbtn:disabled {
+  opacity: 0.4;
+}
+.panel-actions button.fbtn-icon {
+  flex: 0 0 44px;
+  min-height: 40px;
 }
 .panel-action-build {
   background: var(--brass);
@@ -607,52 +777,7 @@ button.chip {
   background: transparent;
   border: 1px solid var(--ink-600) !important;
   color: var(--text);
-  flex: 0 0 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-/* Single full-width actions (not part of a 2-column action grid): station water tower/buy-train,
-   city civic investment. */
-.station-water-tower-btn,
-.station-buy-train-btn,
-.city-civic-investment-btn {
-  width: 100%;
-  min-height: 44px;
-  border-radius: var(--radius-m);
-  border: 1px solid var(--ink-600);
-  background: transparent;
-  color: var(--text);
-  font: 700 var(--fs-s) var(--font-ui);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--gap-2);
-}
-.station-buy-train-btn,
-.city-civic-investment-btn {
-  border-color: var(--brass);
-  color: var(--brass);
-}
-.station-water-tower-btn:disabled,
-.station-buy-train-btn:disabled,
-.city-civic-investment-btn:disabled {
-  opacity: 0.4;
-}
-/* The station panel's single primary footer action (STYLE §3: "only a single primary footer
-   action may be full width") — brass fill, same as the placement panel's Build button. */
-.station-upgrade-btn {
-  background: var(--brass);
-  color: var(--ink-900);
-  font: 700 var(--fs-m) var(--font-ui);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--gap-2);
-}
-.station-upgrade-btn:disabled {
-  background: var(--ink-700);
-  color: var(--muted);
+  flex: 0 0 44px !important;
 }
 .station-name-input {
   background: var(--ink-700);
@@ -707,30 +832,37 @@ button.chip {
 
 /* ---------- floating buttons (STYLE §3: round 48px, ink-800, signal badge dot) ---------- */
 
+.float-pill {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 24px;
+  background: var(--ink-800);
+  box-shadow: var(--shadow);
+  z-index: 6;
+}
 .train-list-button,
 .news-button,
 .goals-button {
-  position: absolute;
-  right: 8px;
-  width: 48px;
-  height: 48px;
+  position: relative;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: none;
-  background: var(--ink-800);
+  background: transparent;
   color: var(--text);
-  z-index: 6;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.train-list-button {
-  bottom: 8px;
-}
-.news-button {
-  bottom: 64px;
-}
-.goals-button {
-  bottom: 120px;
+.train-list-button:active,
+.news-button:active,
+.goals-button:active {
+  background: var(--ink-700);
 }
 /* !important: an override utility applied alongside a component's own class (e.g.
    `.quick-build-toggle.floating-hidden`), which otherwise has equal selector specificity and
@@ -741,8 +873,8 @@ button.chip {
 .news-unread-badge {
   display: none;
   position: absolute;
-  top: -2px;
-  right: -2px;
+  top: 2px;
+  right: 2px;
   align-items: center;
   justify-content: center;
   min-width: 16px;
@@ -756,40 +888,69 @@ button.chip {
 .news-unread-badge.visible {
   display: inline-flex;
 }
-.news-item {
-  padding: var(--gap-2) 0;
-  border-bottom: 1px solid var(--ink-700);
-  line-height: 1.35;
+.news-item .card-title {
+  white-space: normal;
+  font-weight: 500;
+  line-height: 1.3;
+}
+.news-item.unread {
+  box-shadow: inset 3px 0 0 var(--brass);
+}
+.news-thumb {
+  display: inline-flex;
 }
 
 .goal-card {
+  --tier: #b5793b;
   display: flex;
-  flex-direction: column;
-  gap: var(--gap-2);
-  padding: var(--gap-3);
+  align-items: center;
+  gap: var(--gap-3);
+  padding: 10px var(--gap-3);
   border-radius: var(--radius-m);
-  background: var(--ink-700);
-  border-left: 4px solid #b5793b;
+  background: var(--ink-750);
 }
-.goal-tier-silver {
-  border-left-color: #b9bfc7;
+.goal-card.goal-tier-silver {
+  --tier: #b9bfc7;
 }
-.goal-tier-gold {
-  border-left-color: var(--brass);
+.goal-card.goal-tier-gold {
+  --tier: var(--brass);
+}
+.goal-medal {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tier);
+  background: color-mix(in srgb, var(--tier) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tier) 55%, transparent);
+}
+.goal-medal .icon {
+  width: 18px;
+  height: 18px;
 }
 .goal-card.goal-complete {
-  background: rgba(78, 143, 90, 0.15);
+  background: var(--go-soft);
 }
-.goal-card-header {
+.goal-main {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 5px;
+}
+.goal-sub {
+  display: flex;
   align-items: center;
+  gap: var(--gap-2);
 }
 .goal-tier-badge {
-  font: 700 var(--fs-xs) var(--font-ui);
+  font: 700 var(--fs-2xs) var(--font-ui);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
+  letter-spacing: 0.08em;
+  color: var(--tier);
 }
 .goal-year {
   font-size: var(--fs-xs);
@@ -797,11 +958,22 @@ button.chip {
 }
 .goal-desc {
   font-size: var(--fs-s);
+  font-weight: 600;
+  line-height: 1.25;
 }
 .goal-overdue {
   font-size: var(--fs-xs);
   color: var(--signal);
   font-weight: 700;
+}
+.goal-value {
+  flex: 0 0 auto;
+  min-width: 36px;
+  text-align: right;
+  font-size: var(--fs-s);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--paper-dim);
 }
 
 /* ---------- train UI ---------- */
@@ -1094,7 +1266,7 @@ button.chip {
    * overlapping it — the Trains/News/Goals round buttons are always present (stacked at 8/64/120,
    * each 48px), so this sits in the same bottom-right corner just above all three
    * (120 + 48 + 8px gap) instead of on top of the lowest one. */
-  bottom: 176px;
+  bottom: 158px;
   display: flex;
   align-items: center;
   gap: var(--gap-2);
@@ -1130,11 +1302,7 @@ button.chip {
   transition: left 0.15s ease;
 }
 .quick-build-toggle.active .switch,
-.settings-toggle-row.active .switch {
-  background: var(--brass);
-}
-.quick-build-toggle.active .switch::after,
-.settings-toggle-row.active .switch::after {
+.quick-build-toggle.active .switch::after {
   left: 14px;
 }
 
@@ -1263,14 +1431,11 @@ button.chip {
 .menu-cargo-btn {
   display: inline-flex;
   align-items: center;
-  gap: var(--gap-1);
-  padding: 6px 10px;
-  border-radius: 999px;
+  justify-content: center;
+  padding: 3px;
+  border-radius: var(--radius-s);
   border: 2px solid transparent;
-  background: var(--ink-700);
-  color: var(--text);
-  font: 700 var(--fs-xs) var(--font-ui);
-  min-height: 32px;
+  background: transparent;
 }
 .menu-cargo-btn.active {
   border-color: var(--brass);
@@ -1664,29 +1829,26 @@ button.chip {
   flex-direction: column;
   gap: var(--gap-2);
 }
-.settings-toggle-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.settings-option-row {
+  padding: 6px var(--gap-3);
+  min-height: 48px;
+  box-sizing: border-box;
   gap: var(--gap-3);
-  min-height: 44px;
-  padding: var(--gap-2) 4px;
-  border: none;
-  background: none;
+}
+.settings-option-row .option-label {
+  flex: 1;
   color: var(--text);
-  text-align: left;
+  font-weight: 600;
 }
-.settings-toggle-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.settings-option-row .segmented-btn {
+  min-height: 32px;
 }
-.settings-toggle-label {
-  font-size: var(--fs-s);
+.card-list > .settings-option-row + .toggle-row,
+.card-list > .toggle-row + .settings-option-row {
+  border-top: 1px solid var(--line);
 }
-.settings-toggle-desc {
-  font-size: var(--fs-xs);
-  color: var(--muted);
+.settings-content .section + .section {
+  margin-top: var(--gap-3);
 }
 /* Save/Load screen. */
 .save-slot-list {
@@ -1703,14 +1865,23 @@ button.chip {
 .save-slot-card {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--gap-2);
-  padding: var(--gap-3);
+  gap: var(--gap-3);
+  padding: 8px var(--gap-3);
   border-radius: var(--radius-m);
-  border: 1px solid var(--ink-600);
-  background: var(--ink-800);
+  border: none;
+  background: var(--ink-750);
+}
+.save-slot-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--brass);
+  flex: 0 0 auto;
+}
+.save-slot-empty .save-slot-icon {
+  color: var(--muted);
 }
 .save-slot-info {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1725,6 +1896,9 @@ button.chip {
 .save-slot-detail {
   font-size: var(--fs-xs);
   color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .save-slot-empty .save-slot-name {
   opacity: 0.5;
@@ -1735,24 +1909,29 @@ button.chip {
   flex: 0 0 auto;
 }
 .save-slot-btn {
-  min-height: 44px;
-  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  min-width: 40px;
   padding: 0 var(--gap-3);
-  border-radius: var(--radius-s);
+  border-radius: var(--radius-m);
   border: 1px solid var(--ink-600);
   background: transparent;
   color: var(--text);
-  font: 700 var(--fs-s) var(--font-ui);
+  font: 600 var(--fs-s) var(--font-ui);
 }
 .save-slot-btn-primary {
-  background: var(--steel);
-  border-color: var(--steel);
+  background: var(--brass);
+  border-color: var(--brass);
   color: var(--ink-900);
 }
 .save-slot-btn-danger {
   background: transparent;
-  border-color: var(--signal);
+  border-color: transparent;
   color: var(--signal);
+  padding: 0;
 }
 .save-slot-btn:disabled {
   opacity: 0.35;
@@ -1874,4 +2053,527 @@ button.chip {
   text-decoration: underline;
   font: inherit;
   min-height: 32px;
+}
+
+/* =====================================================================================
+   UI system v2 components (STYLE §8.2)
+   ===================================================================================== */
+
+.tone-go {
+  color: var(--go);
+}
+.tone-signal {
+  color: var(--signal);
+}
+.tone-brass {
+  color: var(--brass);
+}
+.tone-steel {
+  color: var(--steel);
+}
+.tone-muted {
+  color: var(--muted);
+}
+.icon-sm {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+.icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Tabs: sticky 36px row under the header. */
+.tabs {
+  display: flex;
+  flex: 0 0 auto;
+  height: 36px;
+  padding: 0 var(--gap-2);
+  border-bottom: 1px solid var(--line);
+  background: var(--ink-800);
+}
+.tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: 600 var(--fs-xs) var(--font-ui);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.tab.active {
+  color: var(--text);
+  border-bottom-color: var(--brass);
+}
+
+/* StatTile */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+  gap: var(--gap-2);
+}
+.stat-tile {
+  background: var(--ink-750);
+  border-radius: var(--radius-m);
+  padding: 8px 10px;
+  min-width: 0;
+}
+.stat-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-m);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.stat-value .icon {
+  color: var(--muted);
+}
+.stat-value.tone-go .icon,
+.stat-value.tone-signal .icon,
+.stat-value.tone-brass .icon {
+  color: inherit;
+}
+.stat-caption {
+  margin-top: 2px;
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Meter + pips */
+.meter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+}
+.meter {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ink-600);
+  overflow: hidden;
+}
+.meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--brass);
+}
+.meter-fill.tone-go {
+  background: var(--go);
+}
+.meter-fill.tone-signal {
+  background: var(--signal);
+}
+.meter-fill.tone-steel {
+  background: var(--steel);
+}
+.meter-label {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.pips {
+  display: inline-flex;
+  gap: 3px;
+}
+.pips i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--ink-600);
+}
+.pips i.on {
+  background: var(--brass);
+}
+
+/* Card list rows */
+.card-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--ink-750);
+  border-radius: var(--radius-m);
+  overflow: hidden;
+}
+.card-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-3);
+  min-height: 52px;
+  padding: 6px var(--gap-3);
+  box-sizing: border-box;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  width: 100%;
+}
+.card-list > .card-row + .card-row {
+  border-top: 1px solid var(--line);
+}
+button.card-row:active {
+  background: var(--ink-700);
+}
+button.card-row:disabled {
+  opacity: 0.5;
+}
+.card-thumb {
+  flex: 0 0 auto;
+  max-height: 40px;
+  display: flex;
+  align-items: center;
+  color: var(--paper-dim);
+}
+.card-thumb .icon {
+  width: 26px;
+  height: 26px;
+}
+.card-text {
+  flex: 1;
+  min-width: 0;
+}
+.card-title {
+  font-size: var(--fs-s);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card-meta {
+  margin-top: 1px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card-meta .icon {
+  width: 12px;
+  height: 12px;
+}
+.card-trailing {
+  flex: 0 0 auto;
+  font-size: var(--fs-s);
+  font-variant-numeric: tabular-nums;
+  color: var(--paper-dim);
+}
+.card-chevron {
+  color: var(--muted);
+}
+
+/* Toggle rows */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-3);
+  min-height: 48px;
+  padding: 6px var(--gap-3);
+  box-sizing: border-box;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+.card-list > .toggle-row + .toggle-row,
+.card-list > .card-row + .toggle-row,
+.card-list > .toggle-row + .card-row {
+  border-top: 1px solid var(--line);
+}
+.toggle-row:active {
+  background: var(--ink-700);
+}
+.toggle-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+.toggle-row.active .toggle-icon {
+  color: var(--brass);
+}
+.toggle-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.toggle-label {
+  font-size: var(--fs-s);
+  font-weight: 600;
+}
+.toggle-desc {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.toggle-row .switch {
+  width: 36px;
+  height: 20px;
+}
+.toggle-row .switch::after {
+  width: 16px;
+  height: 16px;
+}
+.toggle-row.active .switch {
+  background: var(--brass);
+}
+.toggle-row.active .switch::after {
+  left: 18px;
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  color: var(--muted);
+  font-size: var(--fs-s);
+  padding: var(--gap-2) 0;
+}
+
+/* Stacked bars */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+}
+.stack-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--ink-600);
+  gap: 1px;
+}
+.stack-seg {
+  display: block;
+  height: 100%;
+}
+.stack-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.stack-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-s);
+  background: var(--ink-700);
+  font-size: var(--fs-xs);
+}
+.stack-chip i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.stack-chip b {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.stack-chip-label {
+  color: var(--paper-dim);
+}
+
+/* Section label groups */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+}
+.section > .panel-section-title {
+  margin: 0;
+}
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.section-head .panel-section-title {
+  margin: 0;
+}
+.section-note {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+/* ---------- v2 panel bits: city / station / industry ---------- */
+
+.chip.chip-link {
+  min-height: 30px;
+  padding: 0 10px;
+  gap: 6px;
+  color: var(--text);
+  background: var(--ink-700);
+  border: 1px solid var(--line);
+}
+.chip.chip-link .icon {
+  color: var(--brass);
+}
+.served-by-row {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+.card-meta-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.industry-recipe {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  padding: var(--gap-2) var(--gap-3);
+  background: var(--ink-750);
+  border-radius: var(--radius-m);
+}
+.industry-recipe .cargo-icon-lg {
+  width: 34px;
+  height: 34px;
+}
+.recipe-joiner {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+.recipe-arrow {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+.station-type-btn {
+  background: var(--ink-750);
+  border-color: transparent;
+}
+.station-type-btn .type-icon {
+  width: 24px;
+  height: 24px;
+}
+.station-type-btn span:not(.cost):not(.icon) {
+  font-weight: 600;
+}
+.station-type-btn.active .cost {
+  color: var(--ink-900);
+}
+.station-type-btn .cost {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.upgrade-card {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-3);
+  width: 100%;
+  min-height: 52px;
+  padding: 6px var(--gap-3);
+  box-sizing: border-box;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--brass-dk);
+  background: var(--brass-soft);
+  color: var(--brass);
+  text-align: left;
+  font-family: var(--font-ui);
+}
+.upgrade-card:disabled {
+  opacity: 0.45;
+}
+.upgrade-icon {
+  width: 28px;
+  height: 28px;
+}
+.upgrade-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.upgrade-title {
+  font-size: var(--fs-s);
+  font-weight: 700;
+}
+.upgrade-cost {
+  font-size: var(--fs-xs);
+  color: var(--paper-dim);
+  font-variant-numeric: tabular-nums;
+}
+.muted-row {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+.transfer-row {
+  justify-content: flex-start;
+}
+.panel-thumb .cargo-icon svg {
+  width: 24px;
+  height: 24px;
+}
+.action-grid > .city-civic-investment-btn {
+  grid-column: 1 / -1;
+}
+
+/* ---------- v2: finance, menu, news, goals ---------- */
+
+.finance-chart {
+  width: 100%;
+  height: 48px;
+  display: block;
+  border-radius: var(--radius-m);
+  background: var(--ink-750);
+}
+.finance-bankrupt-warning {
+  padding: var(--gap-2) var(--gap-3);
+  border-radius: var(--radius-m);
+  background: var(--signal-soft);
+  color: var(--text);
+  font-size: var(--fs-xs);
+}
+.year-switch {
+  align-self: flex-start;
+}
+.card-list > .menu-cargo-picker {
+  padding: 6px 12px 10px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.credit-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-3);
+}
+.credit-row .panel-section-title {
+  margin: 0;
+  flex: 0 0 auto;
+}
+.credit-row .meter-row {
+  flex: 1;
+}
+.fbtn-wide {
+  flex: 1.8 !important;
+}
+.year-switch .segmented-btn {
+  min-height: 28px;
+  font-size: var(--fs-xs);
+  padding: 0 var(--gap-3);
+}
+.year-switch {
+  padding: 2px;
 }

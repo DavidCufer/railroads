@@ -19,6 +19,7 @@ import {
 import type { GameState } from "../sim/state";
 import { formatMoney } from "./format";
 import { h } from "./h";
+import { icon } from "./icons";
 import { screenHeader } from "./screenHeader";
 import { strings } from "./strings";
 
@@ -88,18 +89,20 @@ export function renderSaveLoadScreen(handlers: SaveLoadScreenHandlers): HTMLElem
                 className: "save-slot-btn save-slot-btn-primary",
                 onClick: () => handlers.onLoad?.(slotId),
               },
+              icon("load", "icon-sm"),
               s.load,
             ),
             h(
               "button",
               {
                 className: "save-slot-btn save-slot-btn-danger",
+                "aria-label": s.delete,
                 onClick: () => {
                   if (!window.confirm(s.deleteConfirm)) return;
                   void deleteSlot(slotId).then(refresh);
                 },
               },
-              s.delete,
+              icon("trash", "icon-sm"),
             ),
           );
         }
@@ -113,6 +116,7 @@ export function renderSaveLoadScreen(handlers: SaveLoadScreenHandlers): HTMLElem
               className: "save-slot-btn save-slot-btn-primary",
               onClick: () => void doSave(manualSlotId, meta),
             },
+            icon("save", "icon-sm"),
             meta ? s.overwrite : s.save,
           ),
         );
@@ -122,12 +126,13 @@ export function renderSaveLoadScreen(handlers: SaveLoadScreenHandlers): HTMLElem
               "button",
               {
                 className: "save-slot-btn save-slot-btn-danger",
+                "aria-label": s.delete,
                 onClick: () => {
                   if (!window.confirm(s.deleteConfirm)) return;
                   void deleteSlot(slotId).then(refresh);
                 },
               },
-              s.delete,
+              icon("trash", "icon-sm"),
             ),
           );
         }
@@ -136,13 +141,12 @@ export function renderSaveLoadScreen(handlers: SaveLoadScreenHandlers): HTMLElem
       return h(
         "div",
         { className: `save-slot-card${meta ? "" : " save-slot-empty"}` },
+        icon(meta ? "save" : "load", "save-slot-icon"),
         h(
           "div",
           { className: "save-slot-info" },
           h("div", { className: "save-slot-name" }, label),
-          meta
-            ? h("div", { className: "save-slot-detail" }, slotDetail(meta))
-            : h("div", { className: "save-slot-detail" }, s.emptySlot),
+          meta ? h("div", { className: "save-slot-detail" }, slotDetail(meta)) : null,
         ),
         h("div", { className: "save-slot-actions" }, ...actions),
       );

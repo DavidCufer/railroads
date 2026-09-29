@@ -6,6 +6,10 @@
  */
 import { CARGO, CARGO_TYPES, type CargoType } from "../data/cargo";
 import { h } from "./h";
+import { cargoIcon, icon, type IconName } from "./icons";
+import { cardList, cardRow } from "./components/cardRow";
+import { section } from "./components/section";
+import { toggleRow } from "./components/toggleRow";
 import { openPanel } from "./panel";
 import { strings } from "./strings";
 
@@ -37,45 +41,57 @@ export interface MenuPanelHandlers {
   onSetHeatmapCargo: (cargo: CargoType) => void;
   onSaveGame: () => void;
   onOpenSettings: () => void;
+  onOpenRoster?: () => void;
 }
+
+const OVERLAY_ICONS: Record<Exclude<OverlayToggle, "miniMap">, IconName> = {
+  catchments: "target",
+  cargoHeatmap: "flame",
+  trackType: "palette",
+  trainProfit: "trendUp",
+};
 
 export function openMenuPanel(container: HTMLElement, handlers: MenuPanelHandlers): void {
   const render = (): void => {
     const state = handlers.getOverlayState();
 
-    const toggleBtn = (key: OverlayToggle, label: string): HTMLElement =>
-      h(
-        "button",
-        {
-          className: `menu-toggle-btn${state[key] ? " active" : ""}`,
-          onClick: () => {
-            handlers.onToggle(key);
-            render();
-          },
+    const overlayRow = (key: Exclude<OverlayToggle, "miniMap">): HTMLElement =>
+      toggleRow({
+        icon: OVERLAY_ICONS[key],
+        label: strings.menu.overlayNames[key],
+        on: state[key],
+        onToggle: () => {
+          handlers.onToggle(key);
+          render();
         },
-        label,
-      );
+      });
 
-    const body: Node[] = [
-      h("div", { className: "panel-section-title" }, strings.menu.game),
-      h(
-        "button",
-        { className: "menu-toggle-btn", onClick: handlers.onSaveGame },
-        strings.menu.saveGame,
-      ),
-      h(
-        "button",
-        { className: "menu-toggle-btn", onClick: handlers.onOpenSettings },
-        strings.menu.settings,
-      ),
-      h("div", { className: "panel-section-title" }, strings.menu.overlays),
-      toggleBtn("catchments", strings.menu.overlayNames.catchments),
-      toggleBtn("cargoHeatmap", strings.menu.overlayNames.cargoHeatmap),
+    const gameRows = [
+      cardRow({
+        thumb: icon("save"),
+        title: strings.menu.saveGame,
+        chevron: true,
+        onClick: handlers.onSaveGame,
+      }),
+      cardRow({
+        thumb: icon("settings"),
+        title: strings.menu.settings,
+        chevron: true,
+        onClick: handlers.onOpenSettings,
+      }),
+      handlers.onOpenRoster
+        ? cardRow({
+            thumb: icon("roster"),
+            title: strings.menu.roster,
+            chevron: true,
+            onClick: handlers.onOpenRoster,
+          })
+        : null,
     ];
 
+    const overlayRows: HTMLElement[] = [overlayRow("catchments"), overlayRow("cargoHeatmap")];
     if (state.cargoHeatmap) {
-      body.push(
-        h("div", { className: "panel-row" }, strings.menu.cargoHeatmapPrompt),
+      overlayRows.push(
         h(
           "div",
           { className: "menu-cargo-picker" },
@@ -84,27 +100,40 @@ export function openMenuPanel(container: HTMLElement, handlers: MenuPanelHandler
               "button",
               {
                 className: `menu-cargo-btn${cargo === state.heatmapCargo ? " active" : ""}`,
-                style: { background: CARGO[cargo].color },
+                "aria-label": CARGO[cargo].name,
+                title: CARGO[cargo].name,
                 onClick: () => {
                   handlers.onSetHeatmapCargo(cargo);
                   render();
                 },
               },
-              CARGO[cargo].name,
+              cargoIcon(cargo, "cargo-icon-lg"),
             ),
           ),
         ),
       );
     }
+    overlayRows.push(overlayRow("trackType"), overlayRow("trainProfit"));
 
-    body.push(
-      toggleBtn("trackType", strings.menu.overlayNames.trackType),
-      toggleBtn("trainProfit", strings.menu.overlayNames.trainProfit),
-      h("div", { className: "panel-section-title" }, strings.menu.miniMap),
-      toggleBtn("miniMap", strings.menu.miniMap),
-    );
+    const body: Node[] = [
+      section(strings.menu.game, [cardList(...gameRows)]),
+      section(strings.menu.overlays, [cardList(...overlayRows)]),
+      section(strings.menu.miniMap, [
+        cardList(
+          toggleRow({
+            icon: "map",
+            label: strings.menu.miniMap,
+            on: state.miniMap,
+            onToggle: () => {
+              handlers.onToggle("miniMap");
+              render();
+            },
+          }),
+        ),
+      ]),
+    ];
 
-    openPanel(container, { title: strings.menu.title, body });
+    openPanel(container, { title: strings.menu.title, thumb: icon("menu"), body, key: "menu" });
   };
 
   render();

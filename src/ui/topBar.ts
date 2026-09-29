@@ -4,8 +4,10 @@
  * updates from `GameState.ticks` each render.
  */
 import type { GameSpeed } from "../render/loop";
+import { buyableLocomotivesIn } from "../data/trains";
+import { cashFlashTone } from "./components/chartMath";
 import { h } from "./h";
-import { icon } from "./icons";
+import { icon, type IconName } from "./icons";
 import { strings } from "./strings";
 import { formatDate, formatMoney } from "./format";
 import type { Calendar } from "../sim/time";
@@ -20,6 +22,8 @@ export interface TopBarHandlers {
   onOpenFinance: () => void;
   /** Tapping ☰ opens the menu (SPEC §10.1: overlay toggles, Phase 9's mini-map toggle). */
   onOpenMenu: () => void;
+  /** Tapping the era badge opens the Roster (STYLE §8.3; Phase 22 wires the real screen). */
+  onOpenRoster?: () => void;
 }
 
 export interface TopBarController {
@@ -29,7 +33,28 @@ export interface TopBarController {
 
 export function createTopBar(container: HTMLElement, handlers: TopBarHandlers): TopBarController {
   const dateEl = h("span", { className: "date" }, "");
-  const cashEl = h("button", { className: "cash", onClick: () => handlers.onOpenFinance() }, "");
+  const cashAmount = h("span", { className: "cash-amount" }, "");
+  const cashEl = h(
+    "button",
+    {
+      className: "cash",
+      "aria-label": strings.topBar.cash,
+      onClick: () => handlers.onOpenFinance(),
+    },
+    icon("coin", "icon-sm"),
+    cashAmount,
+  );
+  const eraIcon = h("span", { className: "era-icon" });
+  const eraYear = h("span", { className: "era-year" }, "");
+  const eraEl = h(
+    "button",
+    { className: "era-badge", onClick: () => handlers.onOpenRoster?.() },
+    eraIcon,
+    eraYear,
+  );
+  let lastCash: number | null = null;
+  let flashTimer: number | undefined;
+  let lastEraKey = "";
 
   const speedButtons = new Map<GameSpeed, HTMLButtonElement>();
   const speedGroup = h(
@@ -60,11 +85,27 @@ export function createTopBar(container: HTMLElement, handlers: TopBarHandlers): 
   }
   refreshSpeedButtons();
 
+  /** Era badge: traction icon + intro year of the newest buyable locomotive (STYLE §8.3). */
+  function refreshEra(year: number): void {
+    const newest = buyableLocomotivesIn(year).reduce<
+      ReturnType<typeof buyableLocomotivesIn>[number] | null
+    >((best, l) => (!best || l.introYear >= best.introYear ? l : best), null);
+    if (!newest) return;
+    const key = `${newest.id}`;
+    if (key === lastEraKey) return;
+    lastEraKey = key;
+    const name: IconName = newest.type === "electric" ? "electrify" : newest.type;
+    eraIcon.replaceChildren(icon(name, "icon-sm"));
+    eraYear.textContent = String(newest.introYear);
+    eraEl.setAttribute("aria-label", strings.topBar.era(newest.name, newest.introYear));
+  }
+
   const root = h(
     "div",
     { className: "top-bar" },
     cashEl,
     dateEl,
+    eraEl,
     h("div", { className: "spacer" }),
     speedGroup,
     h(
@@ -83,7 +124,20 @@ export function createTopBar(container: HTMLElement, handlers: TopBarHandlers): 
     root,
     update: (calendar, cash) => {
       dateEl.textContent = formatDate(calendar);
-      cashEl.textContent = formatMoney(cash);
+      cashAmount.textContent = formatMoney(cash);
+      const tone = lastCash === null ? null : cashFlashTone(lastCash, cash);
+      lastCash = cash;
+      if (tone) {
+        cashEl.classList.remove("flash-go", "flash-signal");
+        void cashEl.offsetWidth; // restart the animation on back-to-back changes
+        cashEl.classList.add(`flash-${tone}`);
+        window.clearTimeout(flashTimer);
+        flashTimer = window.setTimeout(
+          () => cashEl.classList.remove("flash-go", "flash-signal"),
+          600,
+        );
+      }
+      refreshEra(calendar.year);
     },
   };
 }

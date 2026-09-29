@@ -4,24 +4,19 @@
  * Finance panel's own button.
  */
 import { ledgerExpenses, ledgerNetProfit, ledgerRevenue } from "../data/finance";
-import { netWorth } from "../sim/finance/ledger";
 import type { GameState } from "../sim/state";
 import { calendarFromTicks } from "../sim/time";
 import { newlyAvailableLocomotives } from "../sim/tick";
+import { stackedBar } from "./components/charts";
+import { section } from "./components/section";
+import { statRow, statTile } from "./components/statTile";
+import { costParts, incomeParts } from "./components/ledgerParts";
 import { h } from "./h";
+import { icon } from "./icons";
 import { openPanel } from "./panel";
 import { strings } from "./strings";
 import { formatMoney } from "./format";
 import { formatSpeed, loadSettings } from "./settings";
-
-function row(label: string, value: string): HTMLElement {
-  return h(
-    "div",
-    { className: "panel-row" },
-    h("span", { className: "label" }, label),
-    h("span", null, value),
-  );
-}
 
 export function openYearlyReport(container: HTMLElement, state: GameState): void {
   // The report opens right after the year-boundary rollover (src/sim/tick.ts), so `lastYear` is
@@ -34,21 +29,31 @@ export function openYearlyReport(container: HTMLElement, state: GameState): void
     h(
       "div",
       { className: `yearly-report-headline ${profit >= 0 ? "good" : "bad"}` },
+      icon(profit >= 0 ? "trendUp" : "arrowDown"),
       `${strings.finance.netProfit}: ${formatMoney(profit)}`,
     ),
-    row(strings.finance.revenue, formatMoney(ledgerRevenue(period))),
-    row(strings.finance.passengers, formatMoney(period.passengers)),
-    row(strings.finance.mail, formatMoney(period.mail)),
-    row(strings.finance.freight, formatMoney(period.freight)),
-    row(strings.finance.expenses, formatMoney(ledgerExpenses(period))),
-    row(strings.finance.trainMaintenance, formatMoney(period.trainMaintenance)),
-    row(strings.finance.trackMaintenance, formatMoney(period.trackMaintenance)),
-    row(strings.finance.stationMaintenance, formatMoney(period.stationMaintenance)),
-    row(strings.finance.interest, formatMoney(period.interest)),
-    row(strings.finance.construction, formatMoney(period.construction)),
-    row(strings.finance.rollingStock, formatMoney(period.rollingStock)),
-    row(strings.finance.cash, formatMoney(state.cash)),
-    row(strings.finance.netWorth, formatMoney(netWorth(state))),
+    statRow(
+      statTile({
+        icon: "arrowUp",
+        value: formatMoney(ledgerRevenue(period)),
+        caption: strings.finance.revenue,
+        tone: "go",
+      }),
+      statTile({
+        icon: "arrowDown",
+        value: formatMoney(ledgerExpenses(period)),
+        caption: strings.finance.expenses,
+        tone: "signal",
+      }),
+      statTile({
+        icon: "coin",
+        value: formatMoney(state.cash),
+        caption: strings.finance.cash,
+        tone: "brass",
+      }),
+    ),
+    section(strings.finance.revenue, [stackedBar(incomeParts(period), strings.finance.noneYet)]),
+    section(strings.finance.expenses, [stackedBar(costParts(period), strings.finance.noneYet)]),
   ];
 
   // Tech announcements key off the year that just *started* (src/sim/tick.ts pushes their news at
@@ -73,5 +78,5 @@ export function openYearlyReport(container: HTMLElement, state: GameState): void
     }
   }
 
-  openPanel(container, { title: strings.yearlyReport.title(year), body });
+  openPanel(container, { title: strings.yearlyReport.title(year), thumb: icon("news"), body });
 }

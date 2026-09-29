@@ -12,7 +12,10 @@ import type { Station } from "../sim/stations/types";
 import type { GameState } from "../sim/state";
 import { calendarFromTicks, DAYS_PER_YEAR, HOURS_PER_DAY } from "../sim/time";
 import { h } from "./h";
-import { cargoIcon, icon } from "./icons";
+import { cargoIcon, icon, type IconName } from "./icons";
+import { cardList, cardRow } from "./components/cardRow";
+import { section } from "./components/section";
+import { emptyState } from "./components/emptyState";
 import { openPanel } from "./panel";
 import { showToast } from "./toast";
 import { strings } from "./strings";
@@ -36,7 +39,8 @@ export function chipTextColor(hex: string): string {
   return luminance > 0.55 ? "#1a1a1a" : "#f4f1e8";
 }
 
-/** A cargo chip: pictogram + amount (STYLE §6) — tapping shows the cargo's full name in a toast,
+/** A cargo chip: pictogram + amount (STYLE §6; the unit/"per month" rides in the section note and the
+ * tap toast, "icon + number" per STYLE §8) — tapping shows the cargo's full name in a toast,
  * a lightweight stand-in for STYLE's "small popover with the cargo name and details". `large`
  * bumps the pictogram tile up (28px tile/18px icon vs. the usual 18px/12px) for panels — the City
  * panel — where the default size reads too small next to its bigger 2-column action grid. */
@@ -57,7 +61,7 @@ export function cargoChip(
       onClick: () => showToast(container, `${def.name}: ${amount}${suffix}`, "info"),
     },
     cargoIcon(cargo, large ? "cargo-icon-lg" : "cargo-icon-sm"),
-    `${amount}${suffix}`,
+    String(amount),
   );
 }
 
@@ -106,6 +110,13 @@ export function stationsServingList(state: GameState, tiles: readonly number[]):
   });
 }
 
+const TIER_ICONS: Record<string, IconName> = {
+  village: "village",
+  town: "town",
+  city: "city",
+  metropolis: "metropolis",
+};
+
 export function openCityPanel(
   container: HTMLElement,
   state: GameState,
@@ -125,95 +136,115 @@ export function openCityPanel(
     const served = stationsServingList(state, city.tiles);
 
     const body: Node[] = [
-      h("div", { className: "panel-section-title" }, strings.station.supplies),
-      h(
-        "div",
-        { className: "chip-row" },
-        cargoChip(
-          container,
-          "passengers",
-          supply.passengers,
-          strings.station.supplyRate(CARGO.passengers.unit),
-          false,
-          true,
-        ),
-        cargoChip(
-          container,
-          "mail",
-          supply.mail,
-          strings.station.supplyRate(CARGO.mail.unit),
-          false,
-          true,
-        ),
+      section(
+        strings.station.supplies,
+        [
+          h(
+            "div",
+            { className: "chip-row" },
+            cargoChip(
+              container,
+              "passengers",
+              supply.passengers,
+              strings.station.supplyRate(CARGO.passengers.unit),
+              false,
+              true,
+            ),
+            cargoChip(
+              container,
+              "mail",
+              supply.mail,
+              strings.station.supplyRate(CARGO.mail.unit),
+              false,
+              true,
+            ),
+          ),
+        ],
+        strings.station.perMonthNote,
       ),
-      h("div", { className: "panel-section-title" }, strings.station.accepts),
-      h(
-        "div",
-        { className: "chip-row" },
-        ...acceptEntries.map(([cargo, points]) => cargoDemandTile(container, cargo, points, true)),
-      ),
-      h("div", { className: "panel-section-title" }, strings.city.servedBy),
-      h(
-        "div",
-        { className: "panel-row served-by-row" },
-        ...(served.length > 0
-          ? served.flatMap((station, i) => [
-              i > 0 ? " · " : null,
-              h(
-                "button",
-                {
-                  className: "link-btn",
-                  "data-testid": "served-by-station",
-                  onClick: () => onOpenStation?.(station.id),
-                },
-                station.name,
+      section(strings.station.accepts, [
+        acceptEntries.length > 0
+          ? h(
+              "div",
+              { className: "chip-row" },
+              ...acceptEntries.map(([cargo, points]) =>
+                cargoDemandTile(container, cargo, points, true),
               ),
-            ])
-          : [strings.city.servedByNone]),
-      ),
+            )
+          : emptyState(strings.station.noDemands, "cargo"),
+      ]),
+      section(strings.city.servedBy, [
+        served.length > 0
+          ? h(
+              "div",
+              { className: "chip-row served-by-row panel-row" },
+              ...served.map((station) =>
+                h(
+                  "button",
+                  {
+                    className: "chip chip-link",
+                    "data-testid": "served-by-station",
+                    onClick: () => onOpenStation?.(station.id),
+                  },
+                  icon(
+                    station.type === "terminal"
+                      ? "terminal"
+                      : station.type === "depot"
+                        ? "depot"
+                        : "station",
+                    "icon-sm",
+                  ),
+                  station.name,
+                ),
+              ),
+            )
+          : emptyState(strings.city.servedByNone, "station"),
+      ]),
     ];
 
     const plan = computeCivicInvestmentPlan(state, cityId);
     const lastTick = growth?.lastCivicInvestmentTick;
     const onCooldown = !plan.valid && lastTick !== undefined;
-    let civicDetail = formatMoney(plan.cost);
+    let civicDetail = `${formatMoney(plan.cost)} · ${strings.city.civicInvestmentShort}`;
+    if (!plan.valid && !onCooldown) civicDetail = strings.city.civicNeedsRail;
     if (onCooldown) {
       const yearsSince = (state.ticks - lastTick) / (HOURS_PER_DAY * DAYS_PER_YEAR);
       const yearsLeft = Math.max(0, Math.ceil(CIVIC_INVESTMENT_COOLDOWN_YEARS - yearsSince));
       civicDetail = strings.city.civicInvestmentCooldown(yearsLeft);
     }
-    body.push(h("div", { className: "panel-section-title" }, strings.ui.actions));
     body.push(
-      h(
-        "div",
-        { className: "action-grid" },
+      section(strings.ui.actions, [
         h(
-          "button",
-          {
-            className: "action-btn city-civic-investment-btn",
-            disabled: !plan.valid || plan.cost > state.cash,
-            onClick: () => {
-              const result = civicInvestment(state, cityId);
-              if (!result.ok) {
-                showToast(container, strings.build.reasons[result.reason], "warn");
-                return;
-              }
-              render();
-            },
-          },
+          "div",
+          { className: "action-grid" },
           h(
-            "span",
-            { className: "action-btn-label" },
-            icon("arrowUp", "icon-sm"),
-            strings.city.civicInvestment,
+            "button",
+            {
+              className: "action-btn city-civic-investment-btn",
+              title: strings.city.civicInvestmentDesc,
+              disabled: !plan.valid || plan.cost > state.cash,
+              onClick: () => {
+                const result = civicInvestment(state, cityId);
+                if (!result.ok) {
+                  showToast(container, strings.build.reasons[result.reason], "warn");
+                  return;
+                }
+                render();
+              },
+            },
+            h(
+              "span",
+              { className: "action-btn-label" },
+              icon("arrowUp", "icon-sm"),
+              strings.city.civicInvestment,
+            ),
+            h("span", { className: "action-btn-detail" }, civicDetail),
           ),
-          h("span", { className: "action-btn-detail" }, civicDetail),
         ),
-      ),
+      ]),
     );
-    body.push(h("div", { className: "panel-row" }, strings.city.civicInvestmentDesc));
 
-    const growthIcon = icon(growing ? "arrowUp" : "arrowFlat");
+    const growthIcon = icon(growing ? "arrowUp" : "arrowFlat", growing ? "tone-go" : "tone-muted");
     growthIcon.setAttribute("aria-label", growing ? strings.city.growing : strings.city.stagnant);
     const subtitle = h(
       "span",
@@ -222,7 +253,13 @@ export function openCityPanel(
       growthIcon,
     );
 
-    openPanel(container, { title: city.name, subtitle, body });
+    openPanel(container, {
+      title: city.name,
+      subtitle,
+      thumb: icon(TIER_ICONS[city.tier] ?? "town"),
+      body,
+      key: `city:${cityId}`,
+    });
   };
 
   render();
@@ -236,63 +273,60 @@ export interface IndustryPanelContext {
   onCenter?: (industry: Industry) => void;
 }
 
-/** "Makes Goods from Steel or Lumber" (either input works) / "Needs Coal and Iron ore" (all needed),
- * with the joining word emphasised. Null for industries with no inputs. */
+/** The recipe as pictograms: "[steel] or [lumber] → [goods]" (inputs joined by "or"/"and"); the
+ * whole sentence rides in the row's aria-label. Null for industries with no inputs. */
 function recipeLine(type: Industry["type"]): HTMLElement | null {
   const def = INDUSTRIES[type];
   const inputs = Object.keys(def.consumes) as CargoType[];
   if (inputs.length === 0) return null;
-  const joiner = def.recipeMode === "all" ? strings.industry.and : strings.industry.or;
-  const list: Array<Node | string> = [];
+  const outputs = Object.keys(def.produces) as CargoType[];
+  const all = def.recipeMode === "all";
+  const joiner = all ? strings.industry.and : strings.industry.or;
+  const names = (list: CargoType[]): string => list.map((c) => CARGO[c].name).join(` ${joiner} `);
+  const label = all
+    ? strings.industry.recipeNeeds(names(inputs))
+    : strings.industry.recipeMakes(outputs.map((c) => CARGO[c].name).join(", "), names(inputs));
+  const parts: Node[] = [];
   inputs.forEach((cargo, i) => {
-    if (i > 0) list.push(" ", h("strong", null, joiner), " ");
-    list.push(CARGO[cargo].name);
+    if (i > 0) parts.push(h("span", { className: "recipe-joiner" }, joiner));
+    parts.push(cargoIcon(cargo, "cargo-icon-lg"));
   });
-  const outputs = (Object.keys(def.produces) as CargoType[]).map((c) => CARGO[c].name).join(", ");
-  return h(
-    "div",
-    { className: "panel-row industry-recipe" },
-    def.recipeMode === "all"
-      ? h("span", null, `${strings.industry.needs} `, ...list)
-      : h(
-          "span",
-          null,
-          `${strings.industry.makes} ${outputs} ${strings.industry.makesFrom} `,
-          ...list,
-        ),
-  );
+  if (outputs.length > 0) {
+    parts.push(icon("chevronRight", "recipe-arrow"));
+    for (const cargo of outputs) parts.push(cargoIcon(cargo, "cargo-icon-lg"));
+  }
+  return h("div", { className: "industry-recipe", role: "img", "aria-label": label }, ...parts);
 }
 
-/** One row per input cargo: its pictogram and the nearest producer of it (name + distance),
+/** One card row per input cargo: its pictogram and the nearest producer of it (name + distance),
  * tappable to centre the map there. */
 function nearestSourceRows(
   container: HTMLElement,
   industry: Industry,
   ctx: IndustryPanelContext,
-): HTMLElement[] {
+): HTMLElement {
   const def = INDUSTRIES[industry.type];
-  return (Object.keys(def.consumes) as CargoType[]).map((cargo) => {
+  const rows = (Object.keys(def.consumes) as CargoType[]).map((cargo) => {
     const types = producersOf(cargo).filter((t) => INDUSTRIES[t].era <= ctx.startYear);
     const near = nearestOf(ctx.industries, types, industry);
-    const label = near
-      ? `${INDUSTRIES[near.industry.type].name} · ${strings.industry.tilesAway(Math.round(near.distance))}`
+    const meta = near
+      ? strings.industry.tilesAway(Math.round(near.distance))
       : strings.industry.noSourceNearby;
-    return h(
-      "button",
-      {
-        className: `panel-row industry-source${near ? "" : " chip-dim"}`,
-        disabled: !near || !ctx.onCenter,
-        "aria-label": near ? `${strings.industry.showOnMap}: ${label}` : label,
-        onClick: () => {
-          if (near) ctx.onCenter?.(near.industry);
-          void container;
-        },
+    const title = near ? INDUSTRIES[near.industry.type].name : CARGO[cargo].name;
+    return cardRow({
+      className: `industry-source${near ? "" : " chip-dim"}`,
+      thumb: cargoIcon(cargo, "cargo-icon-lg"),
+      title,
+      meta,
+      trailing: near ? icon("mapPin", "icon-sm") : undefined,
+      disabled: !near || !ctx.onCenter,
+      onClick: () => {
+        if (near) ctx.onCenter?.(near.industry);
+        void container;
       },
-      cargoIcon(cargo, "cargo-icon-sm"),
-      h("span", { className: "label" }, CARGO[cargo].name),
-      h("span", null, label),
-    );
+    });
   });
+  return cardList(...rows);
 }
 
 export function openIndustryPanel(
@@ -304,38 +338,57 @@ export function openIndustryPanel(
   const produces = Object.entries(def.produces) as Array<[CargoType, number]>;
   const consumes = Object.entries(def.consumes) as Array<[CargoType, number]>;
 
-  const body: Node[] = [row(strings.industry.availableFrom, String(def.era))];
+  const body: Node[] = [];
   const recipe = recipeLine(industry.type);
   if (recipe) body.push(recipe);
 
+  const perMonth = strings.industry.perMonthNote;
   if (produces.length > 0) {
-    body.push(h("div", { className: "panel-section-title" }, strings.industry.produces));
     body.push(
-      h(
-        "div",
-        { className: "chip-row" },
-        ...produces.map(([cargo, amount]) =>
-          cargoChip(container, cargo, amount, strings.industry.perMonth),
-        ),
+      section(
+        strings.industry.produces,
+        [
+          h(
+            "div",
+            { className: "chip-row" },
+            ...produces.map(([cargo, amount]) =>
+              cargoChip(container, cargo, amount, strings.industry.perMonth, false, true),
+            ),
+          ),
+        ],
+        perMonth,
       ),
     );
   }
   if (consumes.length > 0) {
-    body.push(h("div", { className: "panel-section-title" }, strings.industry.consumes));
     body.push(
-      h(
-        "div",
-        { className: "chip-row" },
-        ...consumes.map(([cargo, amount]) =>
-          cargoChip(container, cargo, amount, strings.industry.perMonth),
-        ),
+      section(
+        strings.industry.consumes,
+        [
+          h(
+            "div",
+            { className: "chip-row" },
+            ...consumes.map(([cargo, amount]) =>
+              cargoChip(container, cargo, amount, strings.industry.perMonth, false, true),
+            ),
+          ),
+        ],
+        perMonth,
       ),
     );
     if (ctx) {
-      body.push(h("div", { className: "panel-section-title" }, strings.industry.nearestSources));
-      body.push(...nearestSourceRows(container, industry, ctx));
+      body.push(
+        section(strings.industry.nearestSources, [nearestSourceRows(container, industry, ctx)]),
+      );
     }
   }
 
-  openPanel(container, { title: def.name, body });
+  const firstOutput = produces[0]?.[0];
+  openPanel(container, {
+    title: def.name,
+    subtitle: strings.industry.since(def.era),
+    thumb: firstOutput ? cargoIcon(firstOutput) : icon("factory"),
+    body,
+    key: `industry:${industry.id}`,
+  });
 }

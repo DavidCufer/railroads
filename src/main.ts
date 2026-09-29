@@ -21,7 +21,12 @@ import type { ReservedScreenRect } from "./render/reservedRects";
 import { CameraInput, type BuildDragHandlers } from "./ui/cameraInput";
 import { createDebugControls } from "./ui/debugControls";
 import { createTopBar } from "./ui/topBar";
-import { createToolbar, createQuickBuildToggle, type ToolId } from "./ui/toolbar";
+import {
+  createFloatingPill,
+  createToolbar,
+  createQuickBuildToggle,
+  type ToolId,
+} from "./ui/toolbar";
 import { openCityPanel, openIndustryPanel, stationsServingList } from "./ui/infoPanels";
 import { closeChooser, showChooser } from "./ui/chooser";
 import {
@@ -890,12 +895,12 @@ function main(): void {
       // mini-map skip drawing rather than rendering underneath (same review, the station-label/
       // News-button overlap).
       const panelOpen = isPanelOpen();
-      for (const el of [newsButton.root, trainListButton, quickBuildToggle, goalsButton]) {
+      for (const el of [floatingPill, quickBuildToggle]) {
         el.classList.toggle("floating-hidden", panelOpen);
       }
       const reserved: ReservedScreenRect[] = [];
       if (!panelOpen) {
-        for (const el of [newsButton.root, trainListButton, quickBuildToggle, goalsButton]) {
+        for (const el of [floatingPill, quickBuildToggle]) {
           const r = el.getBoundingClientRect();
           reserved.push({ x0: r.left, y0: r.top, x1: r.right, y1: r.bottom });
         }
@@ -951,6 +956,7 @@ function main(): void {
     onSetSpeed: (speed: GameSpeed) => loop.setSpeed(speed),
     getSpeed: () => loop.getSpeed(),
     onOpenFinance: () => openFinancePanel(ui, state),
+    onOpenRoster: () => showToast(ui, strings.topBar.rosterSoon, "info"),
     onOpenMenu: () =>
       openMenuPanel(ui, {
         getOverlayState: () => overlayState,
@@ -962,13 +968,20 @@ function main(): void {
         },
         onSaveGame: () => openSaveScreen(),
         onOpenSettings: () => openSettingsOverlay(),
+        onOpenRoster: () => showToast(ui, strings.topBar.rosterSoon, "info"),
       }),
   });
   const toolbar = createToolbar(ui, (tool) => setTool(tool));
   const quickBuildToggle = createQuickBuildToggle(ui, (enabled) => {
     quickBuild = enabled;
   });
-  const trainListButton = createTrainListButton(ui, () => {
+  const floatingPill = createFloatingPill(ui);
+  createGoalsButton(floatingPill, () => openGoalsPanel(ui, state));
+  const newsButton = createNewsButton(floatingPill, () => {
+    openNewsPanel(ui, state);
+    newsButton.refreshBadge(state);
+  });
+  createTrainListButton(floatingPill, () => {
     openTrainListPanel(ui, state, (trainId) => {
       const train = state.trains.find((t) => t.id === trainId);
       if (train) {
@@ -977,11 +990,6 @@ function main(): void {
       }
     });
   });
-  const newsButton = createNewsButton(ui, () => {
-    openNewsPanel(ui, state);
-    newsButton.refreshBadge(state);
-  });
-  const goalsButton = createGoalsButton(ui, () => openGoalsPanel(ui, state));
 
   loop.start();
   initBackButton();
