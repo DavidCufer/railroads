@@ -460,3 +460,11 @@ export const WATER_TOWER_SPEED_PENALTY = 0.2;
  * dialog — not specified by SPEC beyond "when a new model becomes available", so picked to be long
  * enough to notice on a slow-playing save without cluttering the roster indefinitely. */
 export const NEW_LOCOMOTIVE_BADGE_YEARS = 3;
+
+/** PLAN Phase 25A crossing interlock: a train claims the next junction/crossing node cluster once
+ * its head is within this many tiles of it (must exceed the longest braking distance:
+ * 270 km/h at 30 km/h per tick ≈ 1.7 tiles, plus a tick of travel). */
+export const CROSSING_CLAIM_LOOKAHEAD_TILES = 4;
+/** A junction/crossing node is "occupied" from this far before the head reaches it until the tail
+ * is this far past it; a waiting train stops this far short of the node. */
+export const CROSSING_CLEARANCE_TILES = 0.35;

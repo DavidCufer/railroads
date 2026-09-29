@@ -53,6 +53,16 @@ export interface HeldBlock {
   lengthTiles: number;
 }
 
+/** A junction/crossing node a train has claimed (PLAN Phase 25A, src/sim/trains/crossing.ts). */
+export interface NodeClaim {
+  node: number;
+  /** `train.distanceTraveled` value at which the head reaches the node. */
+  atDistance: number;
+  /** Route neighbours the train enters from / leaves to (-1 unknown). */
+  inNode: number;
+  outNode: number;
+}
+
 /** What is currently keeping a train from departing (SPEC §7.5 wait-for graph, PLAN Phase 18 B).
  * Recorded by every failed departure check and cleared the moment one succeeds; purely derived
  * (re-set every tick a train is still waiting), so it is not saved. */
@@ -138,6 +148,10 @@ export interface Train {
   noRouteReportedStationId?: number;
   /** Sorted cargo list last announced by the "can't be delivered" news item, so it fires once. */
   undeliverableReported?: string;
+  /** Junction/crossing nodes this train currently holds or has claimed ahead (runtime only). */
+  nodeClaims?: NodeClaim[];
+  /** Set while the train is halted just short of a junction/crossing held by other trains. */
+  crossingWait?: { node: number; trainIds: number[]; since: number };
   /** Why the train is waiting, while `status` is `waitingForBlock`/`waitingForStation`. */
   waitingOn?: WaitingOn;
   /** Ticks left in the current loading/unloading stop (SPEC §7.2, §6.1's overlength penalty).

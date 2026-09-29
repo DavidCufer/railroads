@@ -10,6 +10,7 @@ export * from "./blocks";
 export * from "./route";
 export * from "./geometry";
 export * from "./movement";
+export { setCrossingForcedReporter } from "./crossing";
 
 interface CacheEntry {
   trackVersion: number;

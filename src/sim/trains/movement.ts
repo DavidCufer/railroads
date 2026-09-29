@@ -17,7 +17,6 @@
  * already passed, without waiting for the whole thing to clear.
  */
 import {
-  CAR_LENGTH_TILES,
   CAR_WEIGHT_EMPTY,
   CAR_WEIGHT_LOADED,
   CURVE_SPEED_FACTOR,
@@ -26,7 +25,6 @@ import {
   DEADLOCK_STUCK_DAYS,
   DEAD_END_REVERSE_HOURS,
   GRADE_EFFORT_FACTOR,
-  LOCO_LENGTH_TILES,
   LOCO_WEIGHT_UNITS,
   MAX_SPEED_FACTOR,
   FOLLOW_GAIN_KMH_PER_TILE,
@@ -49,6 +47,7 @@ import type { Station } from "../stations/types";
 import { directionSteps } from "../track/graph";
 import { directionBetween, edgeDirectionFrom, edgeLengthTiles, tileXY } from "./geometry";
 import { blockIdForEdge, type Block, type BlockPartition } from "./blocks";
+import { trainBodyLength, updateCrossing } from "./crossing";
 import { applyPendingConsist, stepLoading } from "./loading";
 import { findTrainRoute } from "./route";
 import type { HeldBlock, Train, TrainOrder, TrainStatus } from "./types";
@@ -108,7 +107,75 @@ function currentFractionalPosition(mapWidth: number, train: Train): { x: number;
 /** Physical length of `train`'s consist in tiles (SPEC §7.5's "tail-based release" — how far the
  * tail trails behind the head), from the same STYLE §7 sizing constants the renderer uses. */
 function trainLengthTiles(train: Train): number {
-  return LOCO_LENGTH_TILES + train.cars.length * CAR_LENGTH_TILES;
+  return trainBodyLength(train);
+}
+
+/** How far the head may still advance before it must stop short of a junction/crossing held by
+ * another train (PLAN Phase 25A); `Infinity` when free. Claims the next junction cluster when free. */
+function crossingLimit(state: GameState, train: Train, runtime: TrainRuntime): number {
+  let endIndex = train.route.length - 1;
+  const target =
+    train.sectionTargetStationId !== undefined
+      ? runtime.stationsById.get(train.sectionTargetStationId)
+      : undefined;
+  if (target) {
+    const i = train.route.indexOf(target.tile, train.routeIndex + 1);
+    if (i >= 0) endIndex = i;
+  }
+  const found = nearestLeader(train, state.trains);
+  const leaderHeadDist = found ? found.gap + trainLengthTiles(found.leader) : Infinity;
+  return updateCrossing(state, train, runtime.stationTiles, endIndex, leaderHeadDist, (blockers) =>
+    inWaitCycle(state, train, blockers),
+  ).limit;
+}
+
+/** Who `t` is stuck behind: whatever it waits for at a station (line / platform), a stopped train's
+ * leader, and — unless `withoutCrossings` — the holders of the junction it waits for. */
+export function waitsFor(state: GameState, t: Train, withoutCrossings = false): number[] {
+  const ids = [...(t.waitingOn?.trainIds ?? [])];
+  if (!withoutCrossings) ids.push(...(t.crossingWait?.trainIds ?? []));
+  if (t.speed === 0) {
+    const found = nearestLeader(t, state.trains);
+    if (found) ids.push(found.leader.id);
+  }
+  return ids;
+}
+
+function reach(state: GameState, from: readonly number[], withoutCrossings = false): Set<number> {
+  const byId = new Map(state.trains.map((t) => [t.id, t]));
+  const seen = new Set<number>();
+  const stack = [...from];
+  while (stack.length > 0) {
+    const id = stack.pop() as number;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const t = byId.get(id);
+    if (t) stack.push(...waitsFor(state, t, withoutCrossings));
+  }
+  return seen;
+}
+
+/** True when `train` is stuck in a wait-for cycle that exists only because of junction holds (it
+ * would dissolve without them) and has the lowest id among the cycle's junction waiters, so exactly
+ * one of them goes first. Cycles made only of station waits and queues are the older signaling
+ * logic's business (its reroute safety net), and forcing a junction would not help them. */
+function inWaitCycle(state: GameState, train: Train, blockers: readonly number[]): boolean {
+  const fromMe = reach(state, blockers);
+  if (!fromMe.has(train.id)) return false;
+  const byId = new Map(state.trains.map((t) => [t.id, t]));
+  for (const id of fromMe) {
+    const t = byId.get(id);
+    if (!t || !reach(state, [id]).has(train.id)) continue; // not in my cycle
+    if (reach(state, waitsFor(state, t, true), true).has(id)) return false; // cycle without junctions
+    if (id < train.id && t.crossingWait) return false; // a lower-id junction waiter goes first
+  }
+  return true;
+}
+
+/** Stations are the passing places (§7.5): a train standing in one holds no crossing claims. */
+function dropClaims(train: Train): void {
+  train.nodeClaims = [];
+  delete train.crossingWait;
 }
 
 /** Drops any `heldBlocks` entries whose far end the train's *tail* has now cleared — the entries
@@ -178,6 +245,17 @@ export function nearestLeader(
       if (t.id === train.id) continue;
       for (const hb of t.heldBlocks) {
         if (hb.blockId !== mine.blockId || hb.direction !== mine.direction) continue;
+        // A train that has since turned round (it holds this block the other way, entered later)
+        // is no longer heading the way this entry says.
+        if (
+          t.heldBlocks.some(
+            (o) =>
+              o.blockId === hb.blockId &&
+              o.direction !== hb.direction &&
+              o.enteredAtDistance > hb.enteredAtDistance,
+          )
+        )
+          continue;
         // Only the block the leader's head is actually in counts (a clamped, passed block would
         // understate the gap).
         const into = t.distanceTraveled - hb.enteredAtDistance;
@@ -636,6 +714,7 @@ function arriveAtStation(state: GameState, train: Train, station: Station): void
   train.routeIndex = 0;
   train.edgeProgress = 0;
   train.heldBlocks = [];
+  dropClaims(train);
   delete train.sectionTargetStationId;
   delete train.waitingForStationId;
   train.blockPenalties.clear();
@@ -740,6 +819,15 @@ function handleMoving(
     targetStation = currentTarget(train, runtime) ?? targetStation;
   }
 
+  // A train standing still at a station holds no junction claims (stations are the passing places;
+  // a train that reversed there would otherwise keep the claims of the way it came in on).
+  if (
+    train.edgeProgress === 0 &&
+    train.speed === 0 &&
+    runtime.stationTiles.has(train.route[train.routeIndex] as number)
+  )
+    dropClaims(train);
+
   const wasWaiting = statusAtStart !== "moving";
   let remainingTiles = 0;
   if (!wasWaiting) {
@@ -747,6 +835,14 @@ function handleMoving(
     const b = train.route[train.routeIndex + 1];
     let targetSpeed = b !== undefined ? computeTargetSpeed(state, loco, train, a, b) : 0;
     if (b !== undefined) targetSpeed = Math.min(targetSpeed, followerSpeedCap(train, state.trains));
+    if (b !== undefined && !needsNewSection(train, runtime, a, b)) {
+      const limit = crossingLimit(state, train, runtime);
+      if (limit < Infinity)
+        targetSpeed = Math.min(
+          targetSpeed,
+          Math.sqrt(2 * TRAIN_BRAKE_KMH_PER_TICK * TICKS_PER_TILE_DIVISOR * limit),
+        );
+    }
     if (train.speed < targetSpeed)
       train.speed = Math.min(targetSpeed, train.speed + TRAIN_ACCEL_KMH_PER_TICK);
     else train.speed = Math.max(targetSpeed, train.speed - TRAIN_BRAKE_KMH_PER_TICK);
@@ -775,12 +871,21 @@ function handleMoving(
     if (train.edgeProgress === 0 && needsNewSection(train, runtime, a, b)) {
       const attempt = tryEnterSection(state, train, runtime);
       if (!attempt.ok) {
+        dropClaims(train);
         checkDeadlockTimeout(state, train, runtime, loco, attempt.blockingBlockId);
         return;
       }
     }
 
     if (remainingTiles <= 0) return;
+
+    const limit = crossingLimit(state, train, runtime);
+    if (limit < remainingTiles) {
+      // Halted just short of a junction/crossing another train holds.
+      remainingTiles = limit;
+      train.speed = 0;
+      if (remainingTiles <= 0) return;
+    }
 
     const edge = state.trackGraph.getEdge(a, b);
     if (!edge) {
@@ -808,6 +913,14 @@ function handleMoving(
     train.edgeProgress = 0;
     train.routeIndex++;
     train.direction = edgeDirectionFrom(edge, a);
+    // Turning round at a station (the route doubles back on itself): what was claimed on the way
+    // in is no longer under the train.
+    if (
+      runtime.stationTiles.has(b) &&
+      train.route[train.routeIndex + 1] !== undefined &&
+      train.route[train.routeIndex + 1] === train.route[train.routeIndex - 1]
+    )
+      dropClaims(train);
 
     if (
       train.routeTrackVersion !== runtime.trackVersion &&

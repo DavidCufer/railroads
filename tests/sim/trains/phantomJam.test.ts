@@ -15,13 +15,19 @@ import {
 } from "../../../src/sim/commands";
 import { createRng, nextFloat, nextInt, type RngState } from "../../../src/sim/rng";
 import { advanceOneHour } from "../../../src/sim/tick";
-import { getTrainRuntime, setStaleReservationReporter } from "../../../src/sim/trains";
+import {
+  waitsFor,
+  getTrainRuntime,
+  setCrossingForcedReporter,
+  setStaleReservationReporter,
+} from "../../../src/sim/trains";
 import { edgeKey } from "../../../src/sim/track/graph";
 import { findBuildPath } from "../../../src/sim/track/pathfind";
 import { STATION_TYPES } from "../../../src/data/stations";
 import type { GameState } from "../../../src/sim/state";
 import type { Train } from "../../../src/sim/trains/types";
 import { makeTestMap, makeTestState, tileAt } from "../track/helpers";
+import { makeCrossingWatch } from "./crossingHelpers";
 
 const BIG = process.env.STRESS_BIG === "1";
 const SIZE = BIG ? 48 : 30;
@@ -29,6 +35,7 @@ const YEARS = BIG ? 4 : 2;
 const SEEDS = BIG ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] : [1, 2, 3, 4, 5, 6];
 const WAIT_LIMIT_DAYS = BIG ? 250 : 100;
 const LOCO = "american-4-4-0";
+const crossWaited = new Map<number, number>();
 
 function randTile(rng: RngState, map: GameState["map"]): number {
   return tileAt(map, nextInt(rng, 1, SIZE - 2), nextInt(rng, 1, SIZE - 2));
@@ -98,9 +105,11 @@ function scenario(seed: number): { state: GameState; rng: RngState } {
   return { state, rng };
 }
 
-function findCycleMembers(state: GameState): Set<number> {
+function findCycleMembers(state: GameState, wide = false): Set<number> {
   const edges = new Map<number, number[]>();
-  for (const t of state.trains) if (t.waitingOn) edges.set(t.id, t.waitingOn.trainIds);
+  for (const t of state.trains)
+    if (wide) edges.set(t.id, waitsFor(state, t));
+    else if (t.waitingOn) edges.set(t.id, t.waitingOn.trainIds);
   const inCycle = new Set<number>();
   for (const start of edges.keys()) {
     // DFS: can we get back to `start`?
@@ -121,7 +130,7 @@ function findCycleMembers(state: GameState): Set<number> {
 }
 
 /** Trains whose wait chain ends at a train with no possible route at all (excused: impossible). */
-function waitsOnDeadTrain(state: GameState, id: number): boolean {
+function waitsOnDeadTrain(state: GameState, id: number, wide = false): boolean {
   const byId = new Map(state.trains.map((t) => [t.id, t]));
   const seen = new Set<number>();
   const stack = [id];
@@ -132,15 +141,31 @@ function waitsOnDeadTrain(state: GameState, id: number): boolean {
     const t = byId.get(n);
     if (!t) continue;
     if (n !== id && (t.status === "noRoute" || t.status === "stuck")) return true;
-    stack.push(...(t.waitingOn?.trainIds ?? []));
+    stack.push(...(wide ? waitsFor(state, t) : (t.waitingOn?.trainIds ?? [])));
   }
   return false;
+}
+
+/** Every train the given trains (transitively) wait for, themselves included. */
+function reachFrom(state: GameState, from: readonly number[]): Set<number> {
+  const byId = new Map(state.trains.map((t) => [t.id, t]));
+  const seen = new Set<number>();
+  const stack = [...from];
+  while (stack.length) {
+    const n = stack.pop()!;
+    if (seen.has(n)) continue;
+    seen.add(n);
+    const t = byId.get(n);
+    if (t) stack.push(...waitsFor(state, t));
+  }
+  return seen;
 }
 
 function checkInvariants(state: GameState, waited: Map<number, number>, log: string[]): void {
   const runtime = getTrainRuntime(state);
   const byId = new Map(state.trains.map((t) => [t.id, t]));
   const cycle = findCycleMembers(state);
+  const wideCycle = findCycleMembers(state, true);
   for (const t of state.trains) {
     const where = `train ${t.id} @tick ${state.ticks} status ${t.status}`;
     // (a) reservations belong to a train that will still use them.
@@ -199,6 +224,20 @@ function checkInvariants(state: GameState, waited: Map<number, number>, log: str
         );
       }
     } else waited.set(t.id, 0);
+    if (t.crossingWait) {
+      crossWaited.set(t.id, (crossWaited.get(t.id) ?? 0) + 1);
+      if (t.crossingWait.trainIds.some((id) => !byId.has(id)))
+        log.push(`${where}: crossing blocker does not exist`);
+      if (
+        (crossWaited.get(t.id) ?? 0) > WAIT_LIMIT_DAYS &&
+        !wideCycle.has(t.id) &&
+        ![...reachFrom(state, t.crossingWait.trainIds)].some((id) => wideCycle.has(id)) &&
+        !waitsOnDeadTrain(state, t.id, true)
+      )
+        log.push(
+          `${where}: waited ${crossWaited.get(t.id)} days at a crossing for ${JSON.stringify(t.crossingWait)}`,
+        );
+    } else crossWaited.set(t.id, 0);
     if (
       t.status === "stuck" &&
       (waited.get(t.id) ?? 0) > WAIT_LIMIT_DAYS &&
@@ -258,12 +297,15 @@ function collision(state: GameState): string | null {
 describe("phantom jam stress", () => {
   for (const seed of SEEDS) {
     it(`seed ${seed}: signaling stays consistent for ${YEARS} years`, () => {
+      crossWaited.clear();
       const { state, rng } = scenario(seed);
       expect(state.trains.length).toBeGreaterThanOrEqual(2);
       const waited = new Map<number, number>();
       const log: string[] = [];
+      const watchCrossings = makeCrossingWatch();
       // The sim's own daily self-check must never have anything to clear.
       setStaleReservationReporter((m) => log.push(`stale reservation @tick ${state.ticks}: ${m}`));
+      setCrossingForcedReporter((m) => log.push(`crossing safety net @tick ${state.ticks}: ${m}`));
       const days = YEARS * 365;
       for (let day = 0; day < days && log.length === 0; day++) {
         // Mid-run edits: extend the network / add stations while trains are running.
@@ -306,10 +348,19 @@ describe("phantom jam stress", () => {
                   "tv",
                   t.routeTrackVersion,
                   state.trackVersion,
+                  "spd",
+                  t.speed.toFixed(0),
+                  "cl",
+                  JSON.stringify(
+                    (t.nodeClaims ?? []).map((c) => `${c.node}@${c.atDistance.toFixed(1)}`),
+                  ),
+                  "cw",
+                  JSON.stringify(t.crossingWait),
                 );
           }
           const c = collision(state);
           if (c) log.push(`tick ${state.ticks}: ${c}`);
+          watchCrossings(state, log);
         }
         checkInvariants(state, waited, log);
         if (process.env.TRACE) {
@@ -331,12 +382,21 @@ describe("phantom jam stress", () => {
               t.sectionTargetStationId,
               "wait",
               JSON.stringify(t.waitingOn),
+              "claims",
+              JSON.stringify(t.nodeClaims),
+              "cw",
+              JSON.stringify(t.crossingWait),
+              "spd",
+              t.speed.toFixed(0),
+              "dt",
+              t.distanceTraveled.toFixed(2),
               "cur",
               t.orders[t.currentOrderIndex]?.stationId,
             );
         }
       }
       setStaleReservationReporter(undefined);
+      setCrossingForcedReporter(undefined);
       expect(log.slice(0, 10)).toEqual([]);
     }, 60_000);
   }
