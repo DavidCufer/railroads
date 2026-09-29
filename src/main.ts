@@ -1029,7 +1029,7 @@ function main(): void {
   const floatingPill = createFloatingPill(ui);
   createGoalsButton(floatingPill, () => openGoalsPanel(ui, state));
   const newsButton = createNewsButton(floatingPill, () => {
-    openNewsPanel(ui, state);
+    openNewsPanel(ui, state, () => newsButton.refreshBadge(state));
     newsButton.refreshBadge(state);
   });
   createTrainListButton(floatingPill, () => {

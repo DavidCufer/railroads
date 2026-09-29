@@ -436,6 +436,9 @@ export const strings = {
     title: "News",
     button: "News",
     empty: "No news yet.",
+    clearAll: "Clear all",
+    clearAllConfirm: "Clear all news?",
+    times: (n: number) => `×${n}`,
     kinds: {
       newLocomotive: (locoName: string) => `New locomotive available: ${locoName}`,
       breakdown: (trainName: string) => `${trainName} has broken down and is being repaired`,

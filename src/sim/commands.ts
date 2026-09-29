@@ -28,7 +28,7 @@ import { calendarFromTicks } from "./time";
 import type { GameState } from "./state";
 import { applyCivicInvestmentGrowth, getOrCreateCityGrowth } from "./economy/cityGrowth";
 import type { City } from "./economy/types";
-import { pushNews } from "./news";
+import { clearNews, pushNews } from "./news";
 import { directionIndex } from "./track/graph";
 import { findSharpSteps } from "./track/turn";
 import {
@@ -828,6 +828,12 @@ export function sellTrain(state: GameState, trainId: number): CommandResult {
   state.cash += plan.refund;
   addExpense(state, "rollingStock", -plan.refund);
   return { ok: true, cost: -plan.refund };
+}
+
+/** Empties the news history (News panel "Clear all"). */
+export function clearAllNews(state: GameState): CommandResult {
+  clearNews(state);
+  return { ok: true, cost: 0 };
 }
 
 export interface ReplaceLocoPlan {

@@ -5,6 +5,7 @@ import { CARGO } from "../data/cargo";
  * both here and for toasts (src/main.ts drains `state.pendingNews` on every tick).
  */
 import { locomotiveById } from "../data/trains";
+import { clearAllNews } from "../sim/commands";
 import { markAllNewsRead, unreadNewsCount, type NewsItem } from "../sim/news";
 import type { GameState } from "../sim/state";
 import { describeGoal } from "./goalStrings";
@@ -13,6 +14,7 @@ import { cardList, cardRow } from "./components/cardRow";
 import { emptyState } from "./components/emptyState";
 import type { Tone } from "./components/tone";
 import { formatDate } from "./format";
+import { footerButton } from "./components/footer";
 import { h } from "./h";
 import { locoArt } from "./trainArt";
 import { icon, type IconName } from "./icons";
@@ -98,7 +100,11 @@ const NEWS_ICONS: Record<NewsItem["kind"], { icon: IconName; tone: Tone }> = {
   goalCompleted: { icon: "trophy", tone: "brass" },
 };
 
-export function openNewsPanel(container: HTMLElement, state: GameState): void {
+export function openNewsPanel(
+  container: HTMLElement,
+  state: GameState,
+  onChange: () => void = () => {},
+): void {
   const unreadFrom = state.newsReadUpTo;
   const items = [...state.news].reverse();
   const body: Node[] =
@@ -124,7 +130,9 @@ export function openNewsPanel(container: HTMLElement, state: GameState): void {
               return cardRow({
                 className: `news-item${item.id > unreadFrom ? " unread" : ""}`,
                 thumb,
-                title: formatNewsItem(state, item),
+                title:
+                  formatNewsItem(state, item) +
+                  ((item.count ?? 1) > 1 ? ` ${strings.news.times(item.count as number)}` : ""),
                 meta: formatDate(calendarFromTicks(state.startYear, item.tick)),
               });
             }),
@@ -132,7 +140,33 @@ export function openNewsPanel(container: HTMLElement, state: GameState): void {
         ];
 
   markAllNewsRead(state);
-  openPanel(container, { title: strings.news.title, thumb: icon("news"), body, key: "news" });
+  // Two-tap confirm, same style as Sell: the first tap only arms the button.
+  let armed = false;
+  const clearBtn = footerButton({
+    icon: "trash",
+    label: strings.news.clearAll,
+    kind: "danger",
+    className: "news-clear-btn btn-danger",
+    disabled: items.length === 0,
+    onClick: () => {
+      if (!armed) {
+        armed = true;
+        const label = clearBtn.lastElementChild;
+        if (label) label.textContent = strings.news.clearAllConfirm;
+        return;
+      }
+      clearAllNews(state);
+      onChange();
+      openNewsPanel(container, state, onChange);
+    },
+  });
+  openPanel(container, {
+    title: strings.news.title,
+    thumb: icon("news"),
+    body,
+    footer: [clearBtn],
+    key: "news",
+  });
 }
 
 export interface NewsButtonController {
