@@ -653,19 +653,19 @@ STYLE §8 · files: `src/ui/**` except the train/buy panels' inner content, `the
 
 ## Phase 21 — Map polish
 STYLE §10 · files: `src/render/{stations,cities,industries,labels,terrain}.ts` (+ particles from Phase 19)
-- [ ] Station buildings by type (depot / station with canopies / terminal train shed) and visible improvements.
-- [ ] Station enamel name plaques; city labels in display serif with halo.
-- [ ] Cities: top-lit roofs, shadows, street lines, landmark from Town tier.
+- [x] Station buildings by type (depot / station with canopies / terminal train shed) and visible improvements.
+- [x] Station enamel name plaques; city labels in display serif with halo.
+- [x] Cities: top-lit roofs, shadows, street lines, landmark from Town tier.
 - [x] Trees two-tone + shadow; farm fields.
 - [x] Industries distinct at zoom 1; chimney smoke on active processors via the shared particle system.
-- [ ] Review carry-overs from 19/20: (a) toasts overlap the top bar (phase-20-topbar.png: breakdown toast drawn over
+- [x] Review carry-overs from 19/20: (a) toasts overlap the top bar (phase-20-topbar.png: breakdown toast drawn over
       the era badge/date) — place toasts below the top bar, never over it; (b) smoke puffs are too big and too long a
       trail (phase-19-map-steam-smoke-zoom2.png: ~7 tiles of big grey discs on the track) — smaller puffs, shorter
       life (~0.8 s), rise/drift sideways slightly, lighter alpha; (c) station supply chips show fractions ("17.2") —
       round to whole units; (d) city subtitle trend glyph after population ("36k ━") reads as a broken character —
       use the proper trend icon (▲/▼ arrow icon, or nothing when flat).
 - [x] Perf: stress map fps not worse than before (compare `getAvgFrameMs` before/after in the e2e log).
-- [ ] Screenshots: `phase-21-station-depot/station/terminal-zoom2.png`, `phase-21-city-zoom1.5.png`,
+- [x] Screenshots: `phase-21-station-depot/station/terminal-zoom2.png`, `phase-21-city-zoom1.5.png`,
       `phase-21-industries-zoom1.png`, `phase-21-overview-zoom0.5.png`. Open and check.
 
 ## Phase 22 — Train screens (buy wizard, train panel, roster, new-engine card)

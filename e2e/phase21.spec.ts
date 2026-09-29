@@ -162,4 +162,12 @@ test.describe("Phase 21 — map polish", () => {
       clip: { x: 100, y: 44, width: 600, height: 316 },
     });
   });
+
+  test("overview zoom 0.5", async ({ page }) => {
+    await setup(page, { seed: 12345, size: "medium", waterLevel: "normal", roughness: "normal" });
+    const c = await page.evaluate(() => window.__game!.getCities()[0]!.id);
+    const pos = await page.evaluate((id) => window.__game!.getCityWorldCenter(id)!, c);
+    await centerOn(page, pos.x / TILE_SIZE, pos.y / TILE_SIZE, 0.5);
+    await page.screenshot({ path: "docs/screenshots/phase-21-overview-zoom0.5.png" });
+  });
 });
