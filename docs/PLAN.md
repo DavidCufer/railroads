@@ -828,3 +828,49 @@ Two parallel sessions: **24A** (sim, generation, finance/train UI) and **24B** (
 - [x] Terrain borders: grass↔hills, grass↔forest, hills↔mountains get the same smooth, noise-perturbed contour
       treatment as the coast (no staircases), cached per chunk.
 - [x] Screenshots before/after for each item; open and check them.
+
+## Phase 25 — Play-test 8: crossings, delivery labels, zoomed-out map, minimap
+Player report (Ljubljana, 1840–1842):
+1. Delivery money over a station is shown per car ("+$1k · 20 tons of grain" twice for one train). Show **one label
+   per cargo type per train arrival** (sum money and units), e.g. "+$2k · 40 t grain".
+2. "When tracks cross, trains go through one another. We need them to wait." Screenshot: a branch crosses a diagonal
+   main line at a node; a freight train and a passenger train occupy the crossing at the same time.
+3. "When we zoom out, mines, farms… are not seen anymore. They should be seen as little dots."
+4. "On the minimap show mountains and forests as different colours."
+Seen in the screenshots: at low zoom the hills/mountain borders are still blocky staircases (the Phase 24B smooth
+borders only apply at close zoom); deep water still shows square depth patches.
+
+Two parallel sessions: **25A** (sim: crossings + label aggregation) and **25B** (render: zoomed-out map, minimap,
+borders, water).
+
+### 25A — Crossing interlock and per-cargo labels
+- [ ] Crossings and junction nodes are mutually exclusive: a node where two routes cross or merge (diamond crossing,
+      junction) can be occupied by one train at a time. Keep the §7.5 model (full path reserved at departure), and
+      add a **dynamic node claim**: a moving train claims the crossing/junction node when its head is within braking
+      distance and releases it when its tail clears; a train whose next node is claimed by another train brakes and
+      waits just before it (shown as "Waiting at crossing for Train N"). Argue in PROGRESS why this can't deadlock
+      (the holder already owns its whole path to the next station, so it never stops on the crossing) and prove it
+      with the phantom-jam stress test extended with crossing layouts (X crossing, junction off single, junction off
+      double) — no two trains ever overlap a crossing node, no wait > the stress threshold.
+- [ ] Two trains whose reserved paths cross at a node where they would meet head-on on the *same* block still follow
+      the existing opposing-traffic rules (no regression).
+- [ ] Render: a proper diamond crossing where two lines cross without a junction (rails cross with check-rail
+      detail, ties continuous under both).
+- [ ] Delivery labels: aggregate per train arrival per cargo type (money + units), still stacked/merged per station
+      as in 24B. Unit test the aggregation; e2e screenshot of a mixed train (3 grain + 2 mail) unloading → exactly two
+      labels.
+- [ ] Screenshots: two trains at an X crossing (one waiting), junction off double track with two trains, labels.
+
+### 25B — Zoomed-out map and minimap
+- [ ] Below the zoom where industry art is drawn, draw each industry as a small **dot marker** (≈ 8–10 CSS px, cargo
+      colour of its main product, dark outline), and stations as small white-bordered dots in the station colour;
+      cities keep their label. Fade between marker and art around the threshold (no pop). Tappable as before.
+- [ ] Minimap: terrain colours by type — water (blue, deeper darker), grass/plains (green), forest (dark green),
+      hills (olive/ochre), mountains (grey-brown, peaks lighter), desert/other if present; cities as small red
+      squares, industries as tiny dots in cargo colour (optional toggle if too noisy), track in dark lines, viewport
+      rect. Cached; re-rendered only when track/terrain changes.
+- [ ] Low-zoom terrain: the smooth noise-perturbed borders from 24B must also apply at every zoom (the overview
+      rendering path) — no staircases at zoom 0.25–1.
+- [ ] Water depth: remove the square depth patches (smooth depth gradient from distance-to-shore, cached).
+- [ ] Screenshots: overview at zoom 0.35 and 0.6 with markers, minimap close-up, mountain border at zoom 0.5,
+      open sea at zoom 1. Open and check each.
