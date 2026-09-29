@@ -295,6 +295,10 @@ export const strings = {
       removeCar: (name: string) => `Remove ${name} car`,
       clear: "Clear",
       stopsHint: "Add at least two stops",
+      longerRoutesHint:
+        "Longer routes pay more per trip and load less often, so a fast engine earns more on them.",
+      longerRoutesHintSlow:
+        "Slow engines lose the speed bonus on long routes — keep this one to short lines.",
       stopCount: (n: number) => `${n} / 8 stops`,
       yourTrain: "Your train",
     },
@@ -518,6 +522,7 @@ export const strings = {
         `${cityName} has grown into a ${tierName}!`,
       civicInvestment: (cityName: string) => `Civic Investment boosts growth in ${cityName}`,
       cityFounded: (cityName: string) => `${cityName} has been founded!`,
+      discovery: (cargo: string, nearName: string) => `${cargo} discovered near ${nearName}`,
       goalCompleted: (tierName: string, description: string) =>
         `${tierName} goal reached: ${description}`,
     },

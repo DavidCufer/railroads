@@ -176,3 +176,14 @@ export const CITY_NAME_SYLLABLES = {
     "wood",
   ],
 } as const;
+
+// --- Frontier towns (Phase 26A: "empty land becomes useful") -----------------------------------
+
+/** A station on a train's orders for this many months with no city in its catchment may get a new
+ * village founded beside it. */
+export const FRONTIER_SERVED_MONTHS = 24;
+/** Monthly chance once the station qualifies. */
+export const FRONTIER_CHANCE_PER_MONTH = 0.12;
+/** No frontier village within this many tiles of an existing city. */
+export const FRONTIER_MIN_CITY_DISTANCE = 6 * WORLD_SCALE;
+export const FRONTIER_START_POPULATION = CITY_TIER_DEFS.village.minPop;

@@ -24,7 +24,7 @@ function isWater(map: GameMap, x: number, y: number): boolean {
   return (map.terrain[tileIndex(map, x, y)] as number) === WATER_ID;
 }
 
-function isBuildableLand(map: GameMap, x: number, y: number): boolean {
+export function isBuildableLand(map: GameMap, x: number, y: number): boolean {
   const t = map.terrain[tileIndex(map, x, y)] as number;
   return t !== WATER_ID && t !== MOUNTAIN_ID;
 }

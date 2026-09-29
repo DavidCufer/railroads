@@ -24,6 +24,7 @@ export type NewsPayload =
   | { kind: "cityGrowth"; cityId: number; tier: CityTier }
   | { kind: "civicInvestment"; cityId: number }
   | { kind: "cityFounded"; cityId: number }
+  | { kind: "discovery"; industryId: number }
   | { kind: "goalCompleted"; goalId: string; tier: GoalTier };
 
 /** `count` is the number of occurrences folded into this item (absent = 1); `tick` is the latest one. */

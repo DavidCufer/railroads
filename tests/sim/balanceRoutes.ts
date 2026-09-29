@@ -6,6 +6,7 @@ import { CARGO, type CargoType } from "../../src/data/cargo";
 import { INDUSTRIES, type IndustryType } from "../../src/data/industries";
 import { locomotiveById } from "../../src/data/trains";
 import { ledgerNetProfit, ledgerRevenue } from "../../src/data/finance";
+import { createRng } from "../../src/sim/rng";
 import { advanceOneHour } from "../../src/sim/tick";
 import { makeTestMap, makeTestState, tileAt } from "./track/helpers";
 import type { City, Industry } from "../../src/sim/economy/types";
@@ -24,6 +25,8 @@ export interface RouteSpec {
   population?: number;
   tier?: CityTier;
   cars?: number;
+  /** RNG seed (breakdowns); the balance tests average a few. */
+  seed?: number;
 }
 
 export interface RouteResult {
@@ -47,7 +50,11 @@ export function buildRoute(spec: RouteSpec): { state: GameState; cars: number } 
   const width = tiles + 3;
   const rows = Array.from({ length: 4 }, () => Array.from({ length: width }, () => "p").join(""));
   const map = makeTestMap(rows);
-  const state = makeTestState(map, { startYear: spec.year });
+  const state = makeTestState(map, {
+    startYear: spec.year,
+    seed: spec.seed ?? 1,
+    rng: createRng(spec.seed ?? 1),
+  });
   const trackY = 2;
   const ax = 1;
   const bx = width - 2;

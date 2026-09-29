@@ -87,21 +87,14 @@ function stepGrowthAndShrink(state: GameState): void {
   }
 }
 
-/** With `NEW_INDUSTRY_CHANCE_PER_MONTH` odds, places one new raw producer somewhere valid (SPEC
- * §8.2: "a new industry appears somewhere... higher near served cities" — approximated here as
- * "near any city", to avoid depending on this month's city-growth pass having already run). */
-function maybeSpawnIndustry(state: GameState): void {
-  if (nextFloat(state.rng) >= NEW_INDUSTRY_CHANCE_PER_MONTH) return;
-
-  const year = calendarFromTicks(state.startYear, state.ticks).year;
-  const eligible = INDUSTRY_TYPES.filter(
-    (t) => INDUSTRIES[t].placement.kind === "terrain" && INDUSTRIES[t].era <= year,
-  );
-  if (eligible.length === 0) return;
-  const type = eligible[nextInt(state.rng, 0, eligible.length - 1)] as IndustryType;
+/** Valid sites for a new raw producer of `type` (terrain, spacing from cities/industries/same type),
+ * and the subset within `NEW_INDUSTRY_CITY_BIAS_RADIUS` of a city. Shared with discoveries. */
+export function industrySites(
+  state: GameState,
+  type: IndustryType,
+): { candidates: number[]; nearCity: number[] } {
   const def = INDUSTRIES[type];
-  if (def.placement.kind !== "terrain") return;
-
+  if (def.placement.kind !== "terrain") return { candidates: [], nearCity: [] };
   const map = state.map;
   const terrainSet = new Set<Terrain>(def.placement.terrain);
   const sameType = state.industries.filter((i) => i.type === type);
@@ -135,14 +128,43 @@ function maybeSpawnIndustry(state: GameState): void {
     }
   }
 
-  const pool = nearCity.length > 0 ? nearCity : candidates;
-  if (pool.length === 0) return;
-  const idx = pool[nextInt(state.rng, 0, pool.length - 1)] as number;
+  return { candidates, nearCity };
+}
+
+/** Places a raw producer of `type` on tile `idx` and registers it. Returns its id. */
+export function placeNewIndustry(state: GameState, type: IndustryType, idx: number): number {
+  const map = state.map;
   const id = state.industries.reduce((max, i) => Math.max(max, i.id), -1) + 1;
   map.industryId[idx] = id;
   state.industries.push({ id, type, x: idx % map.width, y: Math.floor(idx / map.width) });
-  state.industryEconomy.set(id, { inputStock: {}, monthlyOutput: { ...def.produces } });
+  state.industryEconomy.set(id, {
+    inputStock: {},
+    monthlyOutput: { ...INDUSTRIES[type].produces },
+  });
   state.mapContentVersion++;
+  return id;
+}
+
+/** With `NEW_INDUSTRY_CHANCE_PER_MONTH` odds, places one new raw producer somewhere valid (SPEC
+ * §8.2: "a new industry appears somewhere... higher near served cities" — approximated here as
+ * "near any city", to avoid depending on this month's city-growth pass having already run). */
+function maybeSpawnIndustry(state: GameState): void {
+  if (nextFloat(state.rng) >= NEW_INDUSTRY_CHANCE_PER_MONTH) return;
+
+  const year = calendarFromTicks(state.startYear, state.ticks).year;
+  const eligible = INDUSTRY_TYPES.filter(
+    (t) => INDUSTRIES[t].placement.kind === "terrain" && INDUSTRIES[t].era <= year,
+  );
+  if (eligible.length === 0) return;
+  const type = eligible[nextInt(state.rng, 0, eligible.length - 1)] as IndustryType;
+  const def = INDUSTRIES[type];
+  if (def.placement.kind !== "terrain") return;
+
+  const { candidates, nearCity } = industrySites(state, type);
+  const pool = nearCity.length > 0 ? nearCity : candidates;
+  if (pool.length === 0) return;
+  const idx = pool[nextInt(state.rng, 0, pool.length - 1)] as number;
+  placeNewIndustry(state, type, idx);
 }
 
 export function monthlyIndustryDynamicsStep(state: GameState): void {

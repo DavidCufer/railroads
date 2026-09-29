@@ -17,4 +17,8 @@ export interface Station {
   /** The rest of SPEC §6.2's improvement roster (Post Office, Hotel, Warehouse, Cold Storage,
    * Freight Yard, Livestock Pens), each buildable once via `buildImprovement`. */
   improvements: StationImprovementType[];
+  /** Months this station has been on a train's orders (frontier-town founding, Phase 26A). Absent in older saves. */
+  servedMonths?: number;
+  /** True once a frontier village was founded next to this station. */
+  frontierFounded?: boolean;
 }

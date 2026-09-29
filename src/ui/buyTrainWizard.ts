@@ -26,6 +26,7 @@ import { closePanel, openPanel } from "./panel";
 import { routeTimeline } from "./routeTimeline";
 import { openSheet, type SheetHandle } from "./sheet";
 import { playSound } from "./sound";
+import { SLOW_ENGINE_KMH } from "../data/trains";
 import { strings } from "./strings";
 import { showToast } from "./toast";
 import { consistStrip, heroPlate, locoArt, tractionIcon, wheelGlyphEl } from "./trainArt";
@@ -385,6 +386,13 @@ export function openBuyTrainPanel(
               h("span", { className: "route-count tabular" }, w.stopCount(orders.length)),
             ),
             pickBtn,
+          ),
+          h(
+            "p",
+            { className: "section-note" },
+            selected && selected.maxSpeedKmh < SLOW_ENGINE_KMH
+              ? w.longerRoutesHintSlow
+              : w.longerRoutesHint,
           ),
           orders.length === 0
             ? emptyState(w.stopsHint, "mapPin")

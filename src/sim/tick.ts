@@ -6,6 +6,8 @@
  */
 import { LOCOMOTIVES } from "../data/trains";
 import { refreshStationEconomy } from "./commands";
+import { monthlyDiscoveryStep } from "./economy/discoveries";
+import { monthlyFrontierStep } from "./economy/frontier";
 import { accrueDailyCargo } from "./economy/cargoFlow";
 import { monthlyCityGrowthStep } from "./economy/cityGrowth";
 import { yearlyCityFoundingStep } from "./economy/founding";
@@ -46,6 +48,8 @@ export function advanceOneHour(state: GameState): void {
     // either way the next line's refresh needs to run after it, same reasoning as monthlyIndustryStep.
     monthlyIndustryDynamicsStep(state);
     monthlyCityGrowthStep(state);
+    monthlyDiscoveryStep(state);
+    monthlyFrontierStep(state);
     // Processed cargo's supply figures just changed (monthlyOutput), so the cached per-station
     // supply/accept map needs refreshing before tomorrow's accrual reads it.
     refreshStationEconomy(state);

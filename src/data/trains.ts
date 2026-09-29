@@ -468,3 +468,7 @@ export const CROSSING_CLAIM_LOOKAHEAD_TILES = 4;
 /** A junction/crossing node is "occupied" from this far before the head reaches it until the tail
  * is this far past it; a waiting train stops this far short of the node. */
 export const CROSSING_CLEARANCE_TILES = 0.35;
+
+/** Engines slower than this (km/h) get the "slow engines lose the speed bonus on long routes" hint in the
+ * Buy Train route step (Phase 26A; see docs/BALANCE.md: the 25 km/h grasshopper loses money on 200 km). */
+export const SLOW_ENGINE_KMH = 60;

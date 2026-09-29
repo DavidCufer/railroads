@@ -1,4 +1,5 @@
-import { CARGO } from "../data/cargo";
+import { CARGO, type CargoType } from "../data/cargo";
+import { INDUSTRIES } from "../data/industries";
 /**
  * News panel (SPEC §10.1: "News button with unread badge") — history of news items (capped at
  * `NEWS_HISTORY_MAX` in the sim), newest first. Also the shared formatter `formatNewsItem` used
@@ -49,6 +50,15 @@ function nearestStationName(state: GameState, tile: number): string {
   return best?.name ?? "?";
 }
 
+function nearestCityName(state: GameState, x: number, y: number): string {
+  let best: { name: string; d: number } | null = null;
+  for (const c of state.cities) {
+    const d = Math.hypot(c.anchorX - x, c.anchorY - y);
+    if (!best || d < best.d) best = { name: c.name, d };
+  }
+  return best?.name ?? "?";
+}
+
 export function formatNewsItem(state: GameState, item: NewsItem): string {
   switch (item.kind) {
     case "newLocomotive":
@@ -79,6 +89,16 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
       return strings.news.kinds.civicInvestment(cityName(state, item.cityId));
     case "cityFounded":
       return strings.news.kinds.cityFounded(cityName(state, item.cityId));
+    case "discovery": {
+      const industry = state.industries.find((i) => i.id === item.industryId);
+      const cargo = industry
+        ? (Object.keys(INDUSTRIES[industry.type].produces)[0] as CargoType | undefined)
+        : undefined;
+      return strings.news.kinds.discovery(
+        cargo ? CARGO[cargo].name : "Resources",
+        industry ? nearestCityName(state, industry.x, industry.y) : "?",
+      );
+    }
     case "goalCompleted": {
       const goal = state.goals.find((g) => g.id === item.goalId);
       const description = goal ? describeGoal(state, goal) : "?";
@@ -97,6 +117,7 @@ const NEWS_ICONS: Record<NewsItem["kind"], { icon: IconName; tone: Tone }> = {
   cityGrowth: { icon: "city", tone: "go" },
   civicInvestment: { icon: "coin", tone: "go" },
   cityFounded: { icon: "village", tone: "go" },
+  discovery: { icon: "coin", tone: "go" },
   goalCompleted: { icon: "trophy", tone: "brass" },
 };
 

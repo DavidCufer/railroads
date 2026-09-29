@@ -244,3 +244,12 @@ export const INDUSTRY_MIN_CITY_DISTANCE = 5;
 export const INDUSTRY_MIN_GAP_TILES = 3;
 /** How far (tiles) a too-close industry may be nudged outward to satisfy the two rules above. */
 export const INDUSTRY_NUDGE_MAX_RADIUS = 14;
+
+// --- Resource discoveries (Phase 26A: "empty land becomes useful") -----------------------------
+
+/** Monthly chance a new raw producer is *discovered* in an under-served area (about one every three
+ * years), on top of the ordinary `NEW_INDUSTRY_CHANCE_PER_MONTH` spawns that favour cities. */
+export const DISCOVERY_CHANCE_PER_MONTH = 1 / 36;
+/** The site is drawn from this best fraction of valid sites ranked by distance from the nearest
+ * industry or city (larger = emptier land). */
+export const DISCOVERY_EMPTY_FRACTION = 0.1;
