@@ -609,3 +609,69 @@ Player report (Trieste–Ljubljana):
 - [x] SPEC deviations recorded (sharp-turn rule, transfer revenue, chain placement distance).
 - [x] Screenshots: rejected sharp join (red preview), train panel "Waiting for …", warehouse station panel with
       transfer stock, industry panel with inputs. Look at them.
+
+## Phases 19–22 — "Engine shed" visual & UX update
+STYLE Part 2 (§8–§11) is the design; builders apply it. Phases 19 and 20 run **in parallel** (different files);
+21 and 22 run in parallel after both land. Parallel-session rules: before every push `git fetch origin main &&
+git rebase origin/main`, re-run `npm run check` (and e2e before the final push), then `git push origin HEAD:main`.
+Never force-push main. If e2e markup assertions must change, keep each test's intent (don't drop checks).
+Commit only your own phase's screenshots.
+
+## Phase 19 — Rolling-stock art (side views, liveries, smoke)
+STYLE §9 · files: `src/render/art/**` (new), `src/render/trains.ts`, a small debug gallery page
+- [ ] `src/render/art/livery.ts`: per-model/era colour sets (STYLE §9.3); used by side views and map sprites.
+- [ ] Whyte parser + `wheelArrangementGlyph()` (inline SVG string).
+- [ ] Steam side views, parametric (§9.2): wheels/spokes/counterweights, rods, cylinders, boiler with era sizing,
+      smokebox, chimney types, domes, bell/headlamp/pilot for American types, cab, tender variants; articulated.
+- [ ] Diesel and electric side views (§9.3), each roster model visibly distinct.
+- [ ] Car side views for every car type × era bucket, load heap by fill (§9.4).
+- [ ] `locoSideCanvas`, `carSideCanvas`, `consistSideCanvas` with caching (key incl. devicePixelRatio).
+- [ ] Map sprites refined with the shared liveries + zoom-dependent detail (§9.5); smoke/steam particle system
+      (renderer-owned, pooled, capped, skipped when zoomed out). No fps regression on the stress e2e.
+- [ ] Debug gallery: `?debug=1&gallery=1` renders every locomotive (all 24) and every car type (3 eras, empty and
+      full) on a light and a dark background, labelled — used for screenshots and review.
+- [ ] Unit tests (§9.1) + e2e screenshots: `phase-19-gallery-steam.png`, `phase-19-gallery-modern.png`,
+      `phase-19-gallery-cars.png`, `phase-19-map-steam-smoke-zoom2.png`, `phase-19-map-diesel-zoom2.png`.
+      **Open every screenshot** and fix anything that looks wrong (proportions, wheels floating, overlaps) before
+      committing. A train enthusiast should recognise a 4-4-0 American, a 4-6-2 Pacific and a road switcher.
+
+## Phase 20 — UI system v2 (chrome and non-train panels)
+STYLE §8 · files: `src/ui/**` except the train/buy panels' inner content, `theme.css`, `strings.ts`
+- [ ] Tokens (§8.1) and components under `src/ui/components/` (§8.2): PanelHeader v2, Tabs, StatTile, Meter, Pips,
+      CardRow, ToggleRow, Sparkline/StackedBar helpers, Footer v2, EmptyState. Unit tests for pure helpers.
+- [ ] `panel.ts` uses PanelHeader v2 (thumb slot, compact close) and Footer v2 for **all** panels; panel width token.
+- [ ] Chrome (§8.3): cash chip with change flash, era badge (Roster link can be a stub that Phase 22 wires),
+      left rail spacing/grouping, right floating pill, menu as grouped card lists with toggle rows.
+- [ ] City, Station (tabs Cargo/Trains/Build; train rows get a thumb slot — use a plain loco-type icon for now,
+      Phase 22 swaps in side views), Industry, Finance (tabs, sparkline, stacked bars, credit meter), News,
+      Goals, Settings, Save/Load panels restyled to v2.
+- [ ] Fix the broken glyph after the city population in the city subtitle.
+- [ ] Per-panel acceptance (§8.4) at 800×360: screenshots `phase-20-city.png`, `phase-20-station-cargo.png`,
+      `phase-20-station-trains.png`, `phase-20-station-build.png`, `phase-20-industry.png`,
+      `phase-20-finance-overview.png`, `phase-20-finance-year.png`, `phase-20-menu.png`, `phase-20-topbar.png`, plus
+      the city panel at 1280×720. Open and check each one.
+
+## Phase 21 — Map polish
+STYLE §10 · files: `src/render/{stations,cities,industries,labels,terrain}.ts` (+ particles from Phase 19)
+- [ ] Station buildings by type (depot / station with canopies / terminal train shed) and visible improvements.
+- [ ] Station enamel name plaques; city labels in display serif with halo.
+- [ ] Cities: top-lit roofs, shadows, street lines, landmark from Town tier.
+- [ ] Trees two-tone + shadow; farm fields.
+- [ ] Industries distinct at zoom 1; chimney smoke on active processors via the shared particle system.
+- [ ] Perf: stress map fps not worse than before (compare `getAvgFrameMs` before/after in the e2e log).
+- [ ] Screenshots: `phase-21-station-depot/station/terminal-zoom2.png`, `phase-21-city-zoom1.5.png`,
+      `phase-21-industries-zoom1.png`, `phase-21-overview-zoom0.5.png`. Open and check.
+
+## Phase 22 — Train screens (buy wizard, train panel, roster, new-engine card)
+STYLE §11 · needs Phases 19 + 20 · files: `src/ui/trainPanels.ts` (split it), new `src/ui/roster.ts`, etc.
+- [ ] Buy-train wizard (§11.1): full-screen sheet, stepper, engine list with side-view thumbs, filters, hero with
+      stat bars, consist builder with the side-view strip and suggestions, route step using the existing map-pick
+      mode. Keep `?debug=1` hooks and existing e2e intents working.
+- [ ] Train panel v2 (§11.2): side-view hero with fill meters, status line with icon, Route timeline tab, Stats tab,
+      action-bar footer; Edit cars reuses the consist builder.
+- [ ] Station "Trains" tab rows and news items use loco side-view thumbs.
+- [ ] Roster screen (§11.3) + short original notes per locomotive in strings.ts; era badge opens it.
+- [ ] New-engine announcement card (§11.4).
+- [ ] Screenshots: `phase-22-buy-engine.png`, `phase-22-buy-cars.png`, `phase-22-buy-route.png`,
+      `phase-22-train-panel.png`, `phase-22-train-route.png`, `phase-22-roster.png`, `phase-22-roster-detail.png`,
+      `phase-22-new-engine.png`. Open and check each at 800×360.
