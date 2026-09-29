@@ -790,27 +790,27 @@ grass↔hills/forest terrain borders are still blocky staircases (coast is smoot
 Two parallel sessions: **24A** (sim, generation, finance/train UI) and **24B** (render polish).
 
 ### 24A — Spacing, profitability, following
-- [ ] Generation: industries keep a clear gap from city footprints (e.g. ≥ 5 tiles from any city tile, data table
+- [x] Generation: industries keep a clear gap from city footprints (e.g. ≥ 5 tiles from any city tile, data table
       in `src/data/`), and from each other (≥ 3 tiles between footprints), except ports, which may sit on the town's
       coast but not on its buildings. Region-map fixed industries that violate it are nudged outward. Tests on
       seeds + all regions.
-- [ ] Finance "Overview": **Operating** view — trailing 12-month (and last-30-days) average per month of operating
+- [x] Finance "Overview": **Operating** view — trailing 12-month (and last-30-days) average per month of operating
       income vs operating costs (maintenance, running costs, interest), clearly separated from **investments**
       (track, stations, trains, improvements). A single headline "Operating profit: +$12k / month" (green/red) with a
       small bar pair income vs costs. Yearly tab keeps the full breakdown but labels investment lines as such.
-- [ ] Per-train profit: track per train revenue and running cost (+ breakdown repairs) this year, last year and
+- [x] Per-train profit: track per train revenue and running cost (+ breakdown repairs) this year, last year and
       lifetime (sim, deterministic, saved). Train panel Stats: headline "Profit this year" (green/red), last year,
       lifetime, and "Paid back" progress vs purchase price. Train list: profit/yr column with a coloured dot and
       sort by profit; unprofitable trains marked. Optional overlay already exists ("Train profit colors") — make it
       use the same numbers.
-- [ ] Undeliverable cargo: if a car carries cargo that no stop in its orders accepts any more (demand changed,
+- [x] Undeliverable cargo: if a car carries cargo that no stop in its orders accepts any more (demand changed,
       orders edited), the train panel shows a warning chip ("2 cars of coal can't be delivered on this route") and a
       news item once; such cargo is dropped at the next warehouse hub if any (existing rule).
-- [ ] Smooth following (sim): a train closing on a same-direction train ahead matches its speed smoothly (target
+- [x] Smooth following (sim): a train closing on a same-direction train ahead matches its speed smoothly (target
       speed from the gap, limited acceleration/braking, no oscillation) and keeps a visible minimum gap of ≥ 1 tile
       (or the current spacing rule if larger). Unit test: speed trace of a fast train behind a slow one has no
       sign-flip oscillation in acceleration after settling and never closes below the gap.
-- [ ] Screenshots: finance overview with operating profit, train stats with profit, train list sorted by profit,
+- [x] Screenshots: finance overview with operating profit, train stats with profit, train list sorted by profit,
       Central Europe around Ljubljana/Trieste showing the new industry spacing.
 
 ### 24B — Render polish

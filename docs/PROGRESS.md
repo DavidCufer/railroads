@@ -4106,3 +4106,33 @@ the unprefixed `phase-24b-*` the fixed result): `phase-24b-branch-{diagonal,diag
   drawn arc by up to about a lane spacing (0.28 tile) near the junction. Checked in `phase-24b-turnout-train-{0..3}.png`: the train follows the arc and stays on the branch rails, with only a slight offset at the join; left as is.
 - Water depth steps in open water remain blocky (Phase 23A ramp); not part of this item.
 
+
+
+## 2026-09-29 — Phase 24A: spacing, profitability, smooth following
+`npm run check` green (486 unit) and full e2e green (153). New: `src/sim/economy/spacing.ts`, `src/sim/finance/operating.ts`,
+`src/sim/trains/profit.ts`, `src/sim/trains/undeliverable.ts`, `tests/sim/economy/spacing.test.ts`, `tests/sim/finance/operating.test.ts`,
+`tests/sim/trains/{profit,undeliverable,following}.test.ts`, `e2e/phase24a.spec.ts`. Screenshots (opened and checked, 800×360):
+`phase-24a-finance-overview.png`, `phase-24a-train-stats.png`, `phase-24a-train-list-by-profit.png`,
+`phase-24a-spacing-ljubljana.png`, `phase-24a-spacing-trieste.png`.
+
+- **Industry spacing** (`data/industries.ts`: 5 tiles from city tiles, 3 empty tiles between industries, nudge radius 14). One pass at the
+  start of `ensureIndustryChains` (covers random and region maps, incl. cities founded later in a region); chain placement, relocation and
+  monthly spawns use the same checks. Ports are exempt from the city distance only.
+- **Finance**: `monthHistory` (last 12 months, saved; absent in older saves → empty). Overview leads with the operating headline and an
+  income-vs-costs bar pair, 12-month average, last 30 days (= last completed month) and average investments. Yearly tab labels construction and
+  rolling stock "(investment)" and shows the total in the section note.
+- **Per-train profit**: `train.profit {thisYear,lastYear,lifetime}` of `{revenue, running, repairs}` (running = the loco's monthly upkeep;
+  track/station upkeep is shared and not attributed). Rolled at the year boundary. Train Stats: profit tiles (this year / last year / lifetime)
+  and a "paid back" meter; list has Name/Profit sort and a coloured dot + profit/yr; the map overlay uses `trainProfitStatus` (lifetime
+  profit/yr vs. 20 % of price, judged after 60 days).
+- **Undeliverable cargo**: `undeliverableCars` (loaded cars nobody in the orders accepts, transfer stops at a Warehouse count as accepting) drives
+  a warning chip in the train panel and one news item per train per change (`train.undeliverableReported`), checked daily.
+- **Smooth following**: `nearestLeader` measures the gap from the follower's nose to the leader's tail across all held blocks; target speed is
+  `leader + 60 km/h × (gap − 1 tile)` capped by the stopping distance at the 30 km/h/tick brake. Unit test: no acceleration sign flips after
+  settling, gap never below 1 tile.
+
+### Deviations
+- Global acceleration/brake limits (15 / 30 km/h per tick) instead of instant speed changes, for every train, not only followers.
+- Required spacing is now larger than the old 2 tiles head-to-head (leader length + 1), so shared lines carry slightly fewer trains.
+- "Last 30 days" is the last completed game month (30 days), not a rolling window.
+- No save version bump: `monthHistory` and `train.profit` default when missing.
