@@ -204,6 +204,18 @@ export interface LanePathSpec {
   /** Emit only the fillet arc at interior node 1 (junction connector between `nodes[0]`,
    * `nodes[1]`, `nodes[2]`). */
   arcOnly?: boolean;
+  /** Extra distance (tiles) the trimmed start / end is pulled back along its edge, beyond the
+   * fillet tangent trim — a turnout branch leaves from the outer lane, not from the centerline,
+   * so its arc's vertex sits `√2·w` along the branch. The node then sits at the path's end. */
+  startShift?: number;
+  endShift?: number;
+  /** `arcOnly`: the fillet vertex is moved to `centers[1] + vertexShift` (turnout connector). */
+  vertexShift?: { x: number; y: number };
+  /** Every lane is drawn single (w = 0): a turnout connector is one track. */
+  forceSingle?: boolean;
+  /** No ghost funnel at a non-station junction end of a single strand: a branch stays single
+   * right up to its turnout instead of fanning out into a second lane. */
+  noJunctionGhost?: boolean;
 }
 
 /** True if the two consecutive route steps through `node` form the one traversable 45° bend. */
@@ -219,6 +231,12 @@ export function buildLanePath(env: GeomEnv, spec: LanePathSpec): LanePath {
   const m = nodes.length - 1;
   const t = FILLET_TANGENT_TILES;
   const centers = nodes.map((n) => tileCenter(n, mapWidth));
+  if (spec.vertexShift && spec.arcOnly) {
+    const c = centers[1] as { x: number; y: number };
+    centers[1] = { x: c.x + spec.vertexShift.x, y: c.y + spec.vertexShift.y };
+  }
+  const startShift = spec.startShift ?? 0;
+  const endShift = spec.endShift ?? 0;
   const dirs: number[] = [];
   const units: Array<{ x: number; y: number }> = [];
   for (let k = 0; k < m; k++) {
@@ -244,10 +262,12 @@ export function buildLanePath(env: GeomEnv, spec: LanePathSpec): LanePath {
     const c1 = centers[k + 1] as { x: number; y: number };
     const u = units[k] as { x: number; y: number };
     if (!spec.arcOnly) {
-      const x0 = virt[k] ? c0.x + u.x * t : c0.x;
-      const y0 = virt[k] ? c0.y + u.y * t : c0.y;
-      const x1 = virt[k + 1] ? c1.x - u.x * t : c1.x;
-      const y1 = virt[k + 1] ? c1.y - u.y * t : c1.y;
+      const tS = t + (k === 0 ? startShift : 0);
+      const tE = t + (k + 1 === m ? endShift : 0);
+      const x0 = virt[k] ? c0.x + u.x * tS : c0.x;
+      const y0 = virt[k] ? c0.y + u.y * tS : c0.y;
+      const x1 = virt[k + 1] ? c1.x - u.x * tE : c1.x;
+      const y1 = virt[k + 1] ? c1.y - u.y * tE : c1.y;
       pieces.push({ kind: "line", x0, y0, x1, y1 });
     }
     if (fil[k + 1] && k + 1 < m) {
@@ -270,15 +290,18 @@ export function buildLanePath(env: GeomEnv, spec: LanePathSpec): LanePath {
   for (let k = 0; k < m; k++) {
     const c0 = centers[k] as { x: number; y: number };
     const c1 = centers[k + 1] as { x: number; y: number };
-    const ends = (virt[k] ? 1 : 0) + (virt[k + 1] ? 1 : 0);
-    segLen.push(Math.hypot(c1.x - c0.x, c1.y - c0.y) - t * ends + HALF_ARC_TILES * ends);
+    const trimS = virt[k] ? t + (k === 0 ? startShift : 0) : 0;
+    const trimE = virt[k + 1] ? t + (k + 1 === m ? endShift : 0) : 0;
+    const arcS = virt[k] && !(k === 0 && startShift > 0) ? HALF_ARC_TILES : 0;
+    const arcE = virt[k + 1] && !(k + 1 === m && endShift > 0) ? HALF_ARC_TILES : 0;
+    segLen.push(Math.hypot(c1.x - c0.x, c1.y - c0.y) - trimS - trimE + arcS + arcE);
   }
   const nodeS: number[] = new Array<number>(m + 1).fill(0);
   if (spec.arcOnly) {
     nodeS[1] = HALF_ARC_TILES;
     nodeS[0] = nodeS[1] - (segLen[0] as number);
   } else {
-    nodeS[0] = spec.trimStart ? -HALF_ARC_TILES : 0;
+    nodeS[0] = spec.trimStart && startShift <= 0 ? -HALF_ARC_TILES : 0;
     for (let k = 0; k < m; k++) nodeS[k + 1] = (nodeS[k] as number) + (segLen[k] as number);
   }
   if (spec.arcOnly) {
@@ -288,7 +311,24 @@ export function buildLanePath(env: GeomEnv, spec: LanePathSpec): LanePath {
   const edgeDouble = segLen.map(
     (_, k) => graph.getEdge(nodes[k] as number, nodes[k + 1] as number)?.double ?? false,
   );
+  if (spec.forceSingle) {
+    return new LanePath(
+      path,
+      nodeS,
+      edgeDouble.map(() => false),
+      nodes.map(() => false),
+    );
+  }
   const nodeSplit = nodes.map((n) => nodeIsSplit(env, n));
+  if (spec.noJunctionGhost) {
+    for (const k of [0, m]) {
+      const n = nodes[k] as number;
+      const adjacentDouble = edgeDouble[k === 0 ? 0 : m - 1];
+      if (!adjacentDouble && !env.stationTiles.has(n) && graph.neighborsOf(n).length >= 3) {
+        nodeSplit[k] = false;
+      }
+    }
+  }
   return new LanePath(path, nodeS, edgeDouble, nodeSplit);
 }
 
@@ -311,6 +351,35 @@ export interface Strand {
   nodes: readonly number[];
   /** Any edge electrified (connectors: either edge it joins). */
   electrified: boolean;
+  /** Turnout connector: the junction node whose arc leaves the through line's outer lane. */
+  turnoutAt?: number;
+}
+
+/** A single branch leaving a straight double line at 45° diverges from the near (outer) lane: the
+ * arc's vertex moves from the junction node to where the branch line meets that lane, `√2·w` along
+ * the branch. Returns null unless `j` is that case for the pair (`nMain`, `nBranch`). */
+function turnoutShift(
+  env: GeomEnv,
+  j: number,
+  nMain: number,
+  nBranch: number,
+): { x: number; y: number; dist: number } | null {
+  const { graph, mapWidth, stationTiles } = env;
+  if (stationTiles.has(j)) return null;
+  if (!graph.getEdge(j, nMain)?.double || graph.getEdge(j, nBranch)?.double) return null;
+  const back = directionBetween(j, nMain, mapWidth);
+  const branch = directionBetween(j, nBranch, mapWidth);
+  let hasOpposite = false;
+  for (const o of graph.neighborsOf(j)) {
+    const d = directionBetween(j, o, mapWidth);
+    if (d === (back + 4) % 8 && graph.getEdge(j, o)?.double) hasOpposite = true;
+    if (o !== nBranch && d === (branch + 4) % 8) return null; // branch continues straight through
+  }
+  if (!hasOpposite) return null;
+  const [dx, dy] = DIRS8[branch] as readonly [number, number];
+  const len = Math.hypot(dx, dy);
+  const dist = Math.SQRT2 * LANE_HALF_TILES;
+  return { x: (dx / len) * dist, y: (dy / len) * dist, dist };
 }
 
 function awayDir(a: number, b: number, mapWidth: number): number {
@@ -328,8 +397,13 @@ export function buildTrackStrands(env: GeomEnv): Strand[] {
 
   // Junction classification: which traversable bends need a connector, and which edge ends are
   // trimmed back to the connector's tangent point.
-  const trimmed = new Set<string>();
-  const connectors: Array<{ n1: number; j: number; n2: number }> = [];
+  const trimmed = new Map<string, number>();
+  const connectors: Array<{
+    n1: number;
+    j: number;
+    n2: number;
+    shift?: { x: number; y: number };
+  }> = [];
   for (const j of nodesAll) {
     const neighbors = graph.neighborsOf(j).sort((p, q) => p - q);
     if (neighbors.length < 3 || stationTiles.has(j)) continue;
@@ -342,9 +416,27 @@ export function buildTrackStrands(env: GeomEnv): Strand[] {
         if (!isFilletBend(dirs[i] as number, dirs[i2] as number)) continue;
         const n1 = neighbors[i] as number;
         const n2 = neighbors[i2] as number;
+        const turnout =
+          through[i] && !through[i2]
+            ? turnoutShift(env, j, n1, n2)
+            : through[i2] && !through[i]
+              ? turnoutShift(env, j, n2, n1)
+              : null;
+        if (turnout) {
+          // Main neighbour first, so the connector starts on the through line.
+          const mainFirst = through[i] as boolean;
+          connectors.push({
+            n1: mainFirst ? n1 : n2,
+            j,
+            n2: mainFirst ? n2 : n1,
+            shift: turnout,
+          });
+          trimmed.set(`${edgeKey(j, mainFirst ? n2 : n1)}@${j}`, turnout.dist);
+          continue;
+        }
         connectors.push({ n1, j, n2 });
-        if (!through[i]) trimmed.add(`${edgeKey(j, n1)}@${j}`);
-        if (!through[i2]) trimmed.add(`${edgeKey(j, n2)}@${j}`);
+        if (!through[i]) trimmed.set(`${edgeKey(j, n1)}@${j}`, 0);
+        if (!through[i2]) trimmed.set(`${edgeKey(j, n2)}@${j}`, 0);
       }
     }
   }
@@ -367,16 +459,17 @@ export function buildTrackStrands(env: GeomEnv): Strand[] {
   };
 
   const emit = (list: number[]): void => {
-    const trimStart = trimmed.has(`${edgeKey(list[0] as number, list[1] as number)}@${list[0]}`);
+    const startKey = `${edgeKey(list[0] as number, list[1] as number)}@${list[0]}`;
     const last = list.length - 1;
-    const trimEnd = trimmed.has(
-      `${edgeKey(list[last - 1] as number, list[last] as number)}@${list[last]}`,
-    );
+    const endKey = `${edgeKey(list[last - 1] as number, list[last] as number)}@${list[last]}`;
     const lane = buildLanePath(env, {
       nodes: list,
       allowFillet: (k) => !stationTiles.has(list[k] as number),
-      trimStart,
-      trimEnd,
+      trimStart: trimmed.has(startKey),
+      trimEnd: trimmed.has(endKey),
+      startShift: trimmed.get(startKey) ?? 0,
+      endShift: trimmed.get(endKey) ?? 0,
+      noJunctionGhost: true,
     });
     const edges: StrandEdge[] = [];
     let electrified = false;
@@ -410,11 +503,23 @@ export function buildTrackStrands(env: GeomEnv): Strand[] {
 
   for (const c of connectors) {
     const list = [c.n1, c.j, c.n2];
-    const lane = buildLanePath(env, { nodes: list, arcOnly: true });
+    const lane = buildLanePath(env, {
+      nodes: list,
+      arcOnly: true,
+      ...(c.shift ? { vertexShift: c.shift } : {}),
+      forceSingle: c.shift !== undefined,
+    });
     const electrified =
       (graph.getEdge(c.j, c.n1)?.electrified ?? false) ||
       (graph.getEdge(c.j, c.n2)?.electrified ?? false);
-    strands.push({ lane, edges: [], connector: true, nodes: list, electrified });
+    strands.push({
+      lane,
+      edges: [],
+      connector: true,
+      nodes: list,
+      electrified,
+      ...(c.shift ? { turnoutAt: c.j } : {}),
+    });
   }
   return strands;
 }

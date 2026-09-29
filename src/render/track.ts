@@ -40,6 +40,7 @@ const LANE_VISIBLE_EPS = 0.004;
  * the through track / the branch strand they join. */
 const CONNECTOR_TIE_MARGIN_START = 0.3;
 const CONNECTOR_TIE_MARGIN_END = 0.12;
+const TURNOUT_TIE_MARGIN_START = 0.5;
 
 /** Same rationale/sizing as TerrainRenderer's cap (Phase 12 memory-bounds backstop). */
 const TRACK_CHUNK_CACHE_MAX = 350;
@@ -271,7 +272,11 @@ export class TrackRenderer {
           this.drawCatenary(frame, item);
         }
       }
+      const turnouts = new Set<number>();
+      for (const st of this.getStrands())
+        if (st.turnoutAt !== undefined) turnouts.add(st.turnoutAt);
       for (const node of this.graph.allNodes()) {
+        if (turnouts.has(node)) continue;
         const [x, y] = tileXY(node, this.mapWidth);
         if (x < rangeMinX || x > rangeMaxX || y < rangeMinY || y > rangeMaxY) continue;
         this.drawJunction(ctx, node, frame);
@@ -350,7 +355,12 @@ export class TrackRenderer {
       const s = i * spacing;
       if (isLast ? s > item.sB + 1e-9 : s >= item.sB - 1e-9) break;
       if (item.strand.connector) {
-        if (s < CONNECTOR_TIE_MARGIN_START || s > lane.length - CONNECTOR_TIE_MARGIN_END) continue;
+        // A turnout arc starts on the through line's outer lane, whose own ties cover it.
+        const startMargin =
+          item.strand.turnoutAt !== undefined
+            ? TURNOUT_TIE_MARGIN_START
+            : CONNECTOR_TIE_MARGIN_START;
+        if (s < startMargin || s > lane.length - CONNECTOR_TIE_MARGIN_END) continue;
       }
       const c = lane.centerAt(s);
       const ext = lane.halfWidthAt(s) + tieHalf;

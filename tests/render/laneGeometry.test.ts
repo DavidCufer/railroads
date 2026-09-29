@@ -225,3 +225,34 @@ describe("junction connectors", () => {
     expect(right.lane.centerAt(0).x).toBeCloseTo(8.5, 9);
   });
 });
+
+describe("turnout off double track", () => {
+  const graph = new TrackGraph();
+  for (let x = 5; x < 12; x++) addEdge(graph, t(x, 10), t(x + 1, 10), true);
+  addEdge(graph, t(8, 10), t(9, 11));
+  addEdge(graph, t(9, 11), t(10, 12));
+  const strands = buildTrackStrands(env(graph));
+
+  it("leaves from the outer lane: the arc starts on the lane line and never crosses the other lane", () => {
+    const connector = strands.find((s) => s.connector)!;
+    expect(connector.turnoutAt).toBe(t(8, 10));
+    const start = connector.lane.centerAt(0);
+    // Main runs along y = 10.5; the branch is on the +y side, so the arc starts on lane y = 10.5 + w.
+    expect(start.y).toBeCloseTo(10.5 + LANE_HALF_TILES, 9);
+    for (let s = 0; s <= connector.lane.length; s += 0.02) {
+      expect(connector.lane.centerAt(s).y).toBeGreaterThanOrEqual(10.5 + LANE_HALF_TILES - 1e-9);
+      expect(connector.lane.halfWidthAt(s)).toBe(0);
+    }
+  });
+
+  it("keeps the branch single (no ghost funnel) and starts it where the arc ends", () => {
+    const connector = strands.find((s) => s.connector)!;
+    const branch = strands.find((s) => !s.connector && s.nodes.includes(t(10, 12)))!;
+    const a = connector.lane.centerAt(connector.lane.length);
+    const b = branch.lane.centerAt(0);
+    expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeLessThan(1e-9);
+    for (let s = 0; s <= branch.lane.length; s += 0.05) {
+      expect(branch.lane.halfWidthAt(s)).toBe(0);
+    }
+  });
+});
