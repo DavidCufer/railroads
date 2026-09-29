@@ -25,5 +25,5 @@ export function statTile(options: StatTileOptions): HTMLElement {
 }
 
 export function statRow(...tiles: HTMLElement[]): HTMLElement {
-  return h("div", { className: "stat-row" }, ...tiles);
+  return h("div", { className: `stat-row${tiles.length === 4 ? " stat-row-4" : ""}` }, ...tiles);
 }

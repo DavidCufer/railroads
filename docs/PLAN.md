@@ -637,16 +637,16 @@ STYLE §9 · files: `src/render/art/**` (new), `src/render/trains.ts`, a small d
 
 ## Phase 20 — UI system v2 (chrome and non-train panels)
 STYLE §8 · files: `src/ui/**` except the train/buy panels' inner content, `theme.css`, `strings.ts`
-- [ ] Tokens (§8.1) and components under `src/ui/components/` (§8.2): PanelHeader v2, Tabs, StatTile, Meter, Pips,
+- [x] Tokens (§8.1) and components under `src/ui/components/` (§8.2): PanelHeader v2, Tabs, StatTile, Meter, Pips,
       CardRow, ToggleRow, Sparkline/StackedBar helpers, Footer v2, EmptyState. Unit tests for pure helpers.
-- [ ] `panel.ts` uses PanelHeader v2 (thumb slot, compact close) and Footer v2 for **all** panels; panel width token.
-- [ ] Chrome (§8.3): cash chip with change flash, era badge (Roster link can be a stub that Phase 22 wires),
+- [x] `panel.ts` uses PanelHeader v2 (thumb slot, compact close) and Footer v2 for **all** panels; panel width token.
+- [x] Chrome (§8.3): cash chip with change flash, era badge (Roster link can be a stub that Phase 22 wires),
       left rail spacing/grouping, right floating pill, menu as grouped card lists with toggle rows.
-- [ ] City, Station (tabs Cargo/Trains/Build; train rows get a thumb slot — use a plain loco-type icon for now,
+- [x] City, Station (tabs Cargo/Trains/Build; train rows get a thumb slot — use a plain loco-type icon for now,
       Phase 22 swaps in side views), Industry, Finance (tabs, sparkline, stacked bars, credit meter), News,
       Goals, Settings, Save/Load panels restyled to v2.
-- [ ] Fix the broken glyph after the city population in the city subtitle.
-- [ ] Per-panel acceptance (§8.4) at 800×360: screenshots `phase-20-city.png`, `phase-20-station-cargo.png`,
+- [x] Fix the broken glyph after the city population in the city subtitle.
+- [x] Per-panel acceptance (§8.4) at 800×360: screenshots `phase-20-city.png`, `phase-20-station-cargo.png`,
       `phase-20-station-trains.png`, `phase-20-station-build.png`, `phase-20-industry.png`,
       `phase-20-finance-overview.png`, `phase-20-finance-year.png`, `phase-20-menu.png`, `phase-20-topbar.png`, plus
       the city panel at 1280×720. Open and check each one.

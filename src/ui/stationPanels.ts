@@ -268,7 +268,11 @@ export function openStationPlacementPanel(
 
   const statsEl = h("div", { className: "station-stats" });
   const economyEl = h("div", { className: "station-economy" });
-  const buildBtn = footerButton({ kind: "primary", className: "panel-action-build" });
+  const buildBtn = footerButton({
+    kind: "primary",
+    label: strings.station.build,
+    className: "panel-action-build",
+  });
   const cancelBtn = footerButton({
     icon: "close",
     ariaLabel: strings.ui.close,

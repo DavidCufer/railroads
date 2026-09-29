@@ -137,9 +137,9 @@ export const strings = {
     type: "Type",
     tapTrackTile: "Tap a straight or dead-end track tile to place a station",
     catchment: "Catchment",
-    maxTrainLength: "Max train length",
-    storagePerCargo: "Storage/cargo",
-    monthlyMaintenance: "Maintenance",
+    maxTrainLength: "Max cars",
+    storagePerCargo: "Storage",
+    monthlyMaintenance: "Upkeep",
     perMonth: "/mo",
     /** PLAN Phase 16: city/station Supplies chips spell out "/ month" plus the cargo's unit word
      * (if any) instead of a bare number, so "42" reads as "42 / month" and "13" as "13 bags /

@@ -125,6 +125,8 @@ test.describe("Phase 20 — UI v2 panels", () => {
     await shot(page, "station-trains");
     await page.locator(".tab", { hasText: "Build" }).click();
     await shot(page, "station-build");
+    await page.locator(".panel-body").evaluate((el) => (el.scrollTop = el.scrollHeight));
+    await shot(page, "station-build-scrolled");
   });
 
   test("industry panel", async ({ page }) => {
@@ -214,5 +216,30 @@ test.describe("Phase 20 — UI v2 panels", () => {
     await page.evaluate(() => window.__game!.runDays(330));
     await page.waitForTimeout(400);
     await shot(page, "yearly-report");
+  });
+
+  test("station placement panel", async ({ page }) => {
+    await setup(page);
+    await page.evaluate(
+      ({ y }) => {
+        const g = window.__game!;
+        const w = g.getMap().width;
+        g.buildTrackPath(Array.from({ length: 20 }, (_, i) => y * w + 71 + i));
+      },
+      { y: ROW_Y },
+    );
+    await page.evaluate(
+      ({ y, tile }) => {
+        window.__game!.camera.setCenter(76.5 * tile, (y + 0.5) * tile);
+        window.__game!.camera.setZoom(1.5);
+      },
+      { y: ROW_Y, tile: TILE_SIZE },
+    );
+    await page.getByRole("button", { name: "Station", exact: true }).click();
+    const p = await page.evaluate(({ y }) => window.__game!.tileScreenPoint(76, y), { y: ROW_Y });
+    await page.mouse.click(p.x, p.y);
+    await expect(page.locator(".panel-title")).toHaveText("New Station");
+    await panelLayoutOk(page);
+    await shot(page, "station-placement");
   });
 });

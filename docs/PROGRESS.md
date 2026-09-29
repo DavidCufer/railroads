@@ -3759,3 +3759,55 @@ Tests: 397 unit (was 390), 105 e2e (was 99); `npm run check` and `npm run e2e` g
 ### Screenshots (opened and checked) — `docs/screenshots/phase-19-*.png`
 `gallery-steam`, `gallery-modern`, `gallery-cars`, `gallery-consists`, `map-steam-smoke-zoom2`, `map-diesel-zoom2`.
 Other phases' screenshot churn was reverted.
+
+## 2026-09-29 — Phase 20: UI system v2 (chrome and non-train panels)
+
+Tests: 406 unit (new `tests/ui/chartMath.test.ts`), 106 e2e (new `e2e/phase20.spec.ts`, 8 tests); `npm run check` and
+`npm run e2e` green. Runs in parallel with Phase 19 (rebased onto its commits; no shared files besides `theme.css`/`main.ts`
+hunks that merged cleanly).
+
+### What changed
+- **Tokens** (STYLE §8.1) added to `theme.css`; `--panel-w` drives the panel width.
+- **Components** in `src/ui/components/`: `panelHeader`, `tabs`, `statTile`/`statRow`, `meter`/`pips`, `cardRow`/`cardList`,
+  `toggleRow`, `emptyState`, `section`, `footerButton`, `charts` (`drawSparkline`, `stackedBar`), `ledgerParts`, plus the pure
+  `chartMath` (sparkline points, stack fractions, meter/pip clamps, cash-flash tone — unit-tested).
+- **`panel.ts`**: PanelHeader v2 (52px, thumb slot, ghost close, brass accent segment), optional sticky tabs row, Footer v2
+  (56px, `.panel-actions` kept as the class). New `key` option + in-place replacement: re-opening a panel (tab switch, action
+  re-render) no longer replays the slide-in and keeps the scroll position for the same `key`. **All** panels, including the
+  train/buy panels, get the new header/footer through it; their inner content is untouched (Phase 22).
+- **Chrome**: cash chip (coin icon, flashes `--go`/`--signal` 600 ms on change), era badge after the date (newest buyable
+  engine's traction icon + intro year), 56px left rail (labels `--fs-2xs`, hairline gap before Info), one vertical pill for
+  Goals/News/Trains (classes unchanged; the pill hides while a panel is open), menu as grouped card lists with toggle rows.
+- **Panels restyled**: City, Station (tabs Cargo / Trains / Build; upgrade card + improvements grid + stats tiles in Build;
+  Buy train is the footer primary), Station placement (type cards with building icons, stat tiles), Industry (recipe as
+  pictograms, chips, nearest-source card rows), Finance (tabs Overview / This year, sparkline, credit meter, income and cost
+  stacked bars, Borrow / Repay / Yearly Report in the footer), Yearly report, News (icon + date rows, unread accent), Goals
+  (medal, meter, %), Settings and Save/Load screens (card lists, switches, icon buttons).
+- The stray glyph after the city population was the growth icon rendered unsized; it is now a 12px tone-coloured arrow
+  (green when growing, muted dash when stagnant) inside the subtitle.
+- Fixed a latent bug: `.cargo-bar-track` had `flex: 1`, which collapsed the station panel's thin waiting-cargo bars to 0px
+  inside their column (they were invisible before this phase).
+
+### e2e selector changes (intent kept)
+- `stations.spec` / `phase18.spec`: the station upgrade button and the train list moved to the **Build** and **Trains** tabs, so
+  those tests click the tab first. `phase18` industry recipe: the sentence is now the recipe row's `aria-label` (pictograms are
+  visible), still asserted as "Makes Goods from Steel or Lumber" plus the visible "or".
+
+### Deviations from STYLE / SPEC
+- Era badge and the menu's **Roster** row are stubs: they show a toast ("coming soon") until Phase 22 wires the roster screen.
+- Menu has Save Game, Settings, Roster only: Load and Quit-to-title do not exist in-game yet (not added; out of scope).
+- Industry panel thumb is the tile of its first produced cargo (a plain factory glyph for pure consumers) rather than one
+  generic glyph — reads better and is free. "Available from" moved into the subtitle ("Since 1830").
+- Finance "income by cargo" is a three-way bar (passengers / mail / freight) because the ledger only stores those three;
+  colours are the passengers/mail/goods cargo colours. Costs use `--signal` tints.
+- City subtitle has no "▲2%" growth percentage (the sim keeps no growth rate); it shows an arrow icon (growing / stagnant).
+- A 4-tile `StatTile` row uses `repeat(4, 1fr)` (the 84px auto-fit wrapped to 3+1 at 336px) with short captions.
+- Station "Trains" rows use a plain traction-type icon (steam/diesel/electric) until Phase 22 swaps in side views.
+- Removed the old full-width `.station-buy-train-btn` / water-tower button styles; the Buy train button keeps its class.
+
+### Screenshots (opened and checked, 800×360) — `docs/screenshots/phase-20-*.png`
+`city`, `city-1280` (1280×720), `station-cargo` (supplies with waiting bars + demands on the first screen), `station-trains`,
+`station-build`, `station-build-scrolled`, `station-placement`, `industry`, `finance-overview`, `finance-year`, `menu`,
+`topbar`, `settings`, `save`, `news`, `goals`, `yearly-report`, `train-shell` (train panel with the new header/footer only).
+- Nits: with no station near the city, "Served by" shows an empty-state line and Actions start just below the fold; the yearly
+  report and finance year tab read "Nothing yet" for revenue in the test world (no deliveries in that scenario).
