@@ -8,11 +8,13 @@ import type { City } from "../sim/economy/types";
 import { DIRS8 } from "../sim/map/grid";
 import type { TrackGraph } from "../sim/track/graph";
 import { Camera, TILE_SIZE } from "./camera";
+import { ChunkCache } from "./chunkCache";
 import { cityWorldCenter, measureTextWidthCached } from "./labels";
 import { STATION_LABEL_COLOR } from "./palette";
 import {
   drawStationArt,
   stationArtBottom,
+  stationArtTop,
   type StationArtOptions,
   type StationMarkerType,
 } from "./stationArt";
@@ -105,6 +107,48 @@ function artOptions(
   };
 }
 
+/** Half-extent of a station sprite in tiles: covers the building, platforms and improvement rows at any
+ * rotation. */
+const SPRITE_HALF = 3.6;
+/** Sprites are baked at the smallest bucket ≥ the on-screen tile size, so they only ever shrink. */
+const SPRITE_BUCKETS = [16, 24, 32, 48, 64, 96, 128, 192];
+const spriteCache = new ChunkCache<HTMLCanvasElement>(24);
+
+function spriteKey(o: StationArtOptions, bucket: number): string {
+  return `${o.type}|${o.angle.toFixed(3)}|${o.near.toFixed(3)}|${o.loop ? 1 : 0}|${o.reach.join(",")}|${o.improvements.join(",")}|${bucket}`;
+}
+
+/** Station art drawn once into an offscreen sprite and blitted afterwards (static art stays cached;
+ * only the blit runs per frame). */
+function drawStationSprite(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  o: StationArtOptions,
+): void {
+  const bucket =
+    SPRITE_BUCKETS.find((b) => b >= o.u) ?? (SPRITE_BUCKETS[SPRITE_BUCKETS.length - 1] as number);
+  const key = spriteKey(o, bucket);
+  let sprite = spriteCache.get(key);
+  if (!sprite) {
+    sprite = document.createElement("canvas");
+    const side = Math.ceil(SPRITE_HALF * 2 * bucket);
+    sprite.width = side;
+    sprite.height = side;
+    const sctx = sprite.getContext("2d");
+    if (sctx) drawStationArt(sctx, side / 2, side / 2, { ...o, u: bucket });
+    spriteCache.set(key, sprite);
+  }
+  const scale = o.u / bucket;
+  const half = (sprite.width / 2) * scale;
+  ctx.drawImage(sprite, cx - half, cy - half, half * 2, half * 2);
+}
+
+/** Tiles above the station tile centre that the main building reaches (supply-bubble anchor). */
+export function stationTopExtent(station: Station, graph: TrackGraph, mapWidth: number): number {
+  return stationArtTop(artOptions(station, graph, mapWidth, TILE_SIZE));
+}
+
 export function drawStations(
   ctx: CanvasRenderingContext2D,
   camera: Camera,
@@ -118,10 +162,15 @@ export function drawStations(
   for (const station of stations) {
     const [wx, wy] = tileWorldOrigin(station.tile, mapWidth);
     const s = camera.worldToScreen(wx, wy, viewportW, viewportH);
-    const margin = size * 3.5;
+    const margin = size * (SPRITE_HALF + 0.1);
     if (s.x < -margin || s.y < -margin || s.x > viewportW + margin || s.y > viewportH + margin)
       continue;
-    drawStationArt(ctx, s.x + size / 2, s.y + size / 2, artOptions(station, graph, mapWidth, size));
+    drawStationSprite(
+      ctx,
+      s.x + size / 2,
+      s.y + size / 2,
+      artOptions(station, graph, mapWidth, size),
+    );
   }
 }
 

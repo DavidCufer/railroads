@@ -295,4 +295,77 @@ test.describe("Phase 21.1 — map polish", () => {
     await centerOn(page, 60, 60, 1);
     await page.screenshot({ path: "docs/screenshots/phase-21-1-city-zoom1.png" });
   });
+
+  // Frame-time report (software-rendered headless Chromium, so absolute numbers are inflated; the
+  // before/after comparison in docs/PROGRESS.md is what matters). Static art must stay cached in
+  // the chunk canvases, so the steady-state render cost must not depend on how much art is on screen.
+  async function reportFrames(page: Page, label: string, x = 60, y = 60, z = 1.5): Promise<void> {
+    // Cold path: jump away and back so every chunk in view is baked again, timing the first frames.
+    await page.evaluate(() => window.__game!.camera.setCenter(20 * 32, 20 * 32));
+    await page.waitForTimeout(300);
+    const cold = await page.evaluate(
+      async ({ x, y, z }) => {
+        // Bumping the content version drops every baked chunk, so the frames below re-bake them.
+        (window.__game!.getState() as unknown as { mapContentVersion: number }).mapContentVersion++;
+        window.__game!.camera.setZoom(z);
+        window.__game!.camera.setCenter((x + 0.5) * 32, (y + 0.5) * 32);
+        const out: number[] = [];
+        let last = performance.now();
+        for (let i = 0; i < 5; i++) {
+          await new Promise((r) => requestAnimationFrame(r));
+          const now = performance.now();
+          out.push(Math.round(now - last));
+          last = now;
+        }
+        return out;
+      },
+      { x, y, z },
+    );
+    console.log(`[perf] ${label}: cold frames ms ${cold.join(", ")}`);
+    await page.waitForTimeout(2500);
+    const t = await page.evaluate(() => ({
+      frame: window.__game!.getAvgFrameMs(),
+      render: window.__game!.getAvgRenderMs(),
+    }));
+    console.log(
+      `[perf] ${label}: avgFrameMs=${t.frame.toFixed(2)} avgRenderMs=${t.render.toFixed(2)}`,
+    );
+    expect(t.render).toBeLessThan(40);
+  }
+
+  test("perf: city zoom 1.5", async ({ page }) => {
+    await placeCity(page, 4.3, 3.3, 60000);
+    await centerOn(page, 60, 60, 1.5);
+    await reportFrames(page, "city zoom 1.5");
+  });
+
+  test("perf: industries zoom 1", async ({ page }) => {
+    await placeIndustries(page, 60, 60);
+    await centerOn(page, 60 - 1, 60 + 0.5, 1);
+    await reportFrames(page, "industries zoom 1", 59, 60, 1);
+  });
+
+  test("perf: stations zoom 1.5", async ({ page }) => {
+    const cx = 60;
+    const cy = 60;
+    await setupFlat(page, cx, cy, 14);
+    await buildPath(
+      page,
+      Array.from({ length: 27 }, (_, i) => ({ x: cx - 13 + i, y: cy })),
+    );
+    for (const [dx, type] of [
+      [-9, "depot"],
+      [0, "station"],
+      [9, "terminal"],
+    ] as const) {
+      const id = await buildStationAt(page, cx + dx, cy, type);
+      await page.evaluate((id) => {
+        for (const t of ["hotel", "warehouse", "postOffice"]) {
+          window.__game!.buildImprovement(id, t as never);
+        }
+      }, id);
+    }
+    await centerOn(page, cx, cy, 1.5);
+    await reportFrames(page, "stations zoom 1.5");
+  });
 });

@@ -803,6 +803,25 @@ export function stationArtBottom(o: StationArtOptions): number {
   return bottom;
 }
 
+/** How far above the tile centre (in tiles, on screen) the main building reaches — where the supply
+ * bubbles should sit so they never cover it. */
+export function stationArtTop(o: StationArtOptions): number {
+  const depth = o.type === "depot" ? 0.62 : o.type === "station" ? 0.95 : 1.1;
+  const halfLen = o.type === "depot" ? 0.4 : o.type === "station" ? STATION_BW / 2 : 1.45;
+  const c = Math.cos(o.angle);
+  const s = Math.sin(o.angle);
+  let top = 0.5;
+  for (const [lx, ly] of [
+    [-halfLen, -depth],
+    [halfLen, -depth],
+    [-halfLen, 0],
+    [halfLen, 0],
+  ] as const) {
+    top = Math.max(top, -(lx * s + ly * c));
+  }
+  return top;
+}
+
 /** Draws the station art centred at (cx, cy) with the track running along `o.angle`. */
 export function drawStationArt(
   ctx: CanvasRenderingContext2D,

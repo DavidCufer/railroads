@@ -8,6 +8,7 @@ import { CARGO, type CargoType } from "../data/cargo";
 import { cargoIconDataUrl } from "../ui/icons";
 import type { GameState } from "../sim/state";
 import { Camera, TILE_SIZE } from "./camera";
+import { stationTopExtent } from "./stations";
 
 const BUBBLE_RADIUS = 9;
 const MAX_BUBBLES_PER_STATION = 2;
@@ -65,7 +66,8 @@ export function drawStationSupplyBubbles(
       continue;
     }
 
-    const rowY = screen.y - size * 0.75 - r;
+    const rowY =
+      screen.y - size * stationTopExtent(station, state.trackGraph, state.map.width) - r - 3;
     const spacing = r * 2 + 3;
     const startX = screen.x - ((top.length - 1) * spacing) / 2;
     top.forEach((cargo, i) => {
