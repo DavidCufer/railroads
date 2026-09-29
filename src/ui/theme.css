@@ -3805,3 +3805,41 @@ button.rule-chip:active {
   gap: 2px;
   padding: 4px;
 }
+
+/* Finance overview: operating profit headline (Phase 24A) */
+.operating {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.operating-headline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.operating-headline.tone-go .operating-value {
+  color: var(--go);
+}
+.operating-headline.tone-signal .operating-value {
+  color: var(--signal);
+}
+.operating-value {
+  font-size: var(--fs-m);
+  font-variant-numeric: tabular-nums;
+}
+.op-bar-row {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.operating-notes {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}

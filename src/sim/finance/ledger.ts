@@ -10,6 +10,7 @@ import {
   DIFFICULTY,
   LOCO_DEPRECIATION_MIN_FRACTION,
   LOCO_DEPRECIATION_PER_YEAR,
+  OPERATING_HISTORY_MONTHS,
   NET_WORTH_CONSTRUCTION_FRACTION,
   emptyLedgerPeriod,
   eraInflation,
@@ -161,6 +162,10 @@ export function monthlyFinanceStep(state: GameState): void {
     state.finance.netWorthHistory.shift();
   }
 
+  state.finance.monthHistory.push(state.finance.thisMonth);
+  while (state.finance.monthHistory.length > OPERATING_HISTORY_MONTHS) {
+    state.finance.monthHistory.shift();
+  }
   state.finance.thisMonth = emptyLedgerPeriod();
 }
 

@@ -3,9 +3,16 @@
  * sparkline, credit meter) and **This year** (income + cost stacked bars with legends, this/last
  * year switch). Borrow / Repay / Yearly Report live in the footer on both tabs.
  */
-import { LOAN_INCREMENT, ledgerExpenses, ledgerNetProfit, ledgerRevenue } from "../data/finance";
+import {
+  LOAN_INCREMENT,
+  ledgerExpenses,
+  ledgerInvestments,
+  ledgerNetProfit,
+  ledgerRevenue,
+} from "../data/finance";
 import { creditLimit, repayLoan, takeLoan } from "../sim/commands";
 import { netWorth } from "../sim/finance/ledger";
+import { operatingLast30Days, operatingTrailing } from "../sim/finance/operating";
 import type { GameState } from "../sim/state";
 import { drawSparkline, stackedBar } from "./components/charts";
 import { costParts, incomeParts } from "./components/ledgerParts";
@@ -28,6 +35,44 @@ type YearView = "thisYear" | "lastYear";
 const CHART_W = 360;
 const CHART_H = 48;
 
+/** Headline "Operating profit +$12k / month" with an income-vs-costs bar pair (Phase 24A). */
+function operatingSection(state: GameState): HTMLElement {
+  const f = strings.finance;
+  const avg = operatingTrailing(state);
+  const last = operatingLast30Days(state);
+  const scale = Math.max(1, avg.income, avg.costs);
+  const sign = (v: number): string => `${v >= 0 ? "+" : "−"}${formatMoney(Math.abs(v))}`;
+  const bar = (label: string, value: number, tone: "go" | "signal"): HTMLElement =>
+    h(
+      "div",
+      { className: "op-bar-row" },
+      h("span", { className: "op-bar-label" }, label),
+      meter(value, scale, tone, formatMoney(value)),
+    );
+  return h(
+    "div",
+    { className: "section operating" },
+    h(
+      "div",
+      { className: `operating-headline ${avg.profit >= 0 ? "tone-go" : "tone-signal"}` },
+      h("span", { className: "panel-section-title" }, f.operatingProfit),
+      h("b", { className: "operating-value" }, `${sign(avg.profit)} ${f.perMonth}`),
+    ),
+    bar(f.operatingIncome, avg.income, "go"),
+    bar(f.operatingCosts, avg.costs, "signal"),
+    h(
+      "div",
+      { className: "operating-notes" },
+      h("span", null, `${f.avg12(avg.months)} · ${f.last30}: ${sign(last.profit)}`),
+      h(
+        "span",
+        { title: f.investmentsNote },
+        `${f.investments}: ${formatMoney(avg.investments)} ${f.perMonth}`,
+      ),
+    ),
+  );
+}
+
 export function openFinancePanel(container: HTMLElement, state: GameState): void {
   let tab: FinanceTab = "overview";
   let yearView: YearView = "thisYear";
@@ -39,6 +84,7 @@ export function openFinancePanel(container: HTMLElement, state: GameState): void
     const body: Node[] = [];
 
     if (tab === "overview") {
+      body.push(operatingSection(state));
       body.push(
         statRow(
           statTile({
@@ -130,7 +176,11 @@ export function openFinancePanel(container: HTMLElement, state: GameState): void
         section(strings.finance.revenue, [
           stackedBar(incomeParts(period), strings.finance.noneYet),
         ]),
-        section(strings.finance.expenses, [stackedBar(costParts(period), strings.finance.noneYet)]),
+        section(
+          strings.finance.expenses,
+          [stackedBar(costParts(period), strings.finance.noneYet)],
+          `${strings.finance.investments}: ${formatMoney(ledgerInvestments(period))}`,
+        ),
       );
     }
 

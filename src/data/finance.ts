@@ -105,6 +105,26 @@ export function ledgerRevenue(p: LedgerPeriod): number {
   return p.passengers + p.mail + p.freight;
 }
 
+/** Recurring costs of running the railway (SPEC §9.2, Phase 24A "operating" view). */
+export function ledgerOperatingCosts(p: LedgerPeriod): number {
+  return (
+    p.trainMaintenance + p.trackMaintenance + p.stationMaintenance + p.breakdownRepairs + p.interest
+  );
+}
+
+/** One-off capital spending: track, stations, improvements and trains. */
+export function ledgerInvestments(p: LedgerPeriod): number {
+  return p.construction + p.rollingStock;
+}
+
+/** Revenue minus operating costs — what the railway earns before investing (Phase 24A). */
+export function ledgerOperatingProfit(p: LedgerPeriod): number {
+  return ledgerRevenue(p) - ledgerOperatingCosts(p);
+}
+
+/** How many completed months the operating view averages over. */
+export const OPERATING_HISTORY_MONTHS = 12;
+
 export function ledgerExpenses(p: LedgerPeriod): number {
   return (
     p.trainMaintenance +

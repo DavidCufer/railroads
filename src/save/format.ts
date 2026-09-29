@@ -88,6 +88,8 @@ export interface SerializedFinanceStateV1 {
   thisMonth: LedgerPeriod;
   thisYear: LedgerPeriod;
   lastYear: LedgerPeriod;
+  /** Absent in saves written before Phase 24A. */
+  monthHistory?: LedgerPeriod[];
   netWorthHistory: Array<{ tick: number; cash: number; netWorth: number }>;
   negativeCashMonths: number;
   bankrupt: boolean;

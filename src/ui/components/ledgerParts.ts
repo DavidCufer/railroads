@@ -42,8 +42,8 @@ export function costParts(period: LedgerPeriod): StackedBarPart[] {
     ["stationMaintenance", f.stationMaintenance, period.stationMaintenance],
     ["breakdownRepairs", f.breakdownRepairs, period.breakdownRepairs],
     ["interest", f.interest, period.interest],
-    ["construction", f.construction, period.construction],
-    ["rollingStock", f.rollingStock, period.rollingStock],
+    ["construction", f.investmentLabel(f.construction), period.construction],
+    ["rollingStock", f.investmentLabel(f.rollingStock), period.rollingStock],
   ];
   return rows.map(([key, label, value], i) => ({
     key,

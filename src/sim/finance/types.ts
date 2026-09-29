@@ -17,6 +17,8 @@ export interface FinanceState {
   thisMonth: LedgerPeriod;
   thisYear: LedgerPeriod;
   lastYear: LedgerPeriod;
+  /** The last `OPERATING_HISTORY_MONTHS` completed months, oldest first (Phase 24A operating view). */
+  monthHistory: LedgerPeriod[];
   /** Monthly cash/net-worth samples for the finance panel's line chart (SPEC §10.2). Capped so a
    * very long game doesn't grow this unboundedly. */
   netWorthHistory: NetWorthSample[];
@@ -34,6 +36,7 @@ export function createFinanceState(): FinanceState {
     thisMonth: emptyLedgerPeriod(),
     thisYear: emptyLedgerPeriod(),
     lastYear: emptyLedgerPeriod(),
+    monthHistory: [],
     netWorthHistory: [],
     negativeCashMonths: 0,
     bankrupt: false,

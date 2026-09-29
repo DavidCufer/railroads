@@ -123,7 +123,7 @@ export function deserializeGameState(data: SerializedGameStateV3): GameState {
     stationCargo: entriesMap(data.stationCargo),
     stationTransfer: entriesMap(data.stationTransfer ?? []),
     industryEconomy: entriesMap(data.industryEconomy),
-    finance: data.finance,
+    finance: { ...data.finance, monthHistory: data.finance.monthHistory ?? [] },
     pendingDeliveries: data.pendingDeliveries,
     news: data.news,
     nextNewsId: data.nextNewsId,
