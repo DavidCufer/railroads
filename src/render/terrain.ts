@@ -24,8 +24,11 @@ import { terrainId, terrainName, type Terrain } from "../sim/map/terrain";
 import type { GameMap } from "../sim/map/types";
 import type { City, Industry } from "../sim/economy/types";
 import { ChunkCache } from "./chunkCache";
+import { drawChunkSnapped } from "./pixelSnap";
 
 const CHUNK_TILES = 16;
+/** Extra tiles baked around each terrain chunk (not composited) so overflow crosses chunk borders. */
+const CHUNK_PAD_TILES = 1;
 type ZoomBucket = 2 | 1 | 0.5 | 0.25;
 
 /** Chunks baked at 2x (crisp when zoomed in past ~1.4x) are 4 MB each, so they live in their own
@@ -46,6 +49,45 @@ const SHADE_SUBCELLS = 4;
 /** Per-axis weights of the 4-tap smoothing kernel behind the coastline contour (sums to 8). */
 const CORNER_KERNEL = [1, 3, 3, 1] as const;
 
+/** Land classes for border smoothing: a river tile is plain ground with a line on it. */
+const LAND_CLASS_NAMES = ["plain", "forest", "hills", "mountain", "desert", "swamp"] as const;
+const LAND_CLASS_OF: Array<number | undefined> = [];
+const LAND_CLASS_COLORS: string[] = LAND_CLASS_NAMES.map((name) => TERRAIN_COLORS[name]);
+for (const t of Object.keys(TERRAIN_COLORS) as Terrain[]) {
+  if (t === "water") continue;
+  const cls = LAND_CLASS_NAMES.indexOf((t === "river" ? "plain" : t) as never);
+  if (cls >= 0) LAND_CLASS_OF[terrainId(t)] = cls;
+}
+/** How far (in field units, 0.5 = a whole tile of wobble) the noise moves a land border. */
+const LAND_BORDER_NOISE = 0.2;
+
+function hash01(ix: number, iy: number): number {
+  let h = Math.imul(ix, 374761393) ^ Math.imul(iy, 668265263);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+function valueNoise(x: number, y: number, freq: number): number {
+  const fx = x * freq;
+  const fy = y * freq;
+  const ix = Math.floor(fx);
+  const iy = Math.floor(fy);
+  const tx = fx - ix;
+  const ty = fy - iy;
+  const sx = tx * tx * (3 - 2 * tx);
+  const sy = ty * ty * (3 - 2 * ty);
+  const a = hash01(ix, iy);
+  const b = hash01(ix + 1, iy);
+  const c = hash01(ix, iy + 1);
+  const d = hash01(ix + 1, iy + 1);
+  return (a * (1 - sx) + b * sx) * (1 - sy) + (c * (1 - sx) + d * sx) * sy;
+}
+
+/** Two-octave value noise in [−1, 1] at absolute tile coordinates (half-tile and quarter-tile grain). */
+function valueNoise2(x: number, y: number): number {
+  return (0.65 * valueNoise(x, y, 2) + 0.35 * valueNoise(x + 17.3, y - 9.1, 4)) * 2 - 1;
+}
+
 function pickBucket(zoom: number): ZoomBucket {
   if (zoom >= 1.4) return 2;
   if (zoom >= 0.75) return 1;
@@ -58,11 +100,38 @@ function terrainColorFor(map: GameMap, idx: number): string {
   return TERRAIN_COLORS[terrain];
 }
 
+/** Ground class of a land tile. A river tile is ground with a line on it: it takes the most common
+ * class among its non-river land neighbours (plain if it has none), so a river crossing hills or
+ * forest doesn't leave a chain of grass-coloured squares under the line. −1 for water. */
+function groundClassOf(map: GameMap, x: number, y: number): number {
+  const id = map.terrain[tileIndex(map, x, y)] as number;
+  if (id !== RIVER_ID) return LAND_CLASS_OF[id] ?? -1;
+  const votes: number[] = [];
+  for (const [dx, dy] of DIRS8) {
+    const nx = x + dx;
+    const ny = y + dy;
+    if (!inBounds(map, nx, ny)) continue;
+    const c = LAND_CLASS_OF[map.terrain[tileIndex(map, nx, ny)] as number];
+    if (c !== undefined && (map.terrain[tileIndex(map, nx, ny)] as number) !== RIVER_ID) {
+      votes[c] = (votes[c] ?? 0) + 1;
+    }
+  }
+  let best = 0;
+  let bestVotes = 0;
+  votes.forEach((v, c) => {
+    if (v > bestVotes) {
+      best = c;
+      bestVotes = v;
+    }
+  });
+  return best;
+}
+
 function renderColorFor(map: GameMap, x: number, y: number): string {
   const idx = tileIndex(map, x, y);
-  if ((map.terrain[idx] as number) === WATER_ID) {
-    return WATER_DEPTH_COLORS[waterDepthLevel(map, x, y)] as string;
-  }
+  const id = map.terrain[idx] as number;
+  if (id === WATER_ID) return WATER_DEPTH_COLORS[waterDepthLevel(map, x, y)] as string;
+  if (id === RIVER_ID) return LAND_CLASS_COLORS[groundClassOf(map, x, y)] as string;
   return terrainColorFor(map, idx);
 }
 
@@ -284,14 +353,26 @@ export class TerrainRenderer {
           cache.set(key, canvas);
           chunksRenderedThisFrame++;
         }
-        const worldX = cx * chunkWorldSize;
-        const worldY = cy * chunkWorldSize;
-        const screen = camera.worldToScreen(worldX, worldY, viewportW, viewportH);
         const tilesX = Math.min(CHUNK_TILES, this.map.width - cx * CHUNK_TILES);
         const tilesY = Math.min(CHUNK_TILES, this.map.height - cy * CHUNK_TILES);
-        const destW = tilesX * TILE_SIZE * camera.zoom;
-        const destH = tilesY * TILE_SIZE * camera.zoom;
-        ctx.drawImage(canvas, screen.x, screen.y, destW, destH);
+        const px = TILE_SIZE * bucket;
+        const pad = overview ? 0 : CHUNK_PAD_TILES;
+        // Only the interior is composited (the pad just supplies neighbours' overflow), with the
+        // chunk boundaries snapped to device pixels so neighbours abut exactly.
+        drawChunkSnapped(
+          ctx,
+          camera,
+          viewportW,
+          viewportH,
+          canvas,
+          { x: pad * px, y: pad * px, w: tilesX * px, h: tilesY * px },
+          {
+            x0: cx * chunkWorldSize,
+            y0: cy * chunkWorldSize,
+            x1: cx * chunkWorldSize + tilesX * TILE_SIZE,
+            y1: cy * chunkWorldSize + tilesY * TILE_SIZE,
+          },
+        );
       }
     }
 
@@ -319,22 +400,33 @@ export class TerrainRenderer {
     const tilesX = Math.min(CHUNK_TILES, this.map.width - cx * CHUNK_TILES);
     const tilesY = Math.min(CHUNK_TILES, this.map.height - cy * CHUNK_TILES);
     const px = TILE_SIZE * bucket;
+    // A ring of neighbouring tiles is drawn around the chunk (and only the interior is shown), so
+    // trees, shadows and washes that spill over a chunk border continue into the next chunk
+    // instead of being cut off flat along it.
+    const pad = overview ? 0 : CHUNK_PAD_TILES;
     const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.ceil(tilesX * px));
-    canvas.height = Math.max(1, Math.ceil(tilesY * px));
+    canvas.width = Math.max(1, Math.ceil((tilesX + 2 * pad) * px));
+    canvas.height = Math.max(1, Math.ceil((tilesY + 2 * pad) * px));
     const ctx = canvas.getContext("2d");
     if (!ctx) return canvas;
 
-    const originX = cx * CHUNK_TILES;
-    const originY = cy * CHUNK_TILES;
+    const originX = cx * CHUNK_TILES - pad;
+    const originY = cy * CHUNK_TILES - pad;
+    const spanX = tilesX + 2 * pad;
+    const spanY = tilesY + 2 * pad;
 
-    for (let ty = 0; ty < tilesY; ty++) {
-      for (let tx = 0; tx < tilesX; tx++) {
-        this.drawTile(ctx, originX + tx, originY + ty, tx * px, ty * px, px, overview);
+    // Ground for every tile first, then the things standing on it, so a tile's overlays never paint
+    // over a neighbour's trees and roofs.
+    for (const decor of overview ? [false] : [false, true]) {
+      for (let ty = 0; ty < spanY; ty++) {
+        for (let tx = 0; tx < spanX; tx++) {
+          if (!inBounds(this.map, originX + tx, originY + ty)) continue;
+          this.drawTile(ctx, originX + tx, originY + ty, tx * px, ty * px, px, overview, decor);
+        }
       }
     }
-    this.drawRivers(ctx, originX, originY, tilesX, tilesY, px, overview);
-    if (!overview) this.drawIndustries(ctx, originX, originY, tilesX, tilesY, px);
+    this.drawRivers(ctx, originX, originY, spanX, spanY, px, overview);
+    if (!overview) this.drawIndustries(ctx, originX, originY, spanX, spanY, px);
     return canvas;
   }
 
@@ -366,6 +458,7 @@ export class TerrainRenderer {
     py: number,
     size: number,
     overview: boolean,
+    decor: boolean,
   ): void {
     const idx = tileIndex(this.map, mapX, mapY);
     const terrain = terrainName(this.map.terrain[idx] as number);
@@ -378,15 +471,17 @@ export class TerrainRenderer {
       return;
     }
 
-    if (terrain === "water") {
-      ctx.fillStyle = baseColor;
-      ctx.fillRect(px, py, size, size);
-    } else {
-      this.drawShadedTile(ctx, mapX, mapY, px, py, size, baseColor);
+    if (!decor) {
+      if (terrain === "water") {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(px, py, size, size);
+      } else {
+        this.drawShadedTile(ctx, mapX, mapY, px, py, size, baseColor);
+      }
+      this.drawLandBorders(ctx, mapX, mapY, px, py, size);
+      this.drawCoastlineContour(ctx, mapX, mapY, px, py, size, terrain === "water");
+      return;
     }
-
-    this.drawEdgeBlend(ctx, mapX, mapY, px, py, size);
-    this.drawCoastlineContour(ctx, mapX, mapY, px, py, size, terrain === "water");
 
     const cityId = this.map.cityId[idx] as number;
     const industryIdx = this.map.industryId[idx] as number;
@@ -436,8 +531,17 @@ export class TerrainRenderer {
     }
   }
 
-  /** Feathers this tile's edge toward a differing neighbor with a few jittered, blob-shaped washes. */
-  private drawEdgeBlend(
+  /**
+   * Smooth, noise-perturbed contours between land classes (grass↔forest, grass↔hills,
+   * hills↔mountains, …) — the same idea as the coastline: a kernel-smoothed per-class field at the
+   * tile corners is interpolated over a 4x4 subcell grid, a value-noise term wobbles it, and the
+   * subcells' marching-squares polygons (field ≥ 0.5) become a clip path in which the *neighbouring*
+   * class is painted, shaded, over this tile's own base. Corner fields and noise are functions of
+   * absolute tile coordinates and the noise's sign flips with the class order, so the two tiles either
+   * side of a border trace the very same curve. A tile the contour would flip entirely (a one-tile
+   * strip or speck) keeps its own class so thin features survive.
+   */
+  private drawLandBorders(
     ctx: CanvasRenderingContext2D,
     mapX: number,
     mapY: number,
@@ -445,42 +549,130 @@ export class TerrainRenderer {
     py: number,
     size: number,
   ): void {
-    const idx = tileIndex(this.map, mapX, mapY);
-    const terrain = terrainName(this.map.terrain[idx] as number);
-    const edges: Array<{ dx: number; dy: number; axis: "h" | "v"; side: 0 | 1 }> = [
-      { dx: 0, dy: -1, axis: "h", side: 0 },
-      { dx: 0, dy: 1, axis: "h", side: 1 },
-      { dx: -1, dy: 0, axis: "v", side: 0 },
-      { dx: 1, dy: 0, axis: "v", side: 1 },
-    ];
-    const blobCount = 4;
-
-    for (const edge of edges) {
-      const nx = mapX + edge.dx;
-      const ny = mapY + edge.dy;
-      if (!inBounds(this.map, nx, ny)) continue;
-      const nIdx = tileIndex(this.map, nx, ny);
-      const nTerrain = terrainName(this.map.terrain[nIdx] as number);
-      if (nTerrain === terrain) continue;
-      // Water/land edges are the true marching-squares contour (drawCoastlineContour) now, not a
-      // jittered blob wash — skip so the two don't double up.
-      if (terrain === "water" || nTerrain === "water") continue;
-      const nColor = renderColorFor(this.map, nx, ny);
-
-      for (let i = 0; i < blobCount; i++) {
-        const t = (i + 0.5) / blobCount + (rand() - 0.5) * 0.18;
-        const bx = edge.axis === "h" ? px + t * size : px + edge.side * size;
-        const by = edge.axis === "v" ? py + t * size : py + edge.side * size;
-        const r = size * (0.18 + rand() * 0.12);
-        const gradient = ctx.createRadialGradient(bx, by, 0, bx, by, r);
-        gradient.addColorStop(0, withAlpha(nColor, 0.4));
-        gradient.addColorStop(1, withAlpha(nColor, 0));
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(bx, by, r, 0, Math.PI * 2);
-        ctx.fill();
+    const own = this.landClassAt(mapX, mapY);
+    if (own < 0) return;
+    let others: number[] | null = null;
+    for (let dy = -2; dy <= 2; dy++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        const c = this.landClassAt(mapX + dx, mapY + dy);
+        if (c >= 0 && c !== own) {
+          others ??= [];
+          if (!others.includes(c)) others.push(c);
+        }
       }
     }
+    if (!others) return;
+    others.sort((p, q) => p - q);
+
+    const sub = size / SHADE_SUBCELLS;
+    const pad = 0.75;
+    const bleed = Math.max(1.5, pad); // px the clip overlaps the neighbouring tile
+    const n = SHADE_SUBCELLS + 1;
+    const field = new Float64Array(n * n);
+    for (const cls of others) {
+      const f00 = this.classField(mapX, mapY, cls);
+      const f10 = this.classField(mapX + 1, mapY, cls);
+      const f01 = this.classField(mapX, mapY + 1, cls);
+      const f11 = this.classField(mapX + 1, mapY + 1, cls);
+      if (Math.max(f00, f10, f01, f11) < 0.5 - LAND_BORDER_NOISE) continue;
+      const sign = cls > own ? 1 : -1;
+      let low = false;
+      let high = false;
+      for (let j = 0; j < n; j++) {
+        const v = j / SHADE_SUBCELLS;
+        for (let i = 0; i < n; i++) {
+          const u = i / SHADE_SUBCELLS;
+          const base = (f00 * (1 - u) + f10 * u) * (1 - v) + (f01 * (1 - u) + f11 * u) * v;
+          const value = base + sign * LAND_BORDER_NOISE * valueNoise2(mapX + u, mapY + v);
+          field[j * n + i] = value;
+          if (value >= 0.5) high = true;
+          else low = true;
+        }
+      }
+      if (!high || !low) continue; // no contour through this tile, or it would flip it entirely
+      const path = new Path2D();
+      let any = false;
+      for (let sy = 0; sy < SHADE_SUBCELLS; sy++) {
+        for (let sx = 0; sx < SHADE_SUBCELLS; sx++) {
+          const poly = marchingSquaresPolygon(
+            [
+              { x: sx, y: sy, v: field[sy * n + sx] as number },
+              { x: sx + 1, y: sy, v: field[sy * n + sx + 1] as number },
+              { x: sx + 1, y: sy + 1, v: field[(sy + 1) * n + sx + 1] as number },
+              { x: sx, y: sy + 1, v: field[(sy + 1) * n + sx] as number },
+            ],
+            0.5,
+            "ge",
+          );
+          if (poly.length < 3) continue;
+          any = true;
+          // Vertices on the tile's own border are pushed out half a pad, so the clip overlaps the
+          // neighbouring tile's clip instead of leaving an anti-aliased hairline along the border.
+          const at = (pt: { x: number; y: number }): [number, number] => {
+            const gx =
+              pt.x <= 0
+                ? -bleed / sub
+                : pt.x >= SHADE_SUBCELLS
+                  ? SHADE_SUBCELLS + bleed / sub
+                  : pt.x;
+            const gy =
+              pt.y <= 0
+                ? -bleed / sub
+                : pt.y >= SHADE_SUBCELLS
+                  ? SHADE_SUBCELLS + bleed / sub
+                  : pt.y;
+            return [px + gx * sub, py + gy * sub];
+          };
+          path.moveTo(...at(poly[0] as { x: number; y: number }));
+          for (let k = 1; k < poly.length; k++)
+            path.lineTo(...at(poly[k] as { x: number; y: number }));
+          path.closePath();
+        }
+      }
+      if (!any) continue;
+      const color = LAND_CLASS_COLORS[cls] as string;
+      ctx.save();
+      ctx.clip(path);
+      for (let sy = 0; sy < SHADE_SUBCELLS; sy++) {
+        for (let sx = 0; sx < SHADE_SUBCELLS; sx++) {
+          const fx = mapX - 0.5 + (sx + 0.5) / SHADE_SUBCELLS;
+          const fy = mapY - 0.5 + (sy + 0.5) / SHADE_SUBCELLS;
+          ctx.fillStyle = shadeColor(color, hillshadeFactorAt(this.map, fx, fy));
+          const lo = (k: number): number => (k === 0 ? bleed : pad / 2);
+          const hi = (k: number): number => (k === SHADE_SUBCELLS - 1 ? bleed : pad / 2);
+          ctx.fillRect(
+            px + sx * sub - lo(sx),
+            py + sy * sub - lo(sy),
+            sub + lo(sx) + hi(sx),
+            sub + lo(sy) + hi(sy),
+          );
+        }
+      }
+      ctx.restore();
+    }
+  }
+
+  /** Land class of a tile (see `LAND_CLASS_OF`), or −1 for water and off-map. */
+  private landClassAt(x: number, y: number): number {
+    if (!inBounds(this.map, x, y)) return -1;
+    return groundClassOf(this.map, x, y);
+  }
+
+  /** Share of class `cls` among the land tiles under the [1 3 3 1]² kernel around grid corner (gx, gy). */
+  private classField(gx: number, gy: number, cls: number): number {
+    let land = 0;
+    let sum = 0;
+    for (let j = 0; j < 4; j++) {
+      const wy = CORNER_KERNEL[j] as number;
+      for (let i = 0; i < 4; i++) {
+        const c = this.landClassAt(gx - 2 + i, gy - 2 + j);
+        if (c < 0) continue;
+        const w = wy * (CORNER_KERNEL[i] as number);
+        land += w;
+        if (c === cls) sum += w;
+      }
+    }
+    return land > 0 ? sum / land : 0;
   }
 
   /**
@@ -849,6 +1041,7 @@ export class TerrainRenderer {
       for (let tx = 0; tx < tilesX; tx++) {
         const mapX = originX + tx;
         const mapY = originY + ty;
+        if (!inBounds(this.map, mapX, mapY)) continue;
         const idx = tileIndex(this.map, mapX, mapY);
         if ((this.map.terrain[idx] as number) !== RIVER_ID) continue;
 

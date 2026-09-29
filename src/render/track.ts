@@ -27,6 +27,7 @@ import { hasSharpJunction } from "../sim/track/turn";
 import type { TrackGraph } from "../sim/track/graph";
 import type { TrackEdge } from "../sim/track/types";
 import { ChunkCache } from "./chunkCache";
+import { drawChunkSnapped } from "./pixelSnap";
 import { buildTrackStrands, type LanePath, type Strand } from "./laneGeometry";
 
 const CHUNK_TILES = 16;
@@ -195,14 +196,22 @@ export class TrackRenderer {
           canvas = this.renderChunk(cx, cy, bucket);
           this.cache.set(key, canvas);
         }
-        const worldX = cx * chunkWorldSize;
-        const worldY = cy * chunkWorldSize;
-        const screen = camera.worldToScreen(worldX, worldY, viewportW, viewportH);
         const tilesX = Math.min(CHUNK_TILES, this.mapWidth - cx * CHUNK_TILES);
         const tilesY = Math.min(CHUNK_TILES, this.mapHeight - cy * CHUNK_TILES);
-        const destW = tilesX * TILE_SIZE * camera.zoom;
-        const destH = tilesY * TILE_SIZE * camera.zoom;
-        ctx.drawImage(canvas, screen.x, screen.y, destW, destH);
+        drawChunkSnapped(
+          ctx,
+          camera,
+          viewportW,
+          viewportH,
+          canvas,
+          { x: 0, y: 0, w: canvas.width, h: canvas.height },
+          {
+            x0: cx * chunkWorldSize,
+            y0: cy * chunkWorldSize,
+            x1: cx * chunkWorldSize + tilesX * TILE_SIZE,
+            y1: cy * chunkWorldSize + tilesY * TILE_SIZE,
+          },
+        );
       }
     }
   }

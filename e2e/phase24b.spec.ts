@@ -199,3 +199,127 @@ test.describe("Phase 24B — delivery labels", () => {
     }
   });
 });
+
+/** Seam metric over the game canvas, in device pixels. For every column (row) crossing the middle
+ * of the screen, the mean absolute luminance difference from the average of its two neighbours; the
+ * chunk-border columns (rows) are compared with the median of all of them. A hairline seam or a cut
+ * decoration makes a border stand well above the terrain texture's own noise. */
+async function seamMetric(page: Page): Promise<{
+  vertical: { border: number; median: number; columns: number[] };
+  horizontal: { border: number; median: number; columns: number[] };
+}> {
+  return page.evaluate(() => {
+    const game = window.__game!;
+    const canvas = document.querySelector("canvas") as HTMLCanvasElement;
+    const ctx = canvas.getContext("2d")!;
+    const dpr = window.devicePixelRatio || 1;
+    const cw = canvas.width;
+    const ch = canvas.height;
+    const x0 = Math.floor(cw * 0.3);
+    const x1 = Math.floor(cw * 0.7);
+    const y0 = Math.floor(ch * 0.3);
+    const y1 = Math.floor(ch * 0.7);
+    const sw = x1 - x0;
+    const sh = y1 - y0;
+    const data = ctx.getImageData(x0, y0, sw, sh).data;
+    const lum = (i: number): number =>
+      0.299 * (data[i] as number) +
+      0.587 * (data[i + 1] as number) +
+      0.114 * (data[i + 2] as number);
+    const diffs = (n: number, m: number, at: (a: number, b: number) => number): number[] => {
+      const out: number[] = new Array<number>(n).fill(0);
+      for (let a = 1; a < n - 1; a++) {
+        let sum = 0;
+        for (let b = 0; b < m; b++) sum += Math.abs(at(a, b) - (at(a - 1, b) + at(a + 1, b)) / 2);
+        out[a] = sum / m;
+      }
+      return out;
+    };
+    const median = (v: number[]): number =>
+      v.slice(1, -1).sort((p, q) => p - q)[Math.floor((v.length - 2) / 2)] as number;
+    const vert = diffs(sw, sh, (a, b) => lum((b * sw + a) * 4));
+    const horiz = diffs(sh, sw, (a, b) => lum((a * sw + b) * 4));
+    // Chunk borders are every 16 tiles = 512 world units.
+    const borderCols: number[] = [];
+    const borderRows: number[] = [];
+    for (let k = 0; k < 40; k++) {
+      const c = game.camera.getCenter();
+      const zoom = game.camera.getZoom();
+      const p = {
+        x: (k * 512 - c.x) * zoom + canvas.clientWidth / 2,
+        y: (k * 512 - c.y) * zoom + canvas.clientHeight / 2,
+      };
+      const dx = Math.round(p.x * dpr) - x0;
+      const dy = Math.round(p.y * dpr) - y0;
+      if (dx > 2 && dx < sw - 2) borderCols.push(dx);
+      if (dy > 2 && dy < sh - 2) borderRows.push(dy);
+    }
+    const worst = (v: number[], at: number[]): number =>
+      Math.max(0, ...at.map((i) => v[i] as number));
+    return {
+      vertical: { border: worst(vert, borderCols), median: median(vert), columns: borderCols },
+      horizontal: { border: worst(horiz, borderRows), median: median(horiz), columns: borderRows },
+    };
+  });
+}
+
+test.describe("Phase 24B — chunk seams", () => {
+  test("no hairline seams across chunk borders at fractional zooms", async ({ page }) => {
+    await setup(page);
+    const results: string[] = [];
+    for (const z of [1, 1.37, 2, 0.9]) {
+      // Chunk borders are every 16 tiles; centre near a border with a fractional offset.
+      for (const [cx, cy] of [
+        [96.3, 80.7],
+        [112.6, 96.2],
+      ] as const) {
+        await centerOn(page, cx, cy, z);
+        await page.waitForTimeout(400);
+        const m = await seamMetric(page);
+        const line = `z${z} @${cx},${cy} vertical ${m.vertical.border.toFixed(2)} (median ${m.vertical.median.toFixed(2)}, cols ${m.vertical.columns.length}) horizontal ${m.horizontal.border.toFixed(2)} (median ${m.horizontal.median.toFixed(2)}, rows ${m.horizontal.columns.length})`;
+        results.push(line);
+        expect.soft(m.vertical.border, line).toBeLessThan(m.vertical.median * 3 + 2);
+        expect.soft(m.horizontal.border, line).toBeLessThan(m.horizontal.median * 3 + 2);
+      }
+      await page.screenshot({ path: `docs/screenshots/${SHOT}-seams-z${z}.png` });
+    }
+    console.log(results.join("\n"));
+  });
+});
+
+test.describe("Phase 24B — terrain borders", () => {
+  test("land class borders are smooth contours, not tile staircases", async ({ page }) => {
+    await setup(page);
+    // A hills↔mountain border and a hills↔grass border, found on the generated map.
+    const spots = await page.evaluate(() => {
+      const map = window.__game!.getMap() as unknown as {
+        width: number;
+        height: number;
+        terrain: Uint8Array;
+      };
+      const HILLS = 2;
+      const MOUNTAIN = 3;
+      const found: Record<string, { x: number; y: number }> = {};
+      for (let y = 4; y < map.height - 4 && !(found["hills"] && found["mountain"]); y++) {
+        for (let x = 4; x < map.width - 4; x++) {
+          const t = map.terrain[y * map.width + x];
+          const e = map.terrain[y * map.width + x + 1];
+          if (t === HILLS && e === MOUNTAIN && !found["mountain"]) found["mountain"] = { x, y };
+          if (t === HILLS && e === 0 && !found["hills"]) found["hills"] = { x, y };
+        }
+      }
+      return found;
+    });
+    for (const [name, x, y, z] of [
+      ["forest-grass", 100, 88, 2],
+      ["forest-grass-z1", 100, 88, 1],
+      ["hills-grass", spots["hills"]?.x ?? 60, spots["hills"]?.y ?? 60, 2],
+      ["hills-mountain", spots["mountain"]?.x ?? 60, spots["mountain"]?.y ?? 60, 2],
+      ["overview", 110, 90, 0.5],
+    ] as const) {
+      await centerOn(page, x, y, z);
+      await page.waitForTimeout(500);
+      await page.screenshot({ path: `docs/screenshots/${SHOT}-borders-${name}.png` });
+    }
+  });
+});
