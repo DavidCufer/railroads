@@ -5,7 +5,7 @@ import type { CargoType } from "../../data/cargo";
 
 /** Per-stop loading rule (SPEC §7.2). Real load/unload behavior is Phase 7 — this phase only
  * stores the choice. */
-export type LoadingRule = "auto" | "fullLoad" | "unloadOnly" | "passThrough";
+export type LoadingRule = "auto" | "fullLoad" | "unloadOnly" | "passThrough" | "transfer";
 
 export interface TrainOrder {
   stationId: number;

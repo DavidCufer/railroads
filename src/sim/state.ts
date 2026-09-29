@@ -37,6 +37,24 @@ export interface DeliveryEvent {
    * save's already-drained (and therefore always-empty in practice) `pendingDeliveries` array still
    * type-checks through src/save/migrate.ts without a dedicated migration step. */
   units?: number;
+  /** Cargo handed to a Warehouse hub instead of being sold (PLAN Phase 18 C): `revenue` is 0 and the
+   * floating label reads "Transferred". */
+  transferred?: boolean;
+}
+
+/** Cargo dropped at a Warehouse station for another train to pick up (PLAN Phase 18 C, "transfer
+ * hub"). Keeps where and when it was first loaded, so the eventual delivery is paid for the whole
+ * origin → destination trip (SPEC §8.1) and the feeder train earns nothing. */
+export interface TransferLot {
+  cargoType: CargoType;
+  units: number;
+  /** Tile (and tick) of the original pickup, as on `TrainCar.loadedTile`/`loadedTick`. */
+  originTile: number;
+  loadedTick: number;
+  /** Station at `originTile`, for "40 t coal from Idrija" — absent if it no longer exists. */
+  originStationId?: number;
+  /** The feeder train, which never reloads its own drop. */
+  depositedByTrainId: number;
 }
 
 export interface GameState {
@@ -70,6 +88,8 @@ export interface GameState {
   /** Per-station waiting cargo (SPEC §6.3), accrued daily by src/sim/economy/cargoFlow.ts and
    * drained by src/sim/trains/loading.ts. */
   stationCargo: Map<number, Partial<Record<CargoType, StationCargoPile>>>;
+  /** Transfer stock per Warehouse station (PLAN Phase 18 C), oldest lot first. */
+  stationTransfer: Map<number, TransferLot[]>;
   /** Per-industry processing state (SPEC §8.2), keyed by `Industry.id`. */
   industryEconomy: Map<number, IndustryEconomyState>;
   /** Ledger, loans, net worth history (SPEC §9). */
@@ -186,6 +206,7 @@ export function createGameState(options: NewGameOptions): GameState {
     nextTrainId: 0,
     trackVersion: 0,
     stationCargo: new Map(),
+    stationTransfer: new Map(),
     industryEconomy: initIndustryEconomy(industries),
     finance: createFinanceState(),
     pendingDeliveries: [],

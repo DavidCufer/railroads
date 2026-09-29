@@ -17,7 +17,7 @@ import type { Goal } from "../sim/goals/types";
 import type { RegionId } from "../sim/regions";
 import type { PendingCityFounding } from "../sim/regions";
 import type { TrackEdge } from "../sim/track/types";
-import type { DeliveryEvent, StationCargoPile } from "../sim/state";
+import type { DeliveryEvent, StationCargoPile, TransferLot } from "../sim/state";
 
 export const CURRENT_SAVE_VERSION = 3;
 
@@ -110,6 +110,8 @@ interface SerializedGameStateBase<TTrain> {
   nextTrainId: number;
   trackVersion: number;
   stationCargo: Array<[number, Partial<Record<CargoType, StationCargoPile>>]>;
+  /** Added in Phase 18 without a version bump: absent in older saves, read as empty. */
+  stationTransfer?: Array<[number, TransferLot[]]>;
   industryEconomy: Array<[number, IndustryEconomyState]>;
   finance: SerializedFinanceStateV1;
   pendingDeliveries: DeliveryEvent[];

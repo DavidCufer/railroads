@@ -109,6 +109,11 @@ export const strings = {
     quickBuild: "Quick build",
   },
   station: {
+    /** PLAN Phase 18 C: Warehouse transfer hub. */
+    transferTitle: "Waiting for transfer",
+    transferEmpty: "Warehouse: trains can leave any cargo here for another train to pick up",
+    transferFrom: (cargo: string, origin: string) => `${cargo} from ${origin}`,
+    unknownOrigin: "elsewhere",
     types: {
       depot: "Depot",
       station: "Station",
@@ -184,6 +189,8 @@ export const strings = {
       fullLoad: "Full load",
       unloadOnly: "Unload only",
       passThrough: "Pass through",
+      /** Unload everything into the Warehouse's transfer stock (PLAN Phase 18 C). */
+      transfer: "Unload all (transfer)",
     },
     routeNotElectrified: "Route not electrified",
     /** SPEC §7.5: "the train panel says what they are waiting for." Only shown while `status` is
@@ -197,6 +204,8 @@ export const strings = {
       `Waiting for ${trains} (single track to ${station})`,
     waitingForTrainAtPlatform: (station: string, trains: string) =>
       `Waiting for platform at ${station} (${trains})`,
+    /** Floating label for cargo left at a Warehouse hub (no payment yet). */
+    transferred: "Transferred",
     noRouteTo: (station: string) => `No route to ${station}`,
     editCars: "Edit cars",
     editCarsTitle: "Edit Consist",

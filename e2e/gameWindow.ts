@@ -118,6 +118,15 @@ export interface GameWindow {
   getTrainCars: (
     trainId: number,
   ) => Array<{ cargoType: string; loadedUnits: number; capacity: number }>;
+  debugPreviewBuild: (path: number[]) => void;
+  debugOpenStation: (stationId: number) => void;
+  getStationTransfer: (stationId: number) => Array<{
+    cargoType: string;
+    units: number;
+    originTile: number;
+    loadedTick: number;
+    originStationId?: number;
+  }>;
   getStationCargo: (
     stationId: number,
   ) => Partial<Record<string, { amount: number; waitingDays: number }>> | null;

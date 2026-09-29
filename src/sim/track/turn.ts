@@ -32,17 +32,14 @@ export function canTraverse(
   return turnAllowed(dirIn, dirOut);
 }
 
-/** True if `tile` has two edges meeting at an angle sharper than 45° — the "small red marker"
- * junction case in the build preview (SPEC §5.1/§5.2): buildable, but not through-traversable. */
+/** True if some edge at `tile` cannot connect to any other edge there within the 45° turn rule
+ * (SPEC §5.1) — the small red marker on old sharp junctions: buildable then, refused now (PLAN Phase
+ * 18 A), but existing saves may still contain them. An ordinary turnout (a branch that is sharp
+ * against one leg but legal against the other) is *not* flagged. */
 export function hasSharpJunction(graph: TrackGraph, tile: number): boolean {
-  const edges = graph.edgesAt(tile);
-  const legs = edges.map((e) => (e.a === tile ? e.direction : (e.direction + 4) % 8));
-  for (let i = 0; i < legs.length; i++) {
-    for (let j = i + 1; j < legs.length; j++) {
-      if (directionSteps(legs[i] as number, legs[j] as number) <= 2) return true;
-    }
-  }
-  return false;
+  const legs = outwardLegs(graph, tile);
+  if (legs.length < 2) return false;
+  return legs.some((leg, i) => !legs.some((other, j) => i !== j && legsConnect(leg, other)));
 }
 
 /** Outward DIRS8 direction of every edge at `node` (the direction you leave `node` along it). */

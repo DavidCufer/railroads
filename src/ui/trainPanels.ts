@@ -36,7 +36,13 @@ import { showToast } from "./toast";
 import { playSound } from "./sound";
 import { formatSpeed, loadSettings } from "./settings";
 
-const LOADING_RULES: readonly LoadingRule[] = ["auto", "fullLoad", "unloadOnly", "passThrough"];
+const LOADING_RULES: readonly LoadingRule[] = [
+  "auto",
+  "fullLoad",
+  "unloadOnly",
+  "passThrough",
+  "transfer",
+];
 
 function currentYear(state: GameState): number {
   return calendarFromTicks(state.startYear, state.ticks).year;

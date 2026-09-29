@@ -780,14 +780,16 @@ function main(): void {
         const countText = units !== undefined ? `${Math.round(units)} ${def.unitsNoun}` : undefined;
         floatingLabels.push({
           stationTile: station.tile,
-          text: countText
-            ? `+${formatMoney(delivery.revenue)} · ${countText}`
-            : `+${formatMoney(delivery.revenue)}`,
+          text: delivery.transferred
+            ? `${strings.trains.transferred}${countText ? ` · ${countText}` : ""}`
+            : countText
+              ? `+${formatMoney(delivery.revenue)} · ${countText}`
+              : `+${formatMoney(delivery.revenue)}`,
           color: def.color,
           startMs: now,
         });
       }
-      playSound("cashDing");
+      if (state.pendingDeliveries.some((d) => !d.transferred)) playSound("cashDing");
       state.pendingDeliveries.length = 0;
     }
 
@@ -1114,6 +1116,19 @@ function main(): void {
           getTrainCars: (
             trainId: number,
           ) => Array<{ cargoType: CargoType; loadedUnits: number; capacity: number }>;
+          /** Test-only: shows the build ghost for `path` (red segments for sharp turns) and toasts
+           * the reason, as a finished drag would. */
+          debugPreviewBuild: (path: number[]) => void;
+          /** Test-only: opens a station's panel directly (a tap on a tile with a train opens the
+           * train instead). */
+          debugOpenStation: (stationId: number) => void;
+          getStationTransfer: (stationId: number) => Array<{
+            cargoType: string;
+            units: number;
+            originTile: number;
+            loadedTick: number;
+            originStationId?: number;
+          }>;
           getStationCargo: (
             stationId: number,
           ) => Partial<Record<string, { amount: number; waitingDays: number }>> | null;
@@ -1323,6 +1338,22 @@ function main(): void {
           loadedUnits: c.loadedUnits,
           capacity: CARGO[c.cargoType].capacity,
         })),
+      debugOpenStation: (stationId) => openStationById(stationId),
+      debugPreviewBuild: (path) => {
+        const plan = computeBuildPlan(state, path);
+        ghost = {
+          mode: "track",
+          path,
+          ok: plan.valid,
+          ...(plan.sharpSteps.length > 0
+            ? { badSegments: plan.sharpSteps.map((st) => [st.a, st.b] as [number, number]) }
+            : {}),
+        };
+        if (plan.sharpSteps.length > 0) {
+          showToast(ui, strings.build.reasons.sharpTurn, "warn");
+        }
+      },
+      getStationTransfer: (stationId) => state.stationTransfer.get(stationId) ?? [],
       getStationCargo: (stationId) => {
         const pile = state.stationCargo.get(stationId);
         if (!pile) return null;

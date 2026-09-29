@@ -147,6 +147,44 @@ function economyBody(
   return body;
 }
 
+/** "Waiting for transfer: 40 t coal from Idrija" (PLAN Phase 18 C): the Warehouse hub's transfer
+ * stock, grouped by cargo and where it was first loaded. Shown for any station that has a
+ * Warehouse (with a hint when empty) or still holds transfer cargo. */
+function transferSection(container: HTMLElement, state: GameState, station: Station): Node[] {
+  const lots = state.stationTransfer.get(station.id) ?? [];
+  const hasWarehouse = station.improvements.includes("warehouse");
+  if (!hasWarehouse && lots.length === 0) return [];
+  const groups = new Map<string, { cargo: CargoType; units: number; origin: string }>();
+  for (const lot of lots) {
+    const origin =
+      state.stations.find((st) => st.id === lot.originStationId)?.name ??
+      strings.station.unknownOrigin;
+    const key = `${lot.cargoType}|${origin}`;
+    const g = groups.get(key) ?? { cargo: lot.cargoType, units: 0, origin };
+    g.units += lot.units;
+    groups.set(key, g);
+  }
+  const body: Node[] = [
+    h("div", { className: "panel-section-title" }, strings.station.transferTitle),
+  ];
+  if (groups.size === 0) {
+    body.push(h("div", { className: "panel-row" }, strings.station.transferEmpty));
+    return body;
+  }
+  for (const g of groups.values()) {
+    const def = CARGO[g.cargo];
+    body.push(
+      h(
+        "div",
+        { className: "panel-row transfer-row" },
+        cargoChip(container, g.cargo, Math.round(g.units), def.unit ? ` ${def.unit}` : ""),
+        h("span", null, strings.station.transferFrom(def.name.toLowerCase(), g.origin)),
+      ),
+    );
+  }
+  return body;
+}
+
 /** Compact 2-column key/value grid (STYLE §6: stats at the bottom, below the actionable
  * sections) — type, catchment, max train length, storage/cargo, monthly maintenance. */
 function statsGrid(type: StationType): Node {
@@ -336,6 +374,7 @@ export function openStationPanel(
       const pile = state.stationCargo.get(stationId);
       body.push(...economyBody(container, economy, pile, station));
     }
+    body.push(...transferSection(container, state, station));
 
     const servingTrains = state.trains.filter((t) =>
       t.orders.some((o) => o.stationId === stationId),

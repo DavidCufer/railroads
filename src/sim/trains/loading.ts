@@ -30,14 +30,31 @@ import { getOrCreateIndustryEconomy } from "../economy/processing";
 import { calendarFromTicks, HOURS_PER_DAY } from "../time";
 import type { GameState, StationCargoPile } from "../state";
 import type { Station } from "../stations/types";
-import { hasImprovement, stationLoadSpeedMult } from "../stations/improvements";
+import { hasImprovement, stationLoadSpeedMult, stationStorageCap } from "../stations/improvements";
 import { stationAtTile, stationCatchmentTiles } from "../stations/placement";
 import { tileXY } from "./geometry";
 import type { Train, TrainCar, TrainOrder } from "./types";
 
 interface LoadPlan {
   unload: number[];
+  /** Cars whose cargo goes into the station's transfer stock (Warehouse hub, PLAN Phase 18 C). */
+  transfer: number[];
   load: number[];
+}
+
+/** Units of `cargo` already in `station`'s transfer stock. */
+export function transferUnits(state: GameState, stationId: number, cargo: CargoType): number {
+  let total = 0;
+  for (const lot of state.stationTransfer.get(stationId) ?? []) {
+    if (lot.cargoType === cargo) total += lot.units;
+  }
+  return total;
+}
+
+/** Room left in a Warehouse's transfer stock for `cargo` (same per-cargo cap as its waiting pile). */
+function transferRoom(state: GameState, station: Station, cargo: CargoType): number {
+  if (!hasImprovement(station, "warehouse")) return 0;
+  return Math.max(0, stationStorageCap(station, cargo) - transferUnits(state, station.id, cargo));
 }
 
 function accepts(state: GameState, stationId: number, cargo: CargoType): boolean {
@@ -51,6 +68,12 @@ function acceptedAtAnotherStop(state: GameState, train: Train, cargo: CargoType)
   for (let step = 1; step < n; step++) {
     const order = train.orders[(train.currentOrderIndex + step) % n] as TrainOrder;
     if (accepts(state, order.stationId, cargo)) return true;
+    // A "transfer" stop at a Warehouse takes any cargo (PLAN Phase 18 C): that is the whole point of
+    // a feeder line, so the feeder must be willing to load what the hub itself doesn't demand.
+    if (order.rule === "transfer") {
+      const hub = state.stations.find((st) => st.id === order.stationId);
+      if (hub && hasImprovement(hub, "warehouse")) return true;
+    }
   }
   return false;
 }
@@ -62,11 +85,24 @@ function planLoadUnload(
   order: TrainOrder,
 ): LoadPlan {
   const unload: number[] = [];
+  const transfer: number[] = [];
   const load: number[] = [];
   const pile = state.stationCargo.get(station.id);
+  const warehouse = hasImprovement(station, "warehouse");
 
   train.cars.forEach((car, i) => {
-    if (car.loadedUnits > 0 && accepts(state, station.id, car.cargoType)) unload.push(i);
+    if (car.loadedUnits <= 0) return;
+    const demanded = accepts(state, station.id, car.cargoType);
+    // Warehouse hub (PLAN Phase 18 C): a car goes into transfer stock when the stop is set to
+    // "transfer", or when nothing here demands the cargo and no later stop of this train does
+    // either (so it could never be delivered by this train). Overflow stays on the train.
+    const toHub =
+      warehouse &&
+      transferRoom(state, station, car.cargoType) > 0 &&
+      (order.rule === "transfer" ||
+        (!demanded && !acceptedAtAnotherStop(state, train, car.cargoType)));
+    if (toHub) transfer.push(i);
+    else if (demanded) unload.push(i);
   });
 
   if (order.rule !== "unloadOnly") {
@@ -74,14 +110,16 @@ function planLoadUnload(
       // A car being unloaded here is empty by the time loading runs (stepLoading applies all
       // unloads first), so it can be refilled at the same stop — otherwise every two-way route
       // (passenger/mail shuttles) left each station with the just-emptied cars running empty.
-      const loadedAfterUnload = unload.includes(i) ? 0 : car.loadedUnits;
+      const loadedAfterUnload = unload.includes(i) || transfer.includes(i) ? 0 : car.loadedUnits;
       // "Wait for full load" re-runs this plan on each extra wait day, so a partially loaded car
       // keeps topping up until it's full or the stop gives up (SPEC §7.2).
       if (loadedAfterUnload >= CARGO[car.cargoType].capacity) return;
       // Livestock Pens (SPEC §6.2): required to *load* livestock at this station (unaffected for
       // unloading/delivering it elsewhere).
       if (car.cargoType === "livestock" && !hasImprovement(station, "livestockPens")) return;
-      const available = pile?.[car.cargoType]?.amount ?? 0;
+      const available =
+        (pile?.[car.cargoType]?.amount ?? 0) +
+        loadableTransfer(state, train, station, car.cargoType);
       // PLAN Phase 16 ("partial loading"): Auto loads whatever is waiting, not just a full carload
       // — a small town's trickle of supply used to never reach a full car and always left empty
       // (see PROGRESS.md's Phase 16 entry).
@@ -91,7 +129,21 @@ function planLoadUnload(
     });
   }
 
-  return { unload, load };
+  return { unload, transfer, load };
+}
+
+/** Transfer stock at `station` this train may pick up (never its own drop). */
+function loadableTransfer(
+  state: GameState,
+  train: Train,
+  station: Station,
+  cargo: CargoType,
+): number {
+  let total = 0;
+  for (const lot of state.stationTransfer.get(station.id) ?? []) {
+    if (lot.cargoType === cargo && lot.depositedByTrainId !== train.id) total += lot.units;
+  }
+  return total;
 }
 
 function computeDwellTicks(
@@ -100,7 +152,7 @@ function computeDwellTicks(
   station: Station,
   plan: LoadPlan,
 ): number {
-  const handled = plan.unload.length + plan.load.length;
+  const handled = plan.unload.length + plan.transfer.length + plan.load.length;
   const overlength = train.cars.length > STATION_TYPE_DEFS[station.type].maxTrainLength;
   const perCar =
     TICKS_PER_CAR_HANDLED *
@@ -224,6 +276,75 @@ function applyUnload(state: GameState, train: Train, station: Station, carIndex:
   settleUnload(state, train, station, car);
 }
 
+/** Moves (as much as fits of) a car's cargo into the station's transfer stock. No revenue: the trip
+ * is only paid when the cargo is finally delivered to a stop that demands it. */
+function applyTransfer(state: GameState, train: Train, station: Station, carIndex: number): void {
+  const car = train.cars[carIndex];
+  if (!car || car.loadedUnits <= 0) return;
+  const units = Math.min(car.loadedUnits, transferRoom(state, station, car.cargoType));
+  if (units <= 0) return;
+  const lots = state.stationTransfer.get(station.id) ?? [];
+  const originTile = car.loadedTile ?? station.tile;
+  const loadedTick = car.loadedTick ?? state.ticks;
+  const same = lots.find(
+    (l) =>
+      l.cargoType === car.cargoType &&
+      l.originTile === originTile &&
+      l.loadedTick === loadedTick &&
+      l.depositedByTrainId === train.id,
+  );
+  if (same) same.units += units;
+  else {
+    lots.push({
+      cargoType: car.cargoType,
+      units,
+      originTile,
+      loadedTick,
+      depositedByTrainId: train.id,
+      ...(stationAtTile(state.stations, originTile)
+        ? { originStationId: (stationAtTile(state.stations, originTile) as Station).id }
+        : {}),
+    });
+  }
+  state.stationTransfer.set(station.id, lots);
+  car.loadedUnits -= units;
+  if (car.loadedUnits <= 0) {
+    car.loadedUnits = 0;
+    delete car.loadedTile;
+    delete car.loadedTick;
+  }
+  state.pendingDeliveries.push({
+    stationId: station.id,
+    cargoType: car.cargoType,
+    revenue: 0,
+    units,
+    transferred: true,
+  });
+}
+
+/** Loads an empty car from the oldest transfer lots (not the train's own drop), so the car carries
+ * the lot's original pickup tile and tick for the delivery revenue. */
+function loadFromTransfer(state: GameState, train: Train, station: Station, car: TrainCar): void {
+  const lots = state.stationTransfer.get(station.id);
+  if (!lots || car.loadedUnits > 0) return;
+  const capacity = CARGO[car.cargoType].capacity;
+  for (const lot of lots) {
+    if (lot.cargoType !== car.cargoType || lot.depositedByTrainId === train.id) continue;
+    const amount = Math.min(lot.units, capacity - car.loadedUnits);
+    if (amount <= 0) break;
+    if (car.loadedUnits === 0) {
+      car.loadedTile = lot.originTile;
+      car.loadedTick = lot.loadedTick;
+    }
+    car.loadedUnits += amount;
+    lot.units -= amount;
+    break; // one origin per car: a car never mixes two different trips
+  }
+  const left = lots.filter((l) => l.units > 0.0001);
+  if (left.length > 0) state.stationTransfer.set(station.id, left);
+  else state.stationTransfer.delete(station.id);
+}
+
 /** Cargo left in a car removed by the "Edit cars" command (PLAN Phase 15: "dropped at the station —
  * counts as unloaded without payment unless accepted there"). Reuses the normal paid-delivery path
  * when the station happens to accept that cargo; otherwise just clears the load with no revenue or
@@ -261,6 +382,7 @@ export function applyPendingConsist(state: GameState, train: Train, station: Sta
 function applyLoad(state: GameState, train: Train, station: Station, carIndex: number): void {
   const car = train.cars[carIndex];
   if (!car) return;
+  loadFromTransfer(state, train, station, car);
   const capacity = CARGO[car.cargoType].capacity;
   const room = capacity - car.loadedUnits;
   if (room <= 0) return;
@@ -295,6 +417,7 @@ export function stepLoading(state: GameState, train: Train, station: Station): b
 
   const plan = planLoadUnload(state, train, station, order);
   for (const i of plan.unload) applyUnload(state, train, station, i);
+  for (const i of plan.transfer) applyTransfer(state, train, station, i);
   for (const i of plan.load) applyLoad(state, train, station, i);
 
   if (order.rule === "fullLoad") {

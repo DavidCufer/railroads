@@ -552,60 +552,60 @@ Player report (Trieste–Ljubljana):
    Generation places processors near cities without regard to where their inputs are.
 
 ### A. Sharp turns across existing track
-- [ ] `buildTrack` (commands.ts) validates every new edge against the **existing** edges at both of its end nodes:
+- [x] `buildTrack` (commands.ts) validates every new edge against the **existing** edges at both of its end nodes:
       if the angle between the new edge and any existing edge that a train could traverse through that node is sharper
       than allowed (same rule as within one drag: >45° deflection), reject with `reason: "sharpTurn"`. Exception:
       station tiles (trains reverse there) keep the current behaviour. A junction where the new edge meets an existing
       edge at a sharp angle but forms a legal turn with *another* existing edge at the node is allowed (that is a
       normal turnout); only reject when the new edge would connect to nothing legally, or document the exact rule you pick.
-- [ ] Build preview shows the offending segment red with a short tooltip/toast (`strings.ts`).
-- [ ] Existing saves with sharp junctions still load; pathfinding already refuses sharp traversal, so routes that
+- [x] Build preview shows the offending segment red with a short tooltip/toast (`strings.ts`).
+- [x] Existing saves with sharp junctions still load; pathfinding already refuses sharp traversal, so routes that
       relied on them must be reported (see B), not silently stall.
-- [ ] Unit tests: three-part build that produced the player's hairpin is rejected; a normal Y-junction and a
+- [x] Unit tests: three-part build that produced the player's hairpin is rejected; a normal Y-junction and a
       turnout off double track still build; a station tile still allows reversal.
 
 ### B. Phantom jams: diagnose, prevent, explain
-- [ ] Reproduce first. Write a randomized stress test (seeded, headless): several maps/seeds, 6–12 trains on mixed
+- [x] Reproduce first. Write a randomized stress test (seeded, headless): several maps/seeds, 6–12 trains on mixed
       single/double track with shared stations, run ≥ 2 game years, assert invariants every day:
       (a) every reservation belongs to an existing train that is still going to use it; (b) station slot counts equal
       trains inside + trains reserved inbound; (c) no train waits > 10 days unless it is in a genuine wait-for cycle
       or its route is impossible. Keep the test under ~20 s; bigger variant behind an env flag.
-- [ ] Wait-for graph: every waiting train records *what* blocks it (train id + block/station). A jam is reported
+- [x] Wait-for graph: every waiting train records *what* blocks it (train id + block/station). A jam is reported
       only when there is a real cycle. A wait with no live blocker is a bug: log it in debug, clear the stale
       reservation/slot, and let the train re-plan. Fix the root cause(s) the stress test finds; don't rely on the
       auto-clear alone.
-- [ ] Unreachable next stop (e.g. only via a sharp junction, track removed): train status "No route to X" instead of
+- [x] Unreachable next stop (e.g. only via a sharp junction, track removed): train status "No route to X" instead of
       waiting silently; news message once.
-- [ ] Train panel status line says why it waits: "Waiting for Train 3 (single track to Ljubljana)",
+- [x] Train panel status line says why it waits: "Waiting for Train 3 (single track to Ljubljana)",
       "Waiting for platform at Trieste", "No route to Ljubljana".
-- [ ] Debug helper: `?debug=1` → `__game.exportSave()` downloads the save JSON so the player can attach it to a report.
+- [x] Debug helper: `?debug=1` → `__game.exportSave()` downloads the save JSON so the player can attach it to a report.
 
 ### C. Warehouse as a transfer hub
-- [ ] A station with a Warehouse accepts **any** cargo as a transfer drop, even if nothing there demands it. Unloaded
+- [x] A station with a Warehouse accepts **any** cargo as a transfer drop, even if nothing there demands it. Unloaded
       transfer cargo stays in the station's stock keeping its **origin station and load day**.
-- [ ] Revenue is paid only at final delivery to a station that demands it, computed from origin → final destination
+- [x] Revenue is paid only at final delivery to a station that demands it, computed from origin → final destination
       distance and total elapsed time (SPEC revenue formula). Train that dropped it gets no income (show "Transferred"
-      in the income popup); optionally credit a small share to the feeder train's stats only (no money).
-- [ ] Other trains load it like normal waiting cargo (partial loading rules apply). Order option per stop:
+      in the income popup); optionally credit a small share to the feeder train's stats only (no money). _(Optional part skipped.)_
+- [x] Other trains load it like normal waiting cargo (partial loading rules apply). Order option per stop:
       normal / "unload all (transfer)" so a feeder can dump cargo the hub also demands.
-- [ ] Warehouse capacity limit applies; overflow is refused at unload (cargo stays on the train).
-- [ ] Station panel shows transfer stock separately ("Waiting for transfer: 40 t coal from Idrija").
-- [ ] Unit tests: coal A→Hub(warehouse)→B pays once at B with A→B distance; no pay at hub; decay rules; capacity.
+- [x] Warehouse capacity limit applies; overflow is refused at unload (cargo stays on the train).
+- [x] Station panel shows transfer stock separately ("Waiting for transfer: 40 t coal from Idrija").
+- [x] Unit tests: coal A→Hub(warehouse)→B pays once at B with A→B distance; no pay at hub; decay rules; capacity.
       e2e: set up a two-train relay and verify income after delivery.
 
 ### D. Chain-aware industry placement and explanation
-- [ ] Map generation (random maps and region maps): for each processor, ensure at least one source of **each
+- [x] Map generation (random maps and region maps): for each processor, ensure at least one source of **each
       required input group** within a reasonable distance (data table in `src/data/`, e.g. 25 tiles): steel mill →
       coal mine AND iron mine; factory → steel mill OR sawmill (and that sawmill's forest); refinery → oil well, etc.
       Place missing producers on suitable terrain if possible; otherwise move the processor. Deterministic with the
       map seed. Region maps keep their hand-placed industries but get missing inputs added nearby.
-- [ ] Playability check (`economy/playability.ts`) includes: at least one complete chain to goods within reach of a
-      starting city.
-- [ ] Industry panel: "Makes Goods from Steel **or** Lumber", "Needs Coal **and** Iron ore", with the nearest
+- [x] Playability check (`economy/playability.ts`) includes: at least one complete chain to goods within reach of a
+      starting city. _(Guaranteed by the chain pass and asserted in tests; deliberately not a city-retry trigger — see SPEC Deviations.)_
+- [x] Industry panel: "Makes Goods from Steel **or** Lumber", "Needs Coal **and** Iron ore", with the nearest
       source of each input (name + distance, tappable to centre the map on it). Pictograms per STYLE.
-- [ ] Unit tests on several seeds: every processor has its inputs within range.
+- [x] Unit tests on several seeds: every processor has its inputs within range.
 
 ### E. Wrap-up
-- [ ] SPEC deviations recorded (sharp-turn rule, transfer revenue, chain placement distance).
-- [ ] Screenshots: rejected sharp join (red preview), train panel "Waiting for …", warehouse station panel with
+- [x] SPEC deviations recorded (sharp-turn rule, transfer revenue, chain placement distance).
+- [x] Screenshots: rejected sharp join (red preview), train panel "Waiting for …", warehouse station panel with
       transfer stock, industry panel with inputs. Look at them.

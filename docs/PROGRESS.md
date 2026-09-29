@@ -3655,3 +3655,69 @@ Cropped and magnified the important spots to check rails/ties, not just the over
   the ghost lane by ≲1px because the easing cannot see across a strand boundary; after a terminal reversal the
   tail extends along whatever track lies behind the fold (or straight back if none).
 - Next: nothing scheduled; future ideas remain at the bottom of `docs/PLAN.md`.
+
+## 2026-09-29 — Phase 18: Play-test 5 (sharp turns, phantom jams, warehouse hubs, industry chains)
+
+Work order B → A → D → C → E. Tests: 390 unit (was 357), 99 e2e (was 95); `npm run check` and `npm run e2e` green.
+
+### B. Phantom jams — root causes found (all reproduced by `tests/sim/trains/phantomJam.test.ts`)
+The stress test builds a random single/double network (30×30, 6–12 trains, mid-run track/station edits, 2 game years,
+6 seeds; `STRESS_BIG=1` → 48×48, up to 20 trains, 4 years, 12 seeds) and checks every day: no opposing trains on one
+block, held blocks lie on the train's route, section targets are real, waiting trains have a recorded live blocker,
+no wait > 100 days (250 big) outside a wait-for cycle or behind a train with no route, and the sim's own daily
+self-check (`clearStaleReservations`) never fires. It failed on every seed before the fixes. Root causes:
+1. **`noRoute` trains sat in a station forever holding a platform slot** (a depot has 2). Two trains whose next
+   stop was unreachable (e.g. only via a sharp junction — the player's Trieste case) filled the depot, so every
+   other train waited "for a platform" with no visible blocker. Fix: report "No route" once, then skip to the next
+   *reachable* order; only a train with no reachable order at all stays in `noRoute` (and the panel says so).
+2. **`stuck` was terminal.** After 20 days of waiting a train became `stuck` and `handleIdle` only retried on a track
+   change, so a line that cleared later never released it. Fix: a stuck train re-runs the departure check every tick.
+3. **Stale block ids after any track edit.** Blocks are re-numbered whenever `trackVersion` changes, but `heldBlocks`
+   kept the old ids, so reservations pointed at unrelated blocks (false blockers, and opposing trains let through).
+   Trains then also re-routed mid-section, dropped their reservation and tried to depart from a node out on the line.
+   Fix: `remapReservations` re-derives every train's reservation from its route (tail → section end) when the
+   partition changes; a train inside a reserved section defers its re-plan to the next station.
+4. **Reversing at a terminal it merely passes through**: the train still "held" the block it had just used, so the
+   return trip counted as already reserved (in the wrong direction). Fix: at a station node the section is new
+   unless the train has already left (`needsNewSection`).
+5. **Starvation**: a steady same-way stream could keep an opposing train waiting for 100+ days. Fix: departures
+   yield to a train that has waited ≥ 24 h for the same block (`SIGNAL_FAIRNESS_HOURS`).
+- Wait-for graph: `Train.waitingOn` = {line|platform, station, block, direction, blocker train ids}; a daily
+  `clearStaleReservations` self-check (debug: `console.warn` under `?debug=1`) clears and re-plans leaked state.
+- Train panel: "Waiting for Train 3 (single track to Ljubljana)", "Waiting for platform at Trieste (Train 1, Train 2)",
+  "No route to Ljubljana". `?debug=1` → `__game.exportSave()` downloads the save JSON.
+
+### A. Sharp turns
+`findSharpSteps` (track/turn.ts): each new edge needs a ≤45° partner at each end among the other legs there (existing
+or same build); station tiles exempt. Rejected with `sharpTurn` ("Too sharp — trains can't turn more than 45° here"); the
+plan lists `sharpSteps` and the preview draws them as a heavy red overlay + toast. The build pathfinder (`respectTurns`)
+avoids sharp turns/joins and falls back to a plain path so the red segment can be shown. NOTE: the plan said a single
+drag already rejected >45°; in fact it only flagged it, so this is now enforced there too. Two old tests that built a
+90° branch were changed to a 45° turnout. `hasSharpJunction` (old-save marker) now flags only legs with no legal
+partner — turnouts lost their (misleading) red dot.
+
+### D. Industry chains
+`src/sim/economy/chains.ts` + `inputGroups()` in data/industries.ts (derived from `consumes`/`recipeMode`, range 25
+tiles). Runs after placement on a *copy* of the rng (so cities/names for a seed are unchanged): adds missing producers
+5–22 tiles from the processor (feeding new processors recursively), moves/drops an unfeedable processor on generated
+maps, keeps hand-placed region industries (adds inputs, relaxing terrain if needed) and guarantees a Factory. Industry
+panel: "Makes Goods from Steel **or** Lumber" / "Needs Coal **and** Iron ore" plus a tappable "nearest sources" row per
+input (name · distance; centres the map). Tests on 8 seeds × 2 sizes + all 4 regions.
+
+### C. Warehouse transfer hub
+See SPEC Deviations. New `LoadingRule` "transfer" ("Unload all (transfer)"), `GameState.stationTransfer`, `TransferLot`,
+"Transferred" floating label, station panel section "Waiting for transfer: 18 t coal from Ashtown Coal Mine".
+Tests: `tests/sim/trains/transfer.test.ts` (drop, keep-aboard, no-warehouse, relay pays once at B for A→B distance and
+total time, own-drop, capacity/overflow, no decay) and e2e relay in `e2e/phase18.spec.ts`.
+
+### Screenshots (opened and checked) — `docs/screenshots/phase-18-*.png`
+- `sharp-turn-rejected`: red heavy segment on the refused 90° spur, toast "Too sharp…", legal 45° branch beside it with no
+  red dot. `train-waiting`: "Waiting for platform at Glenbury Crossing (Train 1, Train 2)". `industry-panel`: recipe line,
+  consumes chips and nearest-source rows (scrolled). `warehouse-transfer`: hub panel with the transfer row (chip + origin).
+- Nits: the Factory's nearest Sawmill is 44 tiles away (only the Steel Mill OR-branch is guaranteed within 25); the
+  "Transferred ·" floating label is partly under the top bar in the screenshot's framing.
+
+### Skipped / limits
+- Optional "credit feeder stats" for transfers: skipped. Cargo mixing: a car takes one transfer lot per stop.
+- The goods-chain playability check is asserted in tests but is not a city-retry trigger (a retry would change every city).
+- A processor that cannot be fed on a generated map is dropped (rare; none on the tested seeds).
