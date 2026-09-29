@@ -85,13 +85,13 @@ async function buildStationAt(
   await page.waitForTimeout(100);
 }
 
-// A flat, obstacle-free row for seed 12345 (plain terrain from x=71 to at least x=95 at y=47 —
+// A flat, obstacle-free row for seed 12345 (plain terrain from x=62 to at least x=86 at y=145 —
 // verified with a throwaway search script against the deterministic generator, see PROGRESS.md),
-// running right through the town of Ashtown's footprint (tiles (75,47) and (76,47)) — the same
-// town visible in phase-4-junction.png.
-const ROW_Y = 47;
-const TRACK_FROM = { x: 71, y: ROW_Y };
-const TRACK_TO = { x: 90, y: ROW_Y };
+// running right through the city of Dunville's footprint (tiles (66,145) and (67,145)) — the same
+// city visible in phase-4-junction.png. (Phase 23A: re-found on the 5 km/tile map.)
+const ROW_Y = 145;
+const TRACK_FROM = { x: 62, y: ROW_Y };
+const TRACK_TO = { x: 81, y: ROW_Y };
 
 test.describe("Phase 5 — stations", () => {
   test("Station mode: tap a track tile shows the catchment overlay, preview, and type picker", async ({
@@ -107,8 +107,8 @@ test.describe("Phase 5 — stations", () => {
     await buildStraightTrack(page, TRACK_FROM, TRACK_TO);
 
     await selectTool(page, "Station");
-    await centerOn(page, 76, ROW_Y, 1.5);
-    const p = await tileScreenPoint(page, 76, ROW_Y); // an Ashtown footprint tile
+    await centerOn(page, 67, ROW_Y, 1.5);
+    const p = await tileScreenPoint(page, 67, ROW_Y); // a Dunville footprint tile
     await page.mouse.click(p.x, p.y);
     // Let the panel's slide-in transition finish before screenshotting or measuring positions.
     await page.waitForTimeout(300);
@@ -117,7 +117,7 @@ test.describe("Phase 5 — stations", () => {
     await expect(page.locator(".station-type-btn")).toHaveCount(3);
     await expect(page.locator(".station-type-btn.active")).toContainText("Depot");
 
-    // On an Ashtown tile, even the smallest (Depot) catchment should already clear the acceptance
+    // On a Dunville tile, even the smallest (Depot) catchment should already clear the acceptance
     // threshold for the city's own passengers/mail.
     await expect(page.locator(".station-economy .chip")).not.toHaveCount(0);
 
@@ -139,9 +139,9 @@ test.describe("Phase 5 — stations", () => {
     await setup(page, { seed: 12345, size: "medium", waterLevel: "normal", roughness: "normal" });
     await buildStraightTrack(page, TRACK_FROM, TRACK_TO);
 
-    const DEPOT = { x: 73, y: ROW_Y };
-    const STATION = { x: 76, y: ROW_Y }; // inside Ashtown's footprint
-    const TERMINAL = { x: 85, y: ROW_Y };
+    const DEPOT = { x: 71, y: ROW_Y };
+    const STATION = { x: 67, y: ROW_Y }; // inside Dunville's footprint
+    const TERMINAL = { x: 76, y: ROW_Y };
 
     await buildStationAt(page, DEPOT, "Depot");
     await buildStationAt(page, STATION, "Station");
@@ -153,7 +153,7 @@ test.describe("Phase 5 — stations", () => {
     expect(stations.find((s) => s.x === STATION.x)?.type).toBe("station");
     expect(stations.find((s) => s.x === TERMINAL.x)?.type).toBe("terminal");
     // The city-tile station should default-name to the city alone.
-    expect(stations.find((s) => s.x === STATION.x)?.name).toBe("Ashtown");
+    expect(stations.find((s) => s.x === STATION.x)?.name).toBe("Dunville");
     // Only the first station built ever gets the free Engine Shed.
     const byId = [...stations].sort((a, b) => a.id - b.id);
     expect(byId[0]?.hasEngineShed).toBe(true);
@@ -174,14 +174,14 @@ test.describe("Phase 5 — stations", () => {
   test("station panel: rename, upgrade, supplies/accepts, waiting-cargo bars", async ({ page }) => {
     await setup(page, { seed: 12345, size: "medium", waterLevel: "normal", roughness: "normal" });
     await buildStraightTrack(page, TRACK_FROM, TRACK_TO);
-    const STATION_TILE = { x: 76, y: ROW_Y }; // inside Ashtown — rich supply/accept preview
+    const STATION_TILE = { x: 67, y: ROW_Y }; // inside Dunville — rich supply/accept preview
     await buildStationAt(page, STATION_TILE, "Depot");
 
     const [station] = await page.evaluate(() => window.__game!.getStations());
     expect(station).toBeDefined();
 
     const economy = await page.evaluate((id) => window.__game!.getStationEconomy(id), station!.id);
-    // Ashtown is a town — its per-tile passenger/mail acceptance (4 each) across a Depot's 3x3
+    // Dunville is a city — its per-tile passenger/mail acceptance (4 each) across a Depot's 3x3
     // catchment clears the 8-point threshold.
     expect(economy?.accepts).toEqual(expect.arrayContaining(["passengers", "mail"]));
 
@@ -194,7 +194,7 @@ test.describe("Phase 5 — stations", () => {
 
     // The name appears once, as the title (STYLE review) — no separate rename field until the
     // pencil-icon edit button is tapped.
-    await expect(page.locator(".panel-title")).toHaveText("Ashtown");
+    await expect(page.locator(".panel-title")).toHaveText("Dunville");
     await expect(page.locator(".station-name-input")).toHaveCount(0);
     // Supplies render as pictogram chips (STYLE §6) with a thin waiting-cargo bar underneath each
     // one — no days have run yet, so the bars are all at 0%, but the chip stacks themselves (and
@@ -212,14 +212,14 @@ test.describe("Phase 5 — stations", () => {
     // Tapping the pencil icon turns the title into an inline edit field, pre-filled with the
     // current name.
     await page.locator(".station-title-edit-btn").click();
-    await expect(page.locator(".station-name-input")).toHaveValue("Ashtown");
+    await expect(page.locator(".station-name-input")).toHaveValue("Dunville");
 
     // Rename (blur commits; the panel fully re-renders twice in a row here — edit mode back to
     // display mode — so give each slide transition's old copy time to clear the DOM).
-    await page.locator(".station-name-input").fill("Ashtown Central");
+    await page.locator(".station-name-input").fill("Dunville Central");
     await page.locator(".station-name-input").blur();
     await page.waitForTimeout(300);
-    await expect(page.locator(".panel-title")).toHaveText("Ashtown Central");
+    await expect(page.locator(".panel-title")).toHaveText("Dunville Central");
     await expect(page.locator(".station-name-input")).toHaveCount(0);
 
     // Upgrade (the panel fully re-renders; give the old copy time to be removed from the DOM
@@ -230,6 +230,6 @@ test.describe("Phase 5 — stations", () => {
     await expect(page.locator(".station-upgrade-btn")).toContainText("Upgrade to Terminal");
     const upgraded = await page.evaluate(() => window.__game!.getStations());
     expect(upgraded[0]?.type).toBe("station");
-    expect(upgraded[0]?.name).toBe("Ashtown Central");
+    expect(upgraded[0]?.name).toBe("Dunville Central");
   });
 });

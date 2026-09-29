@@ -7,6 +7,7 @@
  * Nodes only ever land on buildable land tiles; a step to a non-adjacent tile represents a bridge
  * jumping the water/river tiles in between (see track/cost.ts `spanTilesBetween`).
  */
+import { WORLD_SCALE } from "../../data/scale";
 import { DIRS8, inBounds, tileIndex } from "../map/grid";
 import { terrainAt } from "../map/terrain";
 import type { GameMap } from "../map/types";
@@ -29,10 +30,10 @@ const CONSECUTIVE_TURN_PENALTY = 6_000;
 
 /** Max tiles of water/river a single bridge jump is allowed to scan past while searching — the
  * largest span any bridge type can cover (steel, SPEC §5.3). */
-const MAX_BRIDGE_SEARCH_SPAN = 8;
+const MAX_BRIDGE_SEARCH_SPAN = 8 * WORLD_SCALE;
 
 /** Safety cap on explored states so a drag toward an unreachable/far corner can't hang a frame. */
-const MAX_EXPANSIONS = 20_000;
+const MAX_EXPANSIONS = 20_000 * WORLD_SCALE * WORLD_SCALE;
 
 export interface PathfindOptions {
   /** Restrict travel to existing single (non-double) edges of this graph — Double mode. */
@@ -225,7 +226,7 @@ export function findBuildPath(
 ): number[] | null {
   if (start === goal) return [start];
 
-  const padding = options.searchPadding ?? 24;
+  const padding = options.searchPadding ?? 24 * WORLD_SCALE;
   const sx = start % map.width;
   const sy = Math.floor(start / map.width);
   const gx = goal % map.width;

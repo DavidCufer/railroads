@@ -44,6 +44,9 @@ const RIVER_ID = terrainId("river");
 /** Sub-tile shading resolution: a 4x4 grid of bilinearly-sampled hillshade cells per tile. */
 const SHADE_SUBCELLS = 4;
 
+/** Per-axis weights of the 4-tap smoothing kernel behind the coastline contour (sums to 8). */
+const CORNER_KERNEL = [1, 3, 3, 1] as const;
+
 function pickBucket(zoom: number): ZoomBucket {
   if (zoom >= 1.4) return 2;
   if (zoom >= 0.75) return 1;
@@ -453,31 +456,45 @@ export class TerrainRenderer {
   }
 
   /**
-   * "Water-ness" (0..1) of the grid corner at (gx, gy) — the average of the up-to-4 tiles sharing
-   * that corner point. This is the standard dual-grid input for marching squares: along a straight
-   * coastline every corner sits at exactly 0.5 (2 of the 4 sharing tiles are water, 2 aren't), so
-   * thresholding at 0.5 and linearly interpolating along each tile edge reproduces the true
-   * coastline geometry instead of the tile grid's own pixel-stepped boundary. Off-map tiles count
-   * as land (a map edge isn't itself a coastline unless a real water tile makes it one).
+   * "Water-ness" (0..1) of the grid corner at (gx, gy): a smooth (Phase 23A) [1 3 3 1]x[1 3 3 1]
+   * weighted average over the 4x4 tiles around that corner point. This is the marching-squares
+   * input: along a straight coastline every corner sits at exactly 0.5 (the kernel is symmetric),
+   * while a staircase coast is low-pass filtered, so thresholding at 0.5 and interpolating along
+   * each tile edge traces a rounded contour instead of the tile grid's own steps. Off-map tiles
+   * count as land (a map edge isn't itself a coastline unless a real water tile makes it one).
    */
   private cornerWaterness(gx: number, gy: number): number {
     let sum = 0;
-    for (const [dx, dy] of [
-      [-1, -1],
-      [0, -1],
-      [-1, 0],
-      [0, 0],
-    ] as const) {
-      const tx = gx + dx;
-      const ty = gy + dy;
-      if (
-        inBounds(this.map, tx, ty) &&
-        (this.map.terrain[tileIndex(this.map, tx, ty)] as number) === WATER_ID
-      ) {
-        sum += 1;
+    for (let j = 0; j < 4; j++) {
+      const ty = gy - 2 + j;
+      const wy = CORNER_KERNEL[j] as number;
+      for (let i = 0; i < 4; i++) {
+        const tx = gx - 2 + i;
+        if (
+          inBounds(this.map, tx, ty) &&
+          (this.map.terrain[tileIndex(this.map, tx, ty)] as number) === WATER_ID
+        ) {
+          sum += wy * (CORNER_KERNEL[i] as number);
+        }
       }
     }
-    return sum / 4;
+    return sum / 64;
+  }
+
+  /** True when every tile in the 5x5 block around (mapX, mapY) is water, or none is — no coast here. */
+  private uniformNeighbourhood(mapX: number, mapY: number): boolean {
+    let water = 0;
+    let total = 0;
+    for (let dy = -2; dy <= 2; dy++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        const x = mapX + dx;
+        const y = mapY + dy;
+        if (!inBounds(this.map, x, y)) continue;
+        total++;
+        if ((this.map.terrain[tileIndex(this.map, x, y)] as number) === WATER_ID) water++;
+      }
+    }
+    return water === 0 || water === total;
   }
 
   /**
@@ -485,7 +502,8 @@ export class TerrainRenderer {
    * ... true marching-squares contour instead of per-tile steps"). Every land tile bordering water
    * gets the true, continuously-interpolated water polygon for its corner cut filled and feathered
    * on top of its base color (and the mirror image for a water tile bordering land) — a real
-   * geometric contour line instead of jittered gradient blobs approximating one.
+   * geometric contour line instead of jittered gradient blobs approximating one. A tile the
+   * contour would flip entirely (a 1-tile strait or spit) is left alone so thin features survive.
    */
   private drawCoastlineContour(
     ctx: CanvasRenderingContext2D,
@@ -496,6 +514,7 @@ export class TerrainRenderer {
     size: number,
     isWater: boolean,
   ): void {
+    if (this.uniformNeighbourhood(mapX, mapY)) return;
     const c00 = this.cornerWaterness(mapX, mapY);
     const c10 = this.cornerWaterness(mapX + 1, mapY);
     const c11 = this.cornerWaterness(mapX + 1, mapY + 1);

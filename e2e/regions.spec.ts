@@ -20,12 +20,12 @@ test.describe("Phase 10 — real-world regions", () => {
     });
 
     const map = await page.evaluate(() => window.__game?.getMap());
-    expect(map?.width).toBe(160);
-    expect(map?.height).toBe(142);
+    expect(map?.width).toBe(320);
+    expect(map?.height).toBe(284);
 
     // Overview zoom (SPEC §4.1: below 0.5 renders the simplified overview style).
     await page.evaluate(() => window.__game?.camera.setZoom(0.25));
-    await page.evaluate(() => window.__game?.camera.setCenter(2560, 2272));
+    await page.evaluate(() => window.__game?.camera.setCenter(5120, 4544));
     await page.waitForTimeout(400);
     await page.screenshot({ path: "docs/screenshots/phase-10-us-east-overview.png" });
 
@@ -58,11 +58,11 @@ test.describe("Phase 10 — real-world regions", () => {
     });
 
     const map = await page.evaluate(() => window.__game?.getMap());
-    expect(map?.width).toBe(112);
-    expect(map?.height).toBe(144);
+    expect(map?.width).toBe(224);
+    expect(map?.height).toBe(288);
 
     await page.evaluate(() => window.__game?.camera.setZoom(0.25));
-    await page.evaluate(() => window.__game?.camera.setCenter(1792, 2304));
+    await page.evaluate(() => window.__game?.camera.setCenter(3584, 4608));
     await page.waitForTimeout(400);
     await page.screenshot({ path: "docs/screenshots/phase-10-gb-overview.png" });
 
@@ -95,11 +95,11 @@ test.describe("Phase 10 — real-world regions", () => {
     });
 
     const map = await page.evaluate(() => window.__game?.getMap());
-    expect(map?.width).toBe(142);
-    expect(map?.height).toBe(144);
+    expect(map?.width).toBe(284);
+    expect(map?.height).toBe(288);
 
     await page.evaluate(() => window.__game?.camera.setZoom(0.25));
-    await page.evaluate(() => window.__game?.camera.setCenter(2272, 2304));
+    await page.evaluate(() => window.__game?.camera.setCenter(4544, 4608));
     await page.waitForTimeout(400);
     await page.screenshot({ path: "docs/screenshots/phase-10-central-eu-overview.png" });
 
@@ -132,11 +132,11 @@ test.describe("Phase 10 — real-world regions", () => {
     });
 
     const map = await page.evaluate(() => window.__game?.getMap());
-    expect(map?.width).toBe(136);
-    expect(map?.height).toBe(144);
+    expect(map?.width).toBe(272);
+    expect(map?.height).toBe(288);
 
     await page.evaluate(() => window.__game?.camera.setZoom(0.25));
-    await page.evaluate(() => window.__game?.camera.setCenter(2176, 2304));
+    await page.evaluate(() => window.__game?.camera.setCenter(4352, 4608));
     await page.waitForTimeout(400);
     await page.screenshot({ path: "docs/screenshots/phase-10-us-west-overview.png" });
 

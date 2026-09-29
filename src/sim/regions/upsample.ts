@@ -33,7 +33,7 @@ const RIVER_SAMPLE_STEP = 0.4;
 const RIVER_MEANDER = 0.6;
 const RIVER_MEANDER_SCALE = 4 * WORLD_SCALE;
 /** How far (tiles) a river mouth may be extended to reach the wobbled coast. */
-const RIVER_MOUTH_REACH = 4;
+const RIVER_MOUTH_REACH = 6;
 
 export interface SourceGrid {
   width: number;
@@ -283,30 +283,46 @@ export function upsampleGrid(src: SourceGrid, seed: number): UpsampledGrid {
   for (let i = 0; i < size; i++) if (terrain[i] === WATER) elevation[i] = 0;
 
   const rivers: number[][] = [];
+  const owner = new Map<number, number>();
   for (const river of src.rivers) {
     const path = traceRiver(src, river, riverPerm, width, height);
-    extendToWater(path, terrain, width, height);
-    if (path.length > 0) rivers.push(path);
+    if (path.length === 0) continue;
+    for (const idx of path) if (!owner.has(idx)) owner.set(idx, rivers.length);
+    rivers.push(path);
   }
+  rivers.forEach((path, i) => extendToWaterOrRiver(path, i, owner, terrain, width, height));
   return { width, height, terrain, elevation, elevationRaw, rivers };
 }
 
-/** Extends a river path to the nearest water tile within reach when the wobbled coast moved away. */
-function extendToWater(path: number[], terrain: Uint8Array, width: number, height: number): void {
+/** Extends a river path to the nearest water tile — or a tile of another river it merges into —
+ * within reach, when the wobbled coast / re-traced neighbour ended up a couple of tiles away. */
+function extendToWaterOrRiver(
+  path: number[],
+  self: number,
+  owner: ReadonlyMap<number, number>,
+  terrain: Uint8Array,
+  width: number,
+  height: number,
+): void {
   const last = path[path.length - 1];
   if (last === undefined) return;
   const tile = { width, height };
-  const adjacentToWater = (idx: number): boolean => {
+  const isTarget = (idx: number): boolean => {
+    if (terrain[idx] === WATER) return true;
+    const o = owner.get(idx);
+    return o !== undefined && o !== self;
+  };
+  const adjacentToTarget = (idx: number): boolean => {
     const x = idx % width;
     const y = Math.floor(idx / width);
     return DIRS8.some(([dx, dy]) => {
       const nx = x + dx;
       const ny = y + dy;
-      return inBounds(tile, nx, ny) && terrain[ny * width + nx] === WATER;
+      return inBounds(tile, nx, ny) && isTarget(ny * width + nx);
     });
   };
-  if (terrain[last] === WATER || adjacentToWater(last)) return;
-  // BFS over land toward the closest water tile.
+  if (isTarget(last) || adjacentToTarget(last)) return;
+  // BFS toward the closest target.
   const prev = new Map<number, number>([[last, -1]]);
   let frontier = [last];
   for (let d = 0; d < RIVER_MOUTH_REACH && frontier.length > 0; d++) {
@@ -321,7 +337,7 @@ function extendToWater(path: number[], terrain: Uint8Array, width: number, heigh
         const n = ny * width + nx;
         if (prev.has(n)) continue;
         prev.set(n, idx);
-        if (terrain[n] === WATER) {
+        if (isTarget(n)) {
           const tail: number[] = [];
           for (let p = idx; p !== -1 && p !== last; p = prev.get(p) as number) tail.push(p);
           path.push(...tail.reverse());

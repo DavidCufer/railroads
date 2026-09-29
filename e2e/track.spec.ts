@@ -68,10 +68,10 @@ test.describe("Phase 4 — track building", () => {
 
     await setup(page, { seed: 12345, size: "medium", waterLevel: "normal", roughness: "normal" });
 
-    // A hand-picked flat, obstacle-free patch near the map center for seed 12345 (verified by a
-    // throwaway search script against the deterministic generator — see PROGRESS.md).
-    const ORIGIN = { x: 71, y: 47 };
-    await centerOn(page, 73, 47, 1.5);
+    // A hand-picked flat, obstacle-free patch for seed 12345 (verified by a throwaway search script
+    // against the deterministic generator — see PROGRESS.md; re-found on the 5 km/tile map).
+    const ORIGIN = { x: 62, y: 145 };
+    await centerOn(page, 64, 145, 1.5);
 
     const cashStart = await page.evaluate(() => window.__game!.getCash());
 
@@ -132,10 +132,10 @@ test.describe("Phase 4 — track building", () => {
 
   test("drag preview shows a ghost path and a cost label mid-drag", async ({ page }) => {
     await setup(page, { seed: 12345, size: "medium", waterLevel: "normal", roughness: "normal" });
-    await centerOn(page, 73, 47, 1.5);
+    await centerOn(page, 64, 145, 1.5);
 
     await selectTool(page, "Track");
-    await dragTo(page, { x: 71, y: 47 }, { x: 75, y: 47 });
+    await dragTo(page, { x: 62, y: 145 }, { x: 66, y: 145 });
     // Still holding the mouse down — this is the live drag preview, not the confirm bar.
     await expect(page.locator(".build-cost-label")).toBeVisible();
     await page.screenshot({ path: "docs/screenshots/phase-4-drag-preview.png" });
@@ -152,11 +152,11 @@ test.describe("Phase 4 — track building", () => {
       roughness: "normal",
       startYear: 1870,
     });
-    // A 3-tile-wide water crossing for seed 12345 with no cheaper land detour and no city/
-    // industry nearby (found and verified against the real A* pathfinder — see PROGRESS.md).
-    const FROM = { x: 58, y: 22 };
-    const TO = { x: 54, y: 26 };
-    await centerOn(page, 56, 24, 1.5);
+    // A 4-tile-wide water crossing for seed 12345 (20 km at 5 km/tile) with no cheaper land detour and
+    // no city/industry nearby (found and verified against the real A* pathfinder — see PROGRESS.md).
+    const FROM = { x: 69, y: 26 };
+    const TO = { x: 64, y: 31 };
+    await centerOn(page, 66, 28, 1.5);
 
     await selectTool(page, "Track");
     await dragTo(page, FROM, TO);
@@ -185,9 +185,9 @@ test.describe("Phase 4 — track building", () => {
     });
     // A single-tile river crossing for seed 12345 with no cheaper land detour and no city/
     // industry nearby (found and verified against the real A* pathfinder — see PROGRESS.md).
-    const FROM = { x: 103, y: 21 };
-    const TO = { x: 105, y: 23 };
-    await centerOn(page, 104, 22, 2);
+    const FROM = { x: 96, y: 111 };
+    const TO = { x: 98, y: 113 };
+    await centerOn(page, 97, 112, 2);
 
     const bridgeShots: Array<{ type: string; file: string }> = [
       { type: "wood", file: "docs/screenshots/phase-4-bridge-wood.png" },

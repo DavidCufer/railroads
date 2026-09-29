@@ -3,9 +3,9 @@ import "./gameWindow";
 
 const PHONE_VIEWPORT = { width: 800, height: 360 };
 const TILE_SIZE = 32;
-// Seed 12345: a flat row through the town of Ashtown (footprint includes (75,47) and (76,47)).
-const ROW_Y = 47;
-const STATION_X = 76;
+// Seed 12345: a flat row through the city of Dunville (footprint includes (66,145) and (67,145)).
+const ROW_Y = 145;
+const STATION_X = 67;
 
 async function setup(page: Page): Promise<void> {
   await page.setViewportSize(PHONE_VIEWPORT);
@@ -24,10 +24,10 @@ async function setup(page: Page): Promise<void> {
       const g = window.__game!;
       const w = g.getMap().width;
       const path: number[] = [];
-      for (let x = 71; x <= 90; x++) path.push(y * w + x);
+      for (let x = 62; x <= 81; x++) path.push(y * w + x);
       g.buildTrackPath(path);
-      g.buildStation(y * w + 76, "station");
-      g.buildStation(y * w + 88, "station");
+      g.buildStation(y * w + 67, "station");
+      g.buildStation(y * w + 79, "station");
     },
     { y: ROW_Y },
   );
@@ -48,10 +48,10 @@ async function tilePoint(page: Page, x: number, y: number): Promise<{ x: number;
 test.describe("Phase 17 — tap targeting", () => {
   test("a tap near a station inside a city opens the station, not the city", async ({ page }) => {
     await setup(page);
-    // The station tile is (76,47); tile (75,47) is a city tile. Tap 26px left of the station
+    // The station tile is (67,145); tile (66,145) is a city tile. Tap 26px left of the station
     // centre — already inside the neighbouring city tile at zoom 1.5.
     const c = await tilePoint(page, STATION_X, ROW_Y);
-    const cityTile = await tilePoint(page, 75, ROW_Y);
+    const cityTile = await tilePoint(page, 66, ROW_Y);
     expect(cityTile.x).toBeLessThan(c.x);
     await page.getByRole("button", { name: "Info", exact: true }).click();
     await page.mouse.click(c.x - 26, c.y);
@@ -66,8 +66,8 @@ test.describe("Phase 17 — tap targeting", () => {
     await setup(page);
     const c = await tilePoint(page, STATION_X, ROW_Y);
     await page.getByRole("button", { name: "Info", exact: true }).click();
-    // Ashtown spans y=47..51; (76,50) is well outside the station's touch radius.
-    const p = await tilePoint(page, 76, 50);
+    // Dunville spans y=142..149; (67,148) is well outside the station's touch radius.
+    const p = await tilePoint(page, 67, 148);
     void c;
     await page.mouse.click(p.x, p.y);
     const link = page.locator('[data-testid="served-by-station"]').first();
@@ -86,7 +86,7 @@ test.describe("Phase 17 — tap targeting", () => {
     await page.locator(".wizard-next").click(); // Engine → Cars
     await page.locator(".wizard-next").click(); // Cars → Route
     await page.locator(".train-pick-station-btn").click();
-    const cityTile = await tilePoint(page, 76, 49);
+    const cityTile = await tilePoint(page, 66, 147);
     await page.mouse.click(cityTile.x, cityTile.y);
     await page.waitForTimeout(100);
     // The route step is still open and the timeline now has one stop.
