@@ -3900,3 +3900,66 @@ Tests: 416 unit (new `tests/ui/trainUi.test.ts`), 125 e2e (new `e2e/phase22.spec
 `buy-engine-electric`, `buy-engine-diesel`, `train-stats`, `station-trains`.
 - Nits: the debug overlay (fps, seed controls) shows on the map in these shots because they run under `?debug=1`; the yearly report
   panel opens behind the new-engine card at the year turn (both are real behaviour).
+
+## 2026-09-29 — Phase 21.1: Map polish, second pass
+
+`npm run check` green (416 unit). New e2e `e2e/phase21-1.spec.ts` (screenshots + perf report). Screenshots (opened and checked)
+in `docs/screenshots/phase-21-1-*.png`: `station-depot/station/terminal-zoom2` (each with a train at the platform),
+`station-improvements-zoom1.6` (hotel, warehouse, post office, cold store, freight yard, pens, engine shed, water tower),
+`station-diagonal`, `industries-zoom1`, `industries-zoom2-a..d`, `town-zoom1.5`, `city-zoom1.5`, `city-zoom1`.
+
+### What changed (before → after)
+- **Stations** (`render/stationArt.ts`, `render/stations.ts`): before, a ~60×25 px grey box with two short strips; depot and
+  station were near-identical. Now platforms run along the track with length by type (depot 2, station 3, terminal 4 tiles,
+  centred, clipped to the straight track that really continues), kerb line, yellow safety line, lamps, benches. Depot = wooden
+  hut with a red gable roof, chimney, name board; Station = 1.7-tile brick building with slate end pavilions, a red
+  cross-gable with a clock, chimneys, a paved forecourt and canopies (posts, lit ridge) over both platforms; Terminal = a
+  4-tile barrel-vaulted shed over all tracks (gradient vault, ribs, glazed centre strip, gable ends) plus a 2.9-tile head
+  building with end pavilions and a copper-roofed clock tower. Everything is drawn in a local frame scaled to tiles, so it
+  rotates with diagonal tracks; the lit/shaded roof halves and the shadow direction are computed from the rotation so light
+  always comes from the upper left.
+- **Improvements** are laid out by `layoutImprovements`, in the station's rotated frame: warehouse / hotel / post office in a
+  row beside the building, cold storage behind it, engine shed / water tower / freight yard / pens on the far side of the
+  track. Each is a distinct 1.3× miniature (goods shed with dock + skylights, hotel with cross-gable, post office with
+  mailbox, cold store with fans, engine shed with doors and vents, tank on legs with spout and long shadow, sidings with a
+  wagon, fenced pens with animals). The name plate now sits below the art (`stationArtBottom`).
+- **Blob**: it was the supply bubble — a 75 %-opaque dark disc tinted with the cargo colour, so coal's dark pictogram vanished on
+  it. Now a cream badge with a cargo-coloured ring and a little tail, anchored above the building (`stationArtTop`).
+- **Industries** (`render/industries.ts`, `render/mapShapes.ts`): before, one paved 32 px square with a tiny icon. Now each is a
+  ~2×2-tile cluster on an irregular ground patch (drawn after the chunk's tiles so it can spill onto neighbours, incl.
+  industries from adjacent chunks): coal/iron mine (A-frame headframe with winding wheel and long shadow, headhouse, conveyor,
+  black / rust-red spoil heap, rail spur stub with an ore cart), logging camp (cleared patch, log stacks, cabin, saw blade,
+  fringe of conifers), sawmill (long shed, log pile, lumber stacks, sawdust heap, burner stack), steel mill (blast furnace with
+  glow, stoves, three chimneys, ore/coke heaps, saw-tooth rolling mill), farm (house, red barn, silos, hay bales, striped fields
+  kept on neighbouring tiles), ranch (fenced pasture with cattle, barn, tank), oil well (two pumpjacks on an oil-stained pad,
+  tanks, pipeline), refinery (tanks, pipe rack, distillation tower, flare), factory (six saw-tooth bays, two chimneys, dock,
+  office), food plant (hall, three silos, boiler stack), port (water basin, pier, ship, crane, containers). Chimney smoke
+  positions were converted to the new geometry.
+- **Cities** (`render/cities.ts`): before, rows of rotated flat rectangles. Now each tile is a block on a street grid (light warm
+  grey streets along the tile's top/left edge so they run unbroken), 2×2 lots holding gable or hip roofed houses of varying
+  size and ridge direction, terraces, flat-roofed shops toward the core, gardens with trees; dense tiles get a paved tint. Town
+  landmark = church (cross-shaped slate roof, tower with a long-shadowed spire, churchyard trees); City/Metropolis = town hall
+  with wings, copper-roof clock tower and a fountain plaza.
+- **Crisp at zoom ≥ 1.4** (not asked, needed for the art to look right): terrain chunks are additionally baked at 2× when the
+  camera zoom is ≥ 1.4 (previously the 1× bake was upscaled and looked blurry). These 4 MB chunks live in a separate 12-entry LRU
+  and only on-screen chunks are baked (no ±1 margin).
+- Shared drawing primitives are in `render/mapShapes.ts` (gable / hip / flat roofs, tanks, chimneys, mounds, trees, spurs, logs,
+  pyramids); the station art keeps its own rotated-frame variants.
+
+### Performance (headless software-rendered Chromium; `[perf]` lines from `phase21-1.spec.ts`)
+| scenario | avg render ms before | after | cold first frame after cache bust before → after |
+| --- | --- | --- | --- |
+| city zoom 1.5 | 0.22 | 0.18 | 74 → 71 ms |
+| 12 industries zoom 1 | 0.17 | 0.21 | 56 → 59 ms |
+| 3 stations w/ improvements zoom 1.5 | 0.31 | 0.26 (sprite cache) | 50 → 58 ms |
+
+The "render ≈ 23 ms" in the Phase 21 city screenshot was the first frames right after teleporting (chunk bake) plus the debug
+overlay; steady state was already ≈ 0.2 ms. All static art is baked per chunk (terrain, cities, industries) or per sprite
+(stations, keyed by type/angle/reach/improvements/size bucket, 24-entry LRU); per frame only trains, smoke and labels are drawn.
+Stress e2e unchanged (avgRenderMs well under its asserts). 2× chunks cost more to bake (≈ 4 MB each, ≤ 12 cached).
+
+### Deviations
+- Terminal head building is on one side only (as in Phase 21); the shed roof hides the platforms inside it.
+- Platform clipping only looks at straight continuation of the station's own track direction (up to 3 tiles each way).
+- The fields around farms are still drawn by terrain.ts on neighbouring plain tiles (unchanged from Phase 21).
+- Added the 2× terrain bake (see above); the track layer is still baked at 1× (thin lines stay acceptable).

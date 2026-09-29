@@ -182,11 +182,9 @@ test.describe("Phase 21.1 — map polish", () => {
       st.hasEngineShed = true;
       st.hasWaterTower = true;
     }, id);
-    await centerOn(page, cx, cy + 0.3, 1.5);
-    await page.screenshot({
-      path: "docs/screenshots/phase-21-1-station-improvements-zoom1.5.png",
-      clip: { x: 60, y: 30, width: 680, height: 320 },
-    });
+    await hideUi(page);
+    await centerOn(page, cx, cy + 0.4, 1.6);
+    await page.screenshot({ path: "docs/screenshots/phase-21-1-station-improvements-zoom1.6.png" });
   });
 
   test("station diagonal", async ({ page }) => {

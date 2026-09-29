@@ -710,5 +710,5 @@ Phase 22's train screens look great; the map now lags behind them. Review of the
 - Screenshots to judge (open every one, before/after side by side in PROGRESS): each station type at zoom 2 with
   a train at the platform, a station with all improvements, each industry at zoom 1 and 2, a Town and a City at
   zoom 1.5, overview at zoom 0.5.
-- [ ] Stations & platforms   - [ ] Improvements layout   - [ ] Blob fix   - [ ] Industries   - [ ] Cities
-- [ ] Perf / caching          - [ ] Screenshots reviewed
+- [x] Stations & platforms   - [x] Improvements layout   - [x] Blob fix   - [x] Industries   - [x] Cities
+- [x] Perf / caching          - [x] Screenshots reviewed

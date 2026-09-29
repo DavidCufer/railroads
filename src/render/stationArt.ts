@@ -489,6 +489,9 @@ interface Slot {
   h: number;
 }
 
+/** Improvements are drawn a bit larger than their layout boxes so they read at zoom 1. */
+const IMPROVEMENT_SCALE = 1.3;
+
 const SIZES: Record<StationMarkerType, readonly [number, number]> = {
   warehouse: [1.0, 0.5],
   hotel: [0.5, 0.5],
@@ -510,22 +513,23 @@ export function layoutImprovements(
   const bh = o.type === "depot" ? 0.36 : o.type === "station" ? STATION_BH : 0.5;
   const nearSide = o.type === "terminal" ? 0.52 + bh : o.near + pt + 0.07 + bh;
   const farSide = o.type === "depot" ? o.near + 0.2 : o.near + pt + 0.12;
-  const rowBack = nearSide + 0.16; // second row starts behind the first row's outer edge
+  const rowBack = nearSide + 0.2; // second row starts behind the first row's outer edge
   const slots: Slot[] = [];
   const has = (t: StationMarkerType) => o.improvements.includes(t);
   const put = (type: StationMarkerType, cx: number, yEdge: number, dir: -1 | 1) => {
     const [w, h] = SIZES[type];
-    slots.push({ type, cx, cy: dir * (yEdge + h / 2), w, h });
+    slots.push({ type, cx, cy: dir * (yEdge + (h * IMPROVEMENT_SCALE) / 2), w, h });
   };
+  const K = IMPROVEMENT_SCALE;
   const edge = bw / 2 + 0.24;
-  if (has("warehouse")) put("warehouse", -(edge + 0.5), nearSide - bh, -1);
-  if (has("hotel")) put("hotel", edge + 0.25, nearSide - bh, -1);
-  if (has("postOffice")) put("postOffice", edge + 0.5 + 0.12 + 0.21, nearSide - bh, -1);
+  if (has("warehouse")) put("warehouse", -(edge + 0.5 * K), nearSide - bh, -1);
+  if (has("hotel")) put("hotel", edge + 0.25 * K, nearSide - bh, -1);
+  if (has("postOffice")) put("postOffice", edge + 0.5 * K + 0.12 + 0.21 * K, nearSide - bh, -1);
   if (has("coldStorage")) put("coldStorage", 0, rowBack, -1);
-  if (has("engineShed")) put("engineShed", -1.3, farSide, 1);
-  if (has("waterTower")) put("waterTower", 1.55, farSide, 1);
-  if (has("freightYard")) put("freightYard", -0.1, farSide + 0.66, 1);
-  if (has("livestockPens")) put("livestockPens", 1.35, farSide + 0.66, 1);
+  if (has("engineShed")) put("engineShed", -1.5, farSide, 1);
+  if (has("waterTower")) put("waterTower", 1.7, farSide, 1);
+  if (has("freightYard")) put("freightYard", -0.3, farSide + 0.75, 1);
+  if (has("livestockPens")) put("livestockPens", 1.4, farSide + 0.75, 1);
   return slots;
 }
 
@@ -751,6 +755,18 @@ function drawPens(g: G, s: Slot): void {
 }
 
 function drawImprovement(g: G, s: Slot): void {
+  g.ctx.save();
+  g.ctx.translate(s.cx, s.cy);
+  g.ctx.scale(IMPROVEMENT_SCALE, IMPROVEMENT_SCALE);
+  g.ctx.translate(-s.cx, -s.cy);
+  const savedPx = g.px;
+  g.px = savedPx / IMPROVEMENT_SCALE;
+  drawImprovementShape(g, s);
+  g.px = savedPx;
+  g.ctx.restore();
+}
+
+function drawImprovementShape(g: G, s: Slot): void {
   switch (s.type) {
     case "warehouse":
       drawWarehouse(g, s, 1);
@@ -795,8 +811,8 @@ export function stationArtBottom(o: StationArtOptions): number {
       [-1, 1],
       [1, 1],
     ] as const) {
-      const lx = slot.cx + (dx * slot.w) / 2;
-      const ly = slot.cy + (dy * slot.h) / 2;
+      const lx = slot.cx + (dx * slot.w * IMPROVEMENT_SCALE) / 2;
+      const ly = slot.cy + (dy * slot.h * IMPROVEMENT_SCALE) / 2;
       bottom = Math.max(bottom, lx * s + ly * c);
     }
   }
