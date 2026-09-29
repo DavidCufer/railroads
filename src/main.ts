@@ -1572,4 +1572,9 @@ function main(): void {
   }
 }
 
-main();
+if (DEBUG && new URLSearchParams(window.location.search).has("gallery")) {
+  // Rolling-stock art gallery (PLAN Phase 19); replaces the game entirely.
+  void import("./render/art/gallery").then((m) => m.mountGallery());
+} else {
+  main();
+}
