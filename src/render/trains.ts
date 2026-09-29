@@ -2,17 +2,20 @@ import { DIRS8 } from "../sim/map/grid";
 import type { TrackGraph } from "../sim/track/graph";
 import { tileXY } from "../sim/trains/geometry";
 import type { Train } from "../sim/trains/types";
-import { CARGO, type CargoType } from "../data/cargo";
-import { LOCO_LENGTH_TILES, locomotiveById } from "../data/trains";
+import type { CargoType } from "../data/cargo";
+import { LOCO_LENGTH_TILES, locomotiveById, type LocomotiveDef } from "../data/trains";
 import { Camera, TILE_SIZE } from "./camera";
+import { TRAIN_SIGNAL_WAIT_COLOR, TRAIN_WARNING_COLOR } from "./palette";
+import { drawCarSprite, drawLocoSprite, chimneyOffset } from "./art/mapSprites";
+import { eraBucket, type EraBucket } from "./art/livery";
 import {
-  CAR_EMPTY_COLOR,
-  CAR_OUTLINE_COLOR,
-  LOCO_COLORS,
-  LOCO_SMOKE_COLOR,
-  TRAIN_SIGNAL_WAIT_COLOR,
-  TRAIN_WARNING_COLOR,
-} from "./palette";
+  SMOKE_MIN_ZOOM,
+  drawSmoke,
+  emitSmoke,
+  pruneSmokeEmitters,
+  smokeFrameDt,
+  updateSmoke,
+} from "./art/smoke";
 import {
   buildRouteLanePath,
   extendChainBackward,
@@ -217,6 +220,9 @@ function roundedRectPath(
   ctx.closePath();
 }
 
+/** Zoom at which sprites gain their extra detail (STYLE §9.5: zoom ≥ 1.5 → 48 px tiles). */
+const DETAIL_SIZE = TILE_SIZE * 1.5;
+
 /** Draws a locomotive in local space: +x is the direction of travel (the front/leading end), so a
  * steam loco's chimney sits near +x and its cab/tender trail toward -x, where the cars follow. */
 function drawLoco(
@@ -225,147 +231,24 @@ function drawLoco(
   y: number,
   angle: number,
   size: number,
-  type: "steam" | "diesel" | "electric",
-  nowMs: number,
+  def: LocomotiveDef,
 ): void {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle);
-  const len = size * LOCO_LENGTH_TILES;
-  const w = size * VEHICLE_WIDTH_TILES;
-
-  if (type === "steam") {
-    const c = LOCO_COLORS.steam;
-    const front = len / 2;
-    const rear = -len / 2;
-    const cabLen = len * 0.28;
-    const tenderLen = len * 0.22;
-    const boilerFront = front - len * 0.08; // leave a nose for the smokebox cap
-    const boilerRear = rear + tenderLen + cabLen;
-
-    // Tender, directly behind the cab (SPEC §7.7).
-    ctx.fillStyle = c.tender;
-    ctx.fillRect(rear, -w * 0.46, tenderLen, w * 0.92);
-
-    // Cab at the rear, boxier/taller than the boiler.
-    ctx.fillStyle = c.cab;
-    ctx.fillRect(rear + tenderLen, -w * 0.5, cabLen, w);
-    ctx.fillStyle = c.cabRoof;
-    ctx.fillRect(rear + tenderLen + cabLen * 0.15, -w * 0.5, cabLen * 0.7, w * 0.16);
-
-    // Boiler cylinder with a few bands, from the cab to the smokebox nose.
-    roundedRectPath(ctx, boilerRear, -w * 0.4, boilerFront - boilerRear, w * 0.8, w * 0.32);
-    ctx.fillStyle = c.boiler;
-    ctx.fill();
-    ctx.strokeStyle = c.band;
-    ctx.lineWidth = Math.max(1, w * 0.09);
-    for (let i = 1; i <= 3; i++) {
-      const bx = boilerRear + ((boilerFront - boilerRear) * i) / 4;
-      ctx.beginPath();
-      ctx.moveTo(bx, -w * 0.38);
-      ctx.lineTo(bx, w * 0.38);
-      ctx.stroke();
-    }
-
-    // Smokebox nose cap.
-    ctx.fillStyle = c.chimney;
-    ctx.fillRect(boilerFront, -w * 0.42, front - boilerFront, w * 0.84);
-
-    // Chimney and dome (PLAN Phase 15 play-test fix — these previously drew as rects offset to one
-    // side, reading as sticking out sideways): both dark circles centered on the boiler's own
-    // centerline (y=0 in this local, direction-of-travel-aligned space), each with a tiny lighter
-    // rim, chimney near the front and the smaller dome just behind it.
-    const chimneyX = boilerFront - len * 0.12;
-    const chimneyR = w * 0.16;
-    const domeX = chimneyX - len * 0.16;
-    const domeR = w * 0.11;
-    for (const [cx, r] of [
-      [chimneyX, chimneyR],
-      [domeX, domeR],
-    ] as const) {
-      ctx.fillStyle = c.chimney;
-      ctx.beginPath();
-      ctx.arc(cx, 0, r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
-      ctx.lineWidth = Math.max(1, w * 0.035);
-      ctx.stroke();
-    }
-
-    // Cheap smoke puffs rising from the chimney (on the centerline) and drifting back toward the
-    // cars, cycling with real time so they animate independent of sim tick rate.
-    const puffPhase = (nowMs / 550) % 1;
-    for (let i = 0; i < 2; i++) {
-      const t = (puffPhase + i * 0.5) % 1;
-      ctx.globalAlpha = 0.5 * (1 - t);
-      ctx.fillStyle = LOCO_SMOKE_COLOR;
-      ctx.beginPath();
-      ctx.arc(chimneyX - t * len * 0.35, -t * w * 1.4, chimneyR * (1 + t * 1.8), 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-  } else if (type === "diesel") {
-    const c = LOCO_COLORS.diesel;
-    roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.18);
-    ctx.fillStyle = c.body;
-    ctx.fill();
-    ctx.fillStyle = c.window;
-    ctx.fillRect(len * 0.22, -w * 0.28, len * 0.22, w * 0.5);
-    ctx.fillStyle = c.stripe;
-    ctx.fillRect(-len / 2, w * 0.14, len, w * 0.16);
-    ctx.fillStyle = c.trim;
-    ctx.fillRect(len / 2 - w * 0.1, -w * 0.5, w * 0.1, w);
-  } else {
-    const c = LOCO_COLORS.electric;
-    roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.16);
-    ctx.fillStyle = c.body;
-    ctx.fill();
-    ctx.fillStyle = c.roof;
-    ctx.fillRect(-len * 0.35, -w * 0.5, len * 0.7, w * 0.18);
-    ctx.fillStyle = c.window;
-    ctx.fillRect(len * 0.18, -w * 0.3, len * 0.28, w * 0.5);
-    ctx.fillRect(-len * 0.46, -w * 0.3, len * 0.22, w * 0.5);
-    // Pantograph: a small diamond frame on the roof.
-    ctx.strokeStyle = c.pantograph;
-    ctx.lineWidth = Math.max(1, w * 0.09);
-    ctx.beginPath();
-    ctx.moveTo(-w * 0.22, -w * 0.5);
-    ctx.lineTo(-w * 0.06, -w * 1.05);
-    ctx.lineTo(w * 0.06, -w * 1.05);
-    ctx.lineTo(w * 0.22, -w * 0.5);
-    ctx.stroke();
-  }
+  drawLocoSprite(
+    ctx,
+    size * LOCO_LENGTH_TILES,
+    size * VEHICLE_WIDTH_TILES,
+    size,
+    def,
+    size >= DETAIL_SIZE,
+  );
   ctx.restore();
 }
 
-type CarShape = "passenger" | "mail" | "hopper" | "tanker" | "flatcar" | "boxcar" | "livestock";
-
-/** STYLE §7's car body shapes, keyed by the cargo carried — matches `CARGO[type].car`'s naming
- * (e.g. "Coal hopper", "Ore hopper", "Grain hopper" all draw as a hopper). Body *color* still
- * follows the existing SPEC §7 rule (each cargo's own color when loaded, grey when empty) rather
- * than STYLE's literal "green/maroon" passenger suggestion, so a car's cargo stays readable at a
- * glance exactly as it already was — only the silhouette changes here. */
-const CARGO_CAR_SHAPE: Record<CargoType, CarShape> = {
-  passengers: "passenger",
-  mail: "mail",
-  coal: "hopper",
-  ironOre: "hopper",
-  wood: "flatcar",
-  grain: "hopper",
-  livestock: "livestock",
-  oil: "tanker",
-  steel: "flatcar",
-  lumber: "flatcar",
-  food: "boxcar",
-  goods: "boxcar",
-  fuel: "tanker",
-};
-
-const DECK_COLOR = "#5A4632";
-
-/** Draws one car in local space (+x = direction of travel), shaped per STYLE §7 by the cargo it
- * carries, colored by cargo when loaded (SPEC §7's rendering rule), grey when empty so a full vs.
- * running-empty consist reads at a glance. */
+/** Draws one car in local space (+x = direction of travel) in its cargo/era livery; open cars show
+ * the load, closed cars don't (the UI shows the fill). */
 function drawCar(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -373,127 +256,22 @@ function drawCar(
   angle: number,
   size: number,
   cargoType: CargoType,
+  era: EraBucket,
   loaded: boolean,
 ): void {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle);
-  const len = size * CAR_DRAW_LEN_TILES;
-  const w = size * VEHICLE_WIDTH_TILES;
-  const outline = (): void => {
-    ctx.strokeStyle = CAR_OUTLINE_COLOR;
-    ctx.lineWidth = Math.max(1, size * 0.025);
-    ctx.stroke();
-  };
-  const bodyColor = loaded ? CARGO[cargoType].color : CAR_EMPTY_COLOR;
-  const shape = CARGO_CAR_SHAPE[cargoType];
-
-  switch (shape) {
-    case "tanker": {
-      // A rounded cylinder (fully round ends) with a lighter top-lit center stripe.
-      roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.5);
-      ctx.fillStyle = bodyColor;
-      ctx.fill();
-      outline();
-      ctx.fillStyle = "rgba(255, 255, 255, 0.28)";
-      ctx.fillRect(-len * 0.4, -w * 0.1, len * 0.8, w * 0.16);
-      break;
-    }
-    case "hopper": {
-      // Dark frame with an open top showing the load (heap in the cargo color, dark when empty).
-      roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.15);
-      ctx.fillStyle = CAR_EMPTY_COLOR;
-      ctx.fill();
-      const inset = w * 0.16;
-      ctx.fillStyle = loaded ? bodyColor : "#1A1A1A";
-      ctx.fillRect(-len / 2 + inset, -w / 2 + inset, len - inset * 2, w - inset * 2);
-      if (loaded) {
-        ctx.beginPath();
-        ctx.ellipse(0, -w * 0.08, len * 0.28, w * 0.22, 0, 0, Math.PI * 2);
-        ctx.fillStyle = bodyColor;
-        ctx.fill();
-      }
-      roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.15);
-      outline();
-      break;
-    }
-    case "flatcar": {
-      // A bare wood deck, with cargo-colored load blocks stacked on it when loaded.
-      ctx.fillStyle = DECK_COLOR;
-      ctx.fillRect(-len / 2, -w * 0.28, len, w * 0.56);
-      if (loaded) {
-        ctx.fillStyle = bodyColor;
-        const blocks = 3;
-        const blockW = (len / blocks) * 0.8;
-        for (let i = 0; i < blocks; i++) {
-          const bx = -len / 2 + (i + 0.5) * (len / blocks);
-          ctx.fillRect(bx - blockW / 2, -w * 0.4, blockW, w * 0.8);
-        }
-      }
-      ctx.strokeStyle = CAR_OUTLINE_COLOR;
-      ctx.lineWidth = Math.max(1, size * 0.02);
-      ctx.strokeRect(-len / 2, -w * 0.28, len, w * 0.56);
-      break;
-    }
-    case "boxcar": {
-      // A boxy body with a ribbed roof.
-      roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.2);
-      ctx.fillStyle = bodyColor;
-      ctx.fill();
-      outline();
-      ctx.strokeStyle = "rgba(0, 0, 0, 0.25)";
-      ctx.lineWidth = Math.max(0.5, w * 0.05);
-      const ribs = 4;
-      for (let r = 1; r < ribs; r++) {
-        const rx = -len / 2 + (len * r) / ribs;
-        ctx.beginPath();
-        ctx.moveTo(rx, -w * 0.42);
-        ctx.lineTo(rx, w * 0.42);
-        ctx.stroke();
-      }
-      break;
-    }
-    case "livestock": {
-      // A boxy body with a slatted roof (ventilation slats).
-      roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.18);
-      ctx.fillStyle = bodyColor;
-      ctx.fill();
-      outline();
-      ctx.strokeStyle = "rgba(0, 0, 0, 0.32)";
-      ctx.lineWidth = Math.max(0.5, w * 0.07);
-      const slats = 5;
-      for (let s = 0; s < slats; s++) {
-        const sx = -len / 2 + (len * (s + 0.5)) / slats;
-        ctx.beginPath();
-        ctx.moveTo(sx, -w * 0.46);
-        ctx.lineTo(sx, w * 0.46);
-        ctx.stroke();
-      }
-      break;
-    }
-    case "mail": {
-      roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.2);
-      ctx.fillStyle = bodyColor;
-      ctx.fill();
-      outline();
-      break;
-    }
-    case "passenger":
-    default: {
-      // A boxy body with a lighter roof center line (top-lit).
-      roundedRectPath(ctx, -len / 2, -w / 2, len, w, w * 0.24);
-      ctx.fillStyle = bodyColor;
-      ctx.fill();
-      outline();
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
-      ctx.lineWidth = Math.max(1, w * 0.12);
-      ctx.beginPath();
-      ctx.moveTo(-len * 0.42, 0);
-      ctx.lineTo(len * 0.42, 0);
-      ctx.stroke();
-      break;
-    }
-  }
+  drawCarSprite(
+    ctx,
+    size * CAR_DRAW_LEN_TILES,
+    size * VEHICLE_WIDTH_TILES,
+    size,
+    cargoType,
+    era,
+    loaded,
+    size >= DETAIL_SIZE,
+  );
   ctx.restore();
 }
 
@@ -537,7 +315,12 @@ export function drawTrains(
   alpha: number,
   nowMs: number,
   stationTiles: ReadonlySet<number>,
+  year = 1900,
 ): void {
+  const era = eraBucket(year);
+  const dt = smokeFrameDt(nowMs);
+  const smokeOn = camera.zoom >= SMOKE_MIN_ZOOM;
+  const liveTrains = new Set<number>();
   const size = TILE_SIZE * camera.zoom;
   const env: GeomEnv = { mapWidth, graph, stationTiles, splitCache: new Map() };
   for (const train of trains) {
@@ -574,12 +357,54 @@ export function drawTrains(
         v.angle,
         size,
         car?.cargoType ?? "goods",
+        era,
         (car?.loadedUnits ?? 0) > 0,
       );
     }
     const head = vehicles[0] as VehiclePlacement;
     const headScreen = worldToScreenScaled(camera, head.x, head.y, viewportW, viewportH);
-    drawLoco(ctx, headScreen.x, headScreen.y, head.angle, size, loco.type, nowMs);
+    drawLoco(ctx, headScreen.x, headScreen.y, head.angle, size, loco);
+    if (smokeOn) {
+      liveTrains.add(train.id);
+      const hx = Math.cos(head.angle);
+      const hy = Math.sin(head.angle);
+      const off = chimneyOffset(LOCO_LENGTH_TILES);
+      const wx = (head.x + hx * off) * TILE_SIZE;
+      const wy = (head.y + hy * off) * TILE_SIZE;
+      if (loco.type === "steam") {
+        const moving = train.speed > 0 && train.status !== "broken";
+        emitSmoke(
+          train.id,
+          dt,
+          moving ? 1.5 + Math.min(5, train.speed / 25) : 0.7,
+          wx,
+          wy,
+          hx,
+          hy,
+          moving ? "steam" : "wisp",
+        );
+      } else if (
+        loco.type === "diesel" &&
+        train.speed > 0 &&
+        train.speed < loco.maxSpeedKmh * 0.5
+      ) {
+        emitSmoke(
+          train.id,
+          dt,
+          1.2,
+          (head.x - hx * off) * TILE_SIZE,
+          (head.y - hy * off) * TILE_SIZE,
+          hx,
+          hy,
+          "haze",
+        );
+      }
+    }
     drawStatusIcon(ctx, headScreen.x, headScreen.y, size, train);
+  }
+  if (smokeOn) {
+    updateSmoke(dt);
+    pruneSmokeEmitters(liveTrains);
+    drawSmoke(ctx, (wx, wy) => camera.worldToScreen(wx, wy, viewportW, viewportH), camera.zoom);
   }
 }

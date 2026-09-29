@@ -23,7 +23,7 @@ export interface PowerLayout {
   axles: 2 | 3;
 }
 
-const BODY_BOTTOM = 17.6;
+const BODY_BOTTOM = 18.8;
 const WHEEL_R = 1.7;
 
 export function powerLayout(def: LocomotiveDef): PowerLayout {
@@ -68,7 +68,7 @@ function drawTruck(p: Pen, cx: number, axles: 2 | 3, lv: PowerLivery): void {
   const half = ((axles - 1) * span) / 2;
   const frameHalf = half + 2.9;
   // Side frame with bolster, then wheels on top.
-  shadedBox(p, cx - frameHalf, 19.0, frameHalf * 2, 2.5, 0.8, lighten(lv.underframe, 0.06), {
+  shadedBox(p, cx - frameHalf, 19.4, frameHalf * 2, 2.3, 0.8, lighten(lv.underframe, 0.06), {
     hi: 0.3,
     lo: 0.2,
   });
@@ -83,11 +83,11 @@ function drawTruck(p: Pen, cx: number, axles: 2 | 3, lv: PowerLivery): void {
     disc(p, x, 23 - WHEEL_R, WHEEL_R * 0.62, "#454B53");
     disc(p, x, 23 - WHEEL_R, 0.4, "#C5C9CF");
   }
-  shadedBox(p, cx - 1.5, 17.7, 3, 1.5, 0.3, lv.underframe, { hi: 0.2, lo: 0 });
+  shadedBox(p, cx - 1.5, 18.6, 3, 1.2, 0.3, lv.underframe, { hi: 0.2, lo: 0 });
 }
 
 function drawFuelTank(p: Pen, x0: number, x1: number, lv: PowerLivery): void {
-  shadedBox(p, x0, 18.4, x1 - x0, 2.9, 1.4, darken(lv.underframe, 0.1), { hi: 0.35, lo: 0.3 });
+  shadedBox(p, x0, 19.4, x1 - x0, 2.5, 1.2, darken(lv.underframe, 0.1), { hi: 0.35, lo: 0.3 });
 }
 
 /** Diamond (early/mid) or single-arm (modern) pantograph with insulators, base at roof y. */
@@ -181,7 +181,7 @@ function stripe(p: Pen, x0: number, x1: number, y: number, h: number, color: str
 }
 
 function coupler(p: Pen, x: number, dir: 1 | -1, lv: PowerLivery): void {
-  shadedBox(p, dir === 1 ? x : x - 1.8, 17.2, 1.8, 1.1, 0.25, darken(lv.underframe, 0.1), {
+  shadedBox(p, dir === 1 ? x : x - 1.8, 18.2, 1.8, 1.1, 0.25, darken(lv.underframe, 0.1), {
     hi: 0.3,
     lo: 0,
   });
@@ -223,7 +223,7 @@ function earlyElectric(p: Pen, lay: PowerLayout, lv: PowerLivery): void {
     [w - 2.6, BODY_BOTTOM],
   ];
   // Platforms / buffers first.
-  shadedBox(p, 0.6, 16.9, w - 1.2, 1.1, 0.3, lv.underframe, { hi: 0.3, lo: 0 });
+  shadedBox(p, 0.6, 17.8, w - 1.2, 1.1, 0.3, lv.underframe, { hi: 0.3, lo: 0 });
   for (const t of lay.trucks) drawTruck(p, t, lay.axles, lv);
   coupler(p, 0, -1, lv);
   coupler(p, w, 1, lv);
@@ -454,17 +454,17 @@ function roadSwitcher(p: Pen, lay: PowerLayout, lv: PowerLivery): void {
   drawFuelTank(p, lay.trucks[0]! + 7, lay.trucks[1]! - 7, lv);
   for (const t of lay.trucks) drawTruck(p, t, lay.axles, lv);
   // Walkway / frame.
-  shadedBox(p, 0.6, 16.6, w - 1.2, 1.0, 0.25, lv.underframe, { hi: 0.4, lo: 0 });
+  shadedBox(p, 0.6, 17.8, w - 1.2, 1.0, 0.25, lv.underframe, { hi: 0.4, lo: 0 });
   // Hoods.
-  shadedBox(p, 2, hoodTop, cabX0 - 2, 16.6 - hoodTop, 0.9, lv.body, { hi: 0.28, lo: 0.24 });
+  shadedBox(p, 2, hoodTop, cabX0 - 2, 17.8 - hoodTop, 0.9, lv.body, { hi: 0.28, lo: 0.24 });
   shadedRoundedPoly(
     p,
     [
-      [cabX1 - 0.4, 16.6],
+      [cabX1 - 0.4, 17.8],
       [cabX1 - 0.4, hoodTop],
       [w - 3.6, hoodTop],
       [w - 1.6, hoodTop + 1.6],
-      [w - 1.6, 16.6],
+      [w - 1.6, 17.8],
     ],
     [0, 0.6, 1, 0.8, 0.5],
     lv.body,
@@ -474,11 +474,11 @@ function roadSwitcher(p: Pen, lay: PowerLayout, lv: PowerLivery): void {
   shadedRoundedPoly(
     p,
     [
-      [cabX0, 16.6],
+      [cabX0, 17.8],
       [cabX0, cabTop + 1.2],
       [cabX0 + 1.4, cabTop],
       [cabX1, cabTop],
-      [cabX1, 16.6],
+      [cabX1, 17.8],
     ],
     [0, 0.6, 1, 0.6, 0],
     lv.body,
@@ -499,11 +499,11 @@ function roadSwitcher(p: Pen, lay: PowerLayout, lv: PowerLivery): void {
   shadedBox(p, 52, hoodTop - 0.9, 10, 1.0, 0.5, lv.roof, { hi: 0.3, lo: 0 });
   shadedBox(p, 5, hoodTop - 0.9, 5, 1.0, 0.4, lv.roof, { hi: 0.3, lo: 0 });
   // Handrails along both hoods (brass).
-  handrails(p, 3.6, cabX0 - 1, 16.5, 3.2, lv);
-  handrails(p, cabX1 + 1, w - 2.8, 16.5, 3.2, lv);
+  handrails(p, 3.6, cabX0 - 1, 17.7, 3.2, lv);
+  handrails(p, cabX1 + 1, w - 2.8, 17.7, 3.2, lv);
   headlight(p, w - 2.4, hoodTop + 0.5);
   // Front step / pilot plate.
-  shadedBox(p, w - 2.2, 16.6, 1.8, 2.6, 0.3, lv.underframe, { hi: 0.2, lo: 0 });
+  shadedBox(p, w - 2.2, 17.8, 1.8, 2.6, 0.3, lv.underframe, { hi: 0.2, lo: 0 });
   coupler(p, 0.6, -1, lv);
   coupler(p, w - 0.6, 1, lv);
 }
@@ -526,21 +526,21 @@ function hoodUnit(p: Pen, lay: PowerLayout, lv: PowerLivery, heavy: boolean): vo
   const cabX1 = heavy ? w - 1.2 : 27;
   drawFuelTank(p, lay.trucks[0]! + 9, lay.trucks[1]! - 9, lv);
   for (const t of lay.trucks) drawTruck(p, t, lay.axles, lv);
-  shadedBox(p, 0.6, 16.6, w - 1.2, 1.0, 0.25, lv.underframe, { hi: 0.4, lo: 0 });
+  shadedBox(p, 0.6, 17.8, w - 1.2, 1.0, 0.25, lv.underframe, { hi: 0.4, lo: 0 });
   if (heavy) {
     // Long rear hood with a tall radiator section, then a wide-nose safety cab at the front.
-    shadedBox(p, 1.6, hoodTop, cabX0 - 1.6, 16.6 - hoodTop, 0.9, lv.body, { hi: 0.28, lo: 0.24 });
+    shadedBox(p, 1.6, hoodTop, cabX0 - 1.6, 17.8 - hoodTop, 0.9, lv.body, { hi: 0.28, lo: 0.24 });
     shadedBox(p, 1.6, hoodTop - 2.2, 22, 2.4, 0.7, lv.body, { hi: 0.3, lo: 0.2 });
     louvres(p, 3, 23, hoodTop - 1.8, hoodTop, 12, darken(lv.body, 0.5));
-    fans(p, [7, 14, 21], hoodTop - 2.2, 2.4, lv);
+    fans(p, [7, 14, 21], hoodTop - 2.2, 2.0, lv);
     fans(p, [33, 42, 51, 60], hoodTop, 2.7, lv);
     const cab: Array<[number, number]> = [
-      [cabX0, 16.6],
+      [cabX0, 17.8],
       [cabX0, cabTop + 1.2],
       [cabX0 + 1.4, cabTop],
       [w - 8.4, cabTop],
       [w - 1.2, cabTop + 4.6],
-      [w - 0.6, 16.6],
+      [w - 0.6, 17.8],
     ];
     shadedRoundedPoly(p, cab, [0, 0.8, 1, 1.4, 1.8, 0.6], lv.body, { hi: 0.25, lo: 0.2 });
     // Red angular nose panel, big windscreen, side window.
@@ -563,24 +563,24 @@ function hoodUnit(p: Pen, lay: PowerLayout, lv: PowerLivery, heavy: boolean): vo
     glassRect(p, cabX0 + 3, cabTop + 2.6, 5, 4.6, lv, 0.5);
     stripe(p, cabX0, w - 7, 9.6, 3.4, darken(lv.body, 0.08));
     louvres(p, cabX0 + 1.4, cabX0 + 9.4, 10, 12.6, 6, darken(lv.body, 0.55));
-    handrails(p, 3, cabX0 - 1, 16.5, 3, lv);
+    handrails(p, 3, cabX0 - 1, 17.7, 3, lv);
     headlight(p, w - 1.8, cabTop + 8);
     coupler(p, 0.6, -1, lv);
     coupler(p, w - 0.6, 1, lv);
     return;
   }
   // High-horsepower: short hood | tall cab | long hood with roof fans and a taller radiator end.
-  shadedBox(p, 2, hoodTop, cabX0 - 2, 16.6 - hoodTop, 0.9, lv.body, { hi: 0.28, lo: 0.24 });
+  shadedBox(p, 2, hoodTop, cabX0 - 2, 17.8 - hoodTop, 0.9, lv.body, { hi: 0.28, lo: 0.24 });
   shadedRoundedPoly(
     p,
     [
-      [cabX1 - 0.4, 16.6],
+      [cabX1 - 0.4, 17.8],
       [cabX1 - 0.4, hoodTop],
       [w - 20, hoodTop],
       [w - 19, hoodTop - 2.2],
       [w - 2, hoodTop - 2.2],
       [w - 1.2, hoodTop + 1],
-      [w - 1.2, 16.6],
+      [w - 1.2, 17.8],
     ],
     [0, 0.6, 0.5, 0.6, 0.8, 0.8, 0.5],
     lv.body,
@@ -589,11 +589,11 @@ function hoodUnit(p: Pen, lay: PowerLayout, lv: PowerLivery, heavy: boolean): vo
   shadedRoundedPoly(
     p,
     [
-      [cabX0, 16.6],
+      [cabX0, 17.8],
       [cabX0, cabTop + 1.2],
       [cabX0 + 1.4, cabTop],
       [cabX1, cabTop],
-      [cabX1, 16.6],
+      [cabX1, 17.8],
     ],
     [0, 0.6, 1, 0.6, 0],
     lv.body,
@@ -608,8 +608,8 @@ function hoodUnit(p: Pen, lay: PowerLayout, lv: PowerLivery, heavy: boolean): vo
   stripe(p, cabX1 - 0.4, w - 1.2, 11.2, 0.6, lv.accent);
   louvres(p, w - 18, w - 3, hoodTop - 1.6, hoodTop + 4.6, 12, darken(lv.body, 0.5));
   fans(p, [cabX1 + 6, cabX1 + 16, cabX1 + 26], hoodTop, 2.7, lv);
-  handrails(p, 3.6, cabX0 - 1, 16.5, 3.2, lv);
-  handrails(p, cabX1 + 1, w - 2.8, 16.5, 3.2, lv);
+  handrails(p, 3.6, cabX0 - 1, 17.7, 3.2, lv);
+  handrails(p, cabX1 + 1, w - 2.8, 17.7, 3.2, lv);
   headlight(p, w - 2.4, hoodTop + 1.6);
   coupler(p, 0.6, -1, lv);
   coupler(p, w - 0.6, 1, lv);
@@ -624,6 +624,32 @@ function electricCabEnds(w: number, top: number, slope: number): Array<[number, 
     [w - 0.6, top + 6],
     [w - 0.6, BODY_BOTTOM],
   ];
+}
+
+/** Big windscreen following a sloped cab end: `edge` is the x of the roof corner, `dir` points inward. */
+function endGlass(
+  p: Pen,
+  edge: number,
+  run: number,
+  top: number,
+  dir: 1 | -1,
+  lv: PowerLivery,
+): void {
+  const slopeRun = run;
+  const xAt = (y: number): number => edge - dir * slopeRun * ((y - top) / 6);
+  const y0 = top + 0.9;
+  const y1 = top + 5.4;
+  shadedPoly(
+    p,
+    [
+      [xAt(y0) + dir * 0.7, y0],
+      [edge + dir * 3.6, y0],
+      [edge + dir * 3.6, y1],
+      [xAt(y1) + dir * 0.7, y1],
+    ],
+    lv.glass,
+    { hi: 0, lo: 0 },
+  );
 }
 
 function modernElectric(p: Pen, lay: PowerLayout, lv: PowerLivery, freight: boolean): void {

@@ -117,7 +117,7 @@ export interface PowerLivery {
   handrail: string;
 }
 
-const PAPER_GLASS = "#DDE7EC";
+const PAPER_GLASS = "#A9BFCB";
 const CREAM = "#EDE0C4";
 const WHITE_BODY = "#E9E4D8";
 const STEEL = "#46637F";

@@ -878,6 +878,7 @@ function main(): void {
         alpha,
         now,
         stationTiles,
+        calendarFromTicks(state.startYear, state.ticks).year,
       );
       if (ghost) drawBuildPreview(ctx, camera, viewportW, viewportH, state.map.width, ghost);
       if (stationPreview) {

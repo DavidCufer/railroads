@@ -619,18 +619,18 @@ Commit only your own phase's screenshots.
 
 ## Phase 19 — Rolling-stock art (side views, liveries, smoke)
 STYLE §9 · files: `src/render/art/**` (new), `src/render/trains.ts`, a small debug gallery page
-- [ ] `src/render/art/livery.ts`: per-model/era colour sets (STYLE §9.3); used by side views and map sprites.
-- [ ] Whyte parser + `wheelArrangementGlyph()` (inline SVG string).
-- [ ] Steam side views, parametric (§9.2): wheels/spokes/counterweights, rods, cylinders, boiler with era sizing,
+- [x] `src/render/art/livery.ts`: per-model/era colour sets (STYLE §9.3); used by side views and map sprites.
+- [x] Whyte parser + `wheelArrangementGlyph()` (inline SVG string).
+- [x] Steam side views, parametric (§9.2): wheels/spokes/counterweights, rods, cylinders, boiler with era sizing,
       smokebox, chimney types, domes, bell/headlamp/pilot for American types, cab, tender variants; articulated.
-- [ ] Diesel and electric side views (§9.3), each roster model visibly distinct.
-- [ ] Car side views for every car type × era bucket, load heap by fill (§9.4).
-- [ ] `locoSideCanvas`, `carSideCanvas`, `consistSideCanvas` with caching (key incl. devicePixelRatio).
-- [ ] Map sprites refined with the shared liveries + zoom-dependent detail (§9.5); smoke/steam particle system
+- [x] Diesel and electric side views (§9.3), each roster model visibly distinct.
+- [x] Car side views for every car type × era bucket, load heap by fill (§9.4).
+- [x] `locoSideCanvas`, `carSideCanvas`, `consistSideCanvas` with caching (key incl. devicePixelRatio).
+- [x] Map sprites refined with the shared liveries + zoom-dependent detail (§9.5); smoke/steam particle system
       (renderer-owned, pooled, capped, skipped when zoomed out). No fps regression on the stress e2e.
-- [ ] Debug gallery: `?debug=1&gallery=1` renders every locomotive (all 24) and every car type (3 eras, empty and
+- [x] Debug gallery: `?debug=1&gallery=1` renders every locomotive (all 24) and every car type (3 eras, empty and
       full) on a light and a dark background, labelled — used for screenshots and review.
-- [ ] Unit tests (§9.1) + e2e screenshots: `phase-19-gallery-steam.png`, `phase-19-gallery-modern.png`,
+- [x] Unit tests (§9.1) + e2e screenshots: `phase-19-gallery-steam.png`, `phase-19-gallery-modern.png`,
       `phase-19-gallery-cars.png`, `phase-19-map-steam-smoke-zoom2.png`, `phase-19-map-diesel-zoom2.png`.
       **Open every screenshot** and fix anything that looks wrong (proportions, wheels floating, overlaps) before
       committing. A train enthusiast should recognise a 4-4-0 American, a 4-6-2 Pacific and a road switcher.

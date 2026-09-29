@@ -137,7 +137,7 @@ export function mountGallery(): void {
   );
 
   const cars = section("gallery-cars", "Cars (empty · half · full)");
-  for (const [era] of eras) {
+  for (const [era] of eras.filter(([e]) => !params.get("era") || e === params.get("era"))) {
     cars.appendChild(
       el("h3", "margin:8px 0 2px;font:600 13px system-ui;color:#fff", `era: ${era}`),
     );

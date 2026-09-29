@@ -3721,3 +3721,41 @@ total time, own-drop, capacity/overflow, no decay) and e2e relay in `e2e/phase18
 - Optional "credit feeder stats" for transfers: skipped. Cargo mixing: a car takes one transfer lot per stop.
 - The goods-chain playability check is asserted in tests but is not a city-retry trigger (a retry would change every city).
 - A processor that cannot be fed on a generated map is dropped (rare; none on the tested seeds).
+
+## 2026-09-29 — Phase 19: Rolling-stock art (side views, liveries, smoke)
+
+Tests: 397 unit (was 390), 105 e2e (was 99); `npm run check` and `npm run e2e` green.
+
+### What was built (`src/render/art/**`)
+- `livery.ts` – steam eras (≤1860 green/brass/red wheels/wood cab; 1861–1924 black + red lining, white tyres; ≥1925
+  silver smokebox front), per-model diesel/electric liveries, car body/roof/load colours per cargo × era bucket
+  (early < 1870, mid ≤ 1935, modern). Shared with the map sprites.
+- `whyte.ts` – `parseWhyte`, `wheelArrangementGlyph` (inline SVG, small circle per lead/trail axle, large per driving
+  axle, gap between articulated groups).
+- `steam.ts` – parametric from the Whyte string: driver Ø by class, era boiler/stack/dome sizing, smokebox + door ring,
+  cab with curved roof, tenders (2-axle / 2×2 / 2×3 axle bogies), coal heap, cylinders + guides + crosshead, main and
+  coupling rods pinned on the hubs, Walschaerts-style valve gear hint, counterweights, splashers; American types get
+  bell, box headlamp and pilot; articulated has two driver groups with their own cylinders.
+- `diesel.ts` – ten distinct bodies (boxcab, bulldog streamliner, E-unit, cab unit, road switcher, modern electric,
+  hood unit with fans, wide-nose heavy diesel, HS trainset wedge, heavy freight electric), B-B/C-C trucks by weight
+  class, fuel tanks, pantographs (diamond early/mid, single arm modern).
+- `cars.ts` – 13 cargo types × 3 eras (coach with clerestory, mail, hoppers, ore, logs, lumber, stock, tank, gondola
+  with I-beams, reefer, box/covered hopper); open cars scale their heap with `fill01`.
+- `index.ts` – `drawLocoSide`, `drawCarSide`, `locoSideCanvas`, `carSideCanvas`, `consistSideCanvas` (cache key incl.
+  height and devicePixelRatio), `locoWidthUnits`, `eraBucket`. Test seam: `setArtCanvasFactory`.
+- `mapSprites.ts` + `smoke.ts` + `trains.ts` – map sprites use the shared liveries with extra detail at zoom ≥ 1.5
+  (boiler bands, domes, coal speckle, roof ridge/fans, handrails, clerestory, windows); pooled smoke (≤ 400, none below
+  zoom 0.75): steam puffs ∝ speed, wisp while standing, faint diesel haze while accelerating.
+- Debug gallery: `?debug=1&gallery=1` (`&h=` height, `&only=id,id`, `&era=`), mounted from `main.ts`.
+
+### Deviations from STYLE §9
+- Diesel wheels are Ø3.4u (spec 3u) so they read at height 24; diesel/electric bodies sit 1.2u lower than the spec's
+  17.6u so trucks tuck under the body.
+- The Norris 4-2-0 also gets pilot/bell/box headlamp (American-built type).
+- Map cars now use the livery colour for both loaded and empty; only open cars (hopper, flatcar, tank highlight) show
+  load. The old "grey when empty" rule is gone. `drawTrains` takes an optional trailing `year` for the car era.
+- HS trainset consist uses ordinary era coaches rather than dedicated matching trailers (not done).
+
+### Screenshots (opened and checked) — `docs/screenshots/phase-19-*.png`
+`gallery-steam`, `gallery-modern`, `gallery-cars`, `gallery-consists`, `map-steam-smoke-zoom2`, `map-diesel-zoom2`.
+Other phases' screenshot churn was reverted.
