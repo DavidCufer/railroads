@@ -12,6 +12,7 @@
  */
 import type { CityTier } from "../data/cities";
 import { shadeColor } from "./color";
+import { rand } from "./rng";
 import { CITY_ROOF_COLORS, CITY_ROOF_SHADOW, CITY_WALL_COLOR } from "./palette";
 
 const STREET_COLOR = "rgba(214, 206, 184, 0.55)";
@@ -46,7 +47,7 @@ function drawRoof(
   tall: boolean,
   size: number,
 ): void {
-  const angle = (Math.random() - 0.5) * 2 * MAX_ROOF_ROTATION;
+  const angle = (rand() - 0.5) * 2 * MAX_ROOF_ROTATION;
   const shadowOffset = size * (tall ? 0.05 : 0.025);
 
   ctx.save();
@@ -92,7 +93,7 @@ function drawRoof(
 /** A tiny tree (matching the forest decoration's look, scaled down) — used to fill a gap between
  * buildings so a block's gaps read as "green space", not just an accidental hole. */
 function drawGapTree(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number): void {
-  const r = size * (0.07 + Math.random() * 0.04);
+  const r = size * (0.07 + rand() * 0.04);
   ctx.fillStyle = TREE_SHADOW;
   ctx.beginPath();
   ctx.arc(cx + r * 0.25, cy + r * 0.25, r, 0, Math.PI * 2);
@@ -120,8 +121,8 @@ function drawDenseBlock(
 
   for (let r = 0; r < rows; r++) {
     const rowY = py + r * rowH;
-    const count = buildingsPerRow + (Math.random() < 0.5 ? 0 : 1);
-    const weights = Array.from({ length: count }, () => 0.65 + Math.random() * 0.7);
+    const count = buildingsPerRow + (rand() < 0.5 ? 0 : 1);
+    const weights = Array.from({ length: count }, () => 0.65 + rand() * 0.7);
     const totalWeight = weights.reduce((a, b) => a + b, 0);
 
     let x = px;
@@ -131,8 +132,8 @@ function drawDenseBlock(
       // ~1 in 6 slots opens into a gap instead of a building (Phase 11 review: "green gaps ...
       // instead of rectangle grids"). Never the very first slot of a row, so a row still visibly
       // fronts the street on its left edge.
-      if (i > 0 && Math.random() < 0.16) {
-        if (Math.random() < 0.5) {
+      if (i > 0 && rand() < 0.16) {
+        if (rand() < 0.5) {
           drawGapTree(ctx, x + slotW / 2, rowY + rowH / 2, size);
         }
         x += slotW;
@@ -141,9 +142,9 @@ function drawDenseBlock(
 
       const gap = slotW * 0.06;
       const w = slotW - gap;
-      const h = rowH * (0.78 + Math.random() * 0.18);
+      const h = rowH * (0.78 + rand() * 0.18);
       const ry = rowY + (rowH - h);
-      const tall = tallChance > 0 && Math.random() < tallChance;
+      const tall = tallChance > 0 && rand() < tallChance;
       const color = CITY_ROOF_COLORS[(i + r + Math.floor(x)) % CITY_ROOF_COLORS.length] as string;
 
       drawRoof(ctx, x + w / 2, ry + h / 2, w, h, color, tall, size);
@@ -176,17 +177,17 @@ function drawScatteredHouses(
   const roofs = Math.round(2 + closeness * 2);
   const tileTallChance = tallChance * (0.3 + 0.7 * closeness);
 
-  if (Math.random() < 0.4 - 0.3 * closeness) {
-    const horizontal = Math.random() < 0.5;
+  if (rand() < 0.4 - 0.3 * closeness) {
+    const horizontal = rand() < 0.5;
     ctx.strokeStyle = STREET_COLOR;
     ctx.lineWidth = Math.max(1, size * 0.05);
     ctx.beginPath();
     if (horizontal) {
-      const y = py + size * (0.3 + Math.random() * 0.4);
+      const y = py + size * (0.3 + rand() * 0.4);
       ctx.moveTo(px, y);
       ctx.lineTo(px + size, y);
     } else {
-      const x = px + size * (0.3 + Math.random() * 0.4);
+      const x = px + size * (0.3 + rand() * 0.4);
       ctx.moveTo(x, py);
       ctx.lineTo(x, py + size);
     }
@@ -195,16 +196,16 @@ function drawScatteredHouses(
 
   // A small tree or two in the open ground around the houses — plenty of green space at the
   // sparse edge already, this just makes it read as deliberate yard/greenery, not empty tile.
-  if (Math.random() < 0.5) {
-    drawGapTree(ctx, px + Math.random() * size, py + Math.random() * size, size);
+  if (rand() < 0.5) {
+    drawGapTree(ctx, px + rand() * size, py + rand() * size, size);
   }
 
   for (let i = 0; i < roofs; i++) {
-    const w = size * (0.14 + Math.random() * 0.1);
-    const h = size * (0.12 + Math.random() * 0.08);
-    const rx = px + Math.random() * (size - w);
-    const ry = py + Math.random() * (size - h);
-    const tall = tileTallChance > 0 && Math.random() < tileTallChance;
+    const w = size * (0.14 + rand() * 0.1);
+    const h = size * (0.12 + rand() * 0.08);
+    const rx = px + rand() * (size - w);
+    const ry = py + rand() * (size - h);
+    const tall = tileTallChance > 0 && rand() < tileTallChance;
     const color = CITY_ROOF_COLORS[(i + Math.floor(rx + ry)) % CITY_ROOF_COLORS.length] as string;
 
     drawRoof(ctx, rx + w / 2, ry + h / 2, w, h, color, tall, size);

@@ -9,6 +9,7 @@ import { drawStations, drawStationLabels } from "./render/stations";
 import { drawStationSupplyBubbles } from "./render/stationSupplyBubbles";
 import { drawStationCatchment, type StationCatchmentPreview } from "./render/stationPreview";
 import { drawTrains } from "./render/trains";
+import { emitIndustrySmoke } from "./render/industrySmoke";
 import { drawDeliveryLabels, isLabelExpired, type FloatingLabel } from "./render/deliveryLabels";
 import {
   drawCatchmentsOverlay,
@@ -885,6 +886,7 @@ function main(): void {
         stationTiles,
         calendarFromTicks(state.startYear, state.ticks).year,
       );
+      emitIndustrySmoke(camera, viewportW, viewportH, state.industries, state.industryEconomy);
       if (ghost) drawBuildPreview(ctx, camera, viewportW, viewportH, state.map.width, ghost);
       if (stationPreview) {
         drawStationCatchment(ctx, camera, viewportW, viewportH, state.map.width, stationPreview);

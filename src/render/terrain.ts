@@ -6,6 +6,7 @@
 import { Camera, OVERVIEW_ZOOM_THRESHOLD, TILE_SIZE } from "./camera";
 import { shadeColor, withAlpha } from "./color";
 import { hillshadeFactorAt } from "./hillshade";
+import { rand, seedTile } from "./rng";
 import { drawCityRoofs } from "./cities";
 import { drawIndustryIcon } from "./industries";
 import {
@@ -288,6 +289,7 @@ export class TerrainRenderer {
     const idx = tileIndex(this.map, mapX, mapY);
     const terrain = terrainName(this.map.terrain[idx] as number);
     const baseColor = renderColorFor(this.map, mapX, mapY);
+    seedTile(mapX, mapY);
 
     if (overview) {
       ctx.fillStyle = baseColor;
@@ -376,10 +378,10 @@ export class TerrainRenderer {
       const nColor = renderColorFor(this.map, nx, ny);
 
       for (let i = 0; i < blobCount; i++) {
-        const t = (i + 0.5) / blobCount + (Math.random() - 0.5) * 0.18;
+        const t = (i + 0.5) / blobCount + (rand() - 0.5) * 0.18;
         const bx = edge.axis === "h" ? px + t * size : px + edge.side * size;
         const by = edge.axis === "v" ? py + t * size : py + edge.side * size;
-        const r = size * (0.18 + Math.random() * 0.12);
+        const r = size * (0.18 + rand() * 0.12);
         const gradient = ctx.createRadialGradient(bx, by, 0, bx, by, r);
         gradient.addColorStop(0, withAlpha(nColor, 0.4));
         gradient.addColorStop(1, withAlpha(nColor, 0));
@@ -513,6 +515,12 @@ export class TerrainRenderer {
         this.drawMountainPeaks(ctx, mapX, mapY, px, py, size);
         break;
       case "plain":
+        if (size >= 12 && this.nearFarm(mapX, mapY) && rand() < 0.7) {
+          this.drawFarmField(ctx, px, py, size);
+          break;
+        }
+        this.drawSpeckle(ctx, terrain, px, py, size);
+        break;
       case "desert":
       case "swamp":
       case "river":
@@ -523,38 +531,92 @@ export class TerrainRenderer {
     }
   }
 
-  /** 2–4 small tree canopies (with a darker shadow) instead of one flat dark tile. */
+  /** 2–4 trees: an offset ground shadow, a dark base canopy and a lighter top-left crown (two-tone),
+   * so the forest reads lit from the upper left like the rest of the map. */
   private drawForestClusters(
     ctx: CanvasRenderingContext2D,
     px: number,
     py: number,
     size: number,
   ): void {
-    const count = 2 + Math.floor(Math.random() * 3);
+    const count = 2 + Math.floor(rand() * 3);
     for (let i = 0; i < count; i++) {
-      const cx = px + size * (0.15 + Math.random() * 0.7);
-      const cy = py + size * (0.15 + Math.random() * 0.7);
-      const r = size * (0.12 + Math.random() * 0.08);
+      const cx = px + size * (0.15 + rand() * 0.7);
+      const cy = py + size * (0.15 + rand() * 0.7);
+      const r = size * (0.12 + rand() * 0.08);
+      const conifer = rand() < 0.3;
 
       ctx.fillStyle = FOREST_SHADOW_COLOR;
       ctx.beginPath();
-      ctx.arc(cx + r * 0.35, cy + r * 0.35, r * 0.9, 0, Math.PI * 2);
+      ctx.ellipse(cx + r * 0.55, cy + r * 0.6, r * 0.95, r * 0.8, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = FOREST_CANOPY_COLOR;
+      ctx.fillStyle = conifer ? "#2F5A3A" : "#3F6B35";
       ctx.beginPath();
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.fill();
+
+      ctx.fillStyle = conifer ? "#437A4C" : FOREST_CANOPY_COLOR;
+      ctx.beginPath();
+      ctx.arc(cx - r * 0.2, cy - r * 0.22, r * 0.68, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (size >= 24) {
+        ctx.fillStyle = "rgba(210, 235, 150, 0.32)";
+        ctx.beginPath();
+        ctx.arc(cx - r * 0.38, cy - r * 0.4, r * 0.28, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
+  }
+
+  /** True when a 4-neighbour tile holds a farm or ranch. */
+  private nearFarm(mapX: number, mapY: number): boolean {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
+      const nx = mapX + dx;
+      const ny = mapY + dy;
+      if (!inBounds(this.map, nx, ny)) continue;
+      const id = this.map.industryId[tileIndex(this.map, nx, ny)] as number;
+      const type = id >= 0 ? this.industries[id]?.type : undefined;
+      if (type === "farm") return true;
+    }
+    return false;
+  }
+
+  /** A striped crop plot on plain ground beside a farm: two alternating tones in furrow rows. */
+  private drawFarmField(ctx: CanvasRenderingContext2D, px: number, py: number, size: number): void {
+    const palettes: Array<[string, string]> = [
+      ["#C9AE4E", "#B99A3E"],
+      ["#8FAE4A", "#7E9E3F"],
+      ["#A88A56", "#957845"],
+    ];
+    const [c1, c2] = palettes[Math.floor(rand() * palettes.length)] as [string, string];
+    const vertical = rand() < 0.5;
+    const inset = size * 0.06;
+    const n = 6;
+    const span = size - inset * 2;
+    for (let i = 0; i < n; i++) {
+      ctx.fillStyle = i % 2 === 0 ? c1 : c2;
+      if (vertical) ctx.fillRect(px + inset + (span / n) * i, py + inset, span / n + 0.5, span);
+      else ctx.fillRect(px + inset, py + inset + (span / n) * i, span, span / n + 0.5);
+    }
+    ctx.strokeStyle = "rgba(60, 45, 20, 0.35)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(px + inset, py + inset, span, span);
   }
 
   /** 2–3 soft bump highlights (light NW, dark SE) to read as gentle mounds. */
   private drawHillBumps(ctx: CanvasRenderingContext2D, px: number, py: number, size: number): void {
-    const count = 2 + Math.floor(Math.random() * 2);
+    const count = 2 + Math.floor(rand() * 2);
     for (let i = 0; i < count; i++) {
-      const cx = px + size * (0.2 + Math.random() * 0.6);
-      const cy = py + size * (0.2 + Math.random() * 0.6);
-      const r = size * (0.18 + Math.random() * 0.1);
+      const cx = px + size * (0.2 + rand() * 0.6);
+      const cy = py + size * (0.2 + rand() * 0.6);
+      const r = size * (0.18 + rand() * 0.1);
       const gradient = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, 0, cx, cy, r);
       gradient.addColorStop(0, "rgba(255, 255, 255, 0.2)");
       gradient.addColorStop(0.55, "rgba(255, 255, 255, 0.04)");
@@ -576,11 +638,11 @@ export class TerrainRenderer {
     size: number,
   ): void {
     const elevation = this.map.elevation[tileIndex(this.map, mapX, mapY)] as number;
-    const count = Math.random() < 0.5 ? 1 : 2;
+    const count = rand() < 0.5 ? 1 : 2;
     for (let i = 0; i < count; i++) {
-      const baseX = px + size * (0.25 + Math.random() * 0.5);
-      const baseY = py + size * (0.7 + Math.random() * 0.15);
-      const peakH = size * (0.35 + Math.random() * 0.15);
+      const baseX = px + size * (0.25 + rand() * 0.5);
+      const baseY = py + size * (0.7 + rand() * 0.15);
+      const peakH = size * (0.35 + rand() * 0.15);
       const halfW = size * 0.22;
       const apexX = baseX;
       const apexY = baseY - peakH;
@@ -628,9 +690,9 @@ export class TerrainRenderer {
 
     ctx.fillStyle = withAlpha("#000000", 0.08);
     for (let i = 0; i < count; i++) {
-      const sx = px + Math.random() * size;
-      const sy = py + Math.random() * size;
-      const r = size * (0.02 + Math.random() * 0.035);
+      const sx = px + rand() * size;
+      const sy = py + rand() * size;
+      const r = size * (0.02 + rand() * 0.035);
       ctx.beginPath();
       ctx.arc(sx, sy, r, 0, Math.PI * 2);
       ctx.fill();
@@ -767,13 +829,13 @@ export class TerrainRenderer {
 
     const dots: ShimmerDot[] = [];
     for (let attempt = 0; attempt < count * 6 && dots.length < count; attempt++) {
-      const x = minX + Math.floor(Math.random() * (maxX - minX + 1));
-      const y = minY + Math.floor(Math.random() * (maxY - minY + 1));
+      const x = minX + Math.floor(rand() * (maxX - minX + 1));
+      const y = minY + Math.floor(rand() * (maxY - minY + 1));
       const idx = tileIndex(this.map, x, y);
       if ((this.map.terrain[idx] as number) !== WATER_ID) continue;
       dots.push({
-        x: x * TILE_SIZE + Math.random() * TILE_SIZE,
-        y: y * TILE_SIZE + Math.random() * TILE_SIZE,
+        x: x * TILE_SIZE + rand() * TILE_SIZE,
+        y: y * TILE_SIZE + rand() * TILE_SIZE,
       });
     }
     return dots;

@@ -6,7 +6,10 @@ export const MAX_SMOKE = 400;
 export const SMOKE_MIN_ZOOM = 0.75;
 const LIFE_S = 0.8;
 
-export type SmokeKind = "steam" | "wisp" | "haze";
+export type SmokeKind = "steam" | "wisp" | "haze" | "chimney";
+
+/** Emitter keys at or above this belong to industries; `pruneSmokeEmitters` leaves them alone. */
+export const INDUSTRY_EMITTER_BASE = 1_000_000;
 
 const X = new Float32Array(MAX_SMOKE);
 const Y = new Float32Array(MAX_SMOKE);
@@ -21,10 +24,16 @@ let count = 0;
 let seed = 12345;
 const accum = new Map<number, number>();
 let lastMs = -1;
+let lastDt = 0;
 
 function rnd(): number {
   seed = (seed * 1664525 + 1013904223) >>> 0;
   return seed / 4294967296;
+}
+
+/** The frame delta `smokeFrameDt` last returned (so other emitters share the frame's clock). */
+export function lastSmokeDt(): number {
+  return lastDt;
 }
 
 export function smokeCount(): number {
@@ -41,6 +50,7 @@ export function resetSmoke(): void {
 export function smokeFrameDt(nowMs: number): number {
   const dt = lastMs < 0 ? 0 : Math.min(0.1, Math.max(0, (nowMs - lastMs) / 1000));
   lastMs = nowMs;
+  lastDt = dt;
   return dt;
 }
 
@@ -73,6 +83,17 @@ function spawn(x: number, y: number, hx: number, hy: number, kind: SmokeKind): v
   const i = count++;
   X[i] = x;
   Y[i] = y;
+  if (kind === "chimney") {
+    // Chimney smoke rises and leans downwind (east), slowly.
+    VX[i] = 3 + (rnd() - 0.5) * 3;
+    VY[i] = -7 - rnd() * 3;
+    AGE[i] = 0;
+    LIFE[i] = LIFE_S * 2;
+    R0[i] = 2.2;
+    A0[i] = 0.5;
+    KIND[i] = 3;
+    return;
+  }
   // Drift back along the track, plus a little scatter (world px / s).
   VX[i] = -hx * 3 + (rnd() - 0.3) * 6;
   VY[i] = -hy * 3 + (rnd() - 0.5) * 3 - 6;
@@ -101,7 +122,7 @@ export function emitSmoke(
 }
 
 export function pruneSmokeEmitters(live: ReadonlySet<number>): void {
-  for (const k of accum.keys()) if (!live.has(k)) accum.delete(k);
+  for (const k of accum.keys()) if (k < INDUSTRY_EMITTER_BASE && !live.has(k)) accum.delete(k);
 }
 
 export function drawSmoke(
@@ -116,7 +137,7 @@ export function drawSmoke(
     const s = worldToScreen(X[i] as number, Y[i] as number);
     const r = (R0[i] as number) * (1 + t * 1.8) * zoom;
     ctx.globalAlpha = (A0[i] as number) * (1 - t) * (1 - t * 0.3);
-    ctx.fillStyle = KIND[i] === 2 ? "#8E9198" : "#ECEAE4";
+    ctx.fillStyle = KIND[i] === 2 ? "#8E9198" : KIND[i] === 3 ? "#C9C6BF" : "#ECEAE4";
     ctx.beginPath();
     ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
     ctx.fill();
