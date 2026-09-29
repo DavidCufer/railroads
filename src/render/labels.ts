@@ -11,6 +11,10 @@ import { Camera, OVERVIEW_ZOOM_THRESHOLD, TILE_SIZE } from "./camera";
 import { cityDotColor, cityDotRadius } from "./cities";
 import { intersectsReserved, type ReservedScreenRect } from "./reservedRects";
 
+/** Display serif (matches `--font-display` in theme.css). */
+export const CITY_LABEL_FONT_FAMILY =
+  '"Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif';
+
 const TIER_FONT_PX: Record<CityTier, number> = {
   village: 11,
   town: 13,
@@ -111,7 +115,7 @@ export function drawCityLabels(
     }
 
     const fontPx = TIER_FONT_PX[city.tier];
-    ctx.font = `${TIER_WEIGHT[city.tier]} ${fontPx}px sans-serif`;
+    ctx.font = `${TIER_WEIGHT[city.tier]} ${fontPx}px ${CITY_LABEL_FONT_FAMILY}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     const labelY = screen.y + (overview ? cityDotRadius(city.tier) + 3 : fontPx * 0.4);
@@ -132,12 +136,16 @@ export function drawCityLabels(
     }
     drawnLabelRects.push(box);
 
-    ctx.lineWidth = Math.max(2, fontPx * 0.22);
-    ctx.strokeStyle = "rgba(10, 12, 16, 0.75)";
+    // Soft dark halo (wide + faint, then tight) so paper-coloured text reads on any terrain.
     ctx.lineJoin = "round";
+    ctx.lineWidth = Math.max(3, fontPx * 0.4);
+    ctx.strokeStyle = "rgba(18, 20, 26, 0.28)";
+    ctx.strokeText(city.name, screen.x, labelY);
+    ctx.lineWidth = Math.max(2, fontPx * 0.2);
+    ctx.strokeStyle = "rgba(18, 20, 26, 0.7)";
     ctx.strokeText(city.name, screen.x, labelY);
 
-    ctx.fillStyle = "#F4F1E8";
+    ctx.fillStyle = "#F2E8D5";
     ctx.fillText(city.name, screen.x, labelY);
   }
 }

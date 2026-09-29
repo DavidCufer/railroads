@@ -132,4 +132,34 @@ test.describe("Phase 21 — map polish", () => {
       });
     });
   }
+
+  test("city zoom 1.5", async ({ page }) => {
+    const cx = 60;
+    const cy = 60;
+    await setupFlat(page, cx, cy, 10);
+    await page.evaluate(
+      ({ cx, cy }) => {
+        const w = window.__game!.getMap().width;
+        const tiles: number[] = [];
+        for (let y = -3; y <= 3; y++) {
+          for (let x = -4; x <= 4; x++) {
+            if (Math.hypot(x / 4.3, y / 3.3) <= 1) tiles.push((cy + y) * w + cx + x);
+          }
+        }
+        window.__game!.debugPlaceCity(tiles, 60000);
+        (window.__game!.getState() as unknown as { mapContentVersion: number }).mapContentVersion++;
+      },
+      { cx, cy },
+    );
+    await buildPath(
+      page,
+      Array.from({ length: 19 }, (_, i) => ({ x: cx - 9 + i, y: cy + 4 })),
+    );
+    await buildStationAt(page, cx + 1, cy + 4, "station");
+    await centerOn(page, cx, cy + 1, 1.5);
+    await page.screenshot({
+      path: "docs/screenshots/phase-21-city-zoom1.5.png",
+      clip: { x: 100, y: 44, width: 600, height: 316 },
+    });
+  });
 });

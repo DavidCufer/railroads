@@ -112,6 +112,23 @@ export function drawStations(
 
 const FONT_PX = 12;
 
+function roundRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): void {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
 export function drawStationLabels(
   ctx: CanvasRenderingContext2D,
   camera: Camera,
@@ -164,18 +181,35 @@ export function drawStationLabels(
       }
     }
 
-    const halfWidth = measureTextWidthCached(ctx, ctx.font, station.name) / 2 + 4;
+    const halfWidth = measureTextWidthCached(ctx, ctx.font, station.name) / 2 + 5;
     if (
-      intersectsReserved(reserved, s.x - halfWidth, labelY, s.x + halfWidth, labelY + FONT_PX * 1.2)
+      intersectsReserved(
+        reserved,
+        s.x - halfWidth,
+        labelY,
+        s.x + halfWidth,
+        labelY + FONT_PX * 1.2 + 4,
+      )
     ) {
       continue;
     }
 
-    ctx.lineWidth = Math.max(2, FONT_PX * 0.22);
-    ctx.strokeStyle = "rgba(10, 12, 16, 0.75)";
-    ctx.strokeText(station.name, s.x, labelY);
-
+    // Enamel sign: navy rounded plate, cream hairline border, cream sans text.
+    const plateW = halfWidth * 2 + 4;
+    const plateH = FONT_PX + 6;
+    const px = s.x - plateW / 2;
+    const py = labelY - 2;
+    ctx.fillStyle = "rgba(10, 12, 16, 0.25)";
+    roundRectPath(ctx, px + 1, py + 1.5, plateW, plateH, 4);
+    ctx.fill();
+    ctx.fillStyle = "#1F3A5F";
+    roundRectPath(ctx, px, py, plateW, plateH, 4);
+    ctx.fill();
+    ctx.strokeStyle = "#F2E8D5";
+    ctx.lineWidth = 1;
+    roundRectPath(ctx, px + 1.5, py + 1.5, plateW - 3, plateH - 3, 3);
+    ctx.stroke();
     ctx.fillStyle = STATION_LABEL_COLOR;
-    ctx.fillText(station.name, s.x, labelY);
+    ctx.fillText(station.name, s.x, labelY + 1);
   }
 }

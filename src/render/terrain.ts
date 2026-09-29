@@ -109,6 +109,8 @@ interface CityCenter {
   cx: number;
   cy: number;
   maxDist: number;
+  /** Footprint tile closest to the centroid: where the landmark stands. */
+  landmarkTile: number;
 }
 
 export class TerrainRenderer {
@@ -169,12 +171,19 @@ export class TerrainRenderer {
       const cx = sx / city.tiles.length;
       const cy = sy / city.tiles.length;
       let maxDist = 0;
+      let landmarkTile = city.tiles[0] as number;
+      let best = Infinity;
       for (const idx of city.tiles) {
         const tx = idx % this.map.width;
         const ty = Math.floor(idx / this.map.width);
-        maxDist = Math.max(maxDist, Math.hypot(tx - cx, ty - cy));
+        const d = Math.hypot(tx - cx, ty - cy);
+        maxDist = Math.max(maxDist, d);
+        if (d < best) {
+          best = d;
+          landmarkTile = idx;
+        }
       }
-      this.cityCenters.set(city.id, { cx, cy, maxDist: Math.max(maxDist, 0.5) });
+      this.cityCenters.set(city.id, { cx, cy, maxDist: Math.max(maxDist, 0.5), landmarkTile });
     }
   }
 
@@ -304,7 +313,7 @@ export class TerrainRenderer {
       const closeness = center
         ? 1 - Math.min(1, Math.hypot(mapX - center.cx, mapY - center.cy) / center.maxDist)
         : 1;
-      drawCityRoofs(ctx, px, py, size, city.tier, closeness);
+      drawCityRoofs(ctx, px, py, size, city.tier, closeness, center?.landmarkTile === idx);
     } else if (industryIdx >= 0 && this.industries[industryIdx]) {
       drawIndustryIcon(ctx, (this.industries[industryIdx] as Industry).type, px, py, size);
     } else {

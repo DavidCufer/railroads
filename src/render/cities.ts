@@ -11,6 +11,7 @@
  * per-tile decorations.
  */
 import type { CityTier } from "../data/cities";
+import { shadeColor } from "./color";
 import { CITY_ROOF_COLORS, CITY_ROOF_SHADOW, CITY_WALL_COLOR } from "./palette";
 
 const STREET_COLOR = "rgba(214, 206, 184, 0.55)";
@@ -61,15 +62,20 @@ function drawRoof(
     ctx.fillRect(-w / 2, -h / 2 - wallH, w, wallH);
   }
 
-  ctx.fillStyle = color;
-  ctx.fillRect(-w / 2, -h / 2, w, h);
+  // Top-lit pitched roof: the half facing the light (up/left) is lighter, the other darker, split
+  // by the ridge along the long axis; a hairline outline keeps neighbours from merging.
+  const alongX = w >= h;
+  ctx.fillStyle = shadeColor(color, 1.22);
+  if (alongX) ctx.fillRect(-w / 2, -h / 2, w, h / 2);
+  else ctx.fillRect(-w / 2, -h / 2, w / 2, h);
+  ctx.fillStyle = shadeColor(color, 0.86);
+  if (alongX) ctx.fillRect(-w / 2, 0, w, h / 2);
+  else ctx.fillRect(0, -h / 2, w / 2, h);
 
-  // Gable ridge line (roof shape, not just a flat box) — along whichever axis is longer, so it
-  // reads as a real pitched roofline rather than an arbitrary diagonal.
   ctx.strokeStyle = GABLE_LINE_COLOR;
   ctx.lineWidth = Math.max(0.6, size * 0.014);
   ctx.beginPath();
-  if (w >= h) {
+  if (alongX) {
     ctx.moveTo(-w / 2, 0);
     ctx.lineTo(w / 2, 0);
   } else {
@@ -77,6 +83,8 @@ function drawRoof(
     ctx.lineTo(0, h / 2);
   }
   ctx.stroke();
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.18)";
+  ctx.strokeRect(-w / 2, -h / 2, w, h);
 
   ctx.restore();
 }
@@ -215,12 +223,74 @@ export function drawCityRoofs(
   size: number,
   tier: CityTier,
   closeness = 1,
+  landmark = false,
 ): void {
   const { rows, buildingsPerRow, tallChance, blockAt } = TIER_DENSITY[tier];
   if (closeness >= blockAt) {
     drawDenseBlock(ctx, px, py, size, rows, buildingsPerRow, tallChance);
+    // Cross street along the tile's right edge so streets continue between neighbouring blocks.
+    ctx.strokeStyle = STREET_COLOR;
+    ctx.lineWidth = Math.max(1, size * 0.045);
+    ctx.beginPath();
+    ctx.moveTo(px + size, py);
+    ctx.lineTo(px + size, py + size);
+    ctx.stroke();
   } else {
     drawScatteredHouses(ctx, px, py, size, closeness, tallChance);
+  }
+  if (landmark && tier !== "village") drawLandmark(ctx, px, py, size, tier === "town");
+}
+
+/** One landmark near the centre from Town tier up: a church (cross-shaped slate roof + steeple) in
+ * a town, a town hall (big stone block with a clock tower) in a city or metropolis. */
+function drawLandmark(
+  ctx: CanvasRenderingContext2D,
+  px: number,
+  py: number,
+  size: number,
+  church: boolean,
+): void {
+  const cx = px + size / 2;
+  const cy = py + size / 2;
+  // Open forecourt so it reads against the roofs around it.
+  ctx.fillStyle = "rgba(226, 218, 196, 0.85)";
+  ctx.fillRect(px + size * 0.12, py + size * 0.12, size * 0.76, size * 0.76);
+  const sh = size * 0.04;
+  ctx.fillStyle = CITY_ROOF_SHADOW;
+  if (church) {
+    // Nave (long) + transept (short) as a cross.
+    const nl = size * 0.5;
+    const nw = size * 0.17;
+    ctx.fillRect(cx - nl / 2 + sh, cy - nw / 2 + sh, nl, nw);
+    ctx.fillRect(cx - nw / 2 + sh, cy - nl * 0.36 + sh, nw, nl * 0.72);
+    const lit = "#8A93A0";
+    ctx.fillStyle = shadeColor(lit, 1.1);
+    ctx.fillRect(cx - nl / 2, cy - nw / 2, nl, nw / 2);
+    ctx.fillRect(cx - nw / 2, cy - nl * 0.36, nw / 2, nl * 0.72);
+    ctx.fillStyle = shadeColor(lit, 0.78);
+    ctx.fillRect(cx - nl / 2, cy, nl, nw / 2);
+    ctx.fillRect(cx, cy - nl * 0.36, nw / 2, nl * 0.72);
+    // Steeple at the west end.
+    ctx.fillStyle = "#E8E0CC";
+    ctx.fillRect(cx - nl / 2 - nw * 0.1, cy - nw * 0.4, nw * 0.8, nw * 0.8);
+    ctx.fillStyle = "#B5533C";
+    ctx.fillRect(cx - nl / 2 + nw * 0.05, cy - nw * 0.2, nw * 0.4, nw * 0.4);
+  } else {
+    const w = size * 0.5;
+    const h = size * 0.34;
+    ctx.fillRect(cx - w / 2 + sh, cy - h / 2 + sh, w, h);
+    ctx.fillStyle = "#D8CFB8";
+    ctx.fillRect(cx - w / 2, cy - h / 2, w, h);
+    ctx.fillStyle = "#6F7B8A";
+    ctx.fillRect(cx - w * 0.42, cy - h * 0.34, w * 0.84, h * 0.68);
+    ctx.fillStyle = "#95A2B2";
+    ctx.fillRect(cx - w * 0.42, cy - h * 0.34, w * 0.84, h * 0.34);
+    ctx.fillStyle = "#B5533C";
+    ctx.fillRect(cx - size * 0.07, cy - size * 0.07, size * 0.14, size * 0.14);
+    ctx.fillStyle = "#F4EFE0";
+    ctx.beginPath();
+    ctx.arc(cx, cy, size * 0.035, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 
