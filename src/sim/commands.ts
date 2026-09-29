@@ -60,7 +60,7 @@ import { addExpense, computeCreditLimit } from "./finance/ledger";
 import { DAYS_PER_YEAR, HOURS_PER_DAY } from "./time";
 import { dropCarCargo } from "./trains/loading";
 import { tileXY } from "./trains/geometry";
-import type { Train, TrainCar, TrainOrder } from "./trains/types";
+import type { LoadingRule, Train, TrainCar, TrainOrder } from "./trains/types";
 
 export type CommandReasonCode =
   | "no-path"
@@ -668,6 +668,22 @@ export function setOrders(
 
   train.orders = orders.map((o) => ({ ...o }));
   train.currentOrderIndex = 0;
+  return { ok: true, cost: 0 };
+}
+
+/** Changes only the loading rule of one stop of `trainId`'s orders, keeping its progress through the
+ * list (unlike `setOrders`, which restarts at the top). Train panel: tap a stop's rule chip. */
+export function setOrderRule(
+  state: GameState,
+  trainId: number,
+  orderIndex: number,
+  rule: LoadingRule,
+): CommandResult {
+  const train = state.trains.find((t) => t.id === trainId);
+  if (!train) return { ok: false, reason: "invalid-train" };
+  const order = train.orders[orderIndex];
+  if (!order) return { ok: false, reason: "invalid-orders" };
+  order.rule = rule;
   return { ok: true, cost: 0 };
 }
 

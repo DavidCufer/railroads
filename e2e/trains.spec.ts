@@ -238,9 +238,11 @@ test.describe("Phase 6 — Trains", () => {
     await page.locator(".station-buy-train-btn").click();
     await page.waitForTimeout(300);
 
-    await expect(page.locator(".panel-title")).toHaveText("Buy Train");
+    await expect(page.locator(".sheet-title")).toContainText("Buy train");
     await expect(page.locator(".train-loco-btn").first()).toBeVisible();
+    await page.locator(".wizard-next").click(); // Engine → Cars
     await page.locator(".train-car-add-btn", { hasText: "Coal" }).click();
+    await page.locator(".wizard-next").click(); // Cars → Route
 
     // The panel covers the right ~45% of the viewport, so re-center each target tile toward the
     // left before tapping it — otherwise the tap would land on the panel instead of the map.
@@ -255,7 +257,7 @@ test.describe("Phase 6 — Trains", () => {
     await page.mouse.click(pA.x, pA.y);
     await page.waitForTimeout(100);
 
-    await expect(page.locator(".train-order-row")).toHaveCount(2);
+    await expect(page.locator('[data-testid="tl-stop"]')).toHaveCount(2);
     await expect(page.locator(".panel-action-build")).toBeEnabled();
     // Clicking the Coal car button auto-scrolled the panel to bring it into view; scroll back to
     // the top so the screenshot shows the locomotive picker too, not just the lower half. Only

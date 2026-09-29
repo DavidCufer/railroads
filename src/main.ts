@@ -1133,6 +1133,10 @@ function main(): void {
           /** Test-only: opens a station's panel directly (a tap on a tile with a train opens the
            * train instead). */
           debugOpenStation: (stationId: number) => void;
+          /** Test-only: as if the player tapped a station while adding a stop. */
+          debugPickStation: (stationId: number) => void;
+          /** Test-only: opens a train's panel. */
+          debugOpenTrain: (trainId: number) => void;
           getStationTransfer: (stationId: number) => Array<{
             cargoType: string;
             units: number;
@@ -1350,6 +1354,8 @@ function main(): void {
           capacity: CARGO[c.cargoType].capacity,
         })),
       debugOpenStation: (stationId) => openStationById(stationId),
+      debugPickStation: (stationId) => deliverStationPick(stationId),
+      debugOpenTrain: (trainId) => openTrainPanel(ui, state, trainId),
       debugPreviewBuild: (path) => {
         const plan = computeBuildPlan(state, path);
         ghost = {

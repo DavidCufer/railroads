@@ -77,7 +77,16 @@ export type IconName =
   | "waterTower"
   | "lock"
   | "tags"
-  | "trash";
+  | "trash"
+  | "gauge"
+  | "power"
+  | "plus"
+  | "calendar"
+  | "reliability"
+  | "clock"
+  | "arrowRight"
+  | "arrowLeft"
+  | "swap";
 
 const STROKE =
   'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
@@ -145,6 +154,15 @@ const ICONS: Record<IconName, string> = {
   pens: `<svg viewBox="0 0 24 24" ${STROKE}><line x1="3" y1="20" x2="21" y2="20"/><line x1="5" y1="20" x2="5" y2="9"/><line x1="12" y1="20" x2="12" y2="9"/><line x1="19" y1="20" x2="19" y2="9"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="16" x2="21" y2="16"/></svg>`,
   waterTower: `<svg viewBox="0 0 24 24" ${STROKE}><rect x="6" y="4" width="12" height="7" rx="2"/><line x1="8" y1="11" x2="6" y2="21"/><line x1="16" y1="11" x2="18" y2="21"/><line x1="12" y1="11" x2="12" y2="21"/></svg>`,
   lock: `<svg viewBox="0 0 24 24" ${STROKE}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`,
+  gauge: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M4 17a8 8 0 1 1 16 0"/><line x1="12" y1="17" x2="16.5" y2="10.5"/><circle cx="12" cy="17" r="1.2" fill="currentColor" stroke="none"/></svg>`,
+  power: `<svg viewBox="0 0 24 24" ${STROKE}><polygon points="13,2 5,14 11,14 9,22 19,10 12,10"/></svg>`,
+  plus: `<svg viewBox="0 0 24 24" ${STROKE}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+  calendar: `<svg viewBox="0 0 24 24" ${STROKE}><rect x="4" y="5" width="16" height="15" rx="2"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="9" y1="3" x2="9" y2="7"/><line x1="15" y1="3" x2="15" y2="7"/></svg>`,
+  reliability: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6l7-3z"/><polyline points="9 12 11.5 14.5 15.5 9.5"/></svg>`,
+  clock: `<svg viewBox="0 0 24 24" ${STROKE}><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>`,
+  arrowRight: `<svg viewBox="0 0 24 24" ${STROKE}><line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>`,
+  arrowLeft: `<svg viewBox="0 0 24 24" ${STROKE}><line x1="20" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></svg>`,
+  swap: `<svg viewBox="0 0 24 24" ${STROKE}><polyline points="7 4 3 8 7 12"/><line x1="3" y1="8" x2="16" y2="8"/><polyline points="17 12 21 16 17 20"/><line x1="21" y1="16" x2="8" y2="16"/></svg>`,
   trash: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>`,
   tags: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M4 4h8l8 8-8 8-8-8z"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/></svg>`,
 };

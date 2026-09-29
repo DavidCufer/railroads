@@ -234,6 +234,145 @@ export const strings = {
     replace: "Replace",
     replaceTitle: "Replace Locomotive",
     tradeInCredit: "Trade-in credit",
+    /** Buy-train wizard (STYLE §11.1). */
+    wizard: {
+      title: (station: string) => `Buy train · ${station}`,
+      steps: { engine: "Engine", cars: "Cars", route: "Route" },
+      next: "Next",
+      back: "Back",
+      stepOf: (n: number, total: number, name: string) => `Step ${n} of ${total} · ${name}`,
+      filterAll: "All",
+      needsElectrification: "Needs electrified track at this station",
+      steamRetired: "Steam can no longer be bought",
+      chooseEngine: "Choose an engine",
+      introduced: (year: number) => `Since ${year}`,
+      carsUsed: (used: number, max: number) => `${used} / ${max} cars`,
+      passengerMailOnly: "Passenger and mail cars only",
+      noCarsYet: "No cars yet — tap a car below to add it",
+      tapToRemove: "Tap a car to remove it",
+      suggested: "Suggested",
+      applySuggestion: "Use",
+      suggestPassengers: "Passengers + mail",
+      suggestFreight: (cargo: string) => `${cargo} train`,
+      addCar: (name: string) => `Add ${name} car`,
+      removeCar: (name: string) => `Remove ${name} car`,
+      clear: "Clear",
+      stopsHint: "Add at least two stops",
+      stopCount: (n: number) => `${n} / 8 stops`,
+      yourTrain: "Your train",
+    },
+    stats: {
+      speed: "Top speed",
+      power: "Power",
+      maxCars: "Max cars",
+      reliability: "Reliability",
+      price: "Price",
+      running: "Running cost",
+      perYear: "/yr",
+    },
+    /** Train panel v2 (STYLE §11.2). */
+    panel: {
+      tabs: { route: "Route", stats: "Stats" },
+      subtitle: (loco: string) => loco,
+      moving: (station: string, speed: string) => `→ ${station} · ${speed}`,
+      loadingAt: (station: string, pct: number) => `Loading at ${station} · ${pct}%`,
+      atStop: (station: string) => `At ${station}`,
+      hereNow: "Here now",
+      nextStop: "Next stop",
+      addStop: "Add stop",
+      removeStop: "Remove stop",
+      moveUp: "Move up",
+      moveDown: "Move down",
+      changeRule: "Change loading rule",
+      profitYear: "This year",
+      profitLast: "Last year",
+      age: "Age",
+      ageYears: (n: number) => (n < 1 ? "< 1 yr" : `${n} yr`),
+      reliability: "Reliability",
+      breakdowns: "Breakdowns",
+      income: "Income by cargo",
+      noIncome: "No deliveries yet",
+      cargoWaiting: "Loaded",
+      stopsNeeded: "A train needs at least two stops",
+      editCarsHint: "Add or remove cars",
+      replaceHint: "Swap the locomotive",
+    },
+    ruleHint: {
+      auto: "Load what is waiting, then go",
+      fullLoad: "Wait until every car is full",
+      unloadOnly: "Drop cargo, take nothing",
+      passThrough: "Roll through without stopping",
+      transfer: "Unload into the warehouse",
+    },
+  },
+  /** Short, factual, original notes for the Roster (STYLE §11.3), by locomotive id. */
+  locoNotes: {
+    "grasshopper-0-4-0":
+      "A tiny four-wheeled yard engine with vertical cylinders and a walking-beam drive. Slow and light, it proved that rails could carry paying loads.",
+    "planet-2-2-0":
+      "Cylinders tucked inside the frame and a single big driving axle made this a smooth, steady runner, and the pattern many early builders copied.",
+    "norris-4-2-0":
+      "A four-wheel leading truck let this single-driver engine follow sharp, roughly laid curves, opening up hilly country to steam.",
+    "american-4-4-0":
+      "The 4-4-0 hauled most of the continent's trains in the mid-1800s: four guiding wheels for curves, four drivers for speed.",
+    "mogul-2-6-0":
+      "Six small drivers gave the Mogul the grip to pull long freight strings up grades where the faster passenger engines slipped.",
+    "consolidation-2-8-0":
+      "Eight coupled drivers made it the workhorse of heavy freight for half a century: slow, sure-footed and hard to stall.",
+    "ten-wheeler-4-6-0":
+      "Adding a sixth driver to the American gave more pull at speed, and it became the standard all-round engine of the 1880s.",
+    "atlantic-4-4-2":
+      "Two large driving wheels and a wide firebox under the cab made it fast, and it reigned on the fastest schedules of its day.",
+    "pacific-4-6-2":
+      "The trailing truck allowed a big firebox, so the Pacific could sustain high speed with heavy trains. It defined express steam for a generation.",
+    "mikado-2-8-2":
+      "A trailing truck let the Consolidation's grip be joined to a large firebox, giving the freight engine plenty of steam for long hauls.",
+    "hudson-4-6-4":
+      "Four-wheel leading and trailing trucks carried a huge boiler at high speed, the last word in fast steam passenger power.",
+    "articulated-4-8-8-4":
+      "Two sets of eight drivers hinged under a single very long boiler. It was built for the heaviest mountain freight, and it looks the part.",
+    "early-electric":
+      "Drawing current from an overhead wire or third rail, it needed no smoke or water stops and made tunnels and city approaches far cleaner.",
+    "streamliner-diesel":
+      "A smooth, wind-cheating nose and a diesel-electric drive gave the 1930s a train that looked like the future and ran like it.",
+    "e-unit-electric":
+      "A long, smooth-sided electric with an overhead pantograph: quiet, fast and capable of hauling the longest express trains.",
+    "cab-unit-diesel":
+      "Boxy, streamlined and built to be coupled in sets, the cab unit took over passenger and freight work as steam faded from main lines.",
+    "road-switcher-diesel":
+      "One short hood with a cab at the end, good to see forward and back. It could shunt in the yard and run the line the same day.",
+    "modern-electric":
+      "Solid-state controls and a single-arm pantograph give quick acceleration and strong braking, which suits busy suburban timetables.",
+    "high-horsepower-diesel":
+      "More engine in the same frame: the extra power lets a single locomotive replace a pair on long, heavy freights.",
+    "heavy-diesel":
+      "A wide-nosed, six-axle diesel built for the heaviest unit trains, prized for steady pulling power rather than top speed.",
+    "high-speed-trainset":
+      "A fixed set with a wedge nose, powered along its length and built for passengers only. Nothing else on the roster is as fast.",
+    "heavy-freight-electric":
+      "Wire-fed power and a low centre of gravity: the strongest engine on the roster, made to move mountains of freight.",
+  } as Record<string, string>,
+  roster: {
+    title: "Engine shed",
+    subtitle: (owned: number, known: number, total: number) =>
+      `${known} of ${total} models known · ${owned} in service`,
+    steamRow: "Steam",
+    dieselRow: "Diesel",
+    electricRow: "Electric",
+    future: "Not yet built",
+    available: "Available",
+    retired: "No longer built",
+    owned: (n: number) => (n === 0 ? "None in service" : `${n} in service`),
+    wheels: "Wheel arrangement",
+    introduced: "Introduced",
+    buyHere: "Buy",
+    detailBack: "Back to roster",
+  },
+  newEngine: {
+    overline: "New locomotive",
+    roster: "Roster",
+    ok: "OK",
+    year: (y: number) => `${y}`,
   },
   finance: {
     title: "Finance",

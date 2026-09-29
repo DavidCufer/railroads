@@ -83,13 +83,15 @@ test.describe("Phase 17 — tap targeting", () => {
     await page.mouse.click(c.x, c.y);
     await page.locator(".station-buy-train-btn").click();
     await page.waitForTimeout(300);
+    await page.locator(".wizard-next").click(); // Engine → Cars
+    await page.locator(".wizard-next").click(); // Cars → Route
     await page.locator(".train-pick-station-btn").click();
     const cityTile = await tilePoint(page, 76, 49);
     await page.mouse.click(cityTile.x, cityTile.y);
     await page.waitForTimeout(100);
-    // Buy Train panel is still open and the order list now has one stop.
-    await expect(page.locator(".panel-title")).toHaveText("Buy Train");
-    await expect(page.locator(".panel-body")).toContainText("1.");
+    // The route step is still open and the timeline now has one stop.
+    await expect(page.locator(".panel-title")).toContainText("Buy train");
+    await expect(page.locator('[data-testid="tl-stop"]')).toHaveCount(1);
   });
 
   test("a station next to an industry shows a chooser", async ({ page }) => {
