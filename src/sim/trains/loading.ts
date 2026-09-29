@@ -67,8 +67,18 @@ function accepts(state: GameState, stationId: number, cargo: CargoType): boolean
 /** Whether `cargo` is accepted at some *other* stop in the train's order list — the "Auto"/"Wait
  * for full load" rule only loads cargo this train can actually deliver somewhere (SPEC §7.2). */
 function acceptedAtAnotherStop(state: GameState, train: Train, cargo: CargoType): boolean {
+  return acceptedOnRoute(state, train, cargo, 1);
+}
+
+/** Whether some stop of the train's orders (all of them) takes `cargo`, or a transfer stop at a
+ * Warehouse hub would keep it — false means a car carrying it can never be delivered. */
+export function acceptedAtAnyStop(state: GameState, train: Train, cargo: CargoType): boolean {
+  return acceptedOnRoute(state, train, cargo, 0);
+}
+
+function acceptedOnRoute(state: GameState, train: Train, cargo: CargoType, from: number): boolean {
   const n = train.orders.length;
-  for (let step = 1; step < n; step++) {
+  for (let step = from; step < n; step++) {
     const order = train.orders[(train.currentOrderIndex + step) % n] as TrainOrder;
     if (accepts(state, order.stationId, cargo)) return true;
     // A "transfer" stop at a Warehouse takes any cargo (PLAN Phase 18 C): that is the whole point of

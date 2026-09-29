@@ -19,6 +19,7 @@ import { calendarFromTicks, isDayBoundary, isMonthBoundary, isYearBoundary } fro
 import { monthlyBreakdownStep } from "./trains/breakdown";
 import { yearlyWashoutStep } from "./track/washout";
 import { stepTrains } from "./trains";
+import { dailyUndeliverableStep } from "./trains/undeliverable";
 
 /** Locomotives newly available in `year` (SPEC §7.7: "when a new model becomes available: news
  * message + card in the yearly report"). Excludes anything already available at the scenario's
@@ -35,6 +36,7 @@ export function advanceOneHour(state: GameState): void {
   if (isDayBoundary(state.ticks)) {
     accrueDailyCargo(state);
     dailyGoalsStep(state);
+    dailyUndeliverableStep(state);
   }
 
   if (isMonthBoundary(state.ticks)) {

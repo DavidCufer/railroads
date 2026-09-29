@@ -136,6 +136,8 @@ export interface Train {
   blockPenalties: Map<number, number>;
   /** The unreachable station last reported in a "No route" news item, so it is announced once. */
   noRouteReportedStationId?: number;
+  /** Sorted cargo list last announced by the "can't be delivered" news item, so it fires once. */
+  undeliverableReported?: string;
   /** Why the train is waiting, while `status` is `waitingForBlock`/`waitingForStation`. */
   waitingOn?: WaitingOn;
   /** Ticks left in the current loading/unloading stop (SPEC §7.2, §6.1's overlength penalty).

@@ -3877,3 +3877,13 @@ button.rule-chip:active {
 .list-sort {
   margin-bottom: 8px;
 }
+
+/* Undeliverable-cargo warning (Phase 24A) */
+.chip.warn-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  background: var(--signal-soft);
+  color: var(--signal);
+}

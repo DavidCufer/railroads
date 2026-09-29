@@ -226,6 +226,8 @@ export const strings = {
     transferred: "Transferred",
     /** Merged floating delivery label ("+$1.9k · 3 deliveries"). */
     deliveriesMerged: (n: number) => `${n} deliveries`,
+    undeliverableChip: (cars: number, cargo: string) =>
+      `${cars} ${cars === 1 ? "car" : "cars"} of ${cargo} can't be delivered on this route`,
     noRouteTo: (station: string) => `No route to ${station}`,
     editCars: "Edit cars",
     editCarsTitle: "Edit Consist",
@@ -440,6 +442,8 @@ export const strings = {
         `Traffic jam near ${nearName} — consider double track or more stations`,
       noRoute: (trainName: string, stationName: string) =>
         `${trainName} has no route to ${stationName}`,
+      undeliverable: (trainName: string, cars: number, cargo: string) =>
+        `${trainName} carries ${cars} ${cars === 1 ? "car" : "cars"} of ${cargo} that no stop on its route accepts`,
       cityGrowth: (cityName: string, tierName: string) =>
         `${cityName} has grown into a ${tierName}!`,
       civicInvestment: (cityName: string) => `Civic Investment boosts growth in ${cityName}`,

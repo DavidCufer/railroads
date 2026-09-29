@@ -25,6 +25,7 @@ import {
 import type { GameState } from "../sim/state";
 import { calendarFromTicks, DAYS_PER_YEAR, HOURS_PER_DAY } from "../sim/time";
 import { getTrainRuntime, isElectrificationOnlyBlocker } from "../sim/trains";
+import { undeliverableCars } from "../sim/trains/undeliverable";
 import { booksProfit, trainProfitPerYear, trainProfitStatus } from "../sim/trains/profit";
 import type { Train, TrainCar, TrainOrder } from "../sim/trains/types";
 import { cardList, cardRow } from "./components/cardRow";
@@ -240,7 +241,19 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
     const fillLive = (): void => {
       const t = state.trains.find((x) => x.id === trainId);
       if (!t) return;
-      heroHost.replaceChildren(heroStrip(state, t), statusLine(state, t, loco));
+      const stuck = [...undeliverableCars(state, t)];
+      heroHost.replaceChildren(
+        heroStrip(state, t),
+        statusLine(state, t, loco),
+        ...stuck.map(([cargo, cars]) =>
+          h(
+            "div",
+            { className: "chip warn-chip undeliverable-chip" },
+            icon("warning", "icon-xs"),
+            strings.trains.undeliverableChip(cars, CARGO[cargo].name.toLowerCase()),
+          ),
+        ),
+      );
     };
     fillLive();
 

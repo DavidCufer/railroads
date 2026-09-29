@@ -1,3 +1,4 @@
+import { CARGO } from "../data/cargo";
 /**
  * News panel (SPEC §10.1: "News button with unread badge") — history of news items (capped at
  * `NEWS_HISTORY_MAX` in the sim), newest first. Also the shared formatter `formatNewsItem` used
@@ -61,6 +62,12 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
         trainName(state, item.trainId),
         stationName(state, item.stationId),
       );
+    case "undeliverable":
+      return strings.news.kinds.undeliverable(
+        trainName(state, item.trainId),
+        item.cars,
+        CARGO[item.cargo].name.toLowerCase(),
+      );
     case "cityGrowth":
       return strings.news.kinds.cityGrowth(
         cityName(state, item.cityId),
@@ -84,6 +91,7 @@ const NEWS_ICONS: Record<NewsItem["kind"], { icon: IconName; tone: Tone }> = {
   washout: { icon: "water", tone: "signal" },
   trafficJam: { icon: "warning", tone: "signal" },
   noRoute: { icon: "warning", tone: "signal" },
+  undeliverable: { icon: "warning", tone: "signal" },
   cityGrowth: { icon: "city", tone: "go" },
   civicInvestment: { icon: "coin", tone: "go" },
   cityFounded: { icon: "village", tone: "go" },
@@ -102,7 +110,9 @@ export function openNewsPanel(container: HTMLElement, state: GameState): void {
               const meta = NEWS_ICONS[item.kind];
               // Locomotive news (new model, a breakdown, no route) shows the engine's side view.
               const trainLoco =
-                item.kind === "breakdown" || item.kind === "noRoute"
+                item.kind === "breakdown" ||
+                item.kind === "noRoute" ||
+                item.kind === "undeliverable"
                   ? locomotiveById(
                       state.trains.find((t) => t.id === item.trainId)?.locoModelId ?? "",
                     )
