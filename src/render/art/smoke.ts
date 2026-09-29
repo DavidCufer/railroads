@@ -4,7 +4,7 @@
 export const MAX_SMOKE = 400;
 /** Below this zoom no smoke is emitted or drawn. */
 export const SMOKE_MIN_ZOOM = 0.75;
-const LIFE_S = 1.5;
+const LIFE_S = 0.8;
 
 export type SmokeKind = "steam" | "wisp" | "haze";
 
@@ -74,12 +74,12 @@ function spawn(x: number, y: number, hx: number, hy: number, kind: SmokeKind): v
   X[i] = x;
   Y[i] = y;
   // Drift back along the track, plus a little scatter (world px / s).
-  VX[i] = -hx * 5 + (rnd() - 0.5) * 5;
-  VY[i] = -hy * 5 + (rnd() - 0.5) * 5 - 2;
+  VX[i] = -hx * 3 + (rnd() - 0.3) * 6;
+  VY[i] = -hy * 3 + (rnd() - 0.5) * 3 - 6;
   AGE[i] = 0;
   LIFE[i] = LIFE_S * (kind === "haze" ? 1.2 : 0.85 + rnd() * 0.3);
-  R0[i] = kind === "steam" ? 2.2 : kind === "wisp" ? 1.6 : 2.6;
-  A0[i] = kind === "steam" ? 0.75 : kind === "wisp" ? 0.32 : 0.16;
+  R0[i] = kind === "steam" ? 1.3 : kind === "wisp" ? 1 : 1.6;
+  A0[i] = kind === "steam" ? 0.5 : kind === "wisp" ? 0.25 : 0.12;
   KIND[i] = kind === "steam" ? 0 : kind === "wisp" ? 1 : 2;
 }
 
@@ -114,7 +114,7 @@ export function drawSmoke(
   for (let i = 0; i < count; i++) {
     const t = (AGE[i] as number) / (LIFE[i] as number);
     const s = worldToScreen(X[i] as number, Y[i] as number);
-    const r = (R0[i] as number) * (1 + t * 2.6) * zoom;
+    const r = (R0[i] as number) * (1 + t * 1.8) * zoom;
     ctx.globalAlpha = (A0[i] as number) * (1 - t) * (1 - t * 0.3);
     ctx.fillStyle = KIND[i] === 2 ? "#8E9198" : "#ECEAE4";
     ctx.beginPath();

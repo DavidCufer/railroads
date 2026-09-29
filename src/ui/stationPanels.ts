@@ -59,12 +59,7 @@ function supplyChipStack(
   waiting?: { amount: number; cap: number },
 ): HTMLElement {
   const children: Node[] = [
-    cargoChip(
-      container,
-      cargo,
-      Math.round(ratePerMonth * 10) / 10,
-      strings.station.supplyRate(CARGO[cargo].unit),
-    ),
+    cargoChip(container, cargo, ratePerMonth, strings.station.supplyRate(CARGO[cargo].unit)),
   ];
   if (waiting && waiting.cap > 0) {
     const pct = Math.max(0, Math.min(100, (waiting.amount / waiting.cap) * 100));

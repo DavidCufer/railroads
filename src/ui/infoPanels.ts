@@ -53,6 +53,8 @@ export function cargoChip(
   large = false,
 ): HTMLElement {
   const def = CARGO[cargo];
+  // Whole units only ("17.2" reads as noise); a tiny non-zero rate still shows as 1.
+  amount = amount > 0 ? Math.max(1, Math.round(amount)) : 0;
   return h(
     "button",
     {
@@ -244,13 +246,14 @@ export function openCityPanel(
       ]),
     );
 
-    const growthIcon = icon(growing ? "arrowUp" : "arrowFlat", growing ? "tone-go" : "tone-muted");
-    growthIcon.setAttribute("aria-label", growing ? strings.city.growing : strings.city.stagnant);
+    // Trend arrow only while growing; a flat dash after the population reads as a broken glyph.
+    const growthIcon = growing ? icon("arrowUp", "tone-go") : null;
+    growthIcon?.setAttribute("aria-label", strings.city.growing);
     const subtitle = h(
       "span",
       null,
       `${strings.city.tierNames[city.tier]} · ${formatPopulation(city.population)}`,
-      growthIcon,
+      ...(growthIcon ? [growthIcon] : []),
     );
 
     openPanel(container, {

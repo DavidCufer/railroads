@@ -1151,7 +1151,7 @@ button.chip {
 
 .toast-container {
   position: absolute;
-  top: 8px;
+  top: 52px; /* below the 44px top bar, never over it */
   left: 50%;
   transform: translateX(-50%);
   display: flex;
