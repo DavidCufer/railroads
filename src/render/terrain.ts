@@ -126,6 +126,8 @@ export class TerrainRenderer {
   private cities: readonly City[];
   private industries: readonly Industry[];
   private cityCenters = new Map<number, CityCenter>();
+  /** City tiles a station's platforms/building/improvements stand on: drawn without houses (PLAN 23B). */
+  private stationFootprint: ReadonlySet<number> = new Set();
   private shimmerDots: ShimmerDot[] = [];
   private lastShimmerUpdate = -Infinity;
   private lastShimmerKey = "";
@@ -157,6 +159,23 @@ export class TerrainRenderer {
     this.cache.clear();
     this.hiCache.clear();
     this.computeCityCenters();
+  }
+
+  /** Sets the city tiles covered by stations; re-bakes the chunks only when the set really changed. */
+  setStationFootprint(tiles: ReadonlySet<number>): void {
+    if (tiles.size === this.stationFootprint.size) {
+      let same = true;
+      for (const t of tiles) {
+        if (!this.stationFootprint.has(t)) {
+          same = false;
+          break;
+        }
+      }
+      if (same) return;
+    }
+    this.stationFootprint = tiles;
+    this.cache.clear();
+    this.hiCache.clear();
   }
 
   /** Number of chunk canvases currently cached (bounded by `TERRAIN_CHUNK_CACHE_MAX`) — exposed
@@ -346,7 +365,16 @@ export class TerrainRenderer {
       const closeness = center
         ? 1 - Math.min(1, Math.hypot(mapX - center.cx, mapY - center.cy) / center.maxDist)
         : 1;
-      drawCityRoofs(ctx, px, py, size, city.tier, closeness, center?.landmarkTile === idx);
+      drawCityRoofs(
+        ctx,
+        px,
+        py,
+        size,
+        city.tier,
+        closeness,
+        center?.landmarkTile === idx,
+        this.stationFootprint.has(idx),
+      );
     } else if (industryIdx >= 0 && this.industries[industryIdx]) {
       // Drawn as a ~2x2 tile cluster by `drawIndustries` once the chunk's tiles are down.
     } else {

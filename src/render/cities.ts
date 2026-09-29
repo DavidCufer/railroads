@@ -189,9 +189,11 @@ export function drawCityRoofs(
   tier: CityTier,
   closeness = 1,
   landmark = false,
+  /** A station stands here (PLAN 23B): paved plaza and streets only, no houses. */
+  cleared = false,
 ): void {
   const { tallChance, blockAt } = TIER_DENSITY[tier];
-  const dense = closeness >= blockAt;
+  const dense = cleared || closeness >= blockAt;
   ctx.save();
   ctx.translate(px, py);
   ctx.scale(size, size);
@@ -200,6 +202,10 @@ export function drawCityRoofs(
   ctx.fillStyle = dense ? "rgba(170, 162, 140, 0.6)" : "rgba(140, 160, 100, 0.22)";
   ctx.fillRect(0, 0, 1, 1);
   streets(p, dense, closeness);
+  if (cleared) {
+    ctx.restore();
+    return;
+  }
   const x0 = ROAD + 0.03;
   const lotW = (1 - x0 - 0.02) / 2;
   const t = tallChance * (0.3 + 0.7 * closeness);

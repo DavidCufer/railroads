@@ -5,7 +5,12 @@ import { TerrainRenderer } from "./render/terrain";
 import { TrackRenderer } from "./render/track";
 import { drawBuildPreview, type BuildMode, type GhostPreview } from "./render/buildPreview";
 import { drawCityLabels, cityWorldCenter } from "./render/labels";
-import { drawStations, drawStationLabels } from "./render/stations";
+import {
+  drawStations,
+  drawStationLabels,
+  stationFootprintCityTiles,
+  stationWorldOf,
+} from "./render/stations";
 import { drawStationSupplyBubbles } from "./render/stationSupplyBubbles";
 import { drawStationCatchment, type StationCatchmentPreview } from "./render/stationPreview";
 import { drawTrains } from "./render/trains";
@@ -855,6 +860,8 @@ function main(): void {
         terrainRenderer.refreshContent();
       }
 
+      terrainRenderer.setStationFootprint(stationFootprintCityTiles(stationWorldOf(state)));
+
       const renderStart = performance.now();
       terrainRenderer.draw(ctx, camera, viewportW, viewportH, now);
       trackRenderer.draw(ctx, camera, viewportW, viewportH);
@@ -879,15 +886,7 @@ function main(): void {
           overlayState.heatmapCargo,
         );
       }
-      drawStations(
-        ctx,
-        camera,
-        viewportW,
-        viewportH,
-        state.map.width,
-        state.stations,
-        state.trackGraph,
-      );
+      drawStations(ctx, camera, viewportW, viewportH, stationWorldOf(state));
       drawStationSupplyBubbles(ctx, camera, viewportW, viewportH, state);
       if (overlayState.trainProfit) {
         drawTrainProfitOverlay(ctx, camera, viewportW, viewportH, state.trains, state.ticks);
@@ -937,12 +936,10 @@ function main(): void {
         camera,
         viewportW,
         viewportH,
-        state.map.width,
-        state.stations,
+        stationWorldOf(state),
         state.cities,
         (tile) => state.map.cityId[tile] ?? -1,
         reserved,
-        state.trackGraph,
       );
       if (floatingLabels.length > 0) {
         floatingLabels = floatingLabels.filter((l) => !isLabelExpired(l, now));

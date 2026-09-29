@@ -6,13 +6,17 @@
  * like the Phase 19 train sprites. The building stands on the -y side of the track; anything on
  * the opposite side (engine shed, water tower, sidings) is laid out on +y.
  */
-import type { StationImprovementType, StationType } from "../data/stations";
+import type { StationType } from "../data/stations";
 import { shadeColor } from "./color";
+import {
+  IMPROVEMENT_SCALE,
+  STATION_BH,
+  STATION_BW,
+  type Slot,
+  type StationLayout,
+} from "./stationLayout";
 
-export type StationMarkerType = StationImprovementType | "engineShed" | "waterTower";
-
-/** Platform length in tiles, centred on the station tile (clipped by `StationArtOptions.reach`). */
-export const PLATFORM_LENGTH: Record<StationType, number> = { depot: 2, station: 3, terminal: 4 };
+export type { StationMarkerType } from "./stationLayout";
 
 export interface StationArtOptions {
   type: StationType;
@@ -24,9 +28,8 @@ export interface StationArtOptions {
   near: number;
   /** Passing loop (two lanes): platforms only on the outer side, building beyond. */
   loop: boolean;
-  /** How far the straight track continues from the station tile centre, in tiles, toward -x/+x. */
-  reach: readonly [number, number];
-  improvements: readonly StationMarkerType[];
+  /** Where everything goes (see `layoutStation`): building side, clipped platforms, improvement slots. */
+  layout: StationLayout;
 }
 
 // --- palette --------------------------------------------------------------------------------
@@ -34,8 +37,6 @@ const SHADOW = "rgba(24, 18, 10, 0.30)";
 const PLATFORM = "#D9D0B9";
 const PLATFORM_KERB = "#F3EEDF";
 const PLATFORM_OUTER = "#A99E85";
-const STATION_BW = 1.7;
-const STATION_BH = 0.46;
 const SAFETY = "#E2C557";
 const PAVING = "#BDB399";
 const WOOD_WALL = "#8B6440";
@@ -268,14 +269,15 @@ function canopy(g: G, x0: number, x1: number, yIn: number, thick: number, side: 
 // --- buildings ------------------------------------------------------------------------------
 
 /** Depot: a small wooden hut with a red gabled roof and a low platform. */
-function drawDepot(g: G, o: StationArtOptions, x0: number, x1: number): void {
+function drawDepot(g: G, o: StationArtOptions): void {
   const { ctx } = g;
+  const { nearRange, farRange, bx } = o.layout;
   const pt = 0.16;
-  platform(g, x0, x1, o.near, pt, -1, true);
-  if (!o.loop) {
-    // low platform on the opposite side too, shorter
-    platform(g, x0 + 0.3, x1 - 0.3, o.near, pt * 0.8, 1, false);
-  }
+  if (nearRange) platform(g, nearRange[0], nearRange[1], o.near, pt, -1, true);
+  // low platform on the opposite side too, shorter
+  if (farRange) platform(g, farRange[0], farRange[1], o.near, pt * 0.8, 1, false);
+  ctx.save();
+  ctx.translate(bx, 0);
   const yIn = o.near + pt + 0.05;
   // Hut
   const w = 0.7;
@@ -301,28 +303,35 @@ function drawDepot(g: G, o: StationArtOptions, x0: number, x1: number): void {
     ctx.fillRect(-0.72, -(o.near + pt * 0.9), 0.1, 0.08);
     ctx.fillRect(-0.6, -(o.near + pt * 0.8), 0.08, 0.06);
   }
+  ctx.restore();
 }
 
 /** Station: brick building with a slate roof and cross-gable, canopied platforms. */
-function drawStation(g: G, o: StationArtOptions, x0: number, x1: number): { bw: number } {
+function drawStation(g: G, o: StationArtOptions): void {
   const { ctx } = g;
+  const { nearRange, farRange, bx } = o.layout;
   const pt = 0.24;
-  const cx0 = x0 + 0.2;
-  const cx1 = x1 - 0.2;
   // Platform on the far side first (it is behind the track visually, no overlap anyway).
-  if (!o.loop) {
-    platform(g, x0, x1, o.near, pt, 1, true);
-    canopy(g, cx0 + 0.3, cx1 - 0.3, o.near, pt, 1);
-    bench(g, 0.5, o.near + pt * 0.7);
+  if (farRange) {
+    platform(g, farRange[0], farRange[1], o.near, pt, 1, true);
+    if (farRange[1] - farRange[0] > 1.2)
+      canopy(g, farRange[0] + 0.5, farRange[1] - 0.5, o.near, pt, 1);
+    if (farRange[1] > 0.6 && farRange[0] < 0.4) bench(g, 0.5, o.near + pt * 0.7);
   }
-  platform(g, x0, x1, o.near, pt, -1, true);
+  if (nearRange) platform(g, nearRange[0], nearRange[1], o.near, pt, -1, true);
   const bw = STATION_BW;
   const bh = STATION_BH;
   const yIn = o.near + pt + 0.07;
+  ctx.save();
+  ctx.translate(bx, 0);
   // paved forecourt
   ctx.fillStyle = PAVING;
   ctx.fillRect(-bw / 2 - 0.12, -(yIn + bh + 0.1), bw + 0.24, bh + 0.1 + 0.07);
-  canopy(g, cx0, cx1, o.near, pt, -1);
+  ctx.restore();
+  if (nearRange && nearRange[1] - nearRange[0] > 0.9)
+    canopy(g, nearRange[0] + 0.2, nearRange[1] - 0.2, o.near, pt, -1);
+  ctx.save();
+  ctx.translate(bx, 0);
   const y = -(yIn + bh);
   // Main body, end pavilions (gable across), central cross-gable toward the track.
   roofBlock(g, -bw / 2 + 0.3, y, bw - 0.6, bh, BRICK_ROOF, BRICK_WALL, true, 1.2);
@@ -342,13 +351,15 @@ function drawStation(g: G, o: StationArtOptions, x0: number, x1: number): { bw: 
   }
   chimney(g, -bw / 2 + 0.42, y + 0.07);
   chimney(g, bw / 2 - 0.5, y + 0.07);
-  return { bw };
+  ctx.restore();
 }
 
 /** Terminal: a barrel-vaulted train shed over the tracks with ribs and a glazed centre strip, and a
  * grand head building with a clock tower and pavilions. */
-function drawTerminal(g: G, o: StationArtOptions, x0: number, x1: number): { bw: number } {
+function drawTerminal(g: G, o: StationArtOptions): void {
   const { ctx, px } = g;
+  const { bx } = o.layout;
+  const [x0, x1] = o.layout.nearRange ?? [-0.5, 0.5];
   const half = Math.max(o.loop ? o.near + 0.08 : 0.44, 0.44);
   const sx0 = x0 + 0.08;
   const sx1 = x1 - 0.08;
@@ -419,6 +430,8 @@ function drawTerminal(g: G, o: StationArtOptions, x0: number, x1: number): { bw:
     ctx.fillRect(sx0 - 0.03, -half, px * 1.4, half * 2);
   }
   // Head building on the -y side with pavilions and a clock tower.
+  ctx.save();
+  ctx.translate(bx, 0);
   const bw = Math.min(len + 0.3, 2.9);
   const bh = 0.5;
   const yIn = half + 0.08;
@@ -476,62 +489,10 @@ function drawTerminal(g: G, o: StationArtOptions, x0: number, x1: number): { bw:
   }
   chimney(g, -bw / 2 + 0.55, y + 0.07);
   chimney(g, bw / 2 - 0.62, y + 0.07);
-  return { bw };
+  ctx.restore();
 }
 
 // --- improvements (local frame) --------------------------------------------------------------
-
-interface Slot {
-  type: StationMarkerType;
-  cx: number;
-  cy: number;
-  w: number;
-  h: number;
-}
-
-/** Improvements are drawn a bit larger than their layout boxes so they read at zoom 1. */
-const IMPROVEMENT_SCALE = 1.3;
-
-const SIZES: Record<StationMarkerType, readonly [number, number]> = {
-  warehouse: [1.0, 0.5],
-  hotel: [0.5, 0.5],
-  postOffice: [0.42, 0.32],
-  coldStorage: [0.66, 0.44],
-  engineShed: [1.3, 0.5],
-  waterTower: [0.36, 0.36],
-  freightYard: [1.3, 0.5],
-  livestockPens: [0.9, 0.52],
-};
-
-/** Lays improvements out tidily: building-side ones sit beside/behind the main building in rows
- * parallel to the track; track-side ones (shed, tower, sidings) go on the far side. */
-export function layoutImprovements(
-  o: Pick<StationArtOptions, "type" | "near" | "improvements" | "loop">,
-): Slot[] {
-  const pt = o.type === "depot" ? 0.16 : o.type === "station" ? 0.24 : 0.5;
-  const bw = o.type === "depot" ? 0.7 : o.type === "station" ? STATION_BW : 2.9;
-  const bh = o.type === "depot" ? 0.36 : o.type === "station" ? STATION_BH : 0.5;
-  const nearSide = o.type === "terminal" ? 0.52 + bh : o.near + pt + 0.07 + bh;
-  const farSide = o.type === "depot" ? o.near + 0.2 : o.near + pt + 0.12;
-  const rowBack = nearSide + 0.2; // second row starts behind the first row's outer edge
-  const slots: Slot[] = [];
-  const has = (t: StationMarkerType) => o.improvements.includes(t);
-  const put = (type: StationMarkerType, cx: number, yEdge: number, dir: -1 | 1) => {
-    const [w, h] = SIZES[type];
-    slots.push({ type, cx, cy: dir * (yEdge + (h * IMPROVEMENT_SCALE) / 2), w, h });
-  };
-  const K = IMPROVEMENT_SCALE;
-  const edge = bw / 2 + 0.24;
-  if (has("warehouse")) put("warehouse", -(edge + 0.5 * K), nearSide - bh, -1);
-  if (has("hotel")) put("hotel", edge + 0.25 * K, nearSide - bh, -1);
-  if (has("postOffice")) put("postOffice", edge + 0.5 * K + 0.12 + 0.21 * K, nearSide - bh, -1);
-  if (has("coldStorage")) put("coldStorage", 0, rowBack, -1);
-  if (has("engineShed")) put("engineShed", -1.5, farSide, 1);
-  if (has("waterTower")) put("waterTower", 1.7, farSide, 1);
-  if (has("freightYard")) put("freightYard", -0.3, farSide + 0.75, 1);
-  if (has("livestockPens")) put("livestockPens", 1.4, farSide + 0.75, 1);
-  return slots;
-}
 
 function drawWarehouse(g: G, s: Slot, towardTrack: -1 | 1): void {
   const { ctx } = g;
@@ -757,10 +718,11 @@ function drawPens(g: G, s: Slot): void {
 function drawImprovement(g: G, s: Slot): void {
   g.ctx.save();
   g.ctx.translate(s.cx, s.cy);
-  g.ctx.scale(IMPROVEMENT_SCALE, IMPROVEMENT_SCALE);
+  const k = IMPROVEMENT_SCALE * s.scale;
+  g.ctx.scale(k, k);
   g.ctx.translate(-s.cx, -s.cy);
   const savedPx = g.px;
-  g.px = savedPx / IMPROVEMENT_SCALE;
+  g.px = savedPx / k;
   drawImprovementShape(g, s);
   g.px = savedPx;
   g.ctx.restore();
@@ -769,7 +731,7 @@ function drawImprovement(g: G, s: Slot): void {
 function drawImprovementShape(g: G, s: Slot): void {
   switch (s.type) {
     case "warehouse":
-      drawWarehouse(g, s, 1);
+      drawWarehouse(g, s, s.cy < 0 ? 1 : -1);
       break;
     case "hotel":
       drawHotel(g, s);
@@ -781,7 +743,7 @@ function drawImprovementShape(g: G, s: Slot): void {
       drawColdStorage(g, s);
       break;
     case "engineShed":
-      drawEngineShed(g, s, -1);
+      drawEngineShed(g, s, s.cy < 0 ? 1 : -1);
       break;
     case "waterTower":
       drawWaterTower(g, s);
@@ -797,45 +759,38 @@ function drawImprovementShape(g: G, s: Slot): void {
 
 // --- entry points ---------------------------------------------------------------------------
 
+/** Screen-space (y down) extent of the laid-out art in tiles relative to the station tile centre. */
+function screenExtent(o: StationArtOptions): { top: number; bottom: number } {
+  const c = Math.cos(o.angle);
+  const s = Math.sin(o.angle);
+  const f = o.layout.side === -1 ? 1 : -1;
+  let top = 0.5;
+  let bottom = 0.5;
+  for (const b of o.layout.boxes) {
+    for (const [x, y] of [
+      [b.x0, b.y0],
+      [b.x1, b.y0],
+      [b.x0, b.y1],
+      [b.x1, b.y1],
+    ] as const) {
+      const sy = x * s + y * f * c;
+      top = Math.max(top, -sy);
+      bottom = Math.max(bottom, sy);
+    }
+  }
+  return { top, bottom };
+}
+
 /** Vertical screen extent (in tiles, below the tile centre) of the art including improvements —
  * used to drop the name plate clear of it. */
 export function stationArtBottom(o: StationArtOptions): number {
-  const slots = layoutImprovements(o);
-  let bottom = 0.5;
-  const c = Math.cos(o.angle);
-  const s = Math.sin(o.angle);
-  for (const slot of slots) {
-    for (const [dx, dy] of [
-      [-1, -1],
-      [1, -1],
-      [-1, 1],
-      [1, 1],
-    ] as const) {
-      const lx = slot.cx + (dx * slot.w * IMPROVEMENT_SCALE) / 2;
-      const ly = slot.cy + (dy * slot.h * IMPROVEMENT_SCALE) / 2;
-      bottom = Math.max(bottom, lx * s + ly * c);
-    }
-  }
-  return bottom;
+  return screenExtent(o).bottom;
 }
 
-/** How far above the tile centre (in tiles, on screen) the main building reaches — where the supply
- * bubbles should sit so they never cover it. */
+/** How far above the tile centre (in tiles, on screen) the art reaches — where the supply bubbles
+ * should sit so they never cover it. */
 export function stationArtTop(o: StationArtOptions): number {
-  const depth = o.type === "depot" ? 0.62 : o.type === "station" ? 0.95 : 1.1;
-  const halfLen = o.type === "depot" ? 0.4 : o.type === "station" ? STATION_BW / 2 : 1.45;
-  const c = Math.cos(o.angle);
-  const s = Math.sin(o.angle);
-  let top = 0.5;
-  for (const [lx, ly] of [
-    [-halfLen, -depth],
-    [halfLen, -depth],
-    [-halfLen, 0],
-    [halfLen, 0],
-  ] as const) {
-    top = Math.max(top, -(lx * s + ly * c));
-  }
-  return top;
+  return screenExtent(o).top;
 }
 
 /** Draws the station art centred at (cx, cy) with the track running along `o.angle`. */
@@ -846,20 +801,21 @@ export function drawStationArt(
   o: StationArtOptions,
 ): void {
   const { u, angle } = o;
+  const mirror = o.layout.side === 1;
   const c = Math.cos(angle);
   const s = Math.sin(angle);
   const d = 0.05;
-  // Screen-space shadow (1, 1.3)·d mapped into the local (rotated) frame.
+  // Screen-space shadow (1, 1.3)·d mapped into the local (rotated) frame, then into the art frame.
   const sx = c * d + s * d * 1.3;
-  const sy = -s * d + c * d * 1.3;
+  const sy = (-s * d + c * d * 1.3) * (mirror ? -1 : 1);
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(angle);
-  ctx.scale(u, u);
+  ctx.scale(u, mirror ? -u : u);
   const g: G = {
     ctx,
     u,
-    litNegY: c - s >= 0,
+    litNegY: mirror ? c - s < 0 : c - s >= 0,
     litNegX: c + s > 0,
     sx,
     sy,
@@ -867,13 +823,9 @@ export function drawStationArt(
     fine: u >= 44,
     px: 1 / u,
   };
-  const len = PLATFORM_LENGTH[o.type];
-  // Platform extents: half the length each way, clipped to the straight track available.
-  const x0 = -Math.min(len / 2, 0.5 + o.reach[0]);
-  const x1 = Math.min(len / 2, 0.5 + o.reach[1]);
-  if (o.type === "depot") drawDepot(g, o, x0, x1);
-  else if (o.type === "station") drawStation(g, o, x0, x1);
-  else drawTerminal(g, o, x0, x1);
-  for (const slot of layoutImprovements(o)) drawImprovement(g, slot);
+  if (o.type === "depot") drawDepot(g, o);
+  else if (o.type === "station") drawStation(g, o);
+  else drawTerminal(g, o);
+  for (const slot of o.layout.slots) drawImprovement(g, slot);
   ctx.restore();
 }

@@ -6,7 +6,10 @@
 import type { CityTier } from "../data/cities";
 import type { City } from "../sim/economy/types";
 import { DIRS8 } from "../sim/map/grid";
+import type { GameMap } from "../sim/map/types";
+import type { GameState } from "../sim/state";
 import type { TrackGraph } from "../sim/track/graph";
+import type { TrackEdge } from "../sim/track/types";
 import { Camera, TILE_SIZE } from "./camera";
 import { ChunkCache } from "./chunkCache";
 import { cityWorldCenter, measureTextWidthCached } from "./labels";
@@ -19,6 +22,7 @@ import {
   type StationMarkerType,
 } from "./stationArt";
 import type { Station } from "../sim/stations/types";
+import { footprintTiles, layoutStation, localObstacles, type StationLayout } from "./stationLayout";
 import { DOUBLE_TRACK_SPACING_TILES } from "./trackPath";
 import { intersectsReserved, type ReservedScreenRect } from "./reservedRects";
 
@@ -75,37 +79,152 @@ function straightReach(
   return n * Math.hypot(dx, dy);
 }
 
-/** Everything the station art needs for one station at the current graph state. */
-function artOptions(
-  station: Station,
-  graph: TrackGraph,
-  mapWidth: number,
-  size: number,
-): StationArtOptions {
-  const edges = graph.edgesAt(station.tile);
-  const doubleEdge = edges.find((e) => e.double);
-  const edge = doubleEdge ?? edges[0];
-  const dirIndex = edge ? edge.direction : 0;
-  const angle = edge ? stationAngle(dirIndex) : 0;
-  // Forward is the folded direction the art's +x axis follows; the graph edge may point either way.
+/** Everything the station renderers need to know about the world around the stations. */
+export interface StationWorld {
+  map: GameMap;
+  stations: readonly Station[];
+  graph: TrackGraph;
+  /** Changes whenever track or map content changes (`trackVersion`, `mapContentVersion`). */
+  version: string;
+}
+
+export function stationWorldOf(state: GameState): StationWorld {
+  return {
+    map: state.map,
+    stations: state.stations,
+    graph: state.trackGraph,
+    version: `${state.trackVersion}|${state.mapContentVersion}`,
+  };
+}
+
+/** Direction (DIRS8 index, as seen from the station tile) of the line the station stands on: the pair of
+ * opposite edges if there is one (a branch added later must not turn the platforms), preferring a passing
+ * loop; otherwise the only edge. */
+function stationDirection(graph: TrackGraph, tile: number): { dir: number; loop: boolean } | null {
+  const edges = graph.edgesAt(tile);
+  if (edges.length === 0) return null;
+  const outward = (e: TrackEdge): number => (e.a === tile ? e.direction : (e.direction + 4) % 8);
+  let best: { dir: number; loop: boolean; score: number } | null = null;
+  for (const e of edges) {
+    const dir = outward(e);
+    const opposite = edges.find((o) => o !== e && outward(o) === (dir + 4) % 8);
+    const score = (e.double ? 4 : 0) + (opposite ? 2 : 0) + (opposite?.double ? 1 : 0);
+    if (!best || score > best.score) best = { dir, loop: e.double === true, score };
+  }
+  return best ? { dir: best.dir, loop: best.loop } : null;
+}
+
+interface SiteInfo {
+  angle: number;
+  near: number;
+  loop: boolean;
+  reach: readonly [number, number];
+  layout: StationLayout;
+}
+
+/** Radius (tiles) around a station scanned for things its art must keep clear of. */
+const SITE_RADIUS = 5;
+
+function computeSite(station: Station, world: StationWorld): SiteInfo {
+  const { graph, map } = world;
+  const width = map.width;
+  const found = stationDirection(graph, station.tile);
+  const dirIndex = found ? found.dir : 0;
+  const angle = found ? stationAngle(dirIndex) : 0;
   const [fdx, fdy] = DIRS8[dirIndex] as readonly [number, number];
   const forward = fdx < 0 || (fdx === 0 && fdy < 0) ? (dirIndex + 4) % 8 : dirIndex;
-  const near = doubleEdge ? DOUBLE_TRACK_SPACING_TILES / 2 + 0.16 : PLATFORM_CLEARANCE;
+  const loop = found?.loop === true;
+  const near = loop ? DOUBLE_TRACK_SPACING_TILES / 2 + 0.16 : PLATFORM_CLEARANCE;
+  const reach: [number, number] = found
+    ? [
+        straightReach(graph, station.tile, (forward + 4) % 8, width),
+        straightReach(graph, station.tile, forward, width),
+      ]
+    : [0, 0];
+  const sx = station.tile % width;
+  const sy = Math.floor(station.tile / width);
+  // Foreign track (edges touching tiles near the station) and blocked tiles (industries, other stations).
+  const tracks: Array<[number, number, number, number]> = [];
+  const seen = new Set<number>();
+  const squares: Array<[number, number, number]> = [];
+  const others = new Set<number>();
+  for (const o of world.stations) if (o.tile !== station.tile) others.add(o.tile);
+  for (
+    let y = Math.max(0, sy - SITE_RADIUS);
+    y <= Math.min(map.height - 1, sy + SITE_RADIUS);
+    y++
+  ) {
+    for (let x = Math.max(0, sx - SITE_RADIUS); x <= Math.min(width - 1, sx + SITE_RADIUS); x++) {
+      const t = y * width + x;
+      for (const e of graph.edgesAt(t)) {
+        const key = Math.min(e.a, e.b) * map.width * map.height + Math.max(e.a, e.b);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        tracks.push([
+          (e.a % width) + 0.5,
+          Math.floor(e.a / width) + 0.5,
+          (e.b % width) + 0.5,
+          Math.floor(e.b / width) + 0.5,
+        ]);
+      }
+      if ((map.industryId[t] as number) >= 0) squares.push([x, y, 0]);
+      else if (others.has(t)) squares.push([x, y, 0.6]);
+    }
+  }
+  const obstacles = localObstacles(sx + 0.5, sy + 0.5, angle, tracks, squares);
+  const layout = layoutStation(
+    { type: station.type, near, loop, reach, improvements: activeImprovements(station) },
+    obstacles,
+  );
+  return { angle, near, loop, reach, layout };
+}
+
+const siteCache = new Map<number, { key: string; site: SiteInfo }>();
+
+function siteFor(station: Station, world: StationWorld): SiteInfo {
+  const key = `${world.version}|${world.stations.length}|${activeImprovements(station).join(",")}|${station.type}`;
+  const hit = siteCache.get(station.id);
+  if (hit && hit.key === key) return hit.site;
+  const site = computeSite(station, world);
+  siteCache.set(station.id, { key, site });
+  return site;
+}
+
+/** Everything the station art needs for one station at the current graph state. */
+function artOptions(station: Station, world: StationWorld, size: number): StationArtOptions {
+  const site = siteFor(station, world);
   return {
     type: station.type,
     u: size,
-    angle,
-    near,
-    loop: doubleEdge !== undefined,
-    reach: edge
-      ? [
-          straightReach(graph, station.tile, (forward + 4) % 8, mapWidth),
-          straightReach(graph, station.tile, forward, mapWidth),
-        ]
-      : [0, 0],
-    improvements: activeImprovements(station),
+    angle: site.angle,
+    near: site.near,
+    loop: site.loop,
+    layout: site.layout,
   };
 }
+
+/** City tiles covered by any station's platforms, building or improvements: the renderer leaves the
+ * houses off these tiles so the station stands on a clean site. */
+export function stationFootprintCityTiles(world: StationWorld): ReadonlySet<number> {
+  const key = `${world.version}|${world.stations.map((s) => `${s.id}:${s.type}:${activeImprovements(s).join(",")}`).join(";")}`;
+  if (footprintMemo && footprintMemo.key === key) return footprintMemo.tiles;
+  const out = new Set<number>();
+  const w = world.map.width;
+  for (const station of world.stations) {
+    const site = siteFor(station, world);
+    const sx = (station.tile % w) + 0.5;
+    const sy = Math.floor(station.tile / w) + 0.5;
+    for (const [tx, ty] of footprintTiles(site.layout, site.angle, sx, sy)) {
+      if (tx < 0 || ty < 0 || tx >= w || ty >= world.map.height) continue;
+      const t = ty * w + tx;
+      if ((world.map.cityId[t] as number) >= 0) out.add(t);
+    }
+  }
+  footprintMemo = { key, tiles: out };
+  return out;
+}
+
+let footprintMemo: { key: string; tiles: ReadonlySet<number> } | null = null;
 
 /** Half-extent of a station sprite in tiles: covers the building, platforms and improvement rows at any
  * rotation. */
@@ -115,7 +234,7 @@ const SPRITE_BUCKETS = [16, 24, 32, 48, 64, 96, 128, 192];
 const spriteCache = new ChunkCache<HTMLCanvasElement>(24);
 
 function spriteKey(o: StationArtOptions, bucket: number): string {
-  return `${o.type}|${o.angle.toFixed(3)}|${o.near.toFixed(3)}|${o.loop ? 1 : 0}|${o.reach.join(",")}|${o.improvements.join(",")}|${bucket}`;
+  return `${o.type}|${o.angle.toFixed(3)}|${o.near.toFixed(3)}|${o.loop ? 1 : 0}|${o.layout.key}|${bucket}`;
 }
 
 /** Station art drawn once into an offscreen sprite and blitted afterwards (static art stays cached;
@@ -145,8 +264,8 @@ function drawStationSprite(
 }
 
 /** Tiles above the station tile centre that the main building reaches (supply-bubble anchor). */
-export function stationTopExtent(station: Station, graph: TrackGraph, mapWidth: number): number {
-  return stationArtTop(artOptions(station, graph, mapWidth, TILE_SIZE));
+export function stationTopExtent(station: Station, world: StationWorld): number {
+  return stationArtTop(artOptions(station, world, TILE_SIZE));
 }
 
 export function drawStations(
@@ -154,23 +273,17 @@ export function drawStations(
   camera: Camera,
   viewportW: number,
   viewportH: number,
-  mapWidth: number,
-  stations: readonly Station[],
-  graph: TrackGraph,
+  world: StationWorld,
 ): void {
   const size = TILE_SIZE * camera.zoom;
-  for (const station of stations) {
+  const mapWidth = world.map.width;
+  for (const station of world.stations) {
     const [wx, wy] = tileWorldOrigin(station.tile, mapWidth);
     const s = camera.worldToScreen(wx, wy, viewportW, viewportH);
     const margin = size * (SPRITE_HALF + 0.1);
     if (s.x < -margin || s.y < -margin || s.x > viewportW + margin || s.y > viewportH + margin)
       continue;
-    drawStationSprite(
-      ctx,
-      s.x + size / 2,
-      s.y + size / 2,
-      artOptions(station, graph, mapWidth, size),
-    );
+    drawStationSprite(ctx, s.x + size / 2, s.y + size / 2, artOptions(station, world, size));
   }
 }
 
@@ -198,13 +311,13 @@ export function drawStationLabels(
   camera: Camera,
   viewportW: number,
   viewportH: number,
-  mapWidth: number,
-  stations: readonly Station[],
+  world: StationWorld,
   cities: readonly City[] = [],
   cityIdAt: (tile: number) => number = () => -1,
   reserved: readonly ReservedScreenRect[] = [],
-  graph?: TrackGraph,
 ): void {
+  const mapWidth = world.map.width;
+  const stations = world.stations;
   ctx.font = `600 ${FONT_PX}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
@@ -219,9 +332,7 @@ export function drawStationLabels(
     // (drawn at the footprint centroid, which the station tile may sit very close to) — if so,
     // push the station label down to clear it instead of overlapping (Phase 5 review carry-over).
     // Drop the name plate below the art (improvements included).
-    const bottom = graph
-      ? stationArtBottom(artOptions(station, graph, mapWidth, TILE_SIZE * camera.zoom))
-      : 0.5;
+    const bottom = stationArtBottom(artOptions(station, world, TILE_SIZE * camera.zoom));
     let labelY = s.y - TILE_SIZE * camera.zoom * 0.5 + bottom * TILE_SIZE * camera.zoom + 2;
     const cityId = cityIdAt(station.tile);
     const city = cityId >= 0 ? cities[cityId] : undefined;
