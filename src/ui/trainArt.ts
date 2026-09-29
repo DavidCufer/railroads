@@ -16,6 +16,7 @@ import {
 } from "../render/art";
 import type { ArtCanvas } from "../render/art/canvas";
 import { h } from "./h";
+import { chipTextColor } from "./infoPanels";
 import { icon, cargoIcon } from "./icons";
 
 /** Copies a cached art canvas into a fresh DOM canvas (CSS size = backing size / dpr). */
@@ -106,7 +107,7 @@ export function consistStrip(options: ConsistStripOptions): HTMLElement {
       ? h("span", { className: "cv-remove" }, icon("close", "icon-xs"))
       : null;
     const kids = [
-      car.loaded ? h("span", { className: "cv-cargo" }, cargoIcon(car.cargoType)) : null,
+      car.loaded ? h("span", { className: "cv-cargo" }, cargoBadge(car.cargoType)) : null,
       box,
       badge,
       options.fillMeters
@@ -156,4 +157,13 @@ export function wheelGlyphEl(def: LocomotiveDef): HTMLElement | null {
 /** Traction-type icon name for a locomotive. */
 export function tractionIcon(def: Pick<LocomotiveDef, "type">): "steam" | "diesel" | "electrify" {
   return def.type === "electric" ? "electrify" : def.type;
+}
+
+/** A cargo pictogram on a solid cargo-colour tile with a contrasting glyph (readable on any panel). */
+export function cargoBadge(cargo: CargoType, className = ""): HTMLElement {
+  const el = cargoIcon(cargo, className);
+  const color = CARGO[cargo].color;
+  el.style.background = color;
+  el.style.color = chipTextColor(color);
+  return el;
 }

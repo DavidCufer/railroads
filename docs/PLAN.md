@@ -670,14 +670,14 @@ STYLE §10 · files: `src/render/{stations,cities,industries,labels,terrain}.ts`
 
 ## Phase 22 — Train screens (buy wizard, train panel, roster, new-engine card)
 STYLE §11 · needs Phases 19 + 20 · files: `src/ui/trainPanels.ts` (split it), new `src/ui/roster.ts`, etc.
-- [ ] Buy-train wizard (§11.1): full-screen sheet, stepper, engine list with side-view thumbs, filters, hero with
+- [x] Buy-train wizard (§11.1): full-screen sheet, stepper, engine list with side-view thumbs, filters, hero with
       stat bars, consist builder with the side-view strip and suggestions, route step using the existing map-pick
       mode. Keep `?debug=1` hooks and existing e2e intents working.
-- [ ] Train panel v2 (§11.2): side-view hero with fill meters, status line with icon, Route timeline tab, Stats tab,
+- [x] Train panel v2 (§11.2): side-view hero with fill meters, status line with icon, Route timeline tab, Stats tab,
       action-bar footer; Edit cars reuses the consist builder.
-- [ ] Station "Trains" tab rows and news items use loco side-view thumbs.
-- [ ] Roster screen (§11.3) + short original notes per locomotive in strings.ts; era badge opens it.
-- [ ] New-engine announcement card (§11.4).
-- [ ] Screenshots: `phase-22-buy-engine.png`, `phase-22-buy-cars.png`, `phase-22-buy-route.png`,
+- [x] Station "Trains" tab rows and news items use loco side-view thumbs.
+- [x] Roster screen (§11.3) + short original notes per locomotive in strings.ts; era badge opens it.
+- [x] New-engine announcement card (§11.4).
+- [x] Screenshots: `phase-22-buy-engine.png`, `phase-22-buy-cars.png`, `phase-22-buy-route.png`,
       `phase-22-train-panel.png`, `phase-22-train-route.png`, `phase-22-roster.png`, `phase-22-roster-detail.png`,
       `phase-22-new-engine.png`. Open and check each at 800×360.

@@ -3341,10 +3341,6 @@ button.rule-chip:active {
 .new-chip {
   flex: 0 0 auto;
 }
-.cargo-icon-xs,
-.cv-cargo .cargo-icon {
-  background: #e9e1cf !important;
-}
 .route-head {
   align-items: center;
 }

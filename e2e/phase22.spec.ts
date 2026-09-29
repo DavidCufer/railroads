@@ -217,4 +217,36 @@ test.describe("Phase 22 — train screens", () => {
     await expect(page.locator(".sheet-roster")).toBeVisible();
     await page.locator(".sheet-close").click();
   });
+
+  test("buy wizard in 1985: filters, dimmed electrics without wire, hero for a diesel", async ({
+    page,
+  }) => {
+    await setup(page, 1985);
+    const ids = await buildWorld(page, false);
+    await page.evaluate((id) => window.__game!.debugOpenStation(id), ids.a);
+    await page.locator(".station-buy-train-btn").click();
+    await expect(page.locator(".eng-filter .segmented-btn")).toHaveCount(3); // All + diesel + electric
+    await page.locator('.eng-filter [data-filter="electric"]').click();
+    const electric = page.locator(".eng-card.locked").first();
+    await expect(electric).toBeVisible();
+    await electric.click();
+    await expect(page.locator(".eng-warning")).toBeVisible();
+    await noHorizontalOverflow(page, ".sheet-wizard");
+    await shot(page, "buy-engine-electric");
+    await page.locator('.eng-filter [data-filter="diesel"]').click();
+    await page.locator(".eng-card").first().click();
+    await expect(page.locator(".eng-warning")).toHaveCount(0);
+    await shot(page, "buy-engine-diesel");
+    await page.locator(".wizard-next").click();
+    await expect(page.locator(".train-car-add-btn").first()).toBeVisible();
+  });
+
+  test("station trains tab and news show locomotive pictures", async ({ page }) => {
+    await setup(page);
+    const ids = await buildWorld(page, true);
+    await page.evaluate((id) => window.__game!.debugOpenStation(id), ids.a);
+    await page.locator(".tab", { hasText: "Trains" }).click();
+    await expect(page.locator(".train-loco-btn canvas.art-canvas").first()).toBeVisible();
+    await shot(page, "station-trains");
+  });
 });

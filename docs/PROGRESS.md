@@ -3845,3 +3845,58 @@ carry-overs). Overlapping work here was dropped in favour of theirs; this entry 
 - Cities: two-tone top-lit roofs with ridge and outline, street lines continued along tile edges, landmark on the tile nearest the
   centroid (church for Town, town hall for City/Metropolis).
 - Deviation: the terminal's head building is on one side only.
+
+## 2026-09-29 — Phase 22: Train screens (buy wizard, train panel, roster, new-engine card)
+
+Tests: 416 unit (new `tests/ui/trainUi.test.ts`), 125 e2e (new `e2e/phase22.spec.ts`, 6 tests, run at devicePixelRatio 2);
+`npm run check` and `npm run e2e` green. Ran in parallel with Phase 21 (rebased before every push, no conflicts).
+
+### What was built
+- **Sheet** (`ui/sheet.ts`): full-screen header/body/footer container with Android-back support; used by the wizard, Edit cars
+  and the Roster.
+- **Buy wizard** (`ui/buyTrainWizard.ts`): stepper 1 Engine · 2 Cars · 3 Route. Step 1 = filter (All + only traction types that
+  exist now), newest-first engine cards (side-view thumb 36px, wheel glyph, New chip, price, dimmed + lock for electrics without
+  electrified track at this station) and a hero (96px side view on a paper plate, year/type chips, six stat bars/pips relative to
+  the best engine on offer, `ui/locoStats.ts`). Step 2 = consist builder (`ui/consistBuilder.ts`): whole train in side view, tap
+  a car to remove (✕ badge), cars-used meter, "Suggested" chips from what the origin station supplies, car palette tiles (side
+  view + cargo badge + capacity). Step 3 = the sheet gives way to the side panel (map visible) with the route timeline and the
+  existing map-pick mode; Buy needs 2 stops.
+- **Train panel v2** (`ui/trainPanels.ts`): header thumb = cropped loco front, subtitle with traction icon + wheel glyph; hero strip
+  (`consistStrip`: every car in side view, fill meter under it, cargo badge above when loaded, live-updating every 0.8 s without
+  rebuilding the panel); status line with icon (waiting reasons unchanged); tabs **Route** (`ui/routeTimeline.ts`: vertical
+  timeline, loco marker at/toward the current stop, tap a rule chip to cycle it, reorder, remove, Add stop via the map-pick
+  hook `setStationPickHooks`) and **Stats**; footer action bar Edit cars · Replace · Sell (two-tap). Edit cars is the same
+  consist builder in a sheet; Replace is a card list with side views, trade-in credit and net price.
+- New command `setOrderRule` (changes one stop's rule without resetting the train's progress; `setOrders` restarts at stop 1).
+- Station Trains tab, train list and News rows use loco side-view thumbs (news: new model, breakdown, no-route).
+- **Roster** (`ui/roster.ts`): sheet with steam / diesel / electric lanes in intro-year order; future models are black
+  silhouettes with only the year; tap a known model for the large drawing, wheel-arrangement glyph, stat bars, in-service count
+  and a short original note (`strings.locoNotes`). Opened by the era badge and Menu → Roster.
+- **New engine card** (`ui/newEngineCard.ts`): modal card at the year turn (once per model, queued when several arrive) with
+  Roster / OK; replaces the toast for that news item (the News panel entry stays).
+- Debug hooks: `debugPickStation(id)`, `debugOpenTrain(id)`.
+
+### Deviations from STYLE §11 / PLAN
+- Stats tab has no "profit this year / last year" and no "income by cargo": the sim keeps only lifetime revenue per train (no
+  per-year or per-cargo ledger and adding one means a save-format change). It shows earned (lifetime), running cost/yr, age,
+  reliability pips with the monthly breakdown risk, a load list ("Coal 20 / 20 t"), and a capacity-by-cargo bar with a
+  loaded meter. Breakdown *count* is not tracked either.
+- Electric models without electrified track at the station are dimmed with a lock and a warning line but stay selectable/
+  purchasable (the sim allows it; blocking would stop a player who plans to electrify next).
+- The train name is not editable (no rename command exists for trains).
+- Suggestions come from the *origin* station's supply (the wizard picks cars before stops exist, contrary to "first two stops").
+- Roster notes: no "buy" shortcut in the detail view (a purchase needs a station); no separate year axis, lanes scroll independently.
+- Map behind the buy route step is the normal map; the sheet is only used for steps 1–2 and Edit cars.
+
+### e2e selector changes (intent kept)
+- Buy flow: `.panel-title` "Buy Train" → `.sheet-title`/panel title containing "Buy train"; the loco/car pickers are steps 1/2 (click
+  `.wizard-next`); the route step's stops are `[data-testid=tl-stop]` rows instead of `.train-order-row` ("1." text).
+- Train panel: the order text "Station (Auto)" is now `.tl-station` + a `.rule-chip`; Edit cars is `.train-edit-btn` opening a
+  sheet confirmed with `.edit-confirm`; per-car load chips (`Coal 20 / 20 t`) moved to the Stats tab, the hero strip is asserted
+  via `.consist-veh[data-cargo]`; the waiting reason keeps the `.train-waiting` class on the status line.
+
+### Screenshots (opened and checked, 800×360 @2x) — `docs/screenshots/phase-22-*.png`
+`buy-engine`, `buy-cars`, `buy-route`, `train-panel`, `train-route`, `roster`, `roster-detail`, `new-engine`, plus extras
+`buy-engine-electric`, `buy-engine-diesel`, `train-stats`, `station-trains`.
+- Nits: the debug overlay (fps, seed controls) shows on the map in these shots because they run under `?debug=1`; the yearly report
+  panel opens behind the new-engine card at the year turn (both are real behaviour).

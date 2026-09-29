@@ -8,9 +8,9 @@ import type { LocomotiveDef } from "../data/trains";
 import type { StationEconomy } from "../sim/stations/economy";
 import { meter } from "./components/meter";
 import { h } from "./h";
-import { cargoIcon, icon } from "./icons";
+import { icon } from "./icons";
 import { strings } from "./strings";
-import { carArt, consistStrip } from "./trainArt";
+import { cargoBadge, carArt, consistStrip } from "./trainArt";
 
 export interface Suggestion {
   label: string;
@@ -182,7 +182,12 @@ export function consistBuilder(options: ConsistBuilderOptions): ConsistBuilder {
           h(
             "div",
             { className: "car-tile-text" },
-            h("span", { className: "car-tile-name" }, cargoIcon(c, "cargo-icon-xs"), CARGO[c].name),
+            h(
+              "span",
+              { className: "car-tile-name" },
+              cargoBadge(c, "cargo-icon-xs"),
+              CARGO[c].name,
+            ),
             h("span", { className: "car-tile-cap tabular" }, carCapacityText(c)),
           ),
         ),

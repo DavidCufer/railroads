@@ -3,7 +3,7 @@
  * 1 Engine (picture cards + hero with stat bars), 2 Cars (side-view consist builder), 3 Route (the
  * sheet gives way to the side panel so the map is visible; tap stations to add stops).
  */
-import { CARGO, type CargoType } from "../data/cargo";
+import type { CargoType } from "../data/cargo";
 import {
   buyableLocomotivesIn,
   NEW_LOCOMOTIVE_BADGE_YEARS,
