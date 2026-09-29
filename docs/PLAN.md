@@ -681,3 +681,34 @@ STYLE §11 · needs Phases 19 + 20 · files: `src/ui/trainPanels.ts` (split it),
 - [x] Screenshots: `phase-22-buy-engine.png`, `phase-22-buy-cars.png`, `phase-22-buy-route.png`,
       `phase-22-train-panel.png`, `phase-22-train-route.png`, `phase-22-roster.png`, `phase-22-roster-detail.png`,
       `phase-22-new-engine.png`. Open and check each at 800×360.
+
+## Phase 21.1 — Map polish, second pass (review of Phase 21)
+Phase 22's train screens look great; the map now lags behind them. Review of the Phase 21 screenshots:
+- **Stations are too small and too alike.** At zoom 2 the whole station is a ~60×25 px grey box with two short
+  platform strips; Depot and Station read almost the same. Make the footprint read as a railway station:
+  platforms along the track with length by type (Depot ≈ 2 tiles, Station ≈ 3, Terminal ≈ 4, centred on the
+  station tile, clipped to the track's direction), platform edges (light line) and paving; the building ≈ 1.5
+  tiles long beside the platform with a pitched roof (two top-lit halves, ridge line, chimney), a canopy over the
+  platform (Station), a big arched train shed over all tracks with ribs and a glazed centre strip + head building
+  (Terminal). Soft shadows to the lower right like the rest of the map.
+- **Improvements** are scattered small boxes below the station; lay them out tidily behind the building along the
+  track direction: water tower = round tank on legs with shadow next to the track; engine shed = long shed with
+  smoke vents; warehouse = large goods shed; post office, hotel, etc. = small buildings with distinct roofs.
+- The dark round blob above the station in the screenshots — find out what it is (supply bubble with no icon?)
+  and fix or remove it.
+- **Industries look like UI icons on a paved tile.** Draw them as small building clusters filling ~2×2 tiles with
+  readable silhouettes and cast shadows: coal mine (headframe A-frame with wheel, black spoil heap, rail spur
+  stub), iron mine (headframe + rust-red heap), forest/lumber camp (cleared patch with stacked logs), sawmill (long
+  shed, log piles, sawdust), steel mill (tall blast furnace, 3 chimneys, warm glow, slag), farm (farmhouse + red
+  barn + silo, keep the good striped fields), oil well (pumpjack(s) on a dirt pad), refinery (round tanks + tower),
+  factory (saw-tooth roofs + tall chimney), plus any others. Must be distinct at zoom 1 without labels.
+- **Cities**: roofs still read as a rigid grid of flat rectangles. Vary building sizes/orientations per block,
+  pitched-roof shading on every roof (not flat), visible street grid in a light warm grey, a few trees/gardens in
+  blocks, and a landmark (church with spire / town hall with clock tower) that stands out.
+- **Performance**: city screenshot shows render ≈ 23 ms at zoom 1.5. Make sure all static map art is cached in
+  chunk canvases (only trains, smoke and floating labels per frame). Report before/after frame times.
+- Screenshots to judge (open every one, before/after side by side in PROGRESS): each station type at zoom 2 with
+  a train at the platform, a station with all improvements, each industry at zoom 1 and 2, a Town and a City at
+  zoom 1.5, overview at zoom 0.5.
+- [ ] Stations & platforms   - [ ] Improvements layout   - [ ] Blob fix   - [ ] Industries   - [ ] Cities
+- [ ] Perf / caching          - [ ] Screenshots reviewed
