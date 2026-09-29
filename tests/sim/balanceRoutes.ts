@@ -90,7 +90,8 @@ export function buildRoute(spec: RouteSpec): { state: GameState; cars: number } 
   const st = isCity ? "station" : "depot";
   if (!buildStation(state, tileAt(map, ax, trackY), st).ok) throw new Error("station a");
   if (!buildStation(state, tileAt(map, bx, trackY), st).ok) throw new Error("station b");
-  const [sa, sb] = state.stations as [{ id: number }, { id: number }];
+  const sa = state.stations[0] as { id: number };
+  const sb = state.stations[1] as { id: number };
   state.cash = 1e12;
   const bought = buyTrain(
     state,
