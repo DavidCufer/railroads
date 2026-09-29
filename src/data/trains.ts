@@ -356,6 +356,20 @@ export const CURVE_SPEED_FACTOR = 0.7;
  * single and double track (SPEC §7.5: "any number of trains may be in a section heading the same
  * way... keep a 2-tile spacing and brake behind the leader"). */
 export const MIN_SPACING_TILES = 2;
+
+// --- Smooth following (Phase 24A) ---------------------------------------------------------------
+/** Clear space (tiles) kept between a follower's nose and the tail of a same-direction leader in a
+ * shared block. Measured to the leader's *tail* (not its head, as MIN_SPACING_TILES was), so long
+ * consists never visually touch. */
+export const FOLLOW_MIN_GAP_TILES = 1;
+/** km/h of extra speed over the leader's per tile of gap beyond the minimum: the follower's target
+ * speed is `leader + gain × (gap − min)`, so the gap closes exponentially (no overshoot as long as
+ * gain < KMH_PER_TILE_PER_DAY × 24, the km/h a train covers a tile-per-tick at). */
+export const FOLLOW_GAIN_KMH_PER_TILE = 60;
+/** Speed change limits per tick (1 tick = 1 in-game hour) for every train: gentle acceleration, a
+ * stronger brake. Also the braking rate the follower's stopping-distance cap assumes. */
+export const TRAIN_ACCEL_KMH_PER_TICK = 15;
+export const TRAIN_BRAKE_KMH_PER_TICK = 30;
 /** Safety net (SPEC §7.5, revised after play-testing — was 5/10): a train that has waited this many
  * in-game days *at a station* (for a line/platform to clear) tries an alternate route; if still
  * blocked after `DEADLOCK_STUCK_DAYS` it gives up and shows ⚠. */

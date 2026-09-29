@@ -29,7 +29,10 @@ import {
   LOCO_LENGTH_TILES,
   LOCO_WEIGHT_UNITS,
   MAX_SPEED_FACTOR,
-  MIN_SPACING_TILES,
+  FOLLOW_GAIN_KMH_PER_TILE,
+  FOLLOW_MIN_GAP_TILES,
+  TRAIN_ACCEL_KMH_PER_TICK,
+  TRAIN_BRAKE_KMH_PER_TICK,
   MIN_SPEED_FACTOR,
   SIGNAL_FAIRNESS_HOURS,
   TICKS_PER_TILE_DIVISOR,
@@ -161,46 +164,47 @@ function holdsBlockFor(train: Train, runtime: TrainRuntime, a: number, b: number
   return blockId !== undefined && train.heldBlocks.some((hb) => hb.blockId === blockId);
 }
 
-/** Other trains' live "distance into `blockId`" (0 at the near end, `lengthTiles` at the far end),
- * derived from their own `heldBlocks` entry rather than a per-tick-updated counter. */
-function occupantsOfBlock(
+/** The nearest same-direction leader ahead of `train` in the blocks it holds, with the clear gap
+ * (tiles) between the follower's nose and the leader's tail. Uses each train's monotonic
+ * `distanceTraveled` marks, so it also sees a leader in a block further along the follower's
+ * reserved section, not just the one it is in. */
+export function nearestLeader(
+  train: Train,
   trains: readonly Train[],
-  excludeId: number,
-  blockId: number,
-): Array<{ direction: number; distanceInto: number }> {
-  const result: Array<{ direction: number; distanceInto: number }> = [];
-  for (const t of trains) {
-    if (t.id === excludeId) continue;
-    for (const hb of t.heldBlocks) {
-      if (hb.blockId === blockId) {
-        result.push({
-          direction: hb.direction,
-          distanceInto: clamp(t.distanceTraveled - hb.enteredAtDistance, 0, hb.lengthTiles),
-        });
+): { leader: Train; gap: number } | undefined {
+  let best: { leader: Train; gap: number } | undefined;
+  for (const mine of train.heldBlocks) {
+    for (const t of trains) {
+      if (t.id === train.id) continue;
+      for (const hb of t.heldBlocks) {
+        if (hb.blockId !== mine.blockId || hb.direction !== mine.direction) continue;
+        // Only the block the leader's head is actually in counts (a clamped, passed block would
+        // understate the gap).
+        const into = t.distanceTraveled - hb.enteredAtDistance;
+        if (into < 0 || into > hb.lengthTiles) continue;
+        const headGap = mine.enteredAtDistance + into - train.distanceTraveled;
+        if (headGap <= 0) continue;
+        const gap = headGap - trainLengthTiles(t);
+        if (!best || gap < best.gap) best = { leader: t, gap };
       }
     }
   }
-  return result;
+  return best;
 }
 
-/** SPEC §7.5: "any number of trains may be in a section heading the same way. Followers keep a
- * 2-tile spacing and brake behind the leader (on single and double track)" — checked every tick
- * while moving through `blockId` (not just at entry), so a follower keeps braking for as long as a
- * slower/stopped leader stays close ahead, rather than only at the moment it entered the block. */
-function leaderAheadTooClose(train: Train, trains: readonly Train[], blockId: number): boolean {
-  const mine = train.heldBlocks.find((hb) => hb.blockId === blockId);
-  if (!mine) return false;
-  const myDistanceInto = clamp(
-    train.distanceTraveled - mine.enteredAtDistance,
-    0,
-    mine.lengthTiles,
+/** SPEC §7.5 (Phase 24A rewrite): a follower matches the leader's speed smoothly. Its target speed
+ * is the leader's plus a term proportional to the spare gap (so it closes in exponentially and
+ * settles at `FOLLOW_MIN_GAP_TILES`), capped by what it can still brake to a stop for. */
+function followerSpeedCap(train: Train, trains: readonly Train[]): number {
+  const found = nearestLeader(train, trains);
+  if (!found) return Infinity;
+  const spare = found.gap - FOLLOW_MIN_GAP_TILES;
+  const vLeader = found.leader.speed;
+  if (spare <= 0) return Math.max(0, vLeader + FOLLOW_GAIN_KMH_PER_TILE * spare);
+  const brakeCap = Math.sqrt(
+    vLeader * vLeader + 2 * TRAIN_BRAKE_KMH_PER_TICK * TICKS_PER_TILE_DIVISOR * spare,
   );
-  return occupantsOfBlock(trains, train.id, blockId).some(
-    (o) =>
-      o.direction === mine.direction &&
-      o.distanceInto > myDistanceInto &&
-      o.distanceInto - myDistanceInto < MIN_SPACING_TILES,
-  );
+  return Math.min(vLeader + FOLLOW_GAIN_KMH_PER_TILE * spare, brakeCap);
 }
 
 /** Trains counting against `station`'s slot capacity (SPEC §7.5): physically parked there (loading
@@ -742,15 +746,10 @@ function handleMoving(
     const a = train.route[train.routeIndex] as number;
     const b = train.route[train.routeIndex + 1];
     let targetSpeed = b !== undefined ? computeTargetSpeed(state, loco, train, a, b) : 0;
-    if (b !== undefined) {
-      const blockId = blockIdForEdge(runtime.partition, a, b);
-      if (blockId !== undefined && leaderAheadTooClose(train, state.trains, blockId)) {
-        targetSpeed = 0;
-      }
-    }
+    if (b !== undefined) targetSpeed = Math.min(targetSpeed, followerSpeedCap(train, state.trains));
     if (train.speed < targetSpeed)
-      train.speed = Math.min(targetSpeed, train.speed + loco.maxSpeedKmh);
-    else train.speed = Math.max(targetSpeed, train.speed - loco.maxSpeedKmh);
+      train.speed = Math.min(targetSpeed, train.speed + TRAIN_ACCEL_KMH_PER_TICK);
+    else train.speed = Math.max(targetSpeed, train.speed - TRAIN_BRAKE_KMH_PER_TICK);
     remainingTiles = train.speed / TICKS_PER_TILE_DIVISOR;
   } else {
     train.speed = 0;
