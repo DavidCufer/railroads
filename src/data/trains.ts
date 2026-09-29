@@ -472,3 +472,22 @@ export const CROSSING_CLEARANCE_TILES = 0.35;
 /** Engines slower than this (km/h) get the "slow engines lose the speed bonus on long routes" hint in the
  * Buy Train route step (Phase 26A; see docs/BALANCE.md: the 25 km/h grasshopper loses money on 200 km). */
 export const SLOW_ENGINE_KMH = 60;
+
+// --- Repair crews (Phase 26A) --------------------------------------------------------------------
+
+/** A breakdown dispatches a crew from the nearest station with an Engine Shed; it drives along the
+ * track to the train. Speed in tiles/day by era (1 tile/day = 15 km/h): handcar, motor trolley,
+ * service truck. */
+export const REPAIR_CREW_VEHICLES = [
+  { fromYear: 1830, tilesPerDay: 2.5, vehicle: "handcar" },
+  { fromYear: 1900, tilesPerDay: 3.5, vehicle: "motor trolley" },
+  { fromYear: 1950, tilesPerDay: 4.5, vehicle: "service truck" },
+] as const;
+/** Days before a crew leaves a shed / a far-away station. */
+export const REPAIR_CREW_DISPATCH_DAYS = 0.5;
+export const REPAIR_CREW_FAR_DISPATCH_DAYS = 3;
+/** With no Engine Shed anywhere the crew comes from the nearest station and is this much slower. */
+export const REPAIR_CREW_FAR_SPEED_MULT = 0.5;
+export const REPAIR_CREW_MAX_TRAVEL_DAYS = 30;
+/** Extra call-out cost per tile the crew travels (era-inflated like the flat repair cost). */
+export const REPAIR_CREW_COST_PER_TILE = 120;

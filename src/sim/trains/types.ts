@@ -1,6 +1,7 @@
 /** Train state (SPEC §7): pure, serializable data living in `GameState.trains`. Logic that reads
  * and mutates it lives in this directory (route.ts, blocks.ts, movement.ts); renderers and UI only
  * read it. */
+import type { RepairCrew } from "./repairCrew";
 import type { CargoType } from "../../data/cargo";
 
 /** Per-stop loading rule (SPEC §7.2). Real load/unload behavior is Phase 7 — this phase only
@@ -169,6 +170,8 @@ export interface Train {
    * down. While > 0, `stepTrain` freezes the train in place (status `"broken"`) and skips its
    * normal loading/routing/movement for the tick. */
   breakdownTicksLeft: number;
+  /** The crew fixing the current breakdown (Phase 26A); cleared when the train is back on the line. Absent in older saves. */
+  repairCrew?: RepairCrew;
   /** `state.ticks` this train last stopped at a station with an Engine Shed, or undefined if never
    * — breakdown chance is halved within `BREAKDOWN_ENGINE_SHED_WINDOW_DAYS` of this (SPEC §6.2). */
   lastServicedTick?: number;

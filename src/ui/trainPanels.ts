@@ -3,6 +3,7 @@
  * Route / Stats tabs, action-bar footer), the Edit cars sheet (reuses the consist builder), the
  * Replace-locomotive picker and the train list. The buy wizard lives in `buyTrainWizard.ts`.
  */
+import { repairPhase } from "../sim/trains/repairCrew";
 import { CARGO, type CargoType } from "../data/cargo";
 import {
   BREAKDOWN_AGE_DIVISOR_YEARS,
@@ -118,6 +119,14 @@ export function statusText(state: GameState, train: Train): string {
       .filter((n): n is string => n !== undefined);
     if (names.length > 0) return strings.trains.waitingAtCrossing(names.slice(0, 3).join(", "));
   }
+  const repair = train.status === "broken" ? repairPhase(state, train) : null;
+  if (repair?.phase === "arriving") {
+    const from = stationName(state, repair.stationId);
+    return repair.far
+      ? strings.trains.repairArrivingFar(from, repair.daysLeft)
+      : strings.trains.repairArriving(from, repair.daysLeft);
+  }
+  if (repair?.phase === "repairing") return strings.trains.repairing(repair.daysLeft);
   const order = train.orders[train.currentOrderIndex];
   const orderStation = order && state.stations.find((s) => s.id === order.stationId)?.name;
   if (train.status === "noRoute" && orderStation) return strings.trains.noRouteTo(orderStation);

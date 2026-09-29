@@ -366,7 +366,8 @@ when the stretch of track to its next station is safe to run through end to end.
 
 - Each locomotive model has `reliability` 1–5. Monthly breakdown chance = base (0.5%, 1%, 2%, 4%, 7%
   for reliability 5…1) × (1 + age/20 years) × (0.5 if serviced at an Engine Shed in the last 60 days).
-- Breakdown: train stops for 2–5 days, repair cost $5k (era-scaled).
+- Breakdown: train stops where it is; a repair crew (handcar → motor trolley → service truck) drives from the nearest Engine Shed
+  station (else the first station, slow) — repair time = dispatch + travel + 2–5 fix days; cost $5k + $120/tile (era-scaled). (Phase 26A)
 - Obsolescence: once a model is > 25 years past introduction, maintenance +50%. Steam maintenance
   +50% after 1955, and steam models can't be bought after 1960.
 - **Replace locomotive** action on a train: pay new loco price minus 30% trade-in of the old loco's

@@ -944,6 +944,7 @@ export function stepTrain(state: GameState, train: Train, runtime: TrainRuntime)
     setStatus(train, "broken");
     train.speed = 0;
     if (train.breakdownTicksLeft === 0) {
+      delete train.repairCrew;
       setStatus(train, train.route.length >= 2 ? "moving" : "loading");
     }
   } else {

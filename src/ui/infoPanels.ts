@@ -28,8 +28,9 @@ import { formatMoney, formatPopulation } from "./format";
 
 /** City panel "Next tier: City at 25k — unlocks demand for Fuel" plus the growth hint (PLAN 26A). */
 function nextTierRows(city: { tier: CityTier; population: number }, year: number): HTMLElement[] {
+  const hint = h("p", { className: "section-note" }, strings.city.growthHint);
   const next = CITY_TIERS[CITY_TIERS.indexOf(city.tier) + 1];
-  if (!next) return [row(strings.city.nextTier, strings.city.topTier)];
+  if (!next) return [row(strings.city.nextTier, strings.city.topTier), hint];
   const unlocks = tierUnlocks(next, year)
     .map((c) => CARGO[c].name)
     .join(", ");
@@ -42,6 +43,7 @@ function nextTierRows(city: { tier: CityTier; population: number }, year: number
         unlocks,
       ),
     ),
+    hint,
   ];
 }
 
@@ -188,7 +190,7 @@ export function openCityPanel(
         ],
         strings.station.perMonthNote,
       ),
-      section(strings.city.nextTier, nextTierRows(city, currentYear), strings.city.growthHint),
+      section(strings.city.growthTitle, nextTierRows(city, currentYear)),
       section(strings.station.accepts, [
         acceptEntries.length > 0
           ? h(

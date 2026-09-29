@@ -61,6 +61,7 @@ export const strings = {
     civicNeedsRail: "Needs a rail link",
     civicInvestmentShort: "+15% pop",
     noStationIn: (name: string) => `No station in ${name} yet`,
+    growthTitle: "Growth",
     nextTier: "Next tier",
     nextTierValue: (tier: string, population: string, unlocks: string) =>
       unlocks
@@ -240,6 +241,13 @@ export const strings = {
       transfer: "Unload all (transfer)",
     },
     routeNotElectrified: "Route not electrified",
+    /** Repair crews (Phase 26A). */
+    repairArriving: (station: string, days: number) =>
+      `Broken down — repair crew from ${station} arriving in ${days} ${days === 1 ? "day" : "days"}`,
+    repairArrivingFar: (station: string, days: number) =>
+      `Broken down — no Engine Shed, slow crew from ${station} arriving in ${days} ${days === 1 ? "day" : "days"}`,
+    repairing: (days: number) =>
+      `Repair crew at work — back on the line in ${days} ${days === 1 ? "day" : "days"}`,
     /** SPEC §7.5: "the train panel says what they are waiting for." Only shown while `status` is
      * `waitingForBlock`/`waitingForStation` and the train has an actual target to name — falls
      * back to the plain `statusNames` label otherwise (e.g. right after a reroute attempt, before

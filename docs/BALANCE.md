@@ -19,8 +19,8 @@ track/station upkeep included). Consist = min(loco max cars, 8). Cells: `revenue
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 13k / 8k | 10k / 4k | 7k / 0k |
-| 1860 american-4-4-0 | 6 | 35k / 25k | 70k / 59k | 105k / 93k |
+| 1830 grasshopper-0-4-0 | 3 | 13k / 8k | 10k / 4k | 5k / -2k |
+| 1860 american-4-4-0 | 6 | 34k / 24k | 68k / 57k | 105k / 93k |
 | 1900 atlantic-4-4-2 | 6 | 61k / 42k | 121k / 101k | 227k / 205k |
 | 1950 road-switcher-diesel | 8 | 82k / 52k | 164k / 133k | 302k / 268k |
 
@@ -28,8 +28,8 @@ track/station upkeep included). Consist = min(loco max cars, 8). Cells: `revenue
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 13k / 7k | 8k / 2k | 4k / -3k |
-| 1860 american-4-4-0 | 6 | 37k / 28k | 76k / 65k | 114k / 102k |
+| 1830 grasshopper-0-4-0 | 3 | 13k / 7k | 8k / 2k | 3k / -4k |
+| 1860 american-4-4-0 | 6 | 37k / 27k | 73k / 63k | 114k / 102k |
 | 1900 atlantic-4-4-2 | 6 | 66k / 47k | 131k / 111k | 246k / 224k |
 | 1950 road-switcher-diesel | 8 | 89k / 59k | 178k / 146k | 328k / 294k |
 
@@ -37,8 +37,8 @@ track/station upkeep included). Consist = min(loco max cars, 8). Cells: `revenue
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 11k / 5k | 8k / 2k | 6k / -1k |
-| 1860 american-4-4-0 | 6 | 29k / 19k | 58k / 48k | 88k / 75k |
+| 1830 grasshopper-0-4-0 | 3 | 11k / 5k | 8k / 2k | 4k / -3k |
+| 1860 american-4-4-0 | 6 | 28k / 19k | 56k / 46k | 88k / 75k |
 | 1900 atlantic-4-4-2 | 6 | 51k / 32k | 101k / 81k | 189k / 167k |
 | 1950 road-switcher-diesel | 8 | 68k / 39k | 137k / 106k | 252k / 218k |
 
@@ -73,7 +73,7 @@ track/station upkeep included). Consist = min(loco max cars, 8). Cells: `revenue
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 9k / 0k | 10k / 0k | 9k / -7k |
+| 1830 grasshopper-0-4-0 | 3 | 9k / 0k | 10k / 0k | 9k / -8k |
 | 1860 american-4-4-0 | 6 | 114k / 99k | 158k / 143k | 57k / 39k |
 | 1900 atlantic-4-4-2 | 6 | 164k / 139k | 324k / 298k | 563k / 534k |
 | 1950 road-switcher-diesel | 8 | 221k / 183k | 438k / 398k | 878k / 835k |

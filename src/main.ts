@@ -15,6 +15,8 @@ import {
 import { drawStationSupplyBubbles, stationLabelAnchor } from "./render/stationSupplyBubbles";
 import { drawStationCatchment, type StationCatchmentPreview } from "./render/stationPreview";
 import { drawTrains } from "./render/trains";
+import { startBreakdown } from "./sim/trains/breakdown";
+import { drawRepairCrews } from "./render/repairCrews";
 import { emitIndustrySmoke } from "./render/industrySmoke";
 import {
   addFloatingLabel,
@@ -934,6 +936,16 @@ function main(): void {
         stationTiles,
         calendarFromTicks(state.startYear, state.ticks).year,
       );
+      drawRepairCrews(
+        ctx,
+        camera,
+        viewportW,
+        viewportH,
+        state.map.width,
+        state.trains,
+        state.ticks,
+        calendarFromTicks(state.startYear, state.ticks).year,
+      );
       emitIndustrySmoke(camera, viewportW, viewportH, state.industries, state.industryEconomy);
       if (ghost) drawBuildPreview(ctx, camera, viewportW, viewportH, state.map.width, ghost);
       if (stationPreview) {
@@ -1192,6 +1204,8 @@ function main(): void {
           debugPickStation: (stationId: number) => void;
           /** Test-only: opens a train's panel. */
           debugOpenTrain: (trainId: number) => void;
+          debugOpenCity: (cityId: number) => void;
+          debugBreakdown: (trainId: number, days: number) => void;
           getStationTransfer: (stationId: number) => Array<{
             cargoType: string;
             units: number;
@@ -1419,6 +1433,11 @@ function main(): void {
       debugOpenStation: (stationId) => openStationById(stationId),
       debugPickStation: (stationId) => deliverStationPick(stationId),
       debugOpenTrain: (trainId) => openTrainPanel(ui, state, trainId),
+      debugOpenCity: (cityId) => openCityPanel(ui, state, cityId, openStationById),
+      debugBreakdown: (trainId, days) => {
+        const t = state.trains.find((tr) => tr.id === trainId);
+        if (t) startBreakdown(state, t, days);
+      },
       debugPreviewBuild: (path) => {
         const plan = computeBuildPlan(state, path);
         ghost = {

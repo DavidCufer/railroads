@@ -123,6 +123,8 @@ export interface GameWindow {
   debugOpenStation: (stationId: number) => void;
   debugPickStation: (stationId: number) => void;
   debugOpenTrain: (trainId: number) => void;
+  debugOpenCity: (cityId: number) => void;
+  debugBreakdown: (trainId: number, days: number) => void;
   getStationTransfer: (stationId: number) => Array<{
     cargoType: string;
     units: number;
