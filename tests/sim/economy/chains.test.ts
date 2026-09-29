@@ -1,7 +1,12 @@
 /** PLAN Phase 18 D: every processor has its inputs within reach, on random and region maps. */
 import { WORLD_SCALE } from "../../../src/data/scale";
 import { describe, expect, it } from "vitest";
-import { CHAIN_MAX_DISTANCE_TILES, INDUSTRIES, inputGroups } from "../../../src/data/industries";
+import {
+  CHAIN_MAX_DISTANCE_TILES,
+  INDUSTRIES,
+  INDUSTRY_NUDGE_MAX_RADIUS,
+  inputGroups,
+} from "../../../src/data/industries";
 import { chainIsComplete, hasGoodsChainNearCity, nearestOf } from "../../../src/sim/economy/chains";
 import type { City, Industry } from "../../../src/sim/economy/types";
 import { generateMap, type MapGenOptions } from "../../../src/sim/map/generate";
@@ -72,7 +77,7 @@ describe("industry chains", () => {
       const json = getRegion(id);
       const loaded = loadRegion(json);
       // Hand-placed industries keep their id and type and sit within a few tiles of their
-      // (×WORLD_SCALE) source position (the loader nudges them onto a free, valid tile).
+      // (×WORLD_SCALE) source position (the loader nudges them onto a free, valid tile, and the spacing pass further out of towns).
       for (const src of json.industries) {
         const got = loaded.industries.find((i) => i.id === src.id);
         expect(got?.type).toBe(src.type);
@@ -80,7 +85,9 @@ describe("industry chains", () => {
           (got?.x ?? 1e9) - (src.x * WORLD_SCALE + (WORLD_SCALE - 1) / 2),
           (got?.y ?? 1e9) - (src.y * WORLD_SCALE + (WORLD_SCALE - 1) / 2),
         );
-        expect(d, `${id}: ${src.type} ${src.id} moved ${d}`).toBeLessThanOrEqual(8);
+        expect(d, `${id}: ${src.type} ${src.id} moved ${d}`).toBeLessThanOrEqual(
+          8 + INDUSTRY_NUDGE_MAX_RADIUS,
+        );
       }
       expectAllFed(loaded.industries, json.startYear, id);
     });

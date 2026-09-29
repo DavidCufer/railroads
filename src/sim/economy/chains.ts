@@ -18,6 +18,13 @@ import { inBounds, tileIndex } from "../map/grid";
 import { terrainId, TERRAIN_TYPES as TERRAIN_NAMES } from "../map/terrain";
 import type { GameMap } from "../map/types";
 import { nextInt, type RngState } from "../rng";
+import {
+  allCityTiles,
+  cityBufferMask,
+  cityDistanceOk,
+  enforceIndustrySpacing,
+  tooCloseToIndustry,
+} from "./spacing";
 import type { City, Industry } from "./types";
 
 const WATER_ID = terrainId("water");
@@ -37,6 +44,8 @@ const PROCESSOR_TYPES = (Object.keys(INDUSTRIES) as IndustryType[]).filter(
 export interface ChainOptions {
   /** Region maps keep their hand-placed industries: only add producers, never move or drop one. */
   keepExisting?: boolean;
+  /** City footprint tiles not on the map yet (region cities founded later), kept clear too. */
+  extraCityTiles?: readonly number[];
 }
 
 function eraOk(type: IndustryType, startYear: number): boolean {
@@ -104,15 +113,25 @@ interface Ctx {
   cities: readonly City[];
   work: Industry[];
   startYear: number;
+  /** Tiles too close to a city for a non-port industry (Phase 24A spacing). */
+  cityMask: Uint8Array;
 }
 
 /** Free, dry, city-free tile. Mountains are only fine for producers that ask for them by terrain
  * (coal/iron mines); processors and ports stay off them, as in the base placement. */
-function siteFree(ctx: Ctx, idx: number, allowMountain = false): boolean {
+function siteFree(
+  ctx: Ctx,
+  idx: number,
+  type: IndustryType,
+  allowMountain = false,
+  self?: Industry,
+): boolean {
   const { map } = ctx;
   const t = map.terrain[idx] as number;
   if (t === WATER_ID || (t === MOUNTAIN_ID && !allowMountain)) return false;
-  return map.cityId[idx] === -1 && map.industryId[idx] === -1;
+  if (map.cityId[idx] !== -1 || map.industryId[idx] !== -1) return false;
+  if (!cityDistanceOk(ctx.cityMask, map, type, idx)) return false;
+  return !tooCloseToIndustry(idx % map.width, Math.floor(idx / map.width), ctx.work, self);
 }
 
 function isNearForest(map: GameMap, x: number, y: number, radius: number): boolean {
@@ -144,7 +163,7 @@ function candidateSites(
       const d = Math.hypot(dx, dy);
       if (d < PLACE_MIN || d > PLACE_MAX) continue;
       const idx = tileIndex(map, x, y);
-      if (!siteFree(ctx, idx, placement.kind === "terrain" && !relaxed)) continue;
+      if (!siteFree(ctx, idx, type, placement.kind === "terrain" && !relaxed)) continue;
       if (placement.kind === "terrain") {
         const name = TERRAIN_NAMES[map.terrain[idx] as number];
         // `relaxed`: no suitable terrain anywhere near — settle for any dry land rather than leave a
@@ -268,7 +287,8 @@ function relocate(ctx: Ctx, processor: Industry): boolean {
           const idx = tileIndex(map, cx + dx, cy + dy);
           if (seen.has(idx)) continue;
           seen.add(idx);
-          if (siteFree(ctx, idx) && satisfied(cx + dx, cy + dy)) sites.push(idx);
+          if (siteFree(ctx, idx, processor.type, false, processor) && satisfied(cx + dx, cy + dy))
+            sites.push(idx);
         }
       }
     }
@@ -292,7 +312,15 @@ export function ensureIndustryChains(
   startYear: number,
   options: ChainOptions = {},
 ): Industry[] {
-  const ctx: Ctx = { map, rng, cities, work: industries.map((i) => ({ ...i })), startYear };
+  const cityMask = cityBufferMask(map, allCityTiles(map, options.extraCityTiles));
+  const ctx: Ctx = {
+    map,
+    rng,
+    cities,
+    work: enforceIndustrySpacing(map, cityMask, industries, options),
+    startYear,
+    cityMask,
+  };
   const originals = new Set(ctx.work);
 
   // At least one Factory, or there is no chain to Goods at all: put one next to the biggest city.

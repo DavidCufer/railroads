@@ -209,7 +209,7 @@ export function loadRegion(json: RegionJson): LoadedRegion {
     cities,
     handPlaced,
     json.startYear,
-    { keepExisting: true },
+    { keepExisting: true, extraCityTiles: pendingCityFoundings.flatMap((p) => p.tiles) },
   );
 
   return { map, cities, industries, pendingCityFoundings, startYear: json.startYear };

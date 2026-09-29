@@ -233,3 +233,14 @@ export function inputGroups(type: IndustryType): IndustryType[][] {
   if (def.recipeMode === "all") return cargos.map((c) => producersOf(c));
   return [Array.from(new Set(cargos.flatMap((c) => producersOf(c))))];
 }
+
+// --- Spacing (Phase 24A) ------------------------------------------------------------------------
+/** Minimum straight-line distance (tiles) from an industry to the nearest city footprint tile, so
+ * there is room for a station and track between them. Ports are exempt (they sit on the town's
+ * coast, but never on a building). */
+export const INDUSTRY_MIN_CITY_DISTANCE = 5;
+/** Minimum number of empty tiles between two industries' footprints (Chebyshev, so 3 → tiles are
+ * at least 4 apart). */
+export const INDUSTRY_MIN_GAP_TILES = 3;
+/** How far (tiles) a too-close industry may be nudged outward to satisfy the two rules above. */
+export const INDUSTRY_NUDGE_MAX_RADIUS = 14;

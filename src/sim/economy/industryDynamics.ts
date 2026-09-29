@@ -14,6 +14,7 @@
  * is a simpler, no-new-state proxy for the same idea, checked monthly rather than over a trailing
  * 12-month window (a deliberate simplification — see PROGRESS.md).
  */
+import { allCityTiles, cityBufferMask, cityDistanceOk, tooCloseToIndustry } from "./spacing";
 import { WORLD_SCALE } from "../../data/scale";
 import {
   INDUSTRIES,
@@ -105,6 +106,7 @@ function maybeSpawnIndustry(state: GameState): void {
   const terrainSet = new Set<Terrain>(def.placement.terrain);
   const sameType = state.industries.filter((i) => i.type === type);
 
+  const cityMask = cityBufferMask(map, allCityTiles(map));
   const candidates: number[] = [];
   const nearCity: number[] = [];
   for (let idx = 0; idx < map.terrain.length; idx++) {
@@ -112,8 +114,10 @@ function maybeSpawnIndustry(state: GameState): void {
     const t = map.terrain[idx] as number;
     if (t === WATER_ID) continue;
     if (!terrainSet.has(TERRAIN_TYPES[t] as Terrain)) continue;
+    if (!cityDistanceOk(cityMask, map, type, idx)) continue;
     const x = idx % map.width;
     const y = Math.floor(idx / map.width);
+    if (tooCloseToIndustry(x, y, state.industries)) continue;
     let farEnough = true;
     for (const other of sameType) {
       if (Math.hypot(x - other.x, y - other.y) < SAME_TYPE_SPACING) {
