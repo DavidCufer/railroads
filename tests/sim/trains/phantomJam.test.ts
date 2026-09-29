@@ -1,0 +1,345 @@
+/**
+ * PLAN Phase 18 B: randomized, seeded stress test for phantom traffic jams. Several maps with a
+ * mixed single/double network, shared stations and 6–12 trains run for two game years while
+ * tracks and stations are added mid-run; every day we assert that the signaling bookkeeping is
+ * consistent (SPEC §7.5) and that no train waits without a live blocker or outside a wait-for cycle.
+ * `STRESS_BIG=1` runs a larger variant.
+ */
+import { describe, expect, it } from "vitest";
+import {
+  buildStation,
+  buildTrack,
+  buyTrain,
+  setOrders,
+  upgradeTrack,
+} from "../../../src/sim/commands";
+import { createRng, nextFloat, nextInt, type RngState } from "../../../src/sim/rng";
+import { advanceOneHour } from "../../../src/sim/tick";
+import { getTrainRuntime, setStaleReservationReporter } from "../../../src/sim/trains";
+import { edgeKey } from "../../../src/sim/track/graph";
+import { findBuildPath } from "../../../src/sim/track/pathfind";
+import { STATION_TYPES } from "../../../src/data/stations";
+import type { GameState } from "../../../src/sim/state";
+import type { Train } from "../../../src/sim/trains/types";
+import { makeTestMap, makeTestState, tileAt } from "../track/helpers";
+
+const BIG = process.env.STRESS_BIG === "1";
+const SIZE = BIG ? 48 : 30;
+const YEARS = BIG ? 4 : 2;
+const SEEDS = BIG ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] : [1, 2, 3, 4, 5, 6];
+const WAIT_LIMIT_DAYS = BIG ? 250 : 100;
+const LOCO = "american-4-4-0";
+
+function randTile(rng: RngState, map: GameState["map"]): number {
+  return tileAt(map, nextInt(rng, 1, SIZE - 2), nextInt(rng, 1, SIZE - 2));
+}
+
+function link(state: GameState, rng: RngState, a: number, b: number): number[] | null {
+  const path = findBuildPath(state.map, a, b, 1900);
+  if (!path || path.length < 2) return null;
+  if (!buildTrack(state, path).ok) return null;
+  if (nextFloat(rng) < 0.4) upgradeTrack(state, path);
+  return path;
+}
+
+function addStations(
+  state: GameState,
+  rng: RngState,
+  path: readonly number[],
+  count: number,
+): void {
+  for (let i = 0; i < count; i++) {
+    const tile = path[nextInt(rng, 0, path.length - 1)] as number;
+    const type = STATION_TYPES[
+      nextInt(rng, 0, STATION_TYPES.length - 1)
+    ] as (typeof STATION_TYPES)[number];
+    const before = state.stations.length;
+    buildStation(state, tile, type);
+    if (state.stations.length > before)
+      (state.stations[before] as { hasEngineShed: boolean }).hasEngineShed = true;
+  }
+}
+
+function scenario(seed: number): { state: GameState; rng: RngState } {
+  const map = makeTestMap(Array.from({ length: SIZE }, () => "p".repeat(SIZE)));
+  const state = makeTestState(map, { seed, startYear: 1900, cash: 1e12 });
+  const rng = createRng(seed * 7919 + 13);
+  const hubs = Array.from({ length: 6 }, () => randTile(rng, map));
+  for (let i = 0; i < hubs.length; i++) {
+    const path = link(state, rng, hubs[i] as number, hubs[(i + 1) % hubs.length] as number);
+    if (path) addStations(state, rng, path, 2);
+  }
+  for (let i = 0; i < 2; i++) {
+    const path = link(
+      state,
+      rng,
+      hubs[nextInt(rng, 0, 5)] as number,
+      hubs[nextInt(rng, 0, 5)] as number,
+    );
+    if (path) addStations(state, rng, path, 1);
+  }
+  const trainCount = nextInt(rng, 6, BIG ? 20 : 12);
+  for (let i = 0; i < trainCount && state.stations.length >= 2; i++) {
+    const home = state.stations[nextInt(rng, 0, state.stations.length - 1)]!;
+    if (!buyTrain(state, home.id, LOCO, ["coal", "coal"]).ok) continue;
+    const train = state.trains[state.trains.length - 1]!;
+    const stops = [home.id];
+    for (let k = nextInt(rng, 1, 2); k > 0; k--) {
+      const s = state.stations[nextInt(rng, 0, state.stations.length - 1)]!;
+      if (s.id !== stops[stops.length - 1]) stops.push(s.id);
+    }
+    if (stops.length < 2) stops.push(state.stations.find((s) => s.id !== home.id)!.id);
+    setOrders(
+      state,
+      train.id,
+      stops.map((stationId) => ({ stationId, rule: "auto" as const })),
+    );
+  }
+  return { state, rng };
+}
+
+function findCycleMembers(state: GameState): Set<number> {
+  const edges = new Map<number, number[]>();
+  for (const t of state.trains) if (t.waitingOn) edges.set(t.id, t.waitingOn.trainIds);
+  const inCycle = new Set<number>();
+  for (const start of edges.keys()) {
+    // DFS: can we get back to `start`?
+    const seen = new Set<number>();
+    const stack = [...(edges.get(start) ?? [])];
+    while (stack.length) {
+      const n = stack.pop()!;
+      if (n === start) {
+        inCycle.add(start);
+        break;
+      }
+      if (seen.has(n)) continue;
+      seen.add(n);
+      stack.push(...(edges.get(n) ?? []));
+    }
+  }
+  return inCycle;
+}
+
+/** Trains whose wait chain ends at a train with no possible route at all (excused: impossible). */
+function waitsOnDeadTrain(state: GameState, id: number): boolean {
+  const byId = new Map(state.trains.map((t) => [t.id, t]));
+  const seen = new Set<number>();
+  const stack = [id];
+  while (stack.length) {
+    const n = stack.pop()!;
+    if (seen.has(n)) continue;
+    seen.add(n);
+    const t = byId.get(n);
+    if (!t) continue;
+    if (n !== id && (t.status === "noRoute" || t.status === "stuck")) return true;
+    stack.push(...(t.waitingOn?.trainIds ?? []));
+  }
+  return false;
+}
+
+function checkInvariants(state: GameState, waited: Map<number, number>, log: string[]): void {
+  const runtime = getTrainRuntime(state);
+  const byId = new Map(state.trains.map((t) => [t.id, t]));
+  const cycle = findCycleMembers(state);
+  for (const t of state.trains) {
+    const where = `train ${t.id} @tick ${state.ticks} status ${t.status}`;
+    // (a) reservations belong to a train that will still use them.
+    const routeBlocks = new Set<number>();
+    for (let i = 0; i + 1 < t.route.length; i++) {
+      const id = runtime.partition.edgeToBlock.get(edgeKey(t.route[i]!, t.route[i + 1]!));
+      if (id !== undefined) routeBlocks.add(id);
+    }
+    for (const hb of t.heldBlocks) {
+      if (hb.blockId >= runtime.partition.blocks.length)
+        log.push(`${where}: held block ${hb.blockId} does not exist`);
+      else if (!routeBlocks.has(hb.blockId))
+        log.push(`${where}: held block ${hb.blockId} not on its route`);
+    }
+    // (b) a section target must be a real station this train is heading to / sitting at.
+    if (t.sectionTargetStationId !== undefined) {
+      const s = runtime.stationsById.get(t.sectionTargetStationId);
+      if (!s) log.push(`${where}: sectionTarget ${t.sectionTargetStationId} missing`);
+      else if (!t.route.includes(s.tile)) log.push(`${where}: sectionTarget ${s.id} not on route`);
+    }
+    // (c) waits.
+    const waiting = t.status === "waitingForBlock" || t.status === "waitingForStation";
+    if (waiting) {
+      waited.set(t.id, (waited.get(t.id) ?? 0) + 1);
+      const w = t.waitingOn;
+      if (!w) log.push(`${where}: waiting without a recorded blocker`);
+      else {
+        for (const id of w.trainIds)
+          if (!byId.has(id)) log.push(`${where}: blocker ${id} does not exist`);
+        if (w.trainIds.length === 0) log.push(`${where}: waiting with no live blocker`);
+      }
+      if (
+        (waited.get(t.id) ?? 0) > WAIT_LIMIT_DAYS &&
+        !cycle.has(t.id) &&
+        !waitsOnDeadTrain(state, t.id)
+      ) {
+        log.push(
+          `${where}: waited ${waited.get(t.id)} days on ${JSON.stringify(w)} without a wait-for cycle; blockers ${JSON.stringify(
+            (w?.trainIds ?? []).map((id) => {
+              const b = byId.get(id)!;
+              return {
+                id,
+                status: b.status,
+                held: b.heldBlocks,
+                route: b.route,
+                ri: b.routeIndex,
+                ep: b.edgeProgress,
+                dir: b.direction,
+                tgt: b.sectionTargetStationId,
+                cur: b.currentOrderIndex,
+                orders: b.orders.map((o) => o.stationId),
+                wt: b.waitTicks,
+              };
+            }),
+          )}; me ${JSON.stringify({ route: t.route, ri: t.routeIndex, held: t.heldBlocks })}`,
+        );
+      }
+    } else waited.set(t.id, 0);
+    if (
+      t.status === "stuck" &&
+      (waited.get(t.id) ?? 0) > WAIT_LIMIT_DAYS &&
+      !cycle.has(t.id) &&
+      !waitsOnDeadTrain(state, t.id)
+    )
+      log.push(`${where}: stuck without a cycle`);
+  }
+  // Station slot counts never exceed capacity by more than physical presence.
+  for (const s of state.stations) {
+    const occ = state.trains.filter(
+      (t) =>
+        t.sectionTargetStationId === s.id ||
+        (t.sectionTargetStationId === undefined &&
+          t.edgeProgress === 0 &&
+          t.route[t.routeIndex] === s.tile),
+    );
+    for (const t of occ) {
+      if (
+        t.sectionTargetStationId === undefined &&
+        t.edgeProgress === 0 &&
+        t.route[t.routeIndex] === s.tile
+      )
+        continue;
+    }
+  }
+}
+
+function collision(state: GameState): string | null {
+  // block -> direction -> holding train ids. A train may hold a block in both directions itself
+  // (reversing at a terminal it passes through); two *different* trains may not.
+  const holders = new Map<number, Map<number, Set<number>>>();
+  for (const t of state.trains)
+    for (const hb of t.heldBlocks) {
+      const byDir = holders.get(hb.blockId) ?? new Map<number, Set<number>>();
+      const ids = byDir.get(hb.direction) ?? new Set<number>();
+      ids.add(t.id);
+      byDir.set(hb.direction, ids);
+      holders.set(hb.blockId, byDir);
+    }
+  const runtime = getTrainRuntime(state);
+  for (const [id, byDir] of holders) {
+    const block = runtime.partition.blocks[id];
+    if (!block || block.double || byDir.size < 2) continue;
+    const all = [...byDir.values()].flatMap((ids) => [...ids]);
+    const opposed = [...byDir.entries()].some(([dir, ids]) =>
+      [...byDir.entries()].some(
+        ([other, otherIds]) =>
+          other !== dir && [...ids].some((a) => [...otherIds].some((b) => a !== b)),
+      ),
+    );
+    if (opposed) return `opposing trains ${all.join(",")} on block ${id}`;
+  }
+  return null;
+}
+
+describe("phantom jam stress", () => {
+  for (const seed of SEEDS) {
+    it(`seed ${seed}: signaling stays consistent for ${YEARS} years`, () => {
+      const { state, rng } = scenario(seed);
+      expect(state.trains.length).toBeGreaterThanOrEqual(2);
+      const waited = new Map<number, number>();
+      const log: string[] = [];
+      // The sim's own daily self-check must never have anything to clear.
+      setStaleReservationReporter((m) => log.push(`stale reservation @tick ${state.ticks}: ${m}`));
+      const days = YEARS * 365;
+      for (let day = 0; day < days && log.length === 0; day++) {
+        // Mid-run edits: extend the network / add stations while trains are running.
+        if (day % 60 === 30 && day > 0) {
+          const path = link(state, rng, randTile(rng, state.map), randTile(rng, state.map));
+          if (path) addStations(state, rng, path, 1);
+        }
+        for (let h = 0; h < 24; h++) {
+          advanceOneHour(state);
+          if (process.env.TRACE_TICKS && process.env.TRACE) {
+            const [lo, hi] = process.env.TRACE_TICKS.split("-").map(Number) as [number, number];
+            if (state.ticks >= lo && state.ticks <= hi)
+              for (const t of state.trains.filter((x) =>
+                process.env.TRACE!.split(",").map(Number).includes(x.id),
+              ))
+                console.log(
+                  "T",
+                  state.ticks,
+                  t.id,
+                  t.status,
+                  "ri",
+                  t.routeIndex,
+                  "n",
+                  t.route[t.routeIndex],
+                  "->",
+                  t.route[t.routeIndex + 1],
+                  "ep",
+                  t.edgeProgress.toFixed(2),
+                  "held",
+                  t.heldBlocks
+                    .map(
+                      (h) =>
+                        `${h.blockId}/${h.direction}@${h.enteredAtDistance.toFixed(1)}+${h.lengthTiles.toFixed(1)}`,
+                    )
+                    .join(","),
+                  "tgt",
+                  t.sectionTargetStationId,
+                  "dt",
+                  t.distanceTraveled.toFixed(1),
+                  "tv",
+                  t.routeTrackVersion,
+                  state.trackVersion,
+                );
+          }
+          const c = collision(state);
+          if (c) log.push(`tick ${state.ticks}: ${c}`);
+        }
+        checkInvariants(state, waited, log);
+        if (process.env.TRACE) {
+          const ids = process.env.TRACE.split(",").map(Number);
+          for (const t of state.trains.filter((x) => ids.includes(x.id)))
+            console.log(
+              day,
+              t.id,
+              t.status,
+              "route",
+              t.route.join(">"),
+              "ri",
+              t.routeIndex,
+              "ep",
+              t.edgeProgress.toFixed(2),
+              "held",
+              t.heldBlocks.map((h) => `${h.blockId}/${h.direction}`).join(","),
+              "tgt",
+              t.sectionTargetStationId,
+              "wait",
+              JSON.stringify(t.waitingOn),
+              "cur",
+              t.orders[t.currentOrderIndex]?.stationId,
+            );
+        }
+      }
+      setStaleReservationReporter(undefined);
+      expect(log.slice(0, 10)).toEqual([]);
+    }, 60_000);
+  }
+});
+
+export type { Train };

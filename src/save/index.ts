@@ -59,6 +59,12 @@ function buildSaveFile(state: GameState, name?: string): SaveFileV3 {
   };
 }
 
+/** The save file as JSON text — the `?debug=1` "export save" helper (PLAN Phase 18 B) attaches this
+ * to bug reports. */
+export function exportSaveJson(state: GameState): string {
+  return JSON.stringify(buildSaveFile(state, "Exported"));
+}
+
 /** Reads the next autosave slot to overwrite and advances the rotation (SPEC §13: "rotating 3
  * slots") — a simple round-robin counter in localStorage, not "oldest timestamp wins", so a
  * player who never triggers an autosave for a while doesn't get surprised by which slot goes next. */

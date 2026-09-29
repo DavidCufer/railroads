@@ -31,6 +31,7 @@ import {
   MAX_SPEED_FACTOR,
   MIN_SPACING_TILES,
   MIN_SPEED_FACTOR,
+  SIGNAL_FAIRNESS_HOURS,
   TICKS_PER_TILE_DIVISOR,
   WATER_TOWER_RANGE_TILES,
   WATER_TOWER_SPEED_PENALTY,
@@ -47,7 +48,7 @@ import { directionBetween, edgeDirectionFrom, edgeLengthTiles, tileXY } from "./
 import { blockIdForEdge, type Block, type BlockPartition } from "./blocks";
 import { applyPendingConsist, stepLoading } from "./loading";
 import { findTrainRoute } from "./route";
-import type { HeldBlock, Train, TrainStatus } from "./types";
+import type { HeldBlock, Train, TrainOrder, TrainStatus } from "./types";
 
 export interface TrainRuntime {
   trackVersion: number;
@@ -71,6 +72,9 @@ function setStatus(train: Train, status: TrainStatus): void {
   if (train.status !== status) {
     train.status = status;
     train.waitTicks = 0;
+    // "stuck" is what a waiting train turns into after DEADLOCK_STUCK_DAYS: keep saying why.
+    if (status !== "waitingForBlock" && status !== "waitingForStation" && status !== "stuck")
+      delete train.waitingOn;
   }
 }
 
@@ -119,6 +123,37 @@ function releaseTrailingBlocks(train: Train): void {
 function advanceDistance(train: Train, tiles: number): void {
   train.distanceTraveled += tiles;
   releaseTrailingBlocks(train);
+}
+
+/** True while the train is out on the line inside a reserved section (not at a station node). A
+ * track change during that time does not re-plan it: the reservation is still valid, waiting for
+ * the next station to re-route avoids stopping (or losing the reservation) out on the line. */
+function insideReservedSection(train: Train, runtime: TrainRuntime): boolean {
+  const a = train.route[train.routeIndex] as number;
+  const b = train.route[train.routeIndex + 1];
+  return (
+    b !== undefined &&
+    train.sectionTargetStationId !== undefined &&
+    !runtime.stationTiles.has(a) &&
+    holdsBlockFor(train, runtime, a, b)
+  );
+}
+
+/** True when the train, standing on node `a` about to take edge `a -> b`, has not yet reserved the
+ * section that edge belongs to. Out on the line that is just "do I hold this block". At a station
+ * node it must not be the block test: a train reversing at a terminal it merely passes through would
+ * find the block it just used (still held by its tail, in the *other* direction) and wrongly assume
+ * the return trip is already reserved. There, the section is new unless the train has already left
+ * (its `sectionTargetStationId` names some other station than this one). */
+function needsNewSection(train: Train, runtime: TrainRuntime, a: number, b: number): boolean {
+  if (runtime.stationTiles.has(a)) {
+    const target =
+      train.sectionTargetStationId !== undefined
+        ? runtime.stationsById.get(train.sectionTargetStationId)
+        : undefined;
+    return target === undefined || target.tile === a;
+  }
+  return !holdsBlockFor(train, runtime, a, b);
 }
 
 function holdsBlockFor(train: Train, runtime: TrainRuntime, a: number, b: number): boolean {
@@ -173,12 +208,12 @@ function leaderAheadTooClose(train: Train, trains: readonly Train[], blockId: nu
  * failed) plus trains that have already reserved a section ending there ("inbound"). A train that
  * has itself reserved a section departing *from* `station` no longer counts (its
  * `sectionTargetStationId` now points elsewhere). */
-function stationOccupancy(state: GameState, station: Station, excludeId: number): number {
-  let count = 0;
+function stationOccupants(state: GameState, station: Station, excludeId: number): Train[] {
+  const result: Train[] = [];
   for (const t of state.trains) {
     if (t.id === excludeId) continue;
     if (t.sectionTargetStationId === station.id) {
-      count++;
+      result.push(t);
       continue;
     }
     if (
@@ -186,10 +221,126 @@ function stationOccupancy(state: GameState, station: Station, excludeId: number)
       t.edgeProgress === 0 &&
       t.route[t.routeIndex] === station.tile
     ) {
-      count++;
+      result.push(t);
     }
   }
-  return count;
+  return result;
+}
+
+/** Ids of the other trains holding `entry.blockId` in the opposite direction. */
+function trainsOpposingOnBlock(
+  trains: readonly Train[],
+  excludeId: number,
+  entry: HeldBlock,
+): number[] {
+  const ids: number[] = [];
+  for (const t of trains) {
+    if (t.id === excludeId) continue;
+    if (t.heldBlocks.some((hb) => hb.blockId === entry.blockId && hb.direction !== entry.direction))
+      ids.push(t.id);
+  }
+  return ids;
+}
+
+/** Rebuilds `train.heldBlocks` from its route against the *current* block partition. Block ids are
+ * indices into a partition that is recomputed whenever `trackVersion` changes (a new station or
+ * junction splits blocks, a bulldozed edge removes them), so ids saved in `heldBlocks` silently
+ * point at unrelated blocks afterwards — a stale reservation that blocks strangers or lets opposing
+ * trains through. The reservation is fully determined by the route, though: the edges from the
+ * train's tail (never further back than the last station it left) up to the end of its current
+ * section (`sectionTargetStationId`). Called once per train when the track changes. */
+/** The `HeldBlock.direction` a train gets for entering `block` at its end that the edge `a -> b`
+ * (somewhere inside the block) is travelled away from: the direction of the block's first edge in
+ * that sense. A train that entered the block whole (`tryEnterSection`) records exactly this; a
+ * remapped train whose tail sits mid-block must agree with it, or same-way trains would look
+ * opposed. */
+function blockEntryDirection(block: Block, a: number, b: number, mapWidth: number): number {
+  const nodes = [block.nodeA];
+  for (const edge of block.edges) {
+    const cur = nodes[nodes.length - 1] as number;
+    nodes.push(edge.a === cur ? edge.b : edge.a);
+  }
+  const k = block.edges.findIndex((e) => (e.a === a && e.b === b) || (e.a === b && e.b === a));
+  const last = nodes.length - 1;
+  if (k === -1 || (nodes[k] === a && nodes[k + 1] === b)) {
+    return directionBetween(nodes[0] as number, nodes[1] as number, mapWidth);
+  }
+  return directionBetween(nodes[last] as number, nodes[last - 1] as number, mapWidth);
+}
+
+export function remapReservations(state: GameState, train: Train, runtime: TrainRuntime): void {
+  const mapWidth = state.map.width;
+  const held: HeldBlock[] = [];
+  const target =
+    train.sectionTargetStationId !== undefined
+      ? runtime.stationsById.get(train.sectionTargetStationId)
+      : undefined;
+  if (!target) {
+    train.heldBlocks = held;
+    return;
+  }
+  let endIndex = -1;
+  for (let i = train.routeIndex; i < train.route.length; i++) {
+    if (train.route[i] === target.tile) {
+      endIndex = i;
+      break;
+    }
+  }
+  if (endIndex === -1) {
+    train.heldBlocks = held;
+    return;
+  }
+  const lengthOf = (i: number): number | undefined => {
+    const edge = state.trackGraph.getEdge(train.route[i] as number, train.route[i + 1] as number);
+    return edge ? edgeLengthTiles(edge) : undefined;
+  };
+  // Walk back from the head to the tail (or the last station), then forward to the section end.
+  const headLen = train.routeIndex + 1 < train.route.length ? lengthOf(train.routeIndex) : 0;
+  if (headLen === undefined) {
+    train.heldBlocks = held;
+    return;
+  }
+  let behind = train.edgeProgress * headLen;
+  let startIndex = train.routeIndex;
+  const length = trainLengthTiles(train);
+  while (
+    startIndex > 0 &&
+    behind < length &&
+    !runtime.stationTiles.has(train.route[startIndex] as number)
+  ) {
+    const len = lengthOf(startIndex - 1);
+    if (len === undefined) break;
+    behind += len;
+    startIndex--;
+  }
+  // Distance from the start of edge `startIndex` to the head.
+  let sinceStart = train.edgeProgress * headLen;
+  for (let i = startIndex; i < train.routeIndex; i++) sinceStart += lengthOf(i) ?? 0;
+  let cumulative = -sinceStart; // route distance of edge i's start, relative to the head
+  let lastBlockId: number | undefined;
+  for (let i = startIndex; i < endIndex; i++) {
+    const a = train.route[i] as number;
+    const b = train.route[i + 1] as number;
+    const len = lengthOf(i);
+    const blockId = blockIdForEdge(runtime.partition, a, b);
+    if (len === undefined || blockId === undefined) {
+      train.heldBlocks = [];
+      return;
+    }
+    if (blockId !== lastBlockId || (i > startIndex && runtime.stationTiles.has(a))) {
+      const block = runtime.partition.blocks[blockId] as Block;
+      held.push({
+        blockId,
+        direction: blockEntryDirection(block, a, b, mapWidth),
+        enteredAtDistance: train.distanceTraveled + cumulative,
+        lengthTiles: block.lengthTiles,
+      });
+      lastBlockId = blockId;
+    }
+    cumulative += len;
+  }
+  train.heldBlocks = held;
+  releaseTrailingBlocks(train);
 }
 
 interface SectionAttemptResult {
@@ -262,23 +413,50 @@ function tryEnterSection(
   for (const entry of batch) {
     const block = runtime.partition.blocks[entry.blockId] as Block;
     if (block.double) continue;
-    const opposing = occupantsOfBlock(state.trains, train.id, entry.blockId).some(
-      (o) => o.direction !== entry.direction,
-    );
-    if (opposing) {
+    const opposing = trainsOpposingOnBlock(state.trains, train.id, entry);
+    // Fairness: a steady stream of same-way trains must not starve a train that has waited a long
+    // time for the other way — yield to it, so the stream drains and it can go.
+    const yieldTo =
+      opposing.length === 0
+        ? state.trains
+            .filter(
+              (w) =>
+                w.id !== train.id &&
+                w.waitingOn?.kind === "line" &&
+                w.waitingOn.blockId === entry.blockId &&
+                w.waitingOn.direction !== entry.direction &&
+                w.waitTicks >= SIGNAL_FAIRNESS_HOURS &&
+                w.waitTicks > train.waitTicks,
+            )
+            .map((w) => w.id)
+        : [];
+    if (opposing.length > 0 || yieldTo.length > 0) {
       setWaitingStatus(train, "waitingForBlock");
+      train.waitingOn = {
+        kind: "line",
+        stationId: targetStation.id,
+        blockId: entry.blockId,
+        direction: entry.direction,
+        trainIds: opposing.length > 0 ? opposing : yieldTo,
+      };
       return { ok: false, blockingBlockId: entry.blockId };
     }
   }
 
   // Rule 2: the target station needs a free slot (inside + inbound).
-  const occupancy = stationOccupancy(state, targetStation, train.id);
-  if (occupancy >= STATION_TYPE_DEFS[targetStation.type].trainCapacity) {
+  const occupants = stationOccupants(state, targetStation, train.id);
+  if (occupants.length >= STATION_TYPE_DEFS[targetStation.type].trainCapacity) {
     setWaitingStatus(train, "waitingForStation");
+    train.waitingOn = {
+      kind: "platform",
+      stationId: targetStation.id,
+      trainIds: occupants.map((t) => t.id),
+    };
     const last = batch[batch.length - 1];
     return last ? { ok: false, blockingBlockId: last.blockId } : { ok: false };
   }
 
+  delete train.waitingOn;
   train.heldBlocks.push(...batch);
   train.sectionTargetStationId = targetStation.id;
   setStatus(train, "moving");
@@ -288,6 +466,11 @@ function tryEnterSection(
 /** Computes a fresh route from the train's current node to `targetStation` and adopts it (or, if
  * none exists, parks the train in `noRoute`). Always releases held blocks — the block partition
  * itself may have just changed, so any previously-held block id is no longer meaningful. */
+function currentTarget(train: Train, runtime: TrainRuntime): Station | undefined {
+  const order = train.orders[train.currentOrderIndex];
+  return order && runtime.stationsById.get(order.stationId);
+}
+
 function tryRoute(
   state: GameState,
   train: Train,
@@ -296,14 +479,36 @@ function tryRoute(
   targetStation: Station,
 ): boolean {
   const start = train.route[train.routeIndex] as number;
-  const result = findTrainRoute(state.map.width, state.trackGraph, start, targetStation.tile, {
-    weightClass: loco.weightClass,
-    electric: loco.type === "electric",
-    incomingDirection: train.direction,
-    stationTiles: runtime.stationTiles,
-    blockPenalties: train.blockPenalties,
-    edgeToBlock: runtime.partition.edgeToBlock,
-  });
+  const search = (tile: number): number[] | null =>
+    findTrainRoute(state.map.width, state.trackGraph, start, tile, {
+      weightClass: loco.weightClass,
+      electric: loco.type === "electric",
+      incomingDirection: train.direction,
+      stationTiles: runtime.stationTiles,
+      blockPenalties: train.blockPenalties,
+      edgeToBlock: runtime.partition.edgeToBlock,
+    });
+  let result = search(targetStation.tile);
+  if (!result) {
+    // Unreachable next stop (PLAN Phase 18 B): report it once, then carry on with the next order
+    // that *can* be reached so a dead order doesn't park the train (and a platform slot) forever.
+    if (train.noRouteReportedStationId !== targetStation.id) {
+      train.noRouteReportedStationId = targetStation.id;
+      pushNews(state, { kind: "noRoute", trainId: train.id, stationId: targetStation.id });
+    }
+    for (let i = 1; i < train.orders.length && !result; i++) {
+      const index = (train.currentOrderIndex + i) % train.orders.length;
+      const alt = runtime.stationsById.get((train.orders[index] as TrainOrder).stationId);
+      if (!alt || alt.tile === start || alt.id === targetStation.id) continue;
+      const altRoute = search(alt.tile);
+      if (altRoute) {
+        result = altRoute;
+        train.currentOrderIndex = index;
+      }
+    }
+  } else if (train.noRouteReportedStationId === targetStation.id) {
+    delete train.noRouteReportedStationId;
+  }
   train.routeTrackVersion = runtime.trackVersion;
 
   // Fresh departure from a station (`route` is just `[start]`): seed one tile of real history
@@ -326,11 +531,7 @@ function tryRoute(
   train.edgeProgress = 0;
   train.heldBlocks = [];
   delete train.sectionTargetStationId;
-  const wasNoRoute = train.status === "noRoute";
   setStatus(train, result ? "moving" : "noRoute");
-  if (!result && !wasNoRoute) {
-    pushNews(state, { kind: "noRoute", trainId: train.id, stationId: targetStation.id });
-  }
   return result !== null;
 }
 
@@ -460,6 +661,19 @@ function handleLoading(state: GameState, train: Train, runtime: TrainRuntime): v
   }
 }
 
+/** A `stuck` train is only a train that has waited a long time (SPEC §7.5) — the line may well
+ * clear later. Keep re-running the departure check every tick; leave `stuck` (and go) the moment it
+ * passes, otherwise the "jam" would outlive its cause. */
+function retryStuckDeparture(state: GameState, train: Train, runtime: TrainRuntime): void {
+  if (train.route.length < 2 || train.edgeProgress !== 0) return;
+  const waited = train.waitTicks;
+  const previous = train.waitingOn;
+  if (tryEnterSection(state, train, runtime).ok) return;
+  train.status = "stuck";
+  train.waitTicks = waited;
+  if (!train.waitingOn && previous) train.waitingOn = previous;
+}
+
 /** Shared recovery for `noRoute`/`stuck` trains: reverse off a dead end that isn't the
  * destination after a short wait (SPEC §7.3), and retry routing whenever the track has changed. */
 function handleIdle(
@@ -487,7 +701,11 @@ function handleIdle(
     return;
   }
 
-  if (!targetStation || train.routeTrackVersion === runtime.trackVersion) return;
+  if (!targetStation) return;
+  if (train.routeTrackVersion === runtime.trackVersion) {
+    if (train.status === "stuck") retryStuckDeparture(state, train, runtime);
+    return;
+  }
   tryRoute(state, train, runtime, loco, targetStation);
 }
 
@@ -502,7 +720,7 @@ function handleMoving(
     setStatus(train, "noRoute");
     return;
   }
-  const targetStation = runtime.stationsById.get(order.stationId);
+  let targetStation = runtime.stationsById.get(order.stationId);
   if (!targetStation) {
     setStatus(train, "noRoute");
     return;
@@ -511,9 +729,11 @@ function handleMoving(
   const statusAtStart = train.status;
   if (
     train.edgeProgress === 0 &&
-    (train.route.length < 2 || train.routeTrackVersion !== runtime.trackVersion)
+    (train.route.length < 2 ||
+      (train.routeTrackVersion !== runtime.trackVersion && !insideReservedSection(train, runtime)))
   ) {
     if (!tryRoute(state, train, runtime, loco, targetStation)) return;
+    targetStation = currentTarget(train, runtime) ?? targetStation;
   }
 
   const wasWaiting = statusAtStart !== "moving";
@@ -553,7 +773,7 @@ function handleMoving(
     // departure or a through-station the train just reached mid-route (a station tile is always a
     // block boundary, so the block starting here was never part of an earlier batch) — either way,
     // SPEC §7.5's atomic departure check applies the same way.
-    if (train.edgeProgress === 0 && !holdsBlockFor(train, runtime, a, b)) {
+    if (train.edgeProgress === 0 && needsNewSection(train, runtime, a, b)) {
       const attempt = tryEnterSection(state, train, runtime);
       if (!attempt.ok) {
         checkDeadlockTimeout(state, train, runtime, loco, attempt.blockingBlockId);
@@ -590,8 +810,12 @@ function handleMoving(
     train.routeIndex++;
     train.direction = edgeDirectionFrom(edge, a);
 
-    if (train.routeTrackVersion !== runtime.trackVersion) {
+    if (
+      train.routeTrackVersion !== runtime.trackVersion &&
+      !insideReservedSection(train, runtime)
+    ) {
       if (!tryRoute(state, train, runtime, loco, targetStation)) return;
+      targetStation = currentTarget(train, runtime) ?? targetStation;
     }
   }
 }

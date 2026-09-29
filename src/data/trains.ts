@@ -361,6 +361,9 @@ export const DEADLOCK_REROUTE_DAYS = 10;
 export const DEADLOCK_STUCK_DAYS = 20;
 /** Extra tile-distance cost added to a block a train has been stuck waiting on, when it retries
  * routing after `DEADLOCK_REROUTE_DAYS` — large enough that any real alternate path wins. */
+/** A train that has waited this many hours for a single-track block makes newly departing
+ * same-way trains hold back, so a steady stream in one direction cannot starve the other. */
+export const SIGNAL_FAIRNESS_HOURS = 24;
 export const DEADLOCK_BLOCK_PENALTY = 1_000;
 /** A train stuck at a non-target dead end reverses after this many in-game hours (SPEC §7.3). */
 export const DEAD_END_REVERSE_HOURS = 6;

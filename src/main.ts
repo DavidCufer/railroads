@@ -105,7 +105,8 @@ import { createGoalsButton, openGoalCelebration, openGoalsPanel } from "./ui/goa
 import { isPanelOpen } from "./ui/panel";
 import { formatMoney } from "./ui/format";
 import { openTitleScreen } from "./ui/titleScreen";
-import { autosave } from "./save";
+import { autosave, exportSaveJson } from "./save";
+import { setStaleReservationReporter } from "./sim/trains";
 import { App } from "@capacitor/app";
 import { loadSettings, type Settings } from "./ui/settings";
 import { renderSettingsScreen } from "./ui/settingsScreen";
@@ -118,6 +119,7 @@ const RIVER_ID = terrainId("river");
 const WATER_ID = terrainId("water");
 
 const DEBUG = new URLSearchParams(window.location.search).has("debug");
+if (DEBUG) setStaleReservationReporter((message) => console.warn(`[stale reservation] ${message}`));
 
 const DEFAULT_NEW_GAME: NewGameOptions = {
   seed: 12345,
@@ -994,6 +996,8 @@ function main(): void {
       window as unknown as {
         __game: {
           getState: () => GameState;
+          /** Debug: downloads the current save as JSON (for bug reports); returns the JSON text. */
+          exportSave: () => string;
           getMap: () => GameState["map"];
           getTicks: () => number;
           getCalendar: () => ReturnType<typeof calendarFromTicks>;
@@ -1138,6 +1142,16 @@ function main(): void {
       }
     ).__game = {
       getState: () => state,
+      exportSave: () => {
+        const json = exportSaveJson(state);
+        const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `railroads-${state.ticks}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+        return json;
+      },
       getMap: () => state.map,
       getTicks: () => state.ticks,
       getCalendar: () => calendarFromTicks(state.startYear, state.ticks),

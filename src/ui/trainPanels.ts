@@ -84,6 +84,28 @@ function electrifiedRouteBlocked(state: GameState, train: Train, loco: Locomotiv
  * `waitingForBlock`/`waitingForStation` train is trying to reach next, falling back to the plain
  * status label when there's nothing to name (e.g. a target station just got bulldozed). */
 function statusText(state: GameState, train: Train): string {
+  const waiting =
+    train.status === "waitingForBlock" ||
+    train.status === "waitingForStation" ||
+    (train.status === "stuck" && train.waitingOn !== undefined);
+  if (waiting && train.waitingOn) {
+    const w = train.waitingOn;
+    const stationName = state.stations.find((s) => s.id === w.stationId)?.name;
+    const names = w.trainIds
+      .map((id) => state.trains.find((t) => t.id === id)?.name)
+      .filter((n): n is string => n !== undefined);
+    const who = names.length > 3 ? `${names.slice(0, 3).join(", ")}…` : names.join(", ");
+    if (stationName && who) {
+      return w.kind === "line"
+        ? strings.trains.waitingForTrainOnLine(who, stationName)
+        : strings.trains.waitingForTrainAtPlatform(stationName, who);
+    }
+  }
+  const order = train.orders[train.currentOrderIndex];
+  if (train.status === "noRoute" && order) {
+    const name = state.stations.find((s) => s.id === order.stationId)?.name;
+    if (name) return strings.trains.noRouteTo(name);
+  }
   const targetName =
     train.waitingForStationId !== undefined
       ? state.stations.find((s) => s.id === train.waitingForStationId)?.name

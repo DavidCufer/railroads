@@ -53,6 +53,22 @@ export interface HeldBlock {
   lengthTiles: number;
 }
 
+/** What is currently keeping a train from departing (SPEC §7.5 wait-for graph, PLAN Phase 18 B).
+ * Recorded by every failed departure check and cleared the moment one succeeds; purely derived
+ * (re-set every tick a train is still waiting), so it is not saved. */
+export interface WaitingOn {
+  kind: "line" | "platform";
+  /** The station the train is trying to reach. */
+  stationId: number;
+  /** The block whose opposing traffic denies the departure (`kind === "line"`). */
+  blockId?: number;
+  /** DIRS8 index the waiting train would enter `blockId` in (fairness: opposite-way trains yield). */
+  direction?: number;
+  /** Trains that hold the resource: opposing holders of the block, or trains counted against the
+   * station's slots. Empty means no live blocker — a bug (stale reservation) the sim clears. */
+  trainIds: number[];
+}
+
 export interface Train {
   id: number;
   name: string;
@@ -103,6 +119,10 @@ export interface Train {
   /** Extra cost penalty applied to specific blocks the next time this train re-routes (SPEC §7.5
    * deadlock handling) — cleared once a route is found that avoids needing it. */
   blockPenalties: Map<number, number>;
+  /** The unreachable station last reported in a "No route" news item, so it is announced once. */
+  noRouteReportedStationId?: number;
+  /** Why the train is waiting, while `status` is `waitingForBlock`/`waitingForStation`. */
+  waitingOn?: WaitingOn;
   /** Ticks left in the current loading/unloading stop (SPEC §7.2, §6.1's overlength penalty).
    * -1 means "not yet computed for this stop" — src/sim/trains/loading.ts fills it in on first
    * use and resets it to -1 whenever the train arrives at a new stop. */
