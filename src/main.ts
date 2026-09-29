@@ -102,6 +102,8 @@ import { advanceOneHour } from "./sim/tick";
 import type { TrainOrder } from "./sim/trains/types";
 import type { Station } from "./sim/stations/types";
 import { debugTriggerCrash, installErrorBoundary } from "./ui/errorBoundary";
+import { announceNewEngine } from "./ui/newEngineCard";
+import { openRosterSheet } from "./ui/roster";
 import {
   openBuyTrainPanel,
   openTrainListPanel,
@@ -815,7 +817,10 @@ function main(): void {
 
     if (state.pendingNews.length > 0) {
       for (const item of state.pendingNews) {
-        showToast(ui, formatNewsItem(state, item), "warn");
+        // A new locomotive model gets an announcement card (STYLE §11.4) instead of a toast.
+        if (item.kind === "newLocomotive") {
+          announceNewEngine(ui, item.locoId, () => openRosterSheet(ui, state));
+        } else showToast(ui, formatNewsItem(state, item), "warn");
       }
       state.pendingNews.length = 0;
       newsButton.refreshBadge(state);
@@ -972,7 +977,7 @@ function main(): void {
     onSetSpeed: (speed: GameSpeed) => loop.setSpeed(speed),
     getSpeed: () => loop.getSpeed(),
     onOpenFinance: () => openFinancePanel(ui, state),
-    onOpenRoster: () => showToast(ui, strings.topBar.rosterSoon, "info"),
+    onOpenRoster: () => openRosterSheet(ui, state),
     onOpenMenu: () =>
       openMenuPanel(ui, {
         getOverlayState: () => overlayState,
@@ -984,7 +989,7 @@ function main(): void {
         },
         onSaveGame: () => openSaveScreen(),
         onOpenSettings: () => openSettingsOverlay(),
-        onOpenRoster: () => showToast(ui, strings.topBar.rosterSoon, "info"),
+        onOpenRoster: () => openRosterSheet(ui, state),
       }),
   });
   const toolbar = createToolbar(ui, (tool) => setTool(tool));

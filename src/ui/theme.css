@@ -3483,3 +3483,314 @@ button.rule-chip:active {
 .panel:has(.train-live) .panel-body {
   padding-top: 8px;
 }
+
+/* ---------- roster ("engine shed" gallery) ---------- */
+
+.roster-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--gap-2) 0 var(--gap-2) var(--gap-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+}
+.roster-lane {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.roster-lane-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--paper-dim);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.lane-steam .roster-lane-label {
+  color: var(--brass);
+}
+.lane-diesel .roster-lane-label {
+  color: var(--steel);
+}
+.lane-electric .roster-lane-label {
+  color: #7fb98a;
+}
+.roster-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 0 var(--gap-4) 4px 0;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.roster-strip::-webkit-scrollbar {
+  display: none;
+}
+.roster-card {
+  flex: 0 0 auto;
+  min-width: 132px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  padding: 5px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-m);
+  background: var(--ink-750);
+  color: var(--text);
+  text-align: left;
+}
+.roster-card:active:not(:disabled) {
+  border-color: var(--brass);
+}
+.roster-card:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.roster-plate {
+  height: 58px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 4px 6px 2px;
+  border-radius: var(--radius-s);
+  background: #ece4d2;
+  overflow: hidden;
+}
+.roster-plate .art-canvas {
+  max-height: 48px;
+}
+.roster-plate.silhouette .art-canvas {
+  filter: brightness(0);
+  opacity: 0.72;
+}
+.roster-card.future {
+  background: var(--ink-800);
+}
+.roster-name {
+  font: 600 var(--fs-xs) var(--font-display);
+  color: var(--paper);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 190px;
+}
+.roster-unknown {
+  color: var(--muted);
+  letter-spacing: 0.2em;
+}
+.roster-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+.roster-year {
+  color: var(--brass);
+  font-weight: 700;
+  font-size: var(--fs-xs);
+}
+.roster-owned {
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--brass-soft);
+  color: var(--brass);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+}
+.roster-retired {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+.roster-detail {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: var(--gap-4);
+  padding: var(--gap-2) var(--gap-4) var(--gap-2) 0;
+}
+.roster-detail-left,
+.roster-detail-right {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+}
+.roster-detail-right {
+  overflow-y: auto;
+}
+.roster-back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: 600 var(--fs-xs) var(--font-ui);
+  padding: 2px 4px 2px 0;
+}
+.roster-detail .eng-stats {
+  grid-template-columns: 1fr;
+}
+.roster-wheels {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--paper-dim);
+}
+.roster-wheels-label {
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.roster-wheels .whyte svg {
+  height: 14px;
+}
+.roster-owned-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+.roster-note {
+  margin: 0;
+  color: var(--paper-dim);
+  font-size: var(--fs-s);
+  line-height: 1.4;
+  font-family: var(--font-display);
+}
+
+/* ---------- new engine announcement card ---------- */
+
+.modal-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 14, 20, 0.62);
+}
+.new-engine-card {
+  width: min(460px, calc(100% - 32px));
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+  padding: var(--gap-3) var(--gap-4);
+  border-radius: var(--radius-l);
+  background: var(--ink-800);
+  border: 1px solid var(--ink-600);
+  box-shadow: var(--shadow);
+  font: var(--fs-s) var(--font-ui);
+  color: var(--text);
+}
+.new-engine-overline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--brass);
+  font: 700 var(--fs-2xs) var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+.new-engine-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-3);
+}
+.new-engine-title .eng-name {
+  font-size: var(--fs-xl);
+}
+.new-engine-actions {
+  display: flex;
+  gap: var(--gap-2);
+  justify-content: flex-end;
+}
+.new-engine-actions .fbtn {
+  flex: 0 1 auto;
+  min-width: 110px;
+  min-height: 40px;
+  padding: 0 var(--gap-4);
+  border-radius: var(--radius-m);
+  border: none;
+  font: 600 var(--fs-s) var(--font-ui);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap-2);
+}
+.new-engine-card .stat-row {
+  grid-template-columns: repeat(3, 1fr);
+}
+.news-thumb-art {
+  width: 64px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.news-thumb-art .art-canvas {
+  max-width: 64px;
+  height: auto !important;
+  max-height: 30px;
+  object-fit: contain;
+}
+.roster-lane {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 6px;
+}
+.roster-lane-label {
+  flex: 0 0 18px;
+  flex-direction: column;
+  justify-content: center;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  gap: 6px;
+}
+.roster-lane-label .icon {
+  transform: rotate(90deg);
+}
+.roster-strip {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.roster-plate {
+  height: 50px;
+}
+.roster-plate .art-canvas {
+  max-height: 42px;
+}
+.roster-body {
+  gap: 6px;
+  padding-left: var(--gap-3);
+}
+.roster-plate {
+  height: 44px;
+  padding-top: 2px;
+}
+.roster-plate .art-canvas {
+  max-height: 38px;
+}
+.roster-body {
+  gap: 4px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.roster-card {
+  gap: 2px;
+  padding: 4px;
+}

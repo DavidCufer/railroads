@@ -15,7 +15,6 @@ export const strings = {
     menu: "Menu",
     cash: "Finance",
     era: (name: string, year: number) => `Newest engine: ${name} (${year}) — open Roster`,
-    rosterSoon: "The locomotive roster is coming soon",
   },
   menu: {
     title: "Menu",
@@ -358,16 +357,13 @@ export const strings = {
     title: "Engine shed",
     subtitle: (owned: number, known: number, total: number) =>
       `${known} of ${total} models known · ${owned} in service`,
-    steamRow: "Steam",
-    dieselRow: "Diesel",
-    electricRow: "Electric",
+    lanes: { steam: "Steam", diesel: "Diesel", electric: "Electric" },
     future: "Not yet built",
     available: "Available",
     retired: "No longer built",
     owned: (n: number) => (n === 0 ? "None in service" : `${n} in service`),
     wheels: "Wheel arrangement",
     introduced: "Introduced",
-    buyHere: "Buy",
     detailBack: "Back to roster",
   },
   newEngine: {

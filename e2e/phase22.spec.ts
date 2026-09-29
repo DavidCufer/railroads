@@ -161,4 +161,60 @@ test.describe("Phase 22 — train screens", () => {
     });
     await shot(page, "train-route");
   });
+
+  test("roster: lanes by traction, silhouettes for future models, detail with a note", async ({
+    page,
+  }) => {
+    await setup(page, 1920);
+    const ids = await buildWorld(page, false);
+    await page.evaluate(
+      ({ a, b }) => {
+        const g = window.__game!;
+        const bought = g.buyTrain(a, "pacific-4-6-2", ["passengers"]);
+        if (!bought.ok) throw new Error("buy");
+        g.setOrders(bought.trainId!, [
+          { stationId: a, rule: "auto" },
+          { stationId: b, rule: "auto" },
+        ]);
+      },
+      { a: ids.a, b: ids.b },
+    );
+    await page.locator(".era-badge").click();
+    await expect(page.locator(".sheet-roster")).toBeVisible();
+    await expect(page.locator(".roster-lane")).toHaveCount(3);
+    // 1920: the Pacific (1905) is known and owned; the 1976 heavy diesel is a silhouette.
+    await expect(page.locator('[data-testid="roster-pacific-4-6-2"]')).toContainText("Pacific");
+    await expect(page.locator('[data-testid="roster-pacific-4-6-2"] .roster-owned')).toHaveText(
+      "×1",
+    );
+    const future = page.locator('[data-testid="roster-heavy-diesel"]');
+    await expect(future).toBeDisabled();
+    await expect(future).not.toContainText("Heavy");
+    await expect(future).toContainText("1976");
+    await shot(page, "roster");
+
+    await page.locator('[data-testid="roster-pacific-4-6-2"]').click();
+    await expect(page.locator(".roster-note")).not.toBeEmpty();
+    await expect(page.locator(".roster-owned-line")).toContainText("1 in service");
+    await noHorizontalOverflow(page, ".sheet-roster");
+    await shot(page, "roster-detail");
+    await page.locator(".roster-back").click();
+    await expect(page.locator(".roster-lane")).toHaveCount(3);
+    await page.locator(".sheet-close").click();
+    await expect(page.locator(".sheet-roster")).toHaveCount(0);
+  });
+
+  test("new engine card: announced at the year turn, once, with Roster / OK", async ({ page }) => {
+    await setup(page, 1911);
+    await page.evaluate(() => window.__game!.setSpeed(0));
+    await page.evaluate(() => window.__game!.runDays(365));
+    await expect(page.locator(".new-engine-card")).toBeVisible();
+    await expect(page.locator(".new-engine-card")).toContainText("Mikado");
+    await noHorizontalOverflow(page, ".new-engine-card");
+    await shot(page, "new-engine");
+    await page.locator(".new-engine-roster").click();
+    await expect(page.locator(".new-engine-card")).toHaveCount(0);
+    await expect(page.locator(".sheet-roster")).toBeVisible();
+    await page.locator(".sheet-close").click();
+  });
 });

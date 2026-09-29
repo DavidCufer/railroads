@@ -13,6 +13,7 @@ import { emptyState } from "./components/emptyState";
 import type { Tone } from "./components/tone";
 import { formatDate } from "./format";
 import { h } from "./h";
+import { locoArt } from "./trainArt";
 import { icon, type IconName } from "./icons";
 import { openPanel } from "./panel";
 import { strings } from "./strings";
@@ -99,15 +100,20 @@ export function openNewsPanel(container: HTMLElement, state: GameState): void {
           cardList(
             ...items.map((item) => {
               const meta = NEWS_ICONS[item.kind];
-              const loco = item.kind === "newLocomotive" ? locomotiveById(item.locoId) : undefined;
-              const thumbIcon: IconName = loco
-                ? loco.type === "electric"
-                  ? "electrify"
-                  : loco.type
-                : meta.icon;
+              // Locomotive news (new model, a breakdown, no route) shows the engine's side view.
+              const trainLoco =
+                item.kind === "breakdown" || item.kind === "noRoute"
+                  ? locomotiveById(
+                      state.trains.find((t) => t.id === item.trainId)?.locoModelId ?? "",
+                    )
+                  : undefined;
+              const loco = item.kind === "newLocomotive" ? locomotiveById(item.locoId) : trainLoco;
+              const thumb = loco
+                ? h("span", { className: "news-thumb-art" }, locoArt(loco, 30))
+                : h("span", { className: `news-thumb tone-${meta.tone}` }, icon(meta.icon));
               return cardRow({
                 className: `news-item${item.id > unreadFrom ? " unread" : ""}`,
-                thumb: h("span", { className: `news-thumb tone-${meta.tone}` }, icon(thumbIcon)),
+                thumb,
                 title: formatNewsItem(state, item),
                 meta: formatDate(calendarFromTicks(state.startYear, item.tick)),
               });
