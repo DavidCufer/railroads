@@ -42,6 +42,7 @@ export interface MenuPanelHandlers {
   onSaveGame: () => void;
   onOpenSettings: () => void;
   onOpenRoster?: () => void;
+  onOpenHelp?: () => void;
 }
 
 const OVERLAY_ICONS: Record<Exclude<OverlayToggle, "miniMap">, IconName> = {
@@ -85,6 +86,15 @@ export function openMenuPanel(container: HTMLElement, handlers: MenuPanelHandler
             title: strings.menu.roster,
             chevron: true,
             onClick: handlers.onOpenRoster,
+          })
+        : null,
+      handlers.onOpenHelp
+        ? cardRow({
+            thumb: icon("info"),
+            title: strings.help.menuEntry,
+            chevron: true,
+            onClick: handlers.onOpenHelp,
+            testId: "menu-help",
           })
         : null,
     ];

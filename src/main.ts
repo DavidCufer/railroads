@@ -125,6 +125,7 @@ import {
 } from "./ui/trainPanels";
 import { createTrainListButton } from "./ui/toolbar";
 import { createNewsButton, formatNewsItem, openNewsPanel } from "./ui/newsPanel";
+import { openHelpPanel } from "./ui/helpPanel";
 import { openFinancePanel } from "./ui/financePanel";
 import { openYearlyReport } from "./ui/yearlyReport";
 import { createGoalsButton, openGoalCelebration, openGoalsPanel } from "./ui/goalsPanel";
@@ -1020,6 +1021,7 @@ function main(): void {
         onSaveGame: () => openSaveScreen(),
         onOpenSettings: () => openSettingsOverlay(),
         onOpenRoster: () => openRosterSheet(ui, state),
+        onOpenHelp: () => openHelpPanel(ui),
       }),
   });
   const toolbar = createToolbar(ui, (tool) => setTool(tool));

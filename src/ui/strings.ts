@@ -168,6 +168,28 @@ export const strings = {
       livestockPens: "Livestock Pens",
     },
     improvementAvailableFrom: (year: number) => `Available from ${year}`,
+    /** PLAN Phase 26B: one-line benefit under each improvement tile in the Build tab. */
+    improvementBenefit: {
+      postOffice: "Mail +50% here",
+      hotel: "Passengers pay +25% here; the town grows faster",
+      warehouse: "2× storage; waiting cargo doesn't spoil; trains can hand cargo over",
+      coldStorage: "Food & livestock keep fresh here; +15% pay",
+      freightYard: "Trains load and unload 2× faster",
+      livestockPens: "Needed to load livestock here",
+    },
+    waterTowerBenefit: "Steam engines refill water here",
+    engineShedBenefit: "Breakdowns −50% for trains serviced here; repair crews start here",
+    /** "Why?" hints shown under a tile when the improvement would (not) help right now. */
+    why: {
+      needsCity: "No town or city in range",
+      ranchInRange: "A livestock ranch is in range",
+      noRanch: "No livestock ranch in range yet",
+      foodInRange: "Food or livestock is produced in range",
+      noFood: "No food or livestock in range yet",
+    },
+    /** Station type upgrade card: what the next type adds. */
+    upgradeBenefit: (side: number, platforms: number, faster: number, cars: number) =>
+      `Catchment ${side}×${side} · ${platforms} platforms · ${faster > 0 ? `loads ${faster}% faster` : "standard loading"} · up to ${cars} cars`,
   },
   trains: {
     buyTitle: "Buy Train",
@@ -431,6 +453,42 @@ export const strings = {
     title: (year: number) => `${year} Year in Review`,
     close: "Close",
     newTechnology: "New technology",
+  },
+  help: {
+    menuEntry: "Help",
+    title: "Help",
+    tabs: { upgrades: "Station upgrades", money: "How money works" },
+    upgrades: {
+      typesTitle: "Station size",
+      typesIntro: "Bigger stations reach further and handle more trains.",
+      improvementsTitle: "Improvements",
+    },
+    money: {
+      title: "How money works",
+      lines: [
+        { icon: "coin", text: "You earn money when a train unloads cargo where it is wanted." },
+        {
+          icon: "trendUp",
+          text: "Pay grows with distance and speed: longer, faster trips earn more.",
+        },
+        {
+          icon: "cargo",
+          text: "Freight pays per ton; passengers and mail need towns at both ends.",
+        },
+        {
+          icon: "city",
+          text: "Towns that get good service grow — bigger towns send more passengers and want more goods.",
+        },
+        {
+          icon: "wrench",
+          text: "Trains, track and stations cost upkeep every month; breakdowns cost repairs.",
+        },
+        {
+          icon: "finance",
+          text: "Short of cash? Take a loan from Finance — but interest is charged monthly.",
+        },
+      ],
+    },
   },
   news: {
     title: "News",

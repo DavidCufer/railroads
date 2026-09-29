@@ -13,6 +13,7 @@ import {
   STATION_TYPE_DEFS,
 } from "../data/stations";
 import type { StationImprovementType, StationType } from "../data/stations";
+import { improvementHint, stationTypeBenefit } from "./stationUpgrades";
 import { locomotiveById } from "../data/trains";
 import {
   buildImprovement,
@@ -426,112 +427,123 @@ function buildTab(
             `${strings.station.upgradeToPrefix}${strings.station.types[nextType]}`,
           ),
           h("span", { className: "upgrade-cost" }, formatMoney(plan.cost)),
+          h("span", { className: "upgrade-benefit" }, stationTypeBenefit(nextType)),
         ),
         icon("arrowUp", "icon-sm"),
       ),
     );
   }
 
-  const cells: Node[] = STATION_IMPROVEMENT_TYPES.map((type) => {
+  /** One improvement row: icon, name, one-line benefit, optional hint, cost / check on the right. */
+  const improvementRow = (opts: {
+    className: string;
+    icon: IconName;
+    name: string;
+    benefit: string;
+    hint?: { text: string; helps: boolean } | undefined;
+    trailing: Node | string;
+    built?: boolean;
+    onClick?: () => void;
+    disabled?: boolean;
+  }): HTMLElement =>
+    cardRow({
+      className: `${opts.className}${opts.built ? " done" : ""}`,
+      thumb: icon(opts.icon, opts.built ? "icon-sm tone-go" : "icon-sm tone-brass"),
+      title: opts.name,
+      meta: h(
+        "span",
+        { className: "improvement-meta" },
+        h("span", null, opts.benefit),
+        opts.hint
+          ? h(
+              "span",
+              { className: `improvement-hint ${opts.hint.helps ? "helps" : "warns"}` },
+              opts.hint.text,
+            )
+          : null,
+      ),
+      trailing: opts.trailing,
+      ...(opts.onClick ? { onClick: opts.onClick } : {}),
+      ...(opts.disabled !== undefined ? { disabled: opts.disabled } : {}),
+    });
+  const checkMark = (): Node => icon("check", "icon-sm tone-go");
+
+  const rows: HTMLElement[] = STATION_IMPROVEMENT_TYPES.map((type) => {
     const def = STATION_IMPROVEMENTS[type];
-    const built = station.improvements.includes(type);
-    const label = h(
-      "span",
-      { className: "action-btn-label" },
-      icon(IMPROVEMENT_ICONS[type], "icon-sm"),
-      strings.station.improvementNames[type],
-    );
-    if (built) {
-      return h(
-        "div",
-        { className: "action-btn station-improvement-btn done" },
-        label,
-        h("span", { className: "action-btn-detail" }, icon("check", "icon-sm")),
-      );
+    const common = {
+      className: "station-improvement-btn",
+      icon: IMPROVEMENT_ICONS[type],
+      name: strings.station.improvementNames[type],
+      benefit: strings.station.improvementBenefit[type],
+    };
+    if (station.improvements.includes(type)) {
+      return improvementRow({ ...common, built: true, trailing: checkMark() });
     }
     const plan = computeImprovementPlan(state, stationId, type);
     const notYetAvailable = def.availableYear !== undefined && !plan.valid && plan.cost === 0;
-    return h(
-      "button",
-      {
-        className: "action-btn station-improvement-btn",
-        title: def.description,
-        disabled: !plan.valid || plan.cost > state.cash,
+    return improvementRow({
+      ...common,
+      hint: improvementHint(state, station, type),
+      trailing: notYetAvailable
+        ? strings.station.improvementAvailableFrom(def.availableYear as number)
+        : formatMoney(plan.cost),
+      disabled: !plan.valid || plan.cost > state.cash,
+      onClick: () => {
+        const result = buildImprovement(state, stationId, type);
+        if (!result.ok) {
+          showToast(container, strings.build.reasons[result.reason], "warn");
+          return;
+        }
+        render();
+      },
+    });
+  });
+
+  if (station.hasWaterTower) {
+    rows.push(
+      improvementRow({
+        className: "station-water-tower-btn",
+        icon: "waterTower",
+        name: strings.station.waterTowerBuilt,
+        benefit: strings.station.waterTowerBenefit,
+        built: true,
+        trailing: checkMark(),
+      }),
+    );
+  } else {
+    const waterTowerPlan = computeWaterTowerPlan(state, stationId);
+    rows.push(
+      improvementRow({
+        className: "station-water-tower-btn",
+        icon: "waterTower",
+        name: strings.station.buildWaterTower,
+        benefit: strings.station.waterTowerBenefit,
+        trailing: formatMoney(waterTowerPlan.cost),
+        disabled: waterTowerPlan.cost > state.cash,
         onClick: () => {
-          const result = buildImprovement(state, stationId, type);
+          const result = buildWaterTower(state, stationId);
           if (!result.ok) {
             showToast(container, strings.build.reasons[result.reason], "warn");
             return;
           }
           render();
         },
-      },
-      label,
-      h(
-        "span",
-        { className: "action-btn-detail" },
-        notYetAvailable
-          ? strings.station.improvementAvailableFrom(def.availableYear as number)
-          : formatMoney(plan.cost),
-      ),
-    );
-  });
-
-  if (station.hasWaterTower) {
-    cells.push(
-      h(
-        "div",
-        { className: "action-btn done" },
-        h(
-          "span",
-          { className: "action-btn-label" },
-          icon("waterTower", "icon-sm"),
-          strings.station.waterTowerBuilt,
-        ),
-        h("span", { className: "action-btn-detail" }, icon("check", "icon-sm")),
-      ),
-    );
-  } else {
-    const waterTowerPlan = computeWaterTowerPlan(state, stationId);
-    cells.push(
-      h(
-        "button",
-        {
-          className: "action-btn station-water-tower-btn",
-          disabled: waterTowerPlan.cost > state.cash,
-          onClick: () => {
-            const result = buildWaterTower(state, stationId);
-            if (!result.ok) {
-              showToast(container, strings.build.reasons[result.reason], "warn");
-              return;
-            }
-            render();
-          },
-        },
-        h(
-          "span",
-          { className: "action-btn-label" },
-          icon("waterTower", "icon-sm"),
-          strings.station.buildWaterTower,
-        ),
-        h("span", { className: "action-btn-detail" }, formatMoney(waterTowerPlan.cost)),
-      ),
+      }),
     );
   }
-  out.push(
-    section(strings.station.improvements, [h("div", { className: "action-grid" }, ...cells)]),
-  );
-
   if (station.hasEngineShed) {
-    out.push(
-      h(
-        "div",
-        { className: "icon-row muted-row" },
-        icon("shed", "icon-sm"),
-        strings.station.engineShedFree,
-      ),
+    rows.push(
+      improvementRow({
+        className: "station-engine-shed-row",
+        icon: "shed",
+        name: strings.station.engineShedFree,
+        benefit: strings.station.engineShedBenefit,
+        built: true,
+        trailing: checkMark(),
+      }),
     );
   }
+  out.push(section(strings.station.improvements, [cardList(...rows)]));
   out.push(section(strings.ui.stats, [statsGrid(station.type)]));
   return out;
 }

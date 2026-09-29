@@ -3887,3 +3887,49 @@ button.rule-chip:active {
   background: var(--signal-soft);
   color: var(--signal);
 }
+
+/* ---------- Phase 26B: station Build tab explanations ---------- */
+.upgrade-benefit {
+  font-size: var(--fs-xs);
+  color: var(--paper-dim);
+  line-height: 1.25;
+  margin-top: 2px;
+}
+.improvement-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  white-space: normal;
+}
+.improvement-hint {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+}
+.improvement-hint.helps {
+  color: var(--go);
+}
+.improvement-hint.warns {
+  color: var(--signal);
+}
+.station-improvement-btn.done .card-title,
+.station-water-tower-btn.done .card-title,
+.station-engine-shed-row .card-title {
+  color: var(--go);
+}
+.station-improvement-btn:disabled .improvement-hint.warns {
+  opacity: 0.9;
+}
+.station-improvement-btn .card-meta,
+.station-water-tower-btn .card-meta,
+.station-engine-shed-row .card-meta,
+.help-row .card-meta,
+.help-money-row .card-title {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+.help-intro {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin-bottom: var(--gap-2);
+}
