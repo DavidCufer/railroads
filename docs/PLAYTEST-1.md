@@ -4,7 +4,7 @@ Play-tester report (no game code changed). Build at `origin/main` b7966d3 (Phase
 Driven through the real UI where practical (Track/Double/Bulldoze drags, Station tool, Buy-Train wizard, station Build tab, Goals/News/Finance panels); the debug API was used to fast-forward (`runDays`), to place stations/trains in bulk, and to read numbers.
 Screenshots are in `docs/playtest-1/`.
 
-> **Status: STAGE 1 — game 1 complete (Central Europe 1840, Normal, 29 years). Games 2 and 3 still to come.**
+> **Status: STAGE 2 — games 1 and 2 complete. Game 3, verdict, analysis and top 10 follow in the final push.**
 
 ## Game logs
 
@@ -40,7 +40,25 @@ Screenshots are in `docs/playtest-1/`.
 
 Time budget: ~1 real-time hour of my interaction time for 29 game years, almost all at 8× (the game itself would have taken ~3 h at 1×).
 
-_(Games 2 and 3, verdict, economy, upgrades, cities, UX, bugs and the top 10 follow in the next stage.)_
+
+### Game 2 — random medium map (seed 7, 256×192), 1830, Normal, played to 1854 (24 years)
+
+Cities: Ashtown 86k and Woodfield 90k, everything else < 25k. Only the Grasshopper 0-4-0 (25 km/h, 3 cars, reliability 2/5) exists in 1830; Planet 1832 (35 km/h), Norris 1838 (45 km/h), American 1848 (60 km/h).
+
+| Year | Cash | Net worth | Revenue | Operating cost | Notes |
+|---|---|---|---|---|---|
+| 1830 | $0.79M | $0.92M | $9k | $14k | Ashtown–Northford (25 tiles = 125 km, $65k), 2 stations ($40k each), 2 Grasshoppers ($20k), then a coal train to a steel mill that happened to be on the line |
+| 1831–37 | $0.70M → $0.52M | $0.89M → $0.71M | $11–15k | $18–38k | **Nothing profitable exists.** Every year loses $10–25k. Passenger Grasshopper: ~$1–2k revenue per train-year |
+| 1838 | $0.50M | $0.71M | $36k | $58k (**$33k breakdown repairs**) | Norris; extended Northford → Eastton ($100k) |
+| 1839–47 | $0.29M → $0.42M | $0.59M → $0.65M | $44–59k | $30–60k | 3 trains, break-even for 10 years |
+| 1848 | $0.42M | $0.65M | $60k | $30k | American; Eastton → Woodfield ($150k) + 2 Americans on Ashtown–Woodfield (100+ tiles) |
+| 1849–51 | ~$0.1M | $0.55M | $69–88k | $37–83k (repairs $27–39k) | still flat |
+| 1852–54 | $0.08M → $0.21M | $0.53M → $0.65M | $92k → $128k | $69k → $54k | Post Offices at Ashtown + Woodfield: mail 44k → 68k (+54 %) — the first real gain in 22 years |
+
+After 24 years the company is worth $0.65M — **35 % less than the starting $1M**. 2 of 3 goals were reached (connect Woodfield–Ashtown; 500 carloads of passengers in a year — trivially).
+Other counters over 24 years: 101 traffic jams, 47 breakdowns, 12 resource discoveries, 0 frontier villages.
+
+_(Game 3, verdict, economy, upgrades, cities, UX, bugs and the top 10 follow in the final push.)_
 
 ## Bugs found so far (game 1)
 
