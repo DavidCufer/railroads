@@ -190,7 +190,7 @@ Build toolbar modes: **Track**, **Double**, **Electrify** (era-gated), **Station
   With "Quick build" setting on, releasing builds immediately.
 - **Double mode**: drag along existing single track to upgrade; cost preview as above.
 - **Electrify mode**: drag along existing track (single or double).
-- **Bulldoze**: drag over track/station; refunds 25% of build cost. Cannot remove track under a train.
+- **Bulldoze**: drag along track — exactly the edges the drag runs along go (a junction the drag merely touches keeps its other legs), previewed in red with the refund; a station left with no track goes with it. Tap a station to remove it (confirm; refused while trains have it in their orders, or if it is the last Engine Shed). Refunds 25% of build cost. Cannot remove track under a train.
 - Pan with one finger when not in a build mode; in a build mode, pan with two fingers.
   Pinch zooms in all modes. Desktop: left-drag builds, right/middle-drag pans, wheel zooms.
 

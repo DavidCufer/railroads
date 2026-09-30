@@ -1053,19 +1053,19 @@ Two sessions after Phase 27 lands: **28A** (sim/economy) and **28B** (UX).
 - [ ] Update BALANCE.md with before/after and write the targets into balance tests.
 
 ### 28B — UX from the play-test
-- [ ] **Stuck indicator**: top-bar ⚠ chip with a count of trains waiting > 10 days / noRoute / broken; tap cycles the
+- [x] **Stuck indicator**: top-bar ⚠ chip with a count of trains waiting > 10 days / noRoute / broken; tap cycles the
       camera through them and opens the train panel. Traffic-jam news one per station pair.
-- [ ] **Modals never block**: Year-in-Review becomes a badge on the Finance button + a toast on Jan 1 (open from
+- [x] **Modals never block**: Year-in-Review becomes a badge on the Finance button + a toast on Jan 1 (open from
       Finance); new-locomotive cards collapse into one card listing all new engines; no modal may swallow a map drag.
       Year-in-Review "Net profit" shows operating profit and investments separately; fix colour clash (Mail vs
       Expenses) and sign formatting.
-- [ ] **Buy-train route step as a bottom sheet** (map stays visible above, ~40 % height), compact order list, plus
+- [x] **Buy-train route step as a bottom sheet** (map stays visible above, ~40 % height), compact order list, plus
       "Add stop" from a searchable station list as well as by tapping the map.
-- [ ] **Bulldoze**: highlight exactly the edges/objects that will be removed during the drag, with refund; explain
+- [x] **Bulldoze**: highlight exactly the edges/objects that will be removed during the drag, with refund; explain
       "$0" ("drag along a whole track piece"); allow removing a station (with confirm). Fix Bug 5 over-removal.
-- [ ] **Bug 3**: extending a line through a station at > 45° is refused (or shows a red "trains can't pass" marker).
-- [ ] **Station tool** defaults to Station, remembers the last type; type cards show platforms; hint "Terminal
+- [x] **Bug 3**: extending a line through a station at > 45° is refused (or shows a red "trains can't pass" marker).
+- [x] **Station tool** defaults to Station, remembers the last type; type cards show platforms; hint "Terminal
       recommended" when many trains use a station.
-- [ ] Discovery / founding news tappable → camera focuses the place. Bug 9: "Passengers + mail" suggestion fills all
+- [x] Discovery / founding news tappable → camera focuses the place. Bug 9: "Passengers + mail" suggestion fills all
       car slots. Bug 10: regenerate closes panels. `user-select: none` on the HUD.
-- [ ] Screenshots of each change at 800×360; open and check them.
+- [x] Screenshots of each change at 800×360; open and check them.
