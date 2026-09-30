@@ -1,4 +1,5 @@
 import { GameLoop, type GameSpeed } from "./render/loop";
+import { routesAt } from "./sim/track/routes";
 import { FpsCounter } from "./render/fps";
 import { Camera, TILE_SIZE } from "./render/camera";
 import { TerrainRenderer } from "./render/terrain";
@@ -80,6 +81,7 @@ import {
   buildImprovement,
   buildStation,
   buildTrack,
+  setNodeRoute,
   bulldoze,
   buyTrain,
   civicInvestment,
@@ -1291,6 +1293,13 @@ function main(): void {
           } | null;
           runDays: (n: number) => void;
           buildTrackPath: (path: number[]) => { ok: boolean; reason?: string };
+          setNodeRoute: (
+            node: number,
+            legA: number,
+            legB: number,
+            enabled: boolean,
+          ) => { ok: boolean; reason?: string };
+          getNodeRoutes: (node: number) => Array<[number, number]>;
           electrifyTrackPath: (path: number[]) => { ok: boolean; reason?: string };
           upgradeTrackPath: (path: number[]) => { ok: boolean; reason?: string };
           buildStation: (tile: number, type: StationType) => { ok: boolean; reason?: string };
@@ -1497,6 +1506,13 @@ function main(): void {
         const ticks = Math.round(n * 24);
         for (let i = 0; i < ticks; i++) tickOnce();
       },
+      setNodeRoute: (node, legA, legB, enabled) => {
+        const result = setNodeRoute(state, node, legA, legB, enabled);
+        if (result.ok) invalidateAlongPath([legA, node, legB]);
+        return result.ok ? { ok: true } : { ok: false, reason: result.reason };
+      },
+      getNodeRoutes: (node) =>
+        routesAt(state.trackGraph, node).map(([a, b]) => [a, b] as [number, number]),
       buildTrackPath: (path) => {
         const result = buildTrack(state, path);
         if (result.ok) invalidateAlongPath(path);

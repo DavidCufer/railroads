@@ -8,7 +8,7 @@
  * The `compute*Plan` functions are the pure, non-mutating halves of each command — the UI reuses
  * them to price the live drag preview (SPEC §5.2's floating cost label) without side effects.
  */
-import { registerBuildRoutes, snapshotLegs } from "./track/routes";
+import { addRoute, registerBuildRoutes, removeRoute, snapshotLegs } from "./track/routes";
 import { DIFFICULTY, LOAN_INCREMENT } from "../data/finance";
 import { BULLDOZE_REFUND_FRACTION, ELECTRIFICATION_ERA, type BridgeType } from "../data/track";
 import {
@@ -301,6 +301,25 @@ export function buildTrack(
   addExpense(state, "construction", plan.cost);
   if (plan.toBuild.length > 0) state.trackVersion++;
   return { ok: true, cost: plan.cost };
+}
+
+/** Turns the route between two legs of a junction on or off (Track mode, tap a node): e.g. a crossing gets a slip,
+ * or loses one. Legs are the neighbour tiles of `node`; a route must respect the ≤45° rule. */
+export function setNodeRoute(
+  state: GameState,
+  node: number,
+  legA: number,
+  legB: number,
+  enabled: boolean,
+): CommandResult {
+  const g = state.trackGraph;
+  if (!g.hasEdge(node, legA) || !g.hasEdge(node, legB) || legA === legB)
+    return { ok: false, reason: "no-path" };
+  if (enabled) {
+    if (!addRoute(g, node, legA, legB)) return { ok: false, reason: "sharpTurn" };
+  } else removeRoute(g, node, legA, legB);
+  state.trackVersion++;
+  return { ok: true, cost: 0 };
 }
 
 /** Upgrades existing single track along `path` to double (Double mode drag, SPEC §5.2/§5.3).
