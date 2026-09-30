@@ -301,28 +301,32 @@ function followerSpeedCap(train: Train, trains: readonly Train[]): number {
   return Math.min(vLeader + FOLLOW_GAIN_KMH_PER_TILE * spare, brakeCap);
 }
 
-/** Trains counting against `station`'s slot capacity (SPEC §7.5): physically parked there (loading
- * at their actual stop, or paused mid-route at a through-station whose onward section reservation
- * failed) plus trains that have already reserved a section ending there ("inbound"). A train that
- * has itself reserved a section departing *from* `station` no longer counts (its
- * `sectionTargetStationId` now points elsewhere). */
-function stationOccupants(state: GameState, station: Station, excludeId: number): Train[] {
-  const result: Train[] = [];
-  for (const t of state.trains) {
-    if (t.id === excludeId) continue;
-    if (t.sectionTargetStationId === station.id) {
-      result.push(t);
-      continue;
-    }
-    if (
-      t.sectionTargetStationId === undefined &&
-      t.edgeProgress === 0 &&
-      t.route[t.routeIndex] === station.tile
-    ) {
-      result.push(t);
-    }
-  }
-  return result;
+/** Trains loading at one of `station`'s platforms right now (PLAN Phase 28A: platforms limit simultaneous
+ * *loading*, never entry). A train that finished loading and waits for the line, a `noRoute` train and a
+ * train queued in the yard hold no platform — so no train can hold a platform while waiting to leave, and
+ * no platform cycle can form. */
+export function platformHolders(state: GameState, station: Station, excludeId = -1): Train[] {
+  return state.trains.filter(
+    (t) =>
+      t.id !== excludeId &&
+      t.status === "loading" &&
+      t.route[t.routeIndex] === station.tile &&
+      t.sectionTargetStationId === undefined,
+  );
+}
+
+/** FIFO order of the yard: who arrived first, ties by id. */
+function yardBefore(a: Train, b: Train): boolean {
+  const ta = a.yardSince ?? 0;
+  const tb = b.yardSince ?? 0;
+  return ta < tb || (ta === tb && a.id < b.id);
+}
+
+/** Trains queued in `station`'s yard, in arrival (FIFO) order. */
+export function yardQueue(state: GameState, station: Station): Train[] {
+  return state.trains
+    .filter((t) => t.inYardOf === station.id)
+    .sort((x, y) => (yardBefore(x, y) ? -1 : 1));
 }
 
 /** Ids of the other trains holding `entry.blockId` in the opposite direction. */
@@ -570,19 +574,6 @@ function tryEnterSection(
     }
   }
 
-  // Rule 2: the target station needs a free slot (inside + inbound).
-  const occupants = stationOccupants(state, targetStation, train.id);
-  if (occupants.length >= STATION_TYPE_DEFS[targetStation.type].trainCapacity) {
-    setWaitingStatus(train, "waitingForStation");
-    train.waitingOn = {
-      kind: "platform",
-      stationId: targetStation.id,
-      trainIds: occupants.map((t) => t.id),
-    };
-    const last = batch[batch.length - 1];
-    return last ? { ok: false, blockingBlockId: last.blockId } : { ok: false };
-  }
-
   delete train.waitingOn;
   train.heldBlocks.push(...batch);
   train.sectionTargetStationId = targetStation.id;
@@ -779,6 +770,44 @@ function arriveAtStation(state: GameState, train: Train, station: Station): void
   // anywhere, whether or not this is one of its scheduled order stops.
   applyPendingConsist(state, train, station);
   setStatus(train, "loading");
+  // Every station can be entered (PLAN Phase 28A): with all platforms busy — or other trains already
+  // queued ahead — the train waits in the yard and loads in FIFO order.
+  if (
+    yardQueue(state, station).length > 0 ||
+    platformHolders(state, station, train.id).length >=
+      STATION_TYPE_DEFS[station.type].trainCapacity
+  ) {
+    train.inYardOf = station.id;
+    train.yardSince = state.ticks;
+    train.waitingForStationId = station.id;
+    setStatus(train, "waitingForStation");
+  }
+}
+
+/** A train in the yard takes the next free platform, oldest first; until then it reports who holds them. */
+function handleYard(state: GameState, train: Train, runtime: TrainRuntime): void {
+  const station =
+    train.inYardOf !== undefined ? runtime.stationsById.get(train.inYardOf) : undefined;
+  const holders = station ? platformHolders(state, station, train.id) : [];
+  const ahead = station ? yardQueue(state, station).filter((t) => yardBefore(t, train)) : [];
+  if (
+    !station ||
+    (ahead.length === 0 && holders.length < STATION_TYPE_DEFS[station.type].trainCapacity)
+  ) {
+    delete train.inYardOf;
+    delete train.yardSince;
+    delete train.waitingOn;
+    delete train.waitingForStationId;
+    train.loadTicksLeft = -1;
+    train.loadExtraWaitDays = 0;
+    setStatus(train, "loading");
+    return;
+  }
+  train.waitingOn = {
+    kind: "platform",
+    stationId: station.id,
+    trainIds: [...holders, ...ahead].map((t) => t.id),
+  };
 }
 
 function handleLoading(state: GameState, train: Train, runtime: TrainRuntime): void {
@@ -999,7 +1028,8 @@ export function stepTrain(state: GameState, train: Train, runtime: TrainRuntime)
   } else {
     const loco = locomotiveById(train.locoModelId);
     if (loco) {
-      if (train.status === "loading") handleLoading(state, train, runtime);
+      if (train.inYardOf !== undefined) handleYard(state, train, runtime);
+      else if (train.status === "loading") handleLoading(state, train, runtime);
       else if (train.status === "noRoute" || train.status === "stuck")
         handleIdle(state, train, runtime, loco);
       else handleMoving(state, train, runtime, loco);

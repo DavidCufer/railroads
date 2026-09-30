@@ -158,6 +158,11 @@ export interface Train {
   nodeClaims?: NodeClaim[];
   /** Set while the train is halted just short of a junction/crossing held by other trains. */
   crossingWait?: { node: number; trainIds: number[]; since: number };
+  /** The station whose yard this train waits in for a free platform (PLAN Phase 28A); its `status` is
+   * `waitingForStation`. Platforms limit simultaneous loading, never entry. */
+  inYardOf?: number;
+  /** `state.ticks` the train joined the yard queue — platforms are given out oldest first. */
+  yardSince?: number;
   /** Why the train is waiting, while `status` is `waitingForBlock`/`waitingForStation`. */
   waitingOn?: WaitingOn;
   /** Ticks left in the current loading/unloading stop (SPEC §7.2, §6.1's overlength penalty).

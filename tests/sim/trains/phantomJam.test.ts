@@ -37,6 +37,9 @@ const SEEDS = BIG ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] : [1, 2, 3, 4, 5, 6]
 const WAIT_LIMIT_DAYS = BIG ? 250 : 100;
 const LOCO = "american-4-4-0";
 const crossWaited = new Map<number, number>();
+/** Days each train has been `moving` at speed 0 (PLAN 28A Bug 4: never more than `STALL_LIMIT_DAYS`). */
+const stalledDays = new Map<number, number>();
+const STALL_LIMIT_DAYS = 5;
 
 function randTile(rng: RngState, map: GameState["map"]): number {
   return tileAt(map, nextInt(rng, 1, SIZE - 2), nextInt(rng, 1, SIZE - 2));
@@ -68,7 +71,7 @@ function addStations(
   }
 }
 
-function scenario(seed: number): { state: GameState; rng: RngState } {
+function scenario(seed: number, extraTrains = 0): { state: GameState; rng: RngState } {
   const map = makeTestMap(Array.from({ length: SIZE }, () => "p".repeat(SIZE)));
   const state = makeTestState(map, { seed, startYear: 1900, cash: 1e12 });
   const rng = createRng(seed * 7919 + 13);
@@ -86,17 +89,22 @@ function scenario(seed: number): { state: GameState; rng: RngState } {
     );
     if (path) addStations(state, rng, path, 1);
   }
-  const trainCount = nextInt(rng, 6, BIG ? 20 : 12);
+  const trainCount = nextInt(rng, 6, BIG ? 20 : 12) + extraTrains;
   for (let i = 0; i < trainCount && state.stations.length >= 2; i++) {
-    const home = state.stations[nextInt(rng, 0, state.stations.length - 1)]!;
+    // Over-subscribed variant: the extra trains all shuttle between the first two stations.
+    const pool = i >= trainCount - extraTrains ? state.stations.slice(0, 2) : state.stations;
+    const home = pool[nextInt(rng, 0, pool.length - 1)]!;
     if (!buyTrain(state, home.id, LOCO, ["coal", "coal"]).ok) continue;
     const train = state.trains[state.trains.length - 1]!;
     const stops = [home.id];
     for (let k = nextInt(rng, 1, 2); k > 0; k--) {
-      const s = state.stations[nextInt(rng, 0, state.stations.length - 1)]!;
+      const s = pool[nextInt(rng, 0, pool.length - 1)]!;
       if (s.id !== stops[stops.length - 1]) stops.push(s.id);
     }
-    if (stops.length < 2) stops.push(state.stations.find((s) => s.id !== home.id)!.id);
+    if (stops.length < 2)
+      stops.push(
+        pool.find((s) => s.id !== home.id)?.id ?? state.stations.find((s) => s.id !== home.id)!.id,
+      );
     setOrders(
       state,
       train.id,
@@ -187,6 +195,14 @@ function checkInvariants(state: GameState, waited: Map<number, number>, log: str
       if (!s) log.push(`${where}: sectionTarget ${t.sectionTargetStationId} missing`);
       else if (!t.route.includes(s.tile)) log.push(`${where}: sectionTarget ${s.id} not on route`);
     }
+    // (b2) Bug 4: a train never sits `moving` at speed 0 for days.
+    if (t.status === "moving" && t.speed === 0) {
+      stalledDays.set(t.id, (stalledDays.get(t.id) ?? 0) + 1);
+      if ((stalledDays.get(t.id) ?? 0) > STALL_LIMIT_DAYS)
+        log.push(
+          `${where}: moving at speed 0 for ${stalledDays.get(t.id)} days (route ${t.route.join(">")} ri ${t.routeIndex} ep ${t.edgeProgress} cw ${JSON.stringify(t.crossingWait)})`,
+        );
+    } else stalledDays.set(t.id, 0);
     // (c) waits.
     const waiting = t.status === "waitingForBlock" || t.status === "waitingForStation";
     if (waiting) {
@@ -296,10 +312,15 @@ function collision(state: GameState): string | null {
 }
 
 describe("phantom jam stress", () => {
-  for (const seed of SEEDS) {
-    it(`seed ${seed}: signaling stays consistent for ${YEARS} years`, () => {
+  for (const [label, seed, extra] of [
+    ...SEEDS.map((seed) => ["", seed, 0] as const),
+    // Over-subscribed stations (PLAN 28A): far more trains than platforms between two stations.
+    ...[1, 2, 3].map((seed) => [" over-subscribed", seed, 10] as const),
+  ]) {
+    it(`seed ${seed}${label}: signaling stays consistent for ${YEARS} years`, () => {
       crossWaited.clear();
-      const { state, rng } = scenario(seed);
+      stalledDays.clear();
+      const { state, rng } = scenario(seed, extra);
       expect(state.trains.length).toBeGreaterThanOrEqual(2);
       const waited = new Map<number, number>();
       const log: string[] = [];

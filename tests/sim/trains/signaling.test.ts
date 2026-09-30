@@ -303,35 +303,37 @@ describe("save/load mid-reservation", () => {
   });
 });
 
-describe("station slots (SPEC §7.5: Depot 2 / Station 3 / Terminal 5)", () => {
-  it("never lets more trains be inside-or-inbound at a Depot than its 2-slot capacity", () => {
+describe("station platforms (PLAN 28A: platforms limit loading, not entry)", () => {
+  it("never loads more trains at a Depot than its 2 platforms, queues the rest in the yard and serves them all", () => {
     const state = flatLine(106, 20);
     const depotA = station(state, 0, "depot");
-    const depotB = station(state, 19, "depot"); // capacity 2 — 3 trains will contend for it
+    const depotB = station(state, 19, "depot"); // 2 platforms — 4 trains will contend for it
 
     const bTile = tileAt(state.map, 19, 0);
-    for (let i = 0; i < 3; i++) {
-      const bought = buyTrain(state, depotA, LOCO, []);
+    for (let i = 0; i < 4; i++) {
+      const bought = buyTrain(state, depotA, LOCO, ["passengers"]);
       expect(bought.ok).toBe(true);
       const id = (state.trains[state.trains.length - 1] as { id: number }).id;
       expect(
         setOrders(state, id, [
-          { stationId: depotA, rule: "passThrough" },
-          { stationId: depotB, rule: "passThrough" },
+          { stationId: depotA, rule: "auto" },
+          { stationId: depotB, rule: "fullLoad", maxWaitDays: 5 },
         ]).ok,
       ).toBe(true);
     }
 
-    for (let tick = 0; tick < 20 * 24; tick++) {
+    let sawYard = false;
+    const visits = new Map<number, number>();
+    for (let tick = 0; tick < 40 * 24; tick++) {
       stepTrains(state);
-      const atOrTowardB = state.trains.filter(
-        (t) =>
-          t.sectionTargetStationId === depotB ||
-          (t.sectionTargetStationId === undefined &&
-            t.edgeProgress === 0 &&
-            t.route[t.routeIndex] === bTile),
-      ).length;
-      expect(atOrTowardB).toBeLessThanOrEqual(2);
+      const loadingAtB = state.trains.filter(
+        (t) => t.status === "loading" && t.route[t.routeIndex] === bTile,
+      );
+      expect(loadingAtB.length).toBeLessThanOrEqual(2);
+      for (const t of loadingAtB) visits.set(t.id, (visits.get(t.id) ?? 0) + 1);
+      if (state.trains.some((t) => t.inYardOf === depotB)) sawYard = true;
     }
+    expect(sawYard).toBe(true);
+    expect(visits.size).toBe(4);
   });
 });
