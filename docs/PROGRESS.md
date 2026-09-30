@@ -4407,3 +4407,17 @@ stations are the §7.5 passing places) and a consist that has just reversed at a
 - Two trains queuing into one station still overlap physically on the approach (station slots); the geometry test exempts them (within 3.5 tiles of the same station). Phase 28A's yard design replaces this.
 - A crossing node no longer allows turning between its lines in routing — trains of an old save that planned such a turn re-plan on the next track change.
 - The interlock treats every pair of non-identical claims as conflicting except opposing trains on one double edge; a branch train and a main-line train on the *far* lane still serialise (unchanged from 25A).
+
+## 2026-09-30 — Phase 28B: UX fixes from the play-test
+`npm run check` (567 unit) and full `npm run e2e` (189) green. New: `e2e/phase28b.spec.ts`, `src/ui/{stuckTrains,yearReportBadge}.ts`, `tests/ui/stuckTrains.test.ts`. Sim touched minimally (UI-adjacent): `news.ts`/`movement.ts` (jam news keyed per station pair),
+`commands.ts` (bulldoze plan = exactly the edges run along; `removeStation`, `stationRefund`, `stationRemovalBlocker`), `track/layout.ts` (`findStationBends`). Screenshots `docs/screenshots/phase-28b-*-after.png` (all opened and checked, 800×360 @2x);
+`-before` for new-engines and year-report (old build 6c0ab5a: modal card over the Year-in-Review panel, "−$388k" net profit from investments).
+- **Stuck chip** (⚠ count, tap cycles camera + opens train panel); unknown statuses ignored unless waiting > 10 days. **Modals**: Year in Review = toast + badge on Finance; one non-blocking new-engine card; report headline is operating profit with investments on its own line; cost bars steel-blue (Mail red clash).
+- **Route step** = bottom sheet (`panel-bottom`), compact orders, tap-on-map + searchable list; camera pans so the map above stays usable. Bug 9: Passengers+mail fills `maxCars`.
+- **Bulldoze**: path follows existing track; removes only edges run along (Bug 5); red preview + refund; hint "Drag along a whole track piece"; tap station → confirm removal (refused while on any train's orders, or last Engine Shed); stations left trackless go with the drag.
+- **Bug 3** is a warning (toast + red ring), not a refusal: `sharpTurn.test.ts` states stations allow reversal, so trains may still stop there. **Station tool** defaults to Station, remembers last type (localStorage), platform pips, "Terminal recommended" when trains > 1.5× platforms.
+- Tappable discovery/founding/growth/jam news (toast + News rows); regenerate/load closes panels, sheets, engine card; `user-select: none` on body.
+### Deviations / known
+- Four existing e2e assertions changed: Year in Review opens from Finance (economy/eras/phase20), Station tool default (stations.spec).
+- Cost-bar colours depart from STYLE's "signal tints". "Terminal recommended" threshold (1.5×) is my choice. 28A's yard-queue status is not yet handled specially (the chip ignores it unless waiting long).
+- Before shots exist only for the modal cases; other items' "before" is described above (route step was the side panel; bulldoze removed adjacent main-line edges).
