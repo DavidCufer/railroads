@@ -14,6 +14,7 @@ export const strings = {
     pause: "Pause",
     menu: "Menu",
     cash: "Finance",
+    stuck: (n: number) => `${n} ${n === 1 ? "train needs" : "trains need"} attention — tap to jump`,
     era: (name: string, year: number) => `Newest engine: ${name} (${year}) — open Roster`,
   },
   menu: {

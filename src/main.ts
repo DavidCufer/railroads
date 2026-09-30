@@ -37,6 +37,7 @@ import type { ReservedScreenRect } from "./render/reservedRects";
 import { CameraInput, type BuildDragHandlers } from "./ui/cameraInput";
 import { createDebugControls } from "./ui/debugControls";
 import { createTopBar } from "./ui/topBar";
+import { nextStuck, stuckTrains } from "./ui/stuckTrains";
 import {
   createFloatingPill,
   createToolbar,
@@ -1026,6 +1027,7 @@ function main(): void {
 
       const calendar = calendarFromTicks(state.startYear, state.ticks);
       topBar.update(calendar, state.cash);
+      topBar.setStuckCount(stuckTrains(state).length);
 
       if (DEBUG && debugOverlay) {
         debugOverlay.textContent =
@@ -1035,10 +1037,19 @@ function main(): void {
     },
   });
 
+  let lastStuckTrainId: number | null = null;
   const topBar = createTopBar(ui, {
     onSetSpeed: (speed: GameSpeed) => loop.setSpeed(speed),
     getSpeed: () => loop.getSpeed(),
     onOpenFinance: () => openFinancePanel(ui, state),
+    onStuckTap: () => {
+      const next = nextStuck(stuckTrains(state), lastStuckTrainId);
+      if (!next) return;
+      lastStuckTrainId = next.id;
+      camera.x = next.renderToX * TILE_SIZE;
+      camera.y = next.renderToY * TILE_SIZE;
+      openTrainPanel(ui, state, next.id);
+    },
     onOpenRoster: () => openRosterSheet(ui, state),
     onOpenMenu: () =>
       openMenuPanel(ui, {

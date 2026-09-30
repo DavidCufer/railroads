@@ -24,11 +24,15 @@ export interface TopBarHandlers {
   onOpenMenu: () => void;
   /** Tapping the era badge opens the Roster (STYLE §8.3; Phase 22 wires the real screen). */
   onOpenRoster?: () => void;
+  /** Tapping the ⚠ chip jumps to the next stuck train (Phase 28B). */
+  onStuckTap?: () => void;
 }
 
 export interface TopBarController {
   root: HTMLElement;
   update: (calendar: Calendar, cash: number) => void;
+  /** Number of trains needing attention; the chip hides at 0. */
+  setStuckCount: (count: number) => void;
 }
 
 export function createTopBar(container: HTMLElement, handlers: TopBarHandlers): TopBarController {
@@ -52,6 +56,18 @@ export function createTopBar(container: HTMLElement, handlers: TopBarHandlers): 
     eraIcon,
     eraYear,
   );
+  const stuckCount = h("span", { className: "stuck-count" }, "");
+  const stuckEl = h(
+    "button",
+    {
+      className: "stuck-chip",
+      hidden: true,
+      onClick: () => handlers.onStuckTap?.(),
+    },
+    icon("warning", "icon-sm"),
+    stuckCount,
+  );
+  let lastStuck = 0;
   let lastCash: number | null = null;
   let flashTimer: number | undefined;
   let lastEraKey = "";
@@ -106,6 +122,7 @@ export function createTopBar(container: HTMLElement, handlers: TopBarHandlers): 
     cashEl,
     dateEl,
     eraEl,
+    stuckEl,
     h("div", { className: "spacer" }),
     speedGroup,
     h(
@@ -122,6 +139,13 @@ export function createTopBar(container: HTMLElement, handlers: TopBarHandlers): 
 
   return {
     root,
+    setStuckCount: (count) => {
+      if (count === lastStuck) return;
+      lastStuck = count;
+      stuckEl.hidden = count === 0;
+      stuckCount.textContent = String(count);
+      stuckEl.setAttribute("aria-label", strings.topBar.stuck(count));
+    },
     update: (calendar, cash) => {
       dateEl.textContent = formatDate(calendar);
       cashAmount.textContent = formatMoney(cash);

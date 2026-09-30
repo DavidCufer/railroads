@@ -18,7 +18,7 @@ export type NewsPayload =
   | { kind: "newLocomotive"; locoId: string }
   | { kind: "breakdown"; trainId: number }
   | { kind: "washout"; tile: number }
-  | { kind: "trafficJam"; tile: number }
+  | { kind: "trafficJam"; tile: number; toStationId?: number | undefined }
   | { kind: "noRoute"; trainId: number; stationId: number }
   | { kind: "undeliverable"; trainId: number; cargo: CargoType; cars: number }
   | { kind: "cityGrowth"; cityId: number; tier: CityTier }
@@ -50,7 +50,12 @@ function nearestStationId(state: GameState, tile: number): number {
 /** Identity of "the same news about the same place"; null = never collapsed. */
 function newsKey(state: GameState, p: NewsPayload): string | null {
   switch (p.kind) {
-    case "trafficJam":
+    case "trafficJam": {
+      // One item per station pair (Phase 28B): the nearest station to the jam plus the one the train was heading for.
+      const a = nearestStationId(state, p.tile);
+      const b = p.toStationId ?? -1;
+      return `trafficJam:${Math.min(a, b)}-${Math.max(a, b)}`;
+    }
     case "washout":
       return `${p.kind}:${nearestStationId(state, p.tile)}`;
     case "breakdown":

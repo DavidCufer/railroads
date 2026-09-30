@@ -259,6 +259,24 @@ input {
 .top-bar .era-badge .era-icon {
   display: inline-flex;
 }
+.top-bar .stuck-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--signal-soft);
+  color: var(--signal);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.top-bar .stuck-chip[hidden] {
+  display: none;
+}
 .top-bar .spacer {
   flex: 1;
 }

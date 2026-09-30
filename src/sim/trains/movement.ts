@@ -713,7 +713,11 @@ function checkDeadlockTimeout(
 ): void {
   if (train.waitTicks === DEADLOCK_STUCK_DAYS * 24) {
     setStatus(train, "stuck");
-    pushNews(state, { kind: "trafficJam", tile: train.route[train.routeIndex] as number });
+    pushNews(state, {
+      kind: "trafficJam",
+      tile: train.route[train.routeIndex] as number,
+      toStationId: train.waitingForStationId,
+    });
     return;
   }
   if (train.waitTicks !== DEADLOCK_REROUTE_DAYS * 24) return;
