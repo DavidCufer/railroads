@@ -3,7 +3,7 @@ import { buildStation, buildTrack, buyTrain, setOrders } from "../../../src/sim/
 import { computeRevenue, stepLoading } from "../../../src/sim/trains/loading";
 import { CARGO } from "../../../src/data/cargo";
 import { KM_PER_TILE, WORLD_SCALE } from "../../../src/data/scale";
-import { DIFFICULTY, eraInflation } from "../../../src/data/finance";
+import { DIFFICULTY, earlyFareFactor, eraInflation } from "../../../src/data/finance";
 import { makeTestMap, makeTestState, tileAt } from "../track/helpers";
 import type { GameState } from "../../../src/sim/state";
 import type { Station } from "../../../src/sim/stations/types";
@@ -63,7 +63,13 @@ describe("computeRevenue", () => {
     // Very late: time factor floors at 0.2.
     { cargo: "coal", distanceTiles: 8 * WORLD_SCALE, days: 500, expected: 1200 * 0.8 * 0.2 },
     // Passengers: urgency 1.0. expected = (20/2)*1+2 = 12 days.
-    { cargo: "passengers", distanceTiles: 20 * WORLD_SCALE, days: 12, expected: 1650 * 2 * 1.0 },
+    // (× the 1830 novelty fare premium, Phase 27 D.)
+    {
+      cargo: "passengers",
+      distanceTiles: 20 * WORLD_SCALE,
+      days: 12,
+      expected: 1650 * 2 * 1.0 * earlyFareFactor(1830, "passengers"),
+    },
   ];
 
   for (const c of cases) {
@@ -91,7 +97,7 @@ describe("computeRevenue", () => {
           days <= expected
             ? 1 + 0.25 * (1 - days / expected)
             : Math.max(0.2, 1 - (days - expected) / (def.decayDays * 2));
-        const before = def.baseRate * (oldTiles / 10) * timeFactor;
+        const before = def.baseRate * (oldTiles / 10) * timeFactor * earlyFareFactor(1830, cargo);
         expect(computeRevenue(state, cargo, km / KM_PER_TILE, days)).toBeCloseTo(before, 6);
       }
     }

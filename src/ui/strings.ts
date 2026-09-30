@@ -514,6 +514,16 @@ export const strings = {
       ],
     },
   },
+  /** Wording used when a name lookup fails (a sold train, a bulldozed station, an empty map): text never
+   * shows a bare "?" (PLAN Phase 27 D). */
+  fallback: {
+    train: "a train",
+    station: "a station",
+    city: "a nearby town",
+    place: "the line",
+    locomotive: "a new locomotive",
+    goal: "a goal",
+  },
   news: {
     title: "News",
     button: "News",

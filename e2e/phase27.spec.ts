@@ -392,3 +392,48 @@ test.describe("Phase 27 — old saves", () => {
     await page.screenshot({ path: shot("old-save-after-200-days") });
   });
 });
+
+test.describe("Phase 27 — toasts and panels", () => {
+  test("a toast never covers an open panel's header", async ({ page }) => {
+    await setup(page);
+    await clearArea(page, 50, 100, 20, 60);
+    await build(
+      page,
+      range(12, (i) => ({ x: 60 + i, y: 35 })),
+    );
+    await station(page, 65, 35, "depot");
+    const id = await page.evaluate(
+      () => (window.__game!.getStations() as Array<{ id: number }>)[0]!.id,
+    );
+    await page.evaluate((sid) => window.__game!.debugOpenStation(sid), id);
+    await page.waitForTimeout(400);
+    // The longest toast we have: the mid-tile crossing refusal.
+    await page.evaluate(() => {
+      const w = window.__game!.getMap().width;
+      const path = [] as number[];
+      for (let i = 0; i < 6; i++) path.push((30 + i) * w + (60 + i));
+      window.__game!.buildTrackPath(path);
+      const cross = [] as number[];
+      for (let i = 0; i < 5; i++) cross.push((30 + i) * w + (67 - i));
+      window.__game!.debugPreviewBuild(cross);
+    });
+    await page.waitForTimeout(400);
+    const boxes = await page.evaluate(() => {
+      const r = (el: Element | null): { x: number; y: number; w: number; h: number } | null => {
+        if (!el) return null;
+        const b = el.getBoundingClientRect();
+        return { x: b.x, y: b.y, w: b.width, h: b.height };
+      };
+      return {
+        toast: r(document.querySelector(".toast")),
+        header: r(document.querySelector(".panel.panel-open .panel-header")),
+        panel: r(document.querySelector(".panel.panel-open")),
+      };
+    });
+    expect(boxes.toast).not.toBeNull();
+    expect(boxes.panel).not.toBeNull();
+    // The toast lies entirely to the left of the panel.
+    expect(boxes.toast!.x + boxes.toast!.w).toBeLessThanOrEqual(boxes.panel!.x + 1);
+    await page.screenshot({ path: shot("toast-beside-open-panel") });
+  });
+});

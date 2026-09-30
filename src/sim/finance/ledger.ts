@@ -13,6 +13,7 @@ import {
   OPERATING_HISTORY_MONTHS,
   NET_WORTH_CONSTRUCTION_FRACTION,
   emptyLedgerPeriod,
+  earlyUpkeepFactor,
   eraInflation,
   type LedgerPeriod,
 } from "../../data/finance";
@@ -97,7 +98,7 @@ export function computeCreditLimit(state: GameState): number {
 /** Monthly maintenance, interest, bankruptcy check, and the chart's monthly sample (SPEC §9). */
 export function monthlyFinanceStep(state: GameState): void {
   const year = calendarFromTicks(state.startYear, state.ticks).year;
-  const inflation = eraInflation(year);
+  const inflation = eraInflation(year) * earlyUpkeepFactor(year);
   const diff = DIFFICULTY[state.difficulty];
 
   let trackMaint = 0;

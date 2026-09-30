@@ -962,38 +962,40 @@ Decision: solve it **in general with build-time rules + geometric conflict group
 templates can come later as a convenience):
 
 ### A. Build-time layout rules (commands.ts, with reasons and red preview like sharp turns)
-- [ ] No mid-tile crossings: a new diagonal edge may not cross an existing diagonal edge between nodes. Crossings are
+- [x] No mid-tile crossings: a new diagonal edge may not cross an existing diagonal edge between nodes. Crossings are
       only allowed **at a node**, straight-over (diamond: the two lines pass through the node without connecting).
-- [ ] Clearance: no edge may pass within the lane clearance of another track except where it connects to it (a new
+- [x] Clearance: no edge may pass within the lane clearance of another track except where it connects to it (a new
       single line next to a double line must keep ≥ 1 tile, or join it properly).
-- [ ] Junction geometry: a junction node needs its through line straight across the node (no junction on a bend of
+      *(Dropped as a separate rule: on the 8-direction grid unconnected edges are always ≥ 0.707 tile apart, enough for the
+      0.26-wide vehicles; only crossings and connected geometry can conflict — see PROGRESS Phase 27.)*
+- [x] Junction geometry: a junction node needs its through line straight across the node (no junction on a bend of
       the main line); at most one diverging leg per side per node; consecutive junction/crossing nodes on the same
       line at least 2 tiles apart (room for the turnout curve). Double-track mains: a branch joins through the outer
       lane's turnout (already rendered since 24B).
-- [ ] Rules apply to every building path (drag, quick build, upgrade to double, bulldoze-and-rebuild); existing saves
+- [x] Rules apply to every building path (drag, quick build, upgrade to double, bulldoze-and-rebuild); existing saves
       with violating layouts still load (flag them on the map with a warning marker; trains still interlock via B).
-- [ ] Unit tests for each rule with the player's layout reproduced: it is refused with a clear reason, and the
+- [x] Unit tests for each rule with the player's layout reproduced: it is refused with a clear reason, and the
       nearest legal alternative (join 2 tiles further along, cross at a node) builds.
 
 ### B. Geometric conflict groups (sim)
-- [ ] Precompute from the track graph + lane geometry which edges/nodes physically overlap (shared node, crossing
+- [x] Precompute from the track graph + lane geometry which edges/nodes physically overlap (shared node, crossing
       segments, overlapping clearance incl. double-track lane offsets, turnout fans). Each overlap set is a conflict
       group; the 25A dynamic claim works on conflict groups instead of single nodes, so *any* physical overlap is
       exclusive. Recomputed when track changes; saved state unaffected.
-- [ ] Extend the phantom-jam stress test with random legal layouts that include crossings, wyes and branches off
+- [x] Extend the phantom-jam stress test with random legal layouts that include crossings, wyes and branches off
       double track, plus a render-geometry check: at every tick, no two trains' vehicle rectangles overlap anywhere
       on the map (not just on nodes). This check must fail on today's main for the player's layout.
 
 ### C. Render
-- [ ] With A in place, the turnout/crossing renderer only has to handle legal shapes: diamond crossings (90° and 45°),
+- [x] With A in place, the turnout/crossing renderer only has to handle legal shapes: diamond crossings (90° and 45°),
       turnouts off straight/diagonal single and double, wyes, crossovers between the two lanes of a double track.
       Screenshot each at zoom 1.5/2 and open them; no overlapping tie fans, no rails drawn through the other lane.
 
 ### D. Carry-overs
-- [ ] 1830s passenger trains lose money (BALANCE.md: Grasshopper on Town↔Town −6k/yr). Make the first decade playable
+- [x] 1830s passenger trains lose money (BALANCE.md: Grasshopper on Town↔Town −6k/yr). Make the first decade playable
       (e.g. slightly cheaper early running costs, better early loco capacity, or era-scaled rates) — rerun the report.
-- [ ] News text never shows "?" — fall back to "the line"/station name when a place lookup fails.
-- [ ] Toasts never cover an open panel's header (place them over the map area only).
+- [x] News text never shows "?" — fall back to "the line"/station name when a place lookup fails.
+- [x] Toasts never cover an open panel's header (place them over the map area only).
 
 ## Phase 28 — Play-test 1 fixes (docs/PLAYTEST-1.md)
 Source: the agent play-test (3 games, ~70 game years). Read the report first; bug numbers below refer to it.

@@ -72,7 +72,8 @@ export function openBuyTrainPanel(
   /** True while we swap sheet <-> panel ourselves, so onClose callbacks don't tear the wizard down. */
   let switching = false;
 
-  const stationLabel = (id: number): string => state.stations.find((s) => s.id === id)?.name ?? "?";
+  const stationLabel = (id: number): string =>
+    state.stations.find((s) => s.id === id)?.name ?? strings.fallback.station;
   const priceOf = (loco: LocomotiveDef): number => computeBuyTrainPlan(state, loco.id, []).cost;
   const isLocked = (loco: LocomotiveDef): boolean => loco.type === "electric" && !electrifiedHere;
 

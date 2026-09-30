@@ -4338,3 +4338,72 @@ Mail per car pays 1.3× a passenger car (was 2.4×); a Town mail train earns ~0.
 - The station's economy (destination bonus) refreshes monthly, not when orders change.
 - `e2e/phase26b.spec.ts` (26B's file) failed `prettier --check` on origin/main when I rebased; not touched.
 - Latent: `phantomJam` seed 1 shows a 4&6 junction overlap when the shared RNG stream shifts by a draw (breakdown/timing); not investigated here.
+
+
+## 2026-09-30 — Phase 27: junction layout rules, geometric conflict groups, crossings as diamonds, carry-overs
+`npm run check` (unit) and full `npm run e2e` (178) green (see the stress-spec note under Deviations).
+New: `src/sim/track/{layout,conflicts}.ts`, `tests/sim/track/{layout,conflicts}.test.ts`, `tests/sim/trains/{junctionLayout,geometryStress}.test.ts` (+ helpers `geometryHelpers.ts`, `layouts.ts`),
+`tests/sim/balanceEarly.test.ts`, `tests/ui/newsText.test.ts`, `e2e/phase27.spec.ts`. Screenshots (all opened and checked, 800×360 @2x, `docs/screenshots/phase-27-*`): for each of
+`diamond-90-single`, `diamond-90-double-x-single`, `diamond-90-double-x-double`, `cross-45-double-main`, `cross-diagonals-single`, `turnout-straight-single`,
+`turnout-straight-double-{single,double}-branch`, `turnout-diagonal-{single,double}`, `wye-{single,double}`, `passing-loop-and-turnout`, `legal-ljubljana` a `-z1.5` and `-z2` shot; four `closeup-*`
+(zoom 2, 4× pixels: `cross-45-double-main`, `diamond-90-double-x-double`, `wye-double`, `turnout-diagonal-double`); `refused-mid-tile-crossing-preview`, `legal-alternative-built`,
+`old-save-warning-marker`, `old-save-after-200-days`, `toast-beside-open-panel`.
+
+### 1. The failing test first (the player's layout)
+`tests/sim/trains/junctionLayout.test.ts` builds the Ljubljana layout (diagonal double main, a single branch joining at (5,5), a diagonal line crossing the main *mid-tile* two tiles on; the
+crossing is injected with `forceTrack`, as an old save contains it) and runs five trains for 3000 ticks with `vehicleOverlapsNow` (`geometryHelpers.ts`): the vehicle rectangles are laid out by the
+renderer's own `layoutConsist` (fillets, lane offsets, drawn car lengths) and tested with a separating-axis check, so it sees overlap *anywhere on the map*, not only on nodes. On the old code it
+fails at tick 56 (mid-tile crossing), 304 (the branch junction: trains 1 and 2 overlap on the double lane next to it) and others. Vehicles inside or queuing into the same station (within 3.5 tiles,
+stations are the §7.5 passing places) and a consist that has just reversed at a terminal (its tail is drawn past the buffer stop) are exempt.
+
+### 2. B — geometric conflict points (`conflicts.ts`, `crossing.ts`)
+- The claim list now holds *conflict points*: junction nodes and **mid-tile crossings** (the only two edges that cross without sharing a node are the two diagonals of one cell; id `mapSize+cell`, stable
+  across track changes so saved claims stay valid). `getConflictMap` is cached per `trackVersion`; `updateCrossing` walks the route's nodes *and* the crossing points on its edges, clusters them as before
+  (all-or-nothing) and compares claims per point. Opposing trains on the two lanes of one double diagonal may share a crossing point like a node.
+- **Per-point clearance** replaces the fixed 0.35 tile: `legClearance(steps, doubleLegs) = sep / sin(angle)` for < 90°, `sep` otherwise, `sep = 0.36 + 0.16 × (double legs)`, max over the leg pairs, clamped
+  0.35–1.4 (data in `data/trains.ts`). Stored on each claim (`clearance`, optional → old saves default to 0.35).
+- Three latent bugs the stress tests exposed and this phase fixes (each had no test before): **(a)** `CAR_LENGTH_TILES` was 0.3 while a car is drawn 0.481 long (14.4 px + 1 px gap): the sim's tail was 0.7 tile
+  short, so claims were released while the drawn train still covered the junction — now 15.4/32. **(b)** `remapReservations` (called when the track changes) recorded a train's block *entry* at its tail instead of the
+  block's true start, so `nearestLeader` compared positions from two different origins and a follower ran into a stopped leader (`phantomJam` seeds 1 and 5 — the "latent seed 1" of Phase 26A). **(c)** a follower
+  lost its leader as soon as the leader's *head* left the block at a junction although its tail was still on the line; it now keeps it until the tail leaves (skipped if the leader has reversed within its own length,
+  where the odometer no longer tracks the tail).
+- Stress: `phantomJam.test.ts` now also runs the render-geometry check on every hour-tick of all six seeds (2 years each); new `geometryStress.test.ts`: 90° diamond over a double main, 45° crossing over a double main,
+  a diagonal double main with a branch on each side, a wye, a branch two tiles from a diamond — 5–7 trains, 250 days, 2 seeds each: no vehicle overlap, no crossing wait > 60 days, every train keeps arriving.
+
+### 3. A — build rules (`layout.ts`, `commands.ts`, `pathfind.ts`, `main.ts`)
+- `computeBuildPlan` → `layoutViolations` (each with `kind` = the refusal reason and the offending new edges); `buildTrack` refuses with the first; the drag preview draws those edges red (with the sharp-turn ones) and
+  toasts the reason (strings in `strings.build.reasons`). The A* build pathfinder no longer steps into a mid-tile crossing, so a drag goes around or crosses at a node by itself. Rules and what they mean: SPEC deviation
+  bullet. Tests (`layout.test.ts`): the player's layout is refused ("Lines can't cross mid-tile — cross at a station or a tile the other line runs through") and builds one tile over as a 90° diamond through the main's
+  node; a branch one tile from a junction is refused, 2.83 tiles away builds; two branches on one side refused, one per side fine; shape table (Y, T, diamond, X); old-save layouts are listed by
+  `findExistingLayoutIssues` and unrelated builds still work.
+- **Deviation:** the plan's "Clearance ≥ 1 tile" rule is not implemented: unconnected edges are ≥ 0.707 tile apart on the grid (≥ 0.43 between two double lines' outer lanes; a vehicle is 0.26 wide) and the geometry
+  stress passes with diagonal neighbours, so it would only refuse legal layouts (e.g. a line crossing a double diagonal main at a node passes 0.707 from it).
+- **Deviation:** "junction on a bend" cannot occur at degree 3 once the Phase 18 sharp-turn rule holds (every 3-leg shape that passes it is a straight pair + branch or a Y), so `junctionOnBend` only fires for
+  4-leg shapes; kept as the rule of record.
+- Existing `e2e/phase26b.spec.ts` dense-junction layout put two branches' diagonals into each other one tile from a junction; its south branch moved two tiles so it is legal (crossing at a node).
+
+### 4. C — render
+- The lane/turnout renderer only had a real problem in one legal shape: a **45° crossing over a double main** (and in general any crossing with double track or 45°) drew every connector arc between the four legs
+  through the other lane (screenshot `closeup-cross-45-double-main` before: a tangle). Resolved the way the plan says — "the two lines pass through the node without connecting": `legsFormCrossing` (four legs,
+  two straight pairs) nodes get no connector arcs (`laneGeometry.ts`) and the router refuses to turn there (`route.ts`; `isCrossingNode` in `turn.ts`). The single 90° diamond keeps its tie plate and frogs.
+  A turnout (one straight pair + a branch) still gets its connector and the outer-lane shift of Phase 24B.
+- Checked at zoom 1.5 and 2 (full frames) plus 4× close-ups: 90° diamonds (single/single, double/single, double/double), 45° crossing, diagonal × diagonal, turnouts off straight and diagonal single and double
+  (single or double branch), single and double wye, passing loop + turnout, and the legalised Ljubljana layout. No overlapping tie fans, no rail drawn through the other lane. The double wye's inner rails cross at the
+  fork like a real double-track junction — reads fine.
+- The crossover between two lanes of one double track is not representable (lanes are not graph nodes), so there is nothing to draw.
+- `TrackRenderer` marks each rule break already in the graph (old saves) with a red ring (`findExistingLayoutIssues`, recomputed only when the track changes): screenshot `old-save-warning-marker`.
+
+### 5. D — carry-overs
+- **Early era** (`data/finance.ts`, `earlyUpkeepFactor`/`earlyFareFactor`): upkeep × 0.4 in 1830 easing to 1× by 1850, passenger and mail fares × 1.8 in 1830 easing to 1× by 1845 (freight untouched; a fare premium
+  lasting to 1855 broke the 1848-calibrated Phase 7.1 ranges, so it ends at 1845 and those tests are unchanged; the 1830 `computeRevenue`/ledger tests now include the factors). BALANCE.md regenerated: 1830 Grasshopper
+  Town↔Town passengers 50/100/200 km −6k/−6k/−12k → +1k/+2k/−4k; coal 100 km 4k → 7k; City passengers +11k. `balanceEarly.test.ts` asserts the 50 and 100 km lines are profitable. Phase 28A owns the
+  proper early-era retune and should absorb these two helpers.
+- **News never shows "?"** (`strings.fallback`, used by news, goal text, train panels, buy wizard): "a train", "a station", "a nearby town", "the line". `tests/ui/newsText.test.ts` formats every news kind with every lookup failing.
+- **Toasts never cover an open panel's header**: `showToast` measures the open `.panel` and insets the toast container (right by the panel's width, left by the tool column), toasts wrap at 440 px; e2e asserts the toast
+  lies entirely left of the panel. Screenshot `toast-beside-open-panel`.
+
+### Deviations / known
+- `e2e/stress.spec.ts` asserts sim-tick (< 2 ms) and 4×-throttled frame budgets that sit within ~15 % of what the parallel e2e workers give it: it failed once in a full run (frame 33.7 vs 33 ms) and once on the tick average (2.04 vs 2) while passing alone every time (1.4–1.8 ms). Phase 27 made the per-tick junction lookups allocation-free to stay clear of it; not otherwise touched.
+- Two trains queuing into one station still overlap physically on the approach (station slots); the geometry test exempts them (within 3.5 tiles of the same station). Phase 28A's yard design replaces this.
+- A crossing node no longer allows turning between its lines in routing — trains of an old save that planned such a turn re-plan on the next track change.
+- The interlock treats every pair of non-identical claims as conflicting except opposing trains on one double edge; a branch train and a main-line train on the *far* lane still serialise (unchanged from 25A).

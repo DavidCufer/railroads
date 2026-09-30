@@ -7,7 +7,7 @@ import { formatMoney } from "./format";
 import { strings } from "./strings";
 
 function cityName(state: GameState, cityId: number): string {
-  return state.cities[cityId]?.name ?? "?";
+  return state.cities[cityId]?.name ?? strings.fallback.city;
 }
 
 export function describeGoal(state: GameState, goal: Goal): string {

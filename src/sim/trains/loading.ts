@@ -12,7 +12,7 @@ import {
   REVENUE_DISTANCE_TILES,
   type CargoType,
 } from "../../data/cargo";
-import { DIFFICULTY, eraInflation } from "../../data/finance";
+import { DIFFICULTY, earlyFareFactor, eraInflation } from "../../data/finance";
 import { INDUSTRIES } from "../../data/industries";
 import {
   COLD_STORAGE_REVENUE_MULT,
@@ -192,6 +192,7 @@ export function computeRevenue(
     (distanceTiles / REVENUE_DISTANCE_TILES) *
     timeFactor *
     eraInflation(year) *
+    earlyFareFactor(year, cargo) *
     DIFFICULTY[state.difficulty].revenueMult
   );
 }

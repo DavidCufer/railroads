@@ -23,15 +23,15 @@ import { openPanel } from "./panel";
 import { strings } from "./strings";
 
 function trainName(state: GameState, trainId: number): string {
-  return state.trains.find((t) => t.id === trainId)?.name ?? "?";
+  return state.trains.find((t) => t.id === trainId)?.name ?? strings.fallback.train;
 }
 
 function stationName(state: GameState, stationId: number): string {
-  return state.stations.find((s) => s.id === stationId)?.name ?? "?";
+  return state.stations.find((s) => s.id === stationId)?.name ?? strings.fallback.station;
 }
 
 function cityName(state: GameState, cityId: number): string {
-  return state.cities.find((c) => c.id === cityId)?.name ?? "?";
+  return state.cities.find((c) => c.id === cityId)?.name ?? strings.fallback.city;
 }
 
 /** Nearest built station to `tile` by straight-line tile distance — used to name a place for
@@ -47,7 +47,7 @@ function nearestStationName(state: GameState, tile: number): string {
     const d = Math.hypot(sx - tx, sy - ty);
     if (!best || d < best.d) best = { name: s.name, d };
   }
-  return best?.name ?? "?";
+  return best?.name ?? strings.fallback.place;
 }
 
 function nearestCityName(state: GameState, x: number, y: number): string {
@@ -56,13 +56,15 @@ function nearestCityName(state: GameState, x: number, y: number): string {
     const d = Math.hypot(c.anchorX - x, c.anchorY - y);
     if (!best || d < best.d) best = { name: c.name, d };
   }
-  return best?.name ?? "?";
+  return best?.name ?? strings.fallback.place;
 }
 
 export function formatNewsItem(state: GameState, item: NewsItem): string {
   switch (item.kind) {
     case "newLocomotive":
-      return strings.news.kinds.newLocomotive(locomotiveById(item.locoId)?.name ?? "?");
+      return strings.news.kinds.newLocomotive(
+        locomotiveById(item.locoId)?.name ?? strings.fallback.locomotive,
+      );
     case "breakdown":
       return strings.news.kinds.breakdown(trainName(state, item.trainId));
     case "washout":
@@ -96,12 +98,12 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
         : undefined;
       return strings.news.kinds.discovery(
         cargo ? CARGO[cargo].name : "Resources",
-        industry ? nearestCityName(state, industry.x, industry.y) : "?",
+        industry ? nearestCityName(state, industry.x, industry.y) : strings.fallback.place,
       );
     }
     case "goalCompleted": {
       const goal = state.goals.find((g) => g.id === item.goalId);
-      const description = goal ? describeGoal(state, goal) : "?";
+      const description = goal ? describeGoal(state, goal) : strings.fallback.goal;
       return strings.news.kinds.goalCompleted(strings.goals.tierNames[item.tier], description);
     }
   }

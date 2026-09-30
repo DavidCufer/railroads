@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DIFFICULTY } from "../../../src/data/finance";
+import { DIFFICULTY, earlyUpkeepFactor } from "../../../src/data/finance";
 import { MAINTENANCE_SINGLE } from "../../../src/data/track";
 import { STATION_TYPE_DEFS } from "../../../src/data/stations";
 import { buildStation, buildTrack, buyTrain } from "../../../src/sim/commands";
@@ -39,8 +39,9 @@ describe("monthlyFinanceStep", () => {
 
     monthlyFinanceStep(state);
 
-    const expectedTrack = 2 * MAINTENANCE_SINGLE; // 2 edges
-    const expectedStation = STATION_TYPE_DEFS.depot.monthlyMaintenance;
+    const relief = earlyUpkeepFactor(1830); // Phase 27 D: cheaper upkeep in the first decades
+    const expectedTrack = 2 * MAINTENANCE_SINGLE * relief; // 2 edges
+    const expectedStation = STATION_TYPE_DEFS.depot.monthlyMaintenance * relief;
     expect(state.cash).toBeCloseTo(cashBefore - expectedTrack - expectedStation, 5);
     expect(state.finance.thisMonth.trackMaintenance).toBe(0); // rolled over into a fresh period
   });

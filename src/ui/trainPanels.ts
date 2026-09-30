@@ -163,7 +163,7 @@ const STATUS_ICON: Record<Train["status"], { icon: IconName; tone: Tone }> = {
 };
 
 function stationName(state: GameState, id: number): string {
-  return state.stations.find((s) => s.id === id)?.name ?? "?";
+  return state.stations.find((s) => s.id === id)?.name ?? strings.fallback.station;
 }
 
 /** Status line under the hero: icon + text (+ the electrification reason when that is why). */
@@ -483,7 +483,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
         "span",
         { className: "train-subtitle" },
         loco ? icon(tractionIcon(loco), "icon-xs") : null,
-        loco?.name ?? "?",
+        loco?.name ?? strings.fallback.locomotive,
         glyph,
       ),
       thumb,

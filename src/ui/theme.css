@@ -1161,8 +1161,11 @@ button.chip {
 .toast-container {
   position: absolute;
   top: calc(52px + var(--safe-top)); /* below the 44px top bar, never over it */
-  left: 50%;
-  transform: translateX(-50%);
+  /* Centred over the map area only: an open side panel takes `--toast-right-inset` off the right (and the tool
+   * column `--toast-left-inset` off the left; both set by showToast), so a toast never covers a panel's
+   * header (PLAN Phase 27 D). */
+  left: calc(var(--safe-left) + var(--toast-left-inset, 0px));
+  right: calc(var(--safe-right) + var(--toast-right-inset, 0px));
   display: flex;
   flex-direction: column;
   gap: var(--gap-2);
@@ -1182,7 +1185,9 @@ button.chip {
   transition:
     opacity 0.2s ease,
     transform 0.2s ease;
-  white-space: nowrap;
+  /* Wraps inside the map area rather than running under an open panel. */
+  max-width: min(100%, 440px);
+  box-sizing: border-box;
 }
 .toast-visible {
   opacity: 1;

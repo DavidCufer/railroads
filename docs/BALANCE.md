@@ -19,7 +19,7 @@ track/station upkeep included). Consist = min(loco max cars, 8). Cells: `revenue
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 13k / 8k | 10k / 4k | 5k / -2k |
+| 1830 grasshopper-0-4-0 | 3 | 13k / 10k | 10k / 7k | 5k / 2k |
 | 1860 american-4-4-0 | 6 | 34k / 24k | 68k / 57k | 105k / 93k |
 | 1900 atlantic-4-4-2 | 6 | 61k / 42k | 121k / 101k | 227k / 205k |
 | 1950 road-switcher-diesel | 8 | 82k / 52k | 164k / 133k | 302k / 268k |
@@ -28,7 +28,7 @@ track/station upkeep included). Consist = min(loco max cars, 8). Cells: `revenue
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 13k / 7k | 8k / 2k | 3k / -4k |
+| 1830 grasshopper-0-4-0 | 3 | 13k / 10k | 8k / 6k | 3k / 0k |
 | 1860 american-4-4-0 | 6 | 37k / 27k | 73k / 63k | 114k / 102k |
 | 1900 atlantic-4-4-2 | 6 | 66k / 47k | 131k / 111k | 246k / 224k |
 | 1950 road-switcher-diesel | 8 | 89k / 59k | 178k / 146k | 328k / 294k |
@@ -37,7 +37,7 @@ track/station upkeep included). Consist = min(loco max cars, 8). Cells: `revenue
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 11k / 5k | 8k / 2k | 4k / -3k |
+| 1830 grasshopper-0-4-0 | 3 | 11k / 8k | 8k / 5k | 4k / 1k |
 | 1860 american-4-4-0 | 6 | 28k / 19k | 56k / 46k | 88k / 75k |
 | 1900 atlantic-4-4-2 | 6 | 51k / 32k | 101k / 81k | 189k / 167k |
 | 1950 road-switcher-diesel | 8 | 68k / 39k | 137k / 106k | 252k / 218k |
@@ -46,7 +46,7 @@ track/station upkeep included). Consist = min(loco max cars, 8). Cells: `revenue
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 3k / -6k | 4k / -6k | 4k / -12k |
+| 1830 grasshopper-0-4-0 | 3 | 5k / 1k | 6k / 2k | 6k / -4k |
 | 1860 american-4-4-0 | 6 | 41k / 26k | 64k / 49k | 67k / 49k |
 | 1900 atlantic-4-4-2 | 6 | 59k / 33k | 118k / 91k | 170k / 141k |
 | 1950 road-switcher-diesel | 8 | 79k / 40k | 157k / 117k | 264k / 221k |
@@ -55,7 +55,7 @@ track/station upkeep included). Consist = min(loco max cars, 8). Cells: `revenue
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 9k / 0k | 9k / -1k | 10k / -1k |
+| 1830 grasshopper-0-4-0 | 3 | 15k / 11k | 15k / 10k | 17k / 12k |
 | 1860 american-4-4-0 | 6 | 135k / 121k | 207k / 192k | 205k / 188k |
 | 1900 atlantic-4-4-2 | 6 | 196k / 170k | 387k / 361k | 556k / 527k |
 | 1950 road-switcher-diesel | 8 | 263k / 224k | 520k / 480k | 868k / 825k |
@@ -64,7 +64,7 @@ track/station upkeep included). Consist = min(loco max cars, 8). Cells: `revenue
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 3k / -6k | 3k / -6k | 4k / -7k |
+| 1830 grasshopper-0-4-0 | 3 | 5k / 1k | 6k / 1k | 6k / 1k |
 | 1860 american-4-4-0 | 6 | 34k / 19k | 49k / 34k | 17k / 0k |
 | 1900 atlantic-4-4-2 | 6 | 49k / 24k | 98k / 71k | 173k / 144k |
 | 1950 road-switcher-diesel | 8 | 66k / 28k | 131k / 91k | 264k / 221k |
@@ -73,7 +73,7 @@ track/station upkeep included). Consist = min(loco max cars, 8). Cells: `revenue
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 9k / 0k | 10k / 0k | 9k / -8k |
+| 1830 grasshopper-0-4-0 | 3 | 15k / 11k | 16k / 12k | 15k / 3k |
 | 1860 american-4-4-0 | 6 | 114k / 99k | 158k / 143k | 57k / 39k |
 | 1900 atlantic-4-4-2 | 6 | 164k / 139k | 324k / 298k | 563k / 534k |
 | 1950 road-switcher-diesel | 8 | 221k / 183k | 438k / 398k | 878k / 835k |

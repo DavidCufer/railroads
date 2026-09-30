@@ -45,6 +45,33 @@ export function eraInflation(year: number): number {
   return 1.0 + (year - 1830) * 0.012;
 }
 
+/** PLAN Phase 27 D (docs/BALANCE.md: a Grasshopper on Town↔Town passengers lost $6k/yr): the first decades
+ * were unplayable — 25 km/h engines barely cover their own upkeep. Until `EARLY_UPKEEP_END_YEAR` running
+ * costs (track, station and locomotive upkeep) are relieved and until `EARLY_FARE_END_YEAR` passenger/mail
+ * fares carry a novelty premium, both easing linearly back to 1× (freight is untouched: it already pays). */
+export const EARLY_UPKEEP_END_YEAR = 1850;
+export const EARLY_FARE_END_YEAR = 1845;
+export const EARLY_UPKEEP_FACTOR_1830 = 0.4;
+export const EARLY_FARE_FACTOR_1830 = 1.8;
+
+function earlyBlend(year: number, at1830: number, endYear: number): number {
+  if (year >= endYear) return 1;
+  const t = Math.max(0, (year - 1830) / (endYear - 1830));
+  return at1830 + (1 - at1830) * t;
+}
+
+/** Multiplier on track, station and locomotive upkeep (< 1 before `EARLY_UPKEEP_END_YEAR`). */
+export function earlyUpkeepFactor(year: number): number {
+  return earlyBlend(year, EARLY_UPKEEP_FACTOR_1830, EARLY_UPKEEP_END_YEAR);
+}
+
+/** Multiplier on passenger and mail fares (> 1 before `EARLY_FARE_END_YEAR`); 1 for every other cargo. */
+export function earlyFareFactor(year: number, cargo: string): number {
+  return cargo === "passengers" || cargo === "mail"
+    ? earlyBlend(year, EARLY_FARE_FACTOR_1830, EARLY_FARE_END_YEAR)
+    : 1;
+}
+
 // --- Loans (SPEC §9.1) -------------------------------------------------------------------------
 
 export const LOAN_INCREMENT = 100_000;
