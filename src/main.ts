@@ -574,9 +574,24 @@ function main(): void {
     return "Steel bridge";
   }
 
+  /** Steps of `plan` that break a build rule (sharp turn, junction layout) — drawn red in the preview. */
+  function badSteps(plan: BuildPlan): Array<{ a: number; b: number }> {
+    return [
+      ...plan.sharpSteps,
+      ...plan.layoutViolations.flatMap((v) => v.steps.map(([a, b]) => ({ a, b }))),
+    ];
+  }
+
+  /** Why `plan` is refused, if it breaks a build rule. */
+  function planRuleReason(plan: BuildPlan): string | undefined {
+    if (plan.sharpSteps.length > 0) return strings.build.reasons.sharpTurn;
+    const v = plan.layoutViolations[0];
+    return v ? strings.build.reasons[v.kind] : undefined;
+  }
+
   function updateDragVisuals(canvasX: number, canvasY: number): void {
     if (!dragState) return;
-    const sharp = dragState.mode === "track" ? (dragState.plan as BuildPlan).sharpSteps : [];
+    const sharp = dragState.mode === "track" ? badSteps(dragState.plan as BuildPlan) : [];
     ghost = {
       mode: dragState.mode,
       path: dragState.path,
@@ -730,8 +745,9 @@ function main(): void {
         cancelDrag();
         return;
       }
-      if (dragState.mode === "track" && (dragState.plan as BuildPlan).sharpSteps.length > 0) {
-        showToast(ui, strings.build.reasons.sharpTurn, "warn");
+      if (dragState.mode === "track") {
+        const reason = planRuleReason(dragState.plan as BuildPlan);
+        if (reason) showToast(ui, reason, "warn");
       }
       if (quickBuild) {
         commit();
@@ -1444,13 +1460,12 @@ function main(): void {
           mode: "track",
           path,
           ok: plan.valid,
-          ...(plan.sharpSteps.length > 0
-            ? { badSegments: plan.sharpSteps.map((st) => [st.a, st.b] as [number, number]) }
+          ...(badSteps(plan).length > 0
+            ? { badSegments: badSteps(plan).map((st) => [st.a, st.b] as [number, number]) }
             : {}),
         };
-        if (plan.sharpSteps.length > 0) {
-          showToast(ui, strings.build.reasons.sharpTurn, "warn");
-        }
+        const reason = planRuleReason(plan);
+        if (reason) showToast(ui, reason, "warn");
       },
       getStationTransfer: (stationId) => state.stationTransfer.get(stationId) ?? [],
       getStationCargo: (stationId) => {

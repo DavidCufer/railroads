@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildTrack, upgradeTrack } from "../../../src/sim/commands";
 import { computeConflictMap, legClearance } from "../../../src/sim/track/conflicts";
 import { edgeKey } from "../../../src/sim/track/graph";
-import { makeTestMap, makeTestState, tileAt } from "./helpers";
+import { forceTrack, makeTestMap, makeTestState, tileAt } from "./helpers";
 
 function world() {
   const map = makeTestMap(Array.from({ length: 12 }, () => "p".repeat(12)));
@@ -14,7 +14,10 @@ describe("geometric conflict map (PLAN Phase 27 B)", () => {
     const s2 = world();
     const u = (x: number, y: number): number => tileAt(s2.map, x, y);
     expect(buildTrack(s2, [u(2, 2), u(3, 3)]).ok).toBe(true);
-    expect(buildTrack(s2, [u(3, 2), u(2, 3)]).ok).toBe(true);
+    forceTrack(s2, [
+      [3, 2],
+      [2, 3],
+    ]);
     const map = computeConflictMap(s2.trackGraph, new Set(), 12, 12);
     expect(map.crossings.size).toBe(1);
     const e = s2.trackGraph.getEdge(u(2, 2), u(3, 3))!;

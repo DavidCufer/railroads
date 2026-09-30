@@ -10,7 +10,7 @@ import {
 } from "../../../src/sim/commands";
 import { stepTrains } from "../../../src/sim/trains";
 import type { GameState } from "../../../src/sim/state";
-import { makeTestMap, makeTestState, tileAt } from "../track/helpers";
+import { forceTrack, makeTestMap, makeTestState, tileAt } from "../track/helpers";
 import { vehicleOverlapsNow } from "./geometryHelpers";
 
 const N = 20;
@@ -37,7 +37,9 @@ export function playerWorld(): { state: GameState; stations: number[]; built: bo
     ).ok && built;
   // Line crossing the main mid-tile between (7,7)-(8,8): x + y = 15.
   const cross = Array.from({ length: 12 }, (_, i) => [13 - i, 2 + i] as [number, number]);
-  built = buildTrack(state, path(cross)).ok && built;
+  // The layout rules (Phase 27 A) refuse this line today; an old save still contains it, so add it directly.
+  expect(buildTrack(state, path(cross)).ok).toBe(false);
+  forceTrack(state, cross);
   const st = (x: number, y: number): number => {
     expect(buildStation(state, t(x, y), "depot").ok).toBe(true);
     const s = state.stations[state.stations.length - 1]!;

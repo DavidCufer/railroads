@@ -103,6 +103,15 @@ function candidateNeighbors(
     if (steps < 0) continue;
 
     const landing = tileIndex(map, nx, ny);
+    // PLAN Phase 27 A: a diagonal step may not cross an existing diagonal mid-tile (the build would be
+    // refused) — the search goes around, or crosses at a node instead.
+    if (
+      steps === 1 &&
+      dx !== 0 &&
+      dy !== 0 &&
+      options.respectTurns?.graph.hasEdge(tileIndex(map, x + dx, y), tileIndex(map, x, y + dy))
+    )
+      continue;
     if (steps === 1) {
       out.push({ tile: landing, cost: normalEdgeCost(map, tile, landing, ctx) });
       continue;

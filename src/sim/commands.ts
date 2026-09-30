@@ -30,6 +30,7 @@ import { applyCivicInvestmentGrowth, getOrCreateCityGrowth } from "./economy/cit
 import type { City } from "./economy/types";
 import { clearNews, pushNews } from "./news";
 import { directionIndex } from "./track/graph";
+import { findLayoutViolations, type LayoutViolation } from "./track/layout";
 import { findSharpSteps } from "./track/turn";
 import {
   doubleUpgradeCost,
@@ -68,6 +69,10 @@ export type CommandReasonCode =
   | "no-path"
   | "blocked"
   | "sharpTurn"
+  | "midTileCrossing"
+  | "junctionOnBend"
+  | "tooManyBranches"
+  | "junctionsTooClose"
   | "cant-afford"
   | "no-track-to-upgrade"
   | "not-era-available"
@@ -115,6 +120,9 @@ export interface BuildPlan {
   /** New steps that would meet track at a turn sharper than 45° (PLAN Phase 18 A) — a subset of
    * `toBuild`; non-empty makes the plan invalid. */
   sharpSteps: PathStep[];
+  /** Junction layout rules the build would break (PLAN Phase 27 A, `track/layout.ts`); non-empty makes the
+   * plan invalid. The violation `kind` is also the refusal reason. */
+  layoutViolations: LayoutViolation[];
 }
 
 /** Prices `path` as a Track-mode build (SPEC §5.3), without mutating state. Edges that already
@@ -124,7 +132,8 @@ export function computeBuildPlan(
   path: readonly number[],
   preferredBridgeType?: BridgeType,
 ): BuildPlan {
-  if (path.length < 2) return { steps: [], toBuild: [], cost: 0, valid: false, sharpSteps: [] };
+  if (path.length < 2)
+    return { steps: [], toBuild: [], cost: 0, valid: false, sharpSteps: [], layoutViolations: [] };
   const steps = evaluatePath(state.map, path, costContext(state), preferredBridgeType);
   const toBuild = steps.filter((s) => !state.trackGraph.hasEdge(s.a, s.b));
   const sharpSteps = findSharpSteps(
@@ -133,9 +142,15 @@ export function computeBuildPlan(
     new Set(state.stations.map((st) => st.tile)),
     toBuild,
   );
-  const valid = pathIsValid(steps) && sharpSteps.length === 0;
+  const layoutViolations = findLayoutViolations(
+    state.trackGraph,
+    state.map.width,
+    new Set(state.stations.map((st) => st.tile)),
+    toBuild,
+  );
+  const valid = pathIsValid(steps) && sharpSteps.length === 0 && layoutViolations.length === 0;
   const cost = toBuild.reduce((sum, s) => sum + s.cost, 0);
-  return { steps, toBuild, cost, valid, sharpSteps };
+  return { steps, toBuild, cost, valid, sharpSteps, layoutViolations };
 }
 
 export interface UpgradePlan {
@@ -198,6 +213,8 @@ export function buildTrack(
   if (path.length < 2) return { ok: false, reason: "no-path" };
   const plan = computeBuildPlan(state, path, preferredBridgeType);
   if (plan.sharpSteps.length > 0) return { ok: false, reason: "sharpTurn" };
+  if (plan.layoutViolations.length > 0)
+    return { ok: false, reason: (plan.layoutViolations[0] as LayoutViolation).kind };
   if (!plan.valid) return { ok: false, reason: "blocked" };
   if (plan.cost > state.cash) return { ok: false, reason: "cant-afford" };
 

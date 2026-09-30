@@ -55,7 +55,7 @@ export function rectsOverlap(a: VehiclePlacement, b: VehiclePlacement, shrink = 
 
 /** Two trains that are in (any vehicle within `STATION_EXEMPT_RADIUS` tiles of it, i.e. queuing into or leaving) the same station at once are exempt: stations are the passing places (SPEC §7.5) and
  * hold several trains (a reversing consist's tail can poke past a dead-end terminal). */
-export const STATION_EXEMPT_RADIUS = 2.5;
+export const STATION_EXEMPT_RADIUS = 3.5;
 
 /** Pairs of trains (ids) whose vehicle rectangles intersect right now. */
 export function vehicleOverlapsNow(state: GameState): string[] {

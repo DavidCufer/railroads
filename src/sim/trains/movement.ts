@@ -232,10 +232,12 @@ function holdsBlockFor(train: Train, runtime: TrainRuntime, a: number, b: number
   return blockId !== undefined && train.heldBlocks.some((hb) => hb.blockId === blockId);
 }
 
-/** True when `t`'s route has turned back on itself at or before its head (a terminal reversal): its
- * odometer no longer measures where its tail is. */
+/** True when `t`'s route turned back on itself (a terminal reversal) within the last `trainLength` tiles behind
+ * its head: its odometer no longer measures where its tail is. (Every edge is ≥ 1 tile, so that many
+ * route nodes back is far enough.) */
 function hasReversed(t: Train): boolean {
-  for (let i = 1; i <= t.routeIndex; i++) if (t.route[i - 1] === t.route[i + 1]) return true;
+  const lowest = Math.max(1, t.routeIndex - Math.ceil(trainLengthTiles(t)) - 1);
+  for (let i = t.routeIndex; i >= lowest; i--) if (t.route[i - 1] === t.route[i + 1]) return true;
   return false;
 }
 

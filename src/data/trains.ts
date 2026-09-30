@@ -387,8 +387,11 @@ export const DEAD_END_REVERSE_HOURS = 6;
 // --- Composition / rendering geometry (SPEC §7.1; PLAN Phase 15: "~20% larger") ------------------
 
 /** Also used by the signaling section-reservation math (src/sim/trains/movement.ts) as the
- * physical length a train's tail trails behind its head — not just a render sizing constant. */
-export const CAR_LENGTH_TILES = 0.3;
+ * physical length a train's tail trails behind its head — not just a render sizing constant. A car is
+ * its drawn length (14.4 px) plus the 1 px coupler gap at 32 px per tile, so the sim's tail is where the
+ * renderer draws it (Phase 27: it used to be 0.3, a train's last cars poked 0.7 tile beyond where the
+ * interlock thought the tail was). */
+export const CAR_LENGTH_TILES = 15.4 / 32;
 export const LOCO_LENGTH_TILES = 0.6;
 
 // --- Orders / loading (SPEC §7.2, §6.1 "load/unload 50% slower" overlength penalty) --------------

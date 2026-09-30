@@ -97,6 +97,11 @@ export const strings = {
       "no-path": "Drag to draw a path first",
       blocked: "No valid route or bridge there",
       sharpTurn: "Too sharp — trains can't turn more than 45° here",
+      midTileCrossing:
+        "Lines can't cross mid-tile — cross at a station or a tile the other line runs through",
+      junctionOnBend: "Can't join on a bend — branch off a straight stretch of the line",
+      tooManyBranches: "Only one branch per side at a junction — join further along",
+      junctionsTooClose: "Junctions need 2 tiles between them — join further along the line",
       "cant-afford": "Not enough cash",
       "no-track-to-upgrade": "No single track to upgrade there",
       "not-era-available": "Not available yet",

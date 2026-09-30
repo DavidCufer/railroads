@@ -89,3 +89,37 @@ export function makeTestState(map: GameMap, overrides: Partial<GameState> = {}):
 export function tileAt(map: GameMap, x: number, y: number): number {
   return y * map.width + x;
 }
+
+/** Adds single-track edges along `pts` straight into the graph, bypassing the build rules — what an old save
+ * that predates the Phase 27 layout rules contains. */
+export function forceTrack(state: GameState, pts: Array<[number, number]>): void {
+  const w = state.map.width;
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const a = (pts[i] as [number, number])[1] * w + (pts[i] as [number, number])[0];
+    const b = (pts[i + 1] as [number, number])[1] * w + (pts[i + 1] as [number, number])[0];
+    const lo = Math.min(a, b);
+    const hi = Math.max(a, b);
+    const dx = Math.sign((hi % w) - (lo % w));
+    const dy = Math.sign(Math.floor(hi / w) - Math.floor(lo / w));
+    const direction = [
+      [1, 0],
+      [1, 1],
+      [0, 1],
+      [-1, 1],
+      [-1, 0],
+      [-1, -1],
+      [0, -1],
+      [1, -1],
+    ].findIndex(([x, y]) => x === dx && y === dy);
+    state.trackGraph.addEdge({
+      a: lo,
+      b: hi,
+      direction,
+      double: false,
+      electrified: false,
+      bridge: null,
+      bridgeSpan: [],
+      cost: 100,
+    });
+  }
+}
