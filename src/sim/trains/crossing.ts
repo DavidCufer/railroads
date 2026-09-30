@@ -22,8 +22,7 @@ import {
   LOCO_LENGTH_TILES,
 } from "../../data/trains";
 import type { GameState } from "../state";
-import { computeConflictMap, type ConflictMap } from "../track/conflicts";
-import { edgeKey } from "../track/graph";
+import { computeConflictMap, edgeCrossingKey, type ConflictMap } from "../track/conflicts";
 import { edgeLengthTiles } from "./geometry";
 import type { NodeClaim, Train } from "./types";
 
@@ -156,10 +155,8 @@ export function updateCrossing(
   for (let i = train.routeIndex; i <= last; i++) {
     const node = route[i] as number;
     if (i > train.routeIndex && nodeDist > CROSSING_CLAIM_LOOKAHEAD_TILES + length * 4 + 8) break;
-    if (
-      (i > train.routeIndex || train.edgeProgress === 0) &&
-      isConflictNode(state, stationTiles, node)
-    )
+    // (`clearance` lists exactly the junction nodes: degree ≥ 3 and not a station.)
+    if ((i > train.routeIndex || train.edgeProgress === 0) && conflicts.clearance.has(node))
       conflict.push({
         i,
         node,
@@ -172,7 +169,11 @@ export function updateCrossing(
     const e = graph.getEdge(node, route[i + 1] as number);
     if (!e) break;
     const len = edgeLengthTiles(e);
-    for (const pt of conflicts.crossingsOnEdge.get(edgeKey(e.a, e.b)) ?? []) {
+    const points =
+      conflicts.crossingsOnEdge.size === 0
+        ? undefined
+        : conflicts.crossingsOnEdge.get(edgeCrossingKey(conflicts.mapSize, e.a, e.b));
+    for (const pt of points ?? []) {
       const d = nodeDist + (node === e.a ? pt.frac : 1 - pt.frac) * len;
       if (d < -1e-9) continue; // the nose is already past it
       conflict.push({

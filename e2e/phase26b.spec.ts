@@ -205,7 +205,7 @@ test.describe("Phase 26B — dense junctions", () => {
     );
     await build(
       page,
-      range(6, (i) => ({ x: 74 - i, y: 35 + i })),
+      range(6, (i) => ({ x: 76 - i, y: 35 + i })),
       true,
     );
     // Vertical double line crossing the double main.

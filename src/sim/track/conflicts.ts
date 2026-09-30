@@ -19,7 +19,7 @@ import {
   JUNCTION_LANE_SEP_TILES,
   JUNCTION_VEHICLE_SEP_TILES,
 } from "../../data/trains";
-import { directionSteps, edgeKey, type TrackGraph } from "./graph";
+import { directionSteps, type TrackGraph } from "./graph";
 import type { TrackEdge } from "./types";
 
 export interface EdgePoint {
@@ -31,8 +31,9 @@ export interface EdgePoint {
 
 export interface ConflictMap {
   mapSize: number;
-  /** `edgeKey` -> mid-tile crossing points on that edge (junction nodes are not listed: they are edge ends). */
-  crossingsOnEdge: ReadonlyMap<string, readonly EdgePoint[]>;
+  /** `edgeCrossingKey(mapSize, a, b)` -> mid-tile crossing points on that edge (junction nodes are not
+   * listed: they are edge ends). Empty on most maps: callers can skip the lookup. */
+  crossingsOnEdge: ReadonlyMap<number, readonly EdgePoint[]>;
   /** Crossing point id -> its two edges. */
   crossings: ReadonlyMap<number, readonly [TrackEdge, TrackEdge]>;
   /** Clearance (tiles) of every junction node and crossing point. */
@@ -40,6 +41,11 @@ export interface ConflictMap {
 }
 
 /** Tiles from a conflict point at which vehicles on two of its legs `steps` × 45° apart no longer overlap. */
+/** Numeric key of edge `a`-`b` (either order) — no string allocation on the per-tick train path. */
+export function edgeCrossingKey(mapSize: number, a: number, b: number): number {
+  return a < b ? a * mapSize + b : b * mapSize + a;
+}
+
 export function legClearance(steps: number, doubleLegs: number): number {
   const sep = JUNCTION_VEHICLE_SEP_TILES + JUNCTION_LANE_SEP_TILES * doubleLegs;
   const angle = (Math.min(steps, 4) * Math.PI) / 4;
@@ -72,7 +78,7 @@ export function computeConflictMap(
   mapHeight: number,
 ): ConflictMap {
   const mapSize = mapWidth * mapHeight;
-  const crossingsOnEdge = new Map<string, EdgePoint[]>();
+  const crossingsOnEdge = new Map<number, EdgePoint[]>();
   const crossings = new Map<number, readonly [TrackEdge, TrackEdge]>();
   const clearance = new Map<number, number>();
 
@@ -92,7 +98,7 @@ export function computeConflictMap(
     const id = mapSize + ay * mapWidth + ax;
     crossings.set(id, [e, other]);
     for (const edge of [e, other]) {
-      const key = edgeKey(edge.a, edge.b);
+      const key = edgeCrossingKey(mapSize, edge.a, edge.b);
       const list = crossingsOnEdge.get(key) ?? [];
       list.push({ id, frac: 0.5 });
       crossingsOnEdge.set(key, list);
