@@ -1,6 +1,7 @@
 /** Converts between `GameState` and the plain-JSON `SerializedGameStateV1` (SPEC §13). Pure,
  * DOM-free (only `btoa`/`atob`, available in Node/vitest and every browser) — testable without
  * IndexedDB or a browser, per CLAUDE.md's "simulation code must be testable without a DOM". */
+import { materializeAllJunctions } from "../sim/track/routes";
 import { emptyTrainProfit } from "../sim/trains/profit";
 import type { TrainProfit } from "../sim/trains/types";
 import type { GameState } from "../sim/state";
@@ -73,6 +74,7 @@ export function serializeGameState(state: GameState): SerializedGameStateV3 {
     difficulty: state.difficulty,
     cash: state.cash,
     trackEdges: state.trackGraph.allEdges(),
+    nodeRoutes: state.trackGraph.allExplicitRoutes(),
     stations: state.stations,
     nextStationId: state.nextStationId,
     trains: state.trains.map((t): SerializedTrainV3 => ({
@@ -119,6 +121,9 @@ export function deserializeGameState(data: SerializedGameStateV3): GameState {
   const map = deserializeMap(data.map);
   const trackGraph = new TrackGraph();
   for (const edge of data.trackEdges) trackGraph.addEdge(edge);
+  if (data.nodeRoutes)
+    for (const [node, keys] of data.nodeRoutes) trackGraph.setExplicitRoutes(node, new Set(keys));
+  materializeAllJunctions(trackGraph); // older saves: derive junction routes from the geometry rules, then keep them
 
   const trains = data.trains.map((t) => {
     const { blockPenalties, ...rest } = t;

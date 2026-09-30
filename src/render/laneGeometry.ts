@@ -29,7 +29,7 @@
  */
 import { DIRS8 } from "../sim/map/grid";
 import { directionSteps, edgeKey, type TrackGraph } from "../sim/track/graph";
-import { legsFormCrossing } from "../sim/track/turn";
+import { hasRoute } from "../sim/track/routes";
 import { directionBetween } from "../sim/trains/geometry";
 import {
   DOUBLE_TRACK_SPACING_TILES,
@@ -409,14 +409,15 @@ export function buildTrackStrands(env: GeomEnv): Strand[] {
     const neighbors = graph.neighborsOf(j).sort((p, q) => p - q);
     if (neighbors.length < 3 || stationTiles.has(j)) continue;
     const dirs = neighbors.map((n) => awayDir(j, n, mapWidth));
-    // A crossing (two straight pairs) has no connector arcs: the lines run straight over each other.
-    if (legsFormCrossing(dirs)) continue;
+    // Connector arcs are drawn only for the node's explicit routes (Phase 29): a plain crossing has none, a slip
+    // has one, so the lines run straight over each other except where a route joins them.
     const through = dirs.map((d, i) =>
       dirs.some((d2, i2) => i2 !== i && directionSteps(d, d2) === 4),
     );
     for (let i = 0; i < neighbors.length; i++) {
       for (let i2 = i + 1; i2 < neighbors.length; i2++) {
         if (!isFilletBend(dirs[i] as number, dirs[i2] as number)) continue;
+        if (!hasRoute(graph, j, neighbors[i] as number, neighbors[i2] as number)) continue;
         const n1 = neighbors[i] as number;
         const n2 = neighbors[i2] as number;
         const turnout =

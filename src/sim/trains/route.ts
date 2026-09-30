@@ -9,7 +9,8 @@
 import type { WeightClass } from "../../data/trains";
 import { WOODEN_BRIDGE_MAX_WEIGHT_CLASS } from "../../data/track";
 import { directionSteps, type TrackGraph } from "../track/graph";
-import { isCrossingNode, turnAllowed } from "../track/turn";
+import { turnAllowed } from "../track/turn";
+import { hasRoute, legDirection } from "../track/routes";
 import { directionBetween, edgeLengthTiles, octileTileDistance } from "./geometry";
 
 const WEIGHT_ORDER: readonly WeightClass[] = ["light", "medium", "heavy"];
@@ -42,6 +43,8 @@ interface HeapItem {
   f: number;
   tile: number;
   dir: number;
+  /** Tile the train came from (undefined at the start). */
+  prev?: number;
 }
 
 class MinHeap {
@@ -96,6 +99,11 @@ class MinHeap {
 
 function stateKey(tile: number, dir: number): string {
   return `${tile}|${dir}`;
+}
+
+/** The neighbour of `node` whose edge leaves `node` in direction `dir` (DIRS8), if any. */
+function legNeighbor(graph: TrackGraph, node: number, dir: number): number | undefined {
+  return graph.neighborsOf(node).find((n) => legDirection(graph, node, n) === dir);
 }
 
 /**
@@ -153,15 +161,17 @@ export function findTrainRoute(
       if (current.dir >= 0) {
         const isStation = options.stationTiles.has(current.tile);
         const reversal = directionSteps(current.dir, dirOut) === 4;
-        if (!turnAllowed(current.dir, dirOut) && !(isStation && reversal)) continue;
-        // A crossing (two straight pairs) is crossed straight over; lines do not connect there.
-        if (
-          !isStation &&
-          dirOut !== current.dir &&
-          graph.neighborsOf(current.tile).length === 4 &&
-          isCrossingNode(graph, current.tile)
-        )
-          continue;
+        if (isStation) {
+          if (!turnAllowed(current.dir, dirOut) && !reversal) continue;
+        } else {
+          // Explicit node routes (Phase 29): a train may only run between legs joined by a route.
+          const prev = current.prev ?? legNeighbor(graph, current.tile, (current.dir + 4) % 8);
+          if (prev === undefined) {
+            if (!turnAllowed(current.dir, dirOut)) continue;
+          } else if (prev !== neighborTile && !hasRoute(graph, current.tile, prev, neighborTile))
+            continue;
+          else if (prev === neighborTile) continue;
+        }
       }
 
       const blockId = options.edgeToBlock?.get(
@@ -178,6 +188,7 @@ export function findTrainRoute(
           f: tentativeG + octileTileDistance(neighborTile, goal, mapWidth),
           tile: neighborTile,
           dir: dirOut,
+          prev: current.tile,
         });
       }
     }

@@ -8,6 +8,7 @@
  * The `compute*Plan` functions are the pure, non-mutating halves of each command — the UI reuses
  * them to price the live drag preview (SPEC §5.2's floating cost label) without side effects.
  */
+import { registerBuildRoutes, snapshotLegs } from "./track/routes";
 import { DIFFICULTY, LOAN_INCREMENT } from "../data/finance";
 import { BULLDOZE_REFUND_FRACTION, ELECTRIFICATION_ERA, type BridgeType } from "../data/track";
 import {
@@ -275,6 +276,10 @@ export function buildTrack(
   if (!plan.valid) return { ok: false, reason: "blocked" };
   if (plan.cost > state.cash) return { ok: false, reason: "cant-afford" };
 
+  const routeSnapshot = snapshotLegs(
+    state.trackGraph,
+    plan.toBuild.flatMap((s) => [s.a, s.b]),
+  );
   for (const step of plan.toBuild) {
     const a = Math.min(step.a, step.b);
     const b = Math.max(step.a, step.b);
@@ -290,6 +295,7 @@ export function buildTrack(
     };
     state.trackGraph.addEdge(edge);
   }
+  registerBuildRoutes(state.trackGraph, routeSnapshot, path);
   state.cash -= plan.cost;
   state.finance.capitalInvested += plan.cost;
   addExpense(state, "construction", plan.cost);

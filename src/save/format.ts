@@ -109,6 +109,8 @@ interface SerializedGameStateBase<TTrain> {
   difficulty: Difficulty;
   cash: number;
   trackEdges: TrackEdge[];
+  /** Phase 29: explicit node routes (neighbour-tile pairs). Absent in older saves: junction routes are derived on load. */
+  nodeRoutes?: Array<[number, string[]]>;
   stations: Station[];
   nextStationId: number;
   trains: TTrain[];

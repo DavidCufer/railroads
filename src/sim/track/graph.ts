@@ -31,6 +31,9 @@ export function directionSteps(i: number, j: number): number {
 export class TrackGraph {
   private edges = new Map<string, TrackEdge>();
   private adjacency = new Map<number, Set<number>>();
+  /** Explicit routes (PLAN Phase 29 A): node -> set of `routeKey(n1, n2)` neighbour-tile pairs a train may
+   * traverse. A node without an entry is "derived": see `routes.ts`. Only `routes.ts` writes these. */
+  private routeSets = new Map<number, Set<string>>();
 
   private link(a: number, b: number): void {
     let setA = this.adjacency.get(a);
@@ -74,7 +77,33 @@ export class TrackGraph {
     if (!edge) return undefined;
     this.edges.delete(key);
     this.unlink(a, b);
+    this.dropRoutesVia(a, b);
+    this.dropRoutesVia(b, a);
     return edge;
+  }
+
+  private dropRoutesVia(node: number, leg: number): void {
+    const set = this.routeSets.get(node);
+    if (!set) return;
+    for (const k of Array.from(set)) {
+      const [p, q] = k.split("|") as [string, string];
+      if (Number(p) === leg || Number(q) === leg) set.delete(k);
+    }
+    if (!this.adjacency.has(node)) this.routeSets.delete(node);
+  }
+
+  /** The explicit route set of `node` (mutable), or undefined while the node is derived. */
+  explicitRoutes(node: number): Set<string> | undefined {
+    return this.routeSets.get(node);
+  }
+
+  setExplicitRoutes(node: number, routes: Set<string>): void {
+    this.routeSets.set(node, routes);
+  }
+
+  /** Every node with explicit routes (serialisation). */
+  allExplicitRoutes(): Array<[number, string[]]> {
+    return Array.from(this.routeSets, ([n, set]) => [n, Array.from(set)]);
   }
 
   /** Tile indices reachable from `tile` by a single edge. */
