@@ -4314,3 +4314,29 @@ select {
     background: transparent;
   }
 }
+
+/* Phase 29 D: industry badge on a demand tile (accepted only because of an industry, e.g. a Port). */
+.chip-badged {
+  position: relative;
+}
+.chip-badge {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: inline-flex;
+  width: 13px;
+  height: 13px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--brass);
+  color: var(--ink-900);
+}
+.chip-badge .icon-xxs {
+  width: 9px;
+  height: 9px;
+}
+.chip-badge .icon-xxs svg {
+  width: 9px;
+  height: 9px;
+}

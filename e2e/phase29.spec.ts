@@ -218,3 +218,34 @@ test.describe("Phase 29 — demolish station", () => {
     expect(after).toEqual({ stations: 2, orders: 2 });
   });
 });
+
+test.describe("Phase 29 — demand clarity", () => {
+  test("a Port's export demands carry an anchor badge and name the acceptor", async ({ page }) => {
+    await setup(page);
+    await clearArea(page, 40, 140, 20, 80);
+    await page.evaluate(() => {
+      const g = window.__game!;
+      const st = g.getState() as unknown as {
+        industries: Array<{ id: number; type: string; x: number; y: number }>;
+        cities: Array<{ name: string; tiles: number[] }>;
+      };
+      const map = g.getMap() as unknown as { width: number; industryId: Int16Array };
+      const id = st.industries.length;
+      st.industries.push({ id, type: "port", x: 81, y: 31 });
+      map.industryId[31 * map.width + 81] = id;
+    });
+    await build(
+      page,
+      range(8, (i) => ({ x: 76 + i, y: 30 })),
+    );
+    await station(page, 80, 30, "station");
+    const id = await page.evaluate(() => window.__game!.getStations()[0]!.id);
+    await page.evaluate((id) => window.__game!.debugOpenStation(id), id);
+    await expect(page.locator(".chip-badge").first()).toBeVisible();
+    await page.screenshot({ path: shot("port-demand-badge") });
+    await page.locator(".chip-badged").first().click();
+    await expect(page.locator(".toast").last()).toContainText("Accepted by:");
+    await expect(page.locator(".toast").last()).toContainText("(export)");
+    await page.screenshot({ path: shot("port-demand-tap") });
+  });
+});

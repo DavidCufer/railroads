@@ -101,24 +101,30 @@ export function cargoDemandTile(
   cargo: CargoType,
   points: number,
   large = false,
+  /** Who accepts it (Phase 29 D): `text` is added to the tap toast; `badge` (set when only industries accept
+   * it, e.g. a Port) puts that industry's icon on the tile. */
+  source?: { text: string; badge?: IconName },
 ): HTMLElement {
   const def = CARGO[cargo];
   const met = points >= STATION_ACCEPTANCE_THRESHOLD;
   return h(
     "button",
     {
-      className: `chip${large ? " chip-lg" : ""}${met ? "" : " chip-dim"}`,
+      className: `chip${large ? " chip-lg" : ""}${met ? "" : " chip-dim"}${source?.badge ? " chip-badged" : ""}`,
       "aria-label": def.name,
       onClick: () =>
         showToast(
           container,
           met
-            ? def.name
+            ? source
+              ? `${def.name} — ${source.text}`
+              : def.name
             : `${def.name}: needs ${STATION_ACCEPTANCE_THRESHOLD} pts, has ${Math.round(points)}`,
           met ? "info" : "warn",
         ),
     },
     cargoIcon(cargo, large ? "cargo-icon-lg" : "cargo-icon-sm"),
+    source?.badge ? h("span", { className: "chip-badge" }, icon(source.badge, "icon-xxs")) : null,
   );
 }
 

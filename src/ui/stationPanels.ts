@@ -38,6 +38,8 @@ import { STATION_STAFF } from "../data/economy";
 import { stationMonthlyCost } from "../sim/finance/costs";
 import { cargoChip, cargoDemandTile } from "./infoPanels";
 import { h } from "./h";
+import { acceptorsOf } from "../sim/stations/acceptors";
+import { INDUSTRIES } from "../data/industries";
 import { locoArt } from "./trainArt";
 import { icon, type IconName } from "./icons";
 import { cardList, cardRow } from "./components/cardRow";
@@ -131,6 +133,7 @@ function economyBody(
   economy: StationEconomy,
   waitingPile?: Partial<Record<CargoType, { amount: number }>>,
   station?: Station,
+  acceptedBy?: (cargo: CargoType) => { text: string; badge?: IconName } | undefined,
 ): Node[] {
   const supplyEntries = (Object.entries(economy.supply) as Array<[CargoType, number]>).filter(
     ([, v]) => v > 0.05,
@@ -180,7 +183,9 @@ function economyBody(
         ? h(
             "div",
             { className: "chip-row" },
-            ...acceptEntries.map(([cargo, points]) => cargoDemandTile(container, cargo, points)),
+            ...acceptEntries.map(([cargo, points]) =>
+              cargoDemandTile(container, cargo, points, false, acceptedBy?.(cargo)),
+            ),
           )
         : emptyState(strings.station.noDemands, "cargo"),
     ]),
@@ -369,6 +374,34 @@ export function openStationPlacementPanel(
   });
 
   update();
+}
+
+/** Phase 29 D: "Accepted by: Trieste Port (export)" — and a badge when only industries accept the cargo. */
+function acceptedBySource(
+  state: GameState,
+  station: Station,
+  cargo: CargoType,
+): { text: string; badge?: IconName } | undefined {
+  const year = calendarFromTicks(state.startYear, state.ticks).year;
+  const list = acceptorsOf(state.map, state.cities, state.industries, station, cargo, year);
+  if (list.length === 0) return undefined;
+  const s = strings.station.acceptedBy;
+  const names = list.map((a) => {
+    if (a.kind === "city") return s.city(state.cities[a.id]?.name ?? strings.fallback.place);
+    const ind = state.industries[a.id];
+    const near = (ind && nearestCityName(state, ind.y * state.map.width + ind.x)) ?? "";
+    return s.industry(near, INDUSTRIES[a.type].name, a.type === "port");
+  });
+  const industries = list.filter((a) => a.kind === "industry");
+  const onlyIndustries = industries.length === list.length;
+  const first = industries[0];
+  const badge: IconName | undefined =
+    onlyIndustries && first?.kind === "industry"
+      ? first.type === "port"
+        ? "anchor"
+        : "factory"
+      : undefined;
+  return { text: s.text(names), ...(badge ? { badge } : {}) };
 }
 
 type StationTab = "cargo" | "trains" | "build";
@@ -755,7 +788,11 @@ export function openStationPanel(
     if (tab === "cargo") {
       if (economy) {
         const pile = state.stationCargo.get(stationId);
-        body.push(...economyBody(container, economy, pile, station));
+        body.push(
+          ...economyBody(container, economy, pile, station, (cargo) =>
+            acceptedBySource(state, station, cargo),
+          ),
+        );
       }
       body.push(...transferSection(container, state, station));
     } else if (tab === "trains") {

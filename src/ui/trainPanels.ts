@@ -97,6 +97,20 @@ function electrifiedRouteBlocked(state: GameState, train: Train, loco: Locomotiv
 /** SPEC §7.5: "the train panel says what they are waiting for" — names the station a
  * `waitingForBlock`/`waitingForStation` train is trying to reach next. */
 export function statusText(state: GameState, train: Train): string {
+  if (train.inYardOf !== undefined && train.status === "waitingForStation") {
+    const yard = state.stations.find((s) => s.id === train.inYardOf);
+    if (yard) {
+      // Platforms go to the oldest yard arrival first (sim/trains/movement.ts): count those ahead.
+      const since = train.yardSince ?? 0;
+      const ahead = state.trains.filter(
+        (t) =>
+          t !== train &&
+          t.inYardOf === yard.id &&
+          ((t.yardSince ?? 0) < since || ((t.yardSince ?? 0) === since && t.id < train.id)),
+      ).length;
+      return strings.trains.waitingInYard(yard.name, ahead);
+    }
+  }
   const waiting =
     train.status === "waitingForBlock" ||
     train.status === "waitingForStation" ||

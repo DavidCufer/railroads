@@ -86,7 +86,8 @@ export type IconName =
   | "clock"
   | "arrowRight"
   | "arrowLeft"
-  | "swap";
+  | "swap"
+  | "anchor";
 
 const STROKE =
   'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
@@ -162,6 +163,7 @@ const ICONS: Record<IconName, string> = {
   clock: `<svg viewBox="0 0 24 24" ${STROKE}><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>`,
   arrowRight: `<svg viewBox="0 0 24 24" ${STROKE}><line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>`,
   arrowLeft: `<svg viewBox="0 0 24 24" ${STROKE}><line x1="20" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></svg>`,
+  anchor: `<svg viewBox="0 0 24 24" ${STROKE}><circle cx="12" cy="5" r="2"/><line x1="12" y1="7" x2="12" y2="21"/><line x1="8" y1="11" x2="16" y2="11"/><path d="M4 14c1 4 4 7 8 7s7-3 8-7"/></svg>`,
   swap: `<svg viewBox="0 0 24 24" ${STROKE}><polyline points="7 4 3 8 7 12"/><line x1="3" y1="8" x2="16" y2="8"/><polyline points="17 12 21 16 17 20"/><line x1="21" y1="16" x2="8" y2="16"/></svg>`,
   trash: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>`,
   tags: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M4 4h8l8 8-8 8-8-8z"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/></svg>`,

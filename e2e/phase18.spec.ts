@@ -116,7 +116,7 @@ test.describe("Phase 18 — play-test 5", () => {
     await page.locator(".tab", { hasText: "Trains" }).click();
     await page.locator(".train-loco-btn", { hasText: waiting!.name }).click();
     await page.waitForTimeout(300);
-    await expect(page.locator(".panel")).toContainText("Waiting in the yard at");
+    await expect(page.locator(".panel")).toContainText("Waiting in the yard for a platform at");
     await expect(page.locator(".panel")).toContainText("Train");
     await page.screenshot({ path: "docs/screenshots/phase-18-train-waiting.png" });
     expect(ids.trains).toHaveLength(3);

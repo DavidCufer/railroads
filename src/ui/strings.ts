@@ -146,6 +146,13 @@ export const strings = {
     quickBuild: "Quick build",
   },
   station: {
+    /** PLAN Phase 29 D: what a demand tile's tap says, e.g. "Accepted by: Trieste Port (export)". */
+    acceptedBy: {
+      text: (names: string[]) => `Accepted by: ${names.join(", ")}`,
+      city: (name: string) => `${name} (city)`,
+      industry: (near: string, industry: string, export_: boolean) =>
+        `${near ? `${near} ` : ""}${industry}${export_ ? " (export)" : ""}`,
+    },
     /** PLAN Phase 29 B: Build tab → Demolish station (two-tap confirm). */
     demolish: {
       label: (refund: string) => `Demolish station +${refund}`,
@@ -257,8 +264,8 @@ export const strings = {
     statusNames: {
       loading: "Loading",
       moving: "Moving",
-      waitingForBlock: "Waiting (block)",
-      waitingForStation: "Waiting (station)",
+      waitingForBlock: "Waiting for the line",
+      waitingForStation: "Waiting for a platform",
       noRoute: "No route",
       stuck: "Stuck",
       broken: "Broken down",
@@ -283,6 +290,9 @@ export const strings = {
      * `waitingForBlock`/`waitingForStation` and the train has an actual target to name — falls
      * back to the plain `statusNames` label otherwise (e.g. right after a reroute attempt, before
      * a fresh target is known). */
+    /** PLAN Phase 29 D: a train queued in a station's yard says how many are ahead of it. */
+    waitingInYard: (station: string, ahead: number) =>
+      `Waiting in the yard for a platform at ${station}${ahead > 0 ? ` (${ahead} ahead)` : ""}`,
     waitingForLineClear: (station: string) => `Waiting for line clear to ${station}`,
     waitingForPlatform: (station: string) => `Waiting in the yard at ${station} for a platform`,
     /** PLAN Phase 18 B: the panel names the blocker, not just the destination. */
@@ -572,6 +582,10 @@ export const strings = {
         {
           icon: "wrench",
           text: "A breakdown sends a repair crew from the nearest Engine Shed — the farther it drives, the longer the train waits and the more the call-out costs. Build sheds near the ends of long lines.",
+        },
+        {
+          icon: "anchor",
+          text: "A Port accepts all bulk freight — coal, ore, wood, grain, livestock, oil, steel, lumber, food and fuel — for export. A station next to one shows those demands with an anchor badge; tap a demand to see who accepts it.",
         },
         {
           icon: "coin",

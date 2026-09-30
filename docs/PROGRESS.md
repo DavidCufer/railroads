@@ -4530,3 +4530,22 @@ Hard ÷ Normal profit per train-year (City 40k ↔ 40k): 1900 90 %, 1920 91 %, 1
 - Competition is applied to the fare of each delivery (not to station supply), so a lost fare shows in the train panel, not in the station's supply figures.
 - Mail and passengers share the passenger curves; the freight curve covers every other cargo.
 - `src/sim/trains/stuck.ts` exists for 28B's ⚠ chip but nothing in the UI reads it yet (28B owns the chip).
+
+## 2026-09-30 — Phase 29: node routes, delete station, map-tap order entry, demand clarity
+### A. Explicit routes through nodes
+- `tests/sim/track/routes.test.ts` first (red on the old rules): diagonal main, branch to the right, then a line from the left joins the node. Now: left→right, diagonal through and the turnout (NW→E) all exist, the second slip (W→SE) does not, and a train routes through the turnout.
+- `src/sim/track/routes.ts` (new): `routesAt/hasRoute/derivedRoutes/materializeRoutes`, `snapshotLegs` + `registerBuildRoutes` (used by `buildTrack`), `addRoute/removeRoute`. `TrackGraph` stores `routeSets` (dropped per leg in `removeEdge`). Save: optional `nodeRoutes`; `deserializeGameState` derives explicit routes for every junction of an old save (identical behaviour), nodes that are not junctions stay derived.
+- `findTrainRoute` carries the tile the train came from and asks `hasRoute` at non-station nodes (the old "crossing = no turning" special case is gone; stations unchanged). `laneGeometry.buildTrackStrands` draws connector arcs only for routes.
+- New command `setNodeRoute(state, node, legA, legB, enabled)` (+ `__game.setNodeRoute/getNodeRoutes`), used by the e2e to make a double slip. Not built: the Track-mode tap UI for it (optional nicety, left unchecked).
+- Screenshots (`docs/screenshots/phase-29-*`): `turnout|diamond|single-slip|double-slip` at `-z1.5`, `-z2` and `closeup-*` (zoom 3, clipped). Opened and checked: a slip is the same fillet arc as a turnout, crossing the other line; it reads as track but the arcs are short, so a slip is small at zoom 1.5.
+### B. Demolish station
+- `demolishStation` in `commands.ts` + Build-tab button (two-tap, 4 s disarm) with a note about how many trains stop there; `tests/sim/trains/demolishStation.test.ts` demolishes at six moments of two trains' cycles (loading, yard, en route) and checks they keep running; last Engine Shed refused; `StuckReason`/`isTrainStuck` flag trains with < 2 stops.
+- News kind `stationDemolished` (carries the name, since the station is gone).
+### C. Order entry
+- Picking is persistent (`deliverStationPick` no longer clears the handler); wizard and train panel start it on entry and resume after list mode / tab switches; `flashLast` + `.pick-pulse` give the confirmation. The e2e tests no longer tap the pick button first (it now toggles picking off); two taps on the same screen point within a double-tap window do not reach `handleTap`, so `trains.spec` waits between its taps.
+### D. Clarity
+- `sim/stations/acceptors.ts`, anchor icon, `.chip-badge`, "Accepted by" toast, one Help line on ports, yard status text with "(n ahead)"; `waitingForStation` fallback now "Waiting for a platform", `waitingForBlock` "Waiting for the line". Screenshots `phase-29-port-demand-badge|port-demand-tap|demolish-station-panel|demolish-station-armed`.
+### Deviations / known
+- Conflict groups and the build preview were not rebuilt on routes: a junction node stays one exclusive conflict point (a superset of "crossing routes conflict"), and the preview keeps using the Phase 27 layout rules.
+- `registerBuildRoutes` also adds routes for a drag that turns 45° through an existing diamond (intentional: the player drew it).
+
