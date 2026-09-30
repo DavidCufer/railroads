@@ -1070,3 +1070,45 @@ Two sessions after Phase 27 lands: **28A** (sim/economy) and **28B** (UX).
 - [x] Discovery / founding news tappable → camera focuses the place. Bug 9: "Passengers + mail" suggestion fills all
       car slots. Bug 10: regenerate closes panels. `user-select: none` on the HUD.
 - [x] Screenshots of each change at 800×360; open and check them.
+
+## Phase 29 — Play-test 10: node routes (turnouts that survive crossings), delete station, faster order entry
+Player report (Trieste Food Plant, 1840–1843):
+1. A branch left the diagonal main line to the right (a turnout). When the player later connected a line from the
+   other side into the same node, the node became a diamond crossing (Phase 27 C: "crossings are diamonds, no
+   turning") and **trains could no longer turn onto the branch**. The player worked around it with a strange
+   double junction (third screenshot).
+2. "I need the possibility to delete a station."
+3. "Trieste station accepts all cargo. Is this because of the port?" (Yes: the Port industry accepts all bulk
+   freight for export. Keep the rule; make it understandable.)
+4. "When adding stations to a train I don't want to tap 'Tap on map' first; it should be enabled by default so I can
+   tap all the stations one after another."
+
+### A. Explicit routes through nodes (general model, replaces geometry-inferred connectivity)
+- [ ] Each node stores its **routes**: the set of (legA, legB) pairs trains may traverse. A drag creates the routes it
+      actually passes through; connecting into an existing node **adds** routes and never removes existing ones.
+      Result: a node can be a plain turnout, a diamond, a diamond with one or both slips (single/double slip), a Y,
+      etc. Every route must satisfy the ≤45° rule; station tiles keep reversing.
+- [ ] Pathfinding, reservations, conflict groups (Phase 27 B) and the build-preview all use routes. Two routes through
+      a node that cross each other form a conflict group (already exclusive).
+- [ ] Old saves: derive routes from the current geometry rules on load (identical behaviour to today), then keep them
+      explicit.
+- [ ] The player's case as a test: main diagonal + branch to the right; then a line from the left joins the same node.
+      Expected: the left→right straight route and the diagonal through route exist (diamond), **and** the existing
+      diagonal→right turnout route still exists (single slip); trains take the turnout.
+- [ ] Render routes: each route drawn as its own curve through the node (straights, turnout curves, slip curves) using
+      the lane model; screenshots of turnout, diamond, single slip, double slip at zoom 1.5/2 — open and check.
+- [ ] Optional nicety: tapping a node in Track mode shows its routes and lets the player remove one (e.g. make a
+      crossing without a slip).
+### B. Delete station
+- [ ] Station panel → Build tab: "Demolish station" (danger, two-tap confirm) with refund per the bulldoze rule; the
+      Bulldoze tool tap-to-remove (Phase 28B) stays. Trains with this stop get it removed from their orders (a train
+      left with < 2 stops is flagged in the stuck indicator); cargo waiting there is lost; news line.
+### C. Order entry
+- [ ] In the route step and in Edit orders, map-tap mode is **on by default**: every tap on a station (or its city)
+      appends a stop immediately, with a short confirmation pulse on the map and the list; "From list" stays as the
+      secondary option. Tapping the same station twice in a row does not add a duplicate stop.
+### D. Clarity
+- [ ] Station Cargo tab: demands that exist only because of an industry in the catchment (e.g. the Port's export
+      demand) get a tiny badge with that industry's icon; tapping a demand shows "Accepted by: Trieste Port (export)"
+      or "Accepted by: Trieste (city)". Help gets one line on ports.
+- [ ] Train status "Waiting (station)" → specific text ("Waiting in the yard for a platform at Trieste (2 ahead)").
