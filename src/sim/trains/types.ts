@@ -88,8 +88,12 @@ export interface WaitingOn {
 /** Money a train earned and spent over some period (PLAN Phase 24A). */
 export interface TrainBooks {
   revenue: number;
-  /** The locomotive's own maintenance. */
+  /** The locomotive's fuel, oil and servicing. */
   running: number;
+  /** Crew wages (Economic model v2); absent in older saves. */
+  wages?: number;
+  /** Track wear this train caused (Economic model v2); absent in older saves. */
+  wear?: number;
   /** Breakdown repairs. */
   repairs: number;
 }
@@ -192,6 +196,9 @@ export interface Train {
   /** Cumulative revenue this train has ever earned (SPEC §10.2's "lifetime revenue", Phase 9's
    * train-profit-colors overlay) — never reset, including across a locomotive replacement. */
   lifetimeRevenue: number;
+  /** Wear units this train has inflicted on the track since the month began (Economic model v2); the monthly
+   * step turns them into money and resets it. Absent in older saves. */
+  wearUnits?: number;
   /** Per-train revenue and running costs (PLAN Phase 24A). */
   profit: TrainProfit;
   /** Cached fractional (tile-space) position at the start and end of the most recent tick, for the

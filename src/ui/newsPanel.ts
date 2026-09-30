@@ -101,6 +101,8 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
         industry ? nearestCityName(state, industry.x, industry.y) : strings.fallback.place,
       );
     }
+    case "competition":
+      return strings.news.kinds.competition[item.mode];
     case "goalCompleted": {
       const goal = state.goals.find((g) => g.id === item.goalId);
       const description = goal ? describeGoal(state, goal) : strings.fallback.goal;
@@ -143,6 +145,7 @@ const NEWS_ICONS: Record<NewsItem["kind"], { icon: IconName; tone: Tone }> = {
   cityFounded: { icon: "village", tone: "go" },
   discovery: { icon: "coin", tone: "go" },
   goalCompleted: { icon: "trophy", tone: "brass" },
+  competition: { icon: "warning", tone: "brass" },
 };
 
 export function openNewsPanel(

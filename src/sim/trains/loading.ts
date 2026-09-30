@@ -12,7 +12,9 @@ import {
   REVENUE_DISTANCE_TILES,
   type CargoType,
 } from "../../data/cargo";
-import { DIFFICULTY, earlyFareFactor, eraInflation } from "../../data/finance";
+import { DIFFICULTY } from "../../data/finance";
+import { competitionLoss, fareIndex } from "../../data/economy";
+import { KM_PER_TILE } from "../../data/scale";
 import { INDUSTRIES } from "../../data/industries";
 import {
   COLD_STORAGE_REVENUE_MULT,
@@ -24,6 +26,7 @@ import {
   DEFAULT_FULL_LOAD_MAX_WAIT_DAYS,
   MIN_LOADING_TICKS,
   OVERLENGTH_SLOWDOWN_MULT,
+  locomotiveById,
   TICKS_PER_CAR_HANDLED,
 } from "../../data/trains";
 import { addRevenue } from "../finance/ledger";
@@ -179,6 +182,8 @@ export function computeRevenue(
   cargo: CargoType,
   distanceTiles: number,
   days: number,
+  /** Top speed of the carrying locomotive, km/h: fast trains win back passengers from road and air. */
+  trainKmh = 0,
 ): number {
   const def = CARGO[cargo];
   const expected = (distanceTiles / EXPECTED_TILES_PER_DAY) * def.urgency + 2;
@@ -191,8 +196,8 @@ export function computeRevenue(
     def.baseRate *
     (distanceTiles / REVENUE_DISTANCE_TILES) *
     timeFactor *
-    eraInflation(year) *
-    earlyFareFactor(year, cargo) *
+    fareIndex(year, cargo) *
+    (1 - competitionLoss(year, cargo, distanceTiles * KM_PER_TILE, trainKmh)) *
     DIFFICULTY[state.difficulty].revenueMult
   );
 }
@@ -257,7 +262,14 @@ function settleUnload(state: GameState, train: Train, station: Station, car: Tra
     // per unit instead, i.e. that same per-carload figure scaled by the fraction of a car actually
     // delivered (1.0 for a full car, same result as before real per-cargo capacities existed).
     let revenue =
-      computeRevenue(state, cargo, distanceTiles, days) * (unitsDelivered / CARGO[cargo].capacity);
+      computeRevenue(
+        state,
+        cargo,
+        distanceTiles,
+        days,
+        locomotiveById(train.locoModelId)?.maxSpeedKmh ?? 0,
+      ) *
+      (unitsDelivered / CARGO[cargo].capacity);
 
     // Post Office/Cold Storage (SPEC §6.2): bonus depends on where the cargo was *loaded*, not
     // where it's being delivered.

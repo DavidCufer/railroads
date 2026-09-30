@@ -32,6 +32,8 @@ import { previewStationEconomy, stationStorageCap, type StationEconomy } from ".
 import type { Station } from "../sim/stations/types";
 import type { GameState } from "../sim/state";
 import { calendarFromTicks } from "../sim/time";
+import { STATION_STAFF } from "../data/economy";
+import { stationMonthlyCost } from "../sim/finance/costs";
 import { cargoChip, cargoDemandTile } from "./infoPanels";
 import { h } from "./h";
 import { locoArt } from "./trainArt";
@@ -226,10 +228,11 @@ const TYPE_ICONS: Record<StationType, IconName> = {
 };
 
 /** The station type's numbers as stat tiles (STYLE §8.2): catchment, max train length, storage per
- * cargo, monthly maintenance. */
-function statsGrid(type: StationType): Node {
+ * cargo, upkeep per month (building + staff wages). */
+function statsGrid(type: StationType, year: number): Node {
   const def = STATION_TYPE_DEFS[type];
   const side = def.catchmentRadius * 2 + 1;
+  const upkeep = stationMonthlyCost(type, year);
   return statRow(
     statTile({ icon: "target", value: `${side}×${side}`, caption: strings.station.catchment }),
     statTile({
@@ -244,8 +247,13 @@ function statsGrid(type: StationType): Node {
     }),
     statTile({
       icon: "coin",
-      value: formatMoney(def.monthlyMaintenance),
+      value: formatMoney(upkeep.total),
       caption: strings.station.monthlyMaintenance,
+      title: strings.station.upkeepBreakdown(
+        formatMoney(upkeep.upkeep),
+        STATION_STAFF[type],
+        formatMoney(upkeep.staff),
+      ),
     }),
   );
 }
@@ -339,7 +347,7 @@ export function openStationPlacementPanel(
       year,
     );
 
-    statsEl.replaceChildren(statsGrid(selectedType));
+    statsEl.replaceChildren(statsGrid(selectedType, year));
     economyEl.replaceChildren(...economyBody(container, economy));
     buildBtn.replaceChildren(
       icon("hammer", "icon-sm"),
@@ -609,7 +617,11 @@ function buildTab(
     );
   }
   out.push(section(strings.station.improvements, [cardList(...rows)]));
-  out.push(section(strings.ui.stats, [statsGrid(station.type)]));
+  out.push(
+    section(strings.ui.stats, [
+      statsGrid(station.type, calendarFromTicks(state.startYear, state.ticks).year),
+    ]),
+  );
   return out;
 }
 

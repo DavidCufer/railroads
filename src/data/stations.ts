@@ -12,7 +12,6 @@ export interface StationTypeDef {
   maxTrainLength: number;
   storagePerCargo: number;
   cost: number;
-  monthlyMaintenance: number;
   /** Slots for trains inside this station at once — counting trains actually stopped/loading here
    * plus trains that have already reserved a section ending here (SPEC §7.5, revised after
    * play-testing: "the minimum is 2, so every station can act as a passing loop"). */
@@ -31,7 +30,6 @@ export const STATION_TYPE_DEFS: Record<StationType, StationTypeDef> = {
     maxTrainLength: 6,
     storagePerCargo: 40,
     cost: 15_000,
-    monthlyMaintenance: 100,
     trainCapacity: 2,
     loadSpeedMult: 1.0,
   },
@@ -42,7 +40,6 @@ export const STATION_TYPE_DEFS: Record<StationType, StationTypeDef> = {
     maxTrainLength: 10,
     storagePerCargo: 80,
     cost: 40_000,
-    monthlyMaintenance: 250,
     trainCapacity: 3,
     loadSpeedMult: 0.85,
   },
@@ -53,7 +50,6 @@ export const STATION_TYPE_DEFS: Record<StationType, StationTypeDef> = {
     maxTrainLength: 16,
     storagePerCargo: 150,
     cost: 100_000,
-    monthlyMaintenance: 600,
     trainCapacity: 5,
     loadSpeedMult: 0.7,
   },

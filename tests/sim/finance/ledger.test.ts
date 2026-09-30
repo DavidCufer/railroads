@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { DIFFICULTY, earlyUpkeepFactor } from "../../../src/data/finance";
+import { DIFFICULTY } from "../../../src/data/finance";
+import { PROPERTY_TAX_RATE, WAGE_1830, wageIndex, priceIndex } from "../../../src/data/economy";
 import { MAINTENANCE_SINGLE } from "../../../src/data/track";
-import { STATION_TYPE_DEFS } from "../../../src/data/stations";
+import { stationMonthlyCost, trackEdgeMonthlyCost } from "../../../src/sim/finance/costs";
 import { buildStation, buildTrack, buyTrain } from "../../../src/sim/commands";
 import {
   addExpense,
@@ -39,10 +40,18 @@ describe("monthlyFinanceStep", () => {
 
     monthlyFinanceStep(state);
 
-    const relief = earlyUpkeepFactor(1830); // Phase 27 D: cheaper upkeep in the first decades
-    const expectedTrack = 2 * MAINTENANCE_SINGLE * relief; // 2 edges
-    const expectedStation = STATION_TYPE_DEFS.depot.monthlyMaintenance * relief;
-    expect(state.cash).toBeCloseTo(cashBefore - expectedTrack - expectedStation, 5);
+    // Economic model v2: track gangers and station staff are paid wages, buildings and ballast cost prices.
+    const edge = state.trackGraph.allEdges()[0]!;
+    const expectedTrack = 2 * trackEdgeMonthlyCost(edge, 1830);
+    const expectedStation = stationMonthlyCost("depot", 1830).total;
+    expect(expectedTrack).toBeCloseTo(2 * MAINTENANCE_SINGLE, 5); // 1830: wages = prices = 1
+    expect(expectedStation).toBeCloseTo(15 + (1 * WAGE_1830) / 12, 5);
+    const expectedPropertyTax = (state.finance.capitalInvested * PROPERTY_TAX_RATE) / 12;
+    expect(expectedPropertyTax).toBeGreaterThan(0);
+    expect(state.cash).toBeCloseTo(
+      cashBefore - expectedTrack - expectedStation - expectedPropertyTax,
+      5,
+    );
     expect(state.finance.thisMonth.trackMaintenance).toBe(0); // rolled over into a fresh period
   });
 
@@ -138,5 +147,30 @@ describe("addExpense", () => {
     addExpense(state, "interest", 42);
     expect(state.finance.thisMonth.interest).toBe(42);
     expect(state.finance.thisYear.interest).toBe(42);
+  });
+});
+
+describe("wages outrun prices (Economic model v2)", () => {
+  it("one railwayman costs more in real terms every decade", () => {
+    for (const [a, b] of [
+      [1830, 1860],
+      [1860, 1900],
+      [1900, 1950],
+      [1950, 1990],
+    ] as const) {
+      expect(wageIndex(b) / priceIndex(b)).toBeGreaterThan(wageIndex(a) / priceIndex(a));
+    }
+  });
+
+  it("the same station and track cost relatively more in wages the later it is", () => {
+    const map = makeTestMap(["ppp"]);
+    const state = makeTestState(map);
+    buildTrack(state, [tileAt(map, 0, 0), tileAt(map, 1, 0), tileAt(map, 2, 0)]);
+    const edge = state.trackGraph.allEdges()[0]!;
+    const cost = (year: number): number => trackEdgeMonthlyCost(edge, year);
+    expect(cost(1950) / priceIndex(1950)).toBeGreaterThan(cost(1830));
+    expect(stationMonthlyCost("station", 1950).staff / priceIndex(1950)).toBeGreaterThan(
+      stationMonthlyCost("station", 1830).staff,
+    );
   });
 });

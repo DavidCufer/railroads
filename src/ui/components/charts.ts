@@ -50,6 +50,8 @@ export interface StackedBarPart<K extends string = string> extends StackPart<K> 
   label: string;
   /** Pre-formatted value shown in the legend chip. */
   display: string;
+  /** What the line is, shown as the chip's tooltip. */
+  note?: string;
 }
 
 /** Horizontal stacked bar + a legend of chips (colour dot · label · value). Empty → muted note. */
@@ -80,7 +82,7 @@ export function stackedBar(parts: readonly StackedBarPart[], emptyText: string):
       .map((p) =>
         h(
           "span",
-          { className: "stack-chip" },
+          { className: "stack-chip", ...(p.note ? { title: p.note } : {}) },
           h("i", { style: { background: p.color } }),
           h("span", { className: "stack-chip-label" }, p.label),
           h("b", null, p.display),

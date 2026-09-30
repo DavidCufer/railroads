@@ -30,6 +30,8 @@ export interface RepairCrew {
   fixTicks: number;
   /** Tile nodes from the base to the train (both ends), for drawing. */
   path: number[];
+  /** What the call-out cost (Economic model v2); absent in older saves. */
+  cost?: { crewDays: number; wages: number; vehicle: number; parts: number; total: number };
 }
 
 export type RepairPhase =

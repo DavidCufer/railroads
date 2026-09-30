@@ -5,7 +5,9 @@
  * (`regionId`) — plus content the PLAN brief calls out by name: a real-world region id, a train
  * mid-route, an outstanding loan, goals/goalsCompleted, and news.
  */
-import { emptyTrainProfit } from "../../src/sim/trains/profit";
+import { booksProfit, emptyTrainProfit } from "../../src/sim/trains/profit";
+import { ledgerOperatingCosts } from "../../src/data/finance";
+import { monthlyFinanceStep } from "../../src/sim/finance/ledger";
 import { describe, expect, it } from "vitest";
 import { serializeGameState, deserializeGameState } from "../../src/save/serialize";
 import { computeStationEconomies } from "../../src/sim/stations/economy";
@@ -192,5 +194,28 @@ describe("save round trip", () => {
     expect(Array.from(restored.map.industryId)).toEqual(Array.from(original.map.industryId));
     expect(Array.from(restored.map.riverNext)).toEqual(Array.from(original.map.riverNext));
     expect(restored.map.elevationRaw[2]).toBeCloseTo(original.map.elevationRaw[2] as number, 6);
+  });
+
+  it("loads a save written before Economic model v2 (no wage, wear or tax lines) without NaN", () => {
+    const original = richFixture();
+    const serialized = JSON.parse(JSON.stringify(serializeGameState(original)));
+    const strip = (p: Record<string, unknown>): void => {
+      for (const key of ["crewWages", "trackWear", "propertyTax", "incomeTax"]) delete p[key];
+    };
+    strip(serialized.finance.thisMonth);
+    strip(serialized.finance.thisYear);
+    strip(serialized.finance.lastYear);
+    for (const t of serialized.trains) {
+      delete t.wearUnits;
+      delete t.profit.thisYear.wages;
+      delete t.profit.thisYear.wear;
+    }
+    const restored = deserializeGameState(serialized);
+    monthlyFinanceStep(restored);
+    expect(Number.isFinite(restored.cash)).toBe(true);
+    expect(Number.isFinite(ledgerOperatingCosts(restored.finance.thisYear))).toBe(true);
+    expect(restored.finance.thisYear.propertyTax).toBeGreaterThanOrEqual(0);
+    for (const t of restored.trains)
+      expect(Number.isFinite(booksProfit(t.profit.thisYear))).toBe(true);
   });
 });

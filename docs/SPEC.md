@@ -531,17 +531,67 @@ If cash < 0 at month end: forced loan up to the credit limit. If still < 0, show
 
 ### 9.5 Era inflation
 
-All costs and revenues scale by `eraInflation(year) = 1.0 + (year − 1830) × 0.012` (so ≈2.4× in 1950).
-Keep it simple; the player mostly perceives it as bigger numbers.
+`eraInflation(year) = 1.0 + (year − 1830) × 0.012` (≈2.4× in 1950) is the general price level for things the railway buys
+(locomotives, construction, parts, fuel). Wages, fares and competition have their own curves, see §9.5b.
+
+### 9.5b Economic model v2 (Phase 28A)
+
+Replaces the old "era inflation multiplies everything" balance and the Phase 27 D stopgaps (`earlyUpkeepFactor`,
+`earlyFareFactor`, removed). Rule from the player: *it must make sense, based on real things; we cannot just cut
+profit in half.* Every cost below comes from one modelled cause, is a small table in `src/data/economy.ts`, and is
+shown to the player where it costs money (Finance cost lines with tooltips, train panel, station panel, News).
+`eraInflation` stays as the **general price level** (locomotives, rail, parts, coal: 1.0 in 1830, +1.2 %/year).
+
+1. **Fares vs wages.** Fares follow a *real-terms* curve on top of the price level: passengers and mail ×1.9 in
+   1830 (rail as a stagecoach-priced novelty), ×1.45 in 1845 (the 1844 Act forced cheap third class), ×1.0 in 1860,
+   ×0.78 in 1885, ×0.62 in 1905, ×0.5 from 1965. Freight rates start at ×1.5 (bulk freight beat the wagon and canal),
+   ×1.05 in 1875, ×0.8 in 1905, ×0.7 from 1965 (rate competition and regulation). *Wages* (railwaymen, station staff,
+   platelayers) grow faster than prices: real wage ×1.5 in 1880, ×2.2 in 1930, ×3.4 in 1980 (`wageIndex`).
+   One railwayman costs $350 a year in 1830. **Crews:** footplate crew of 2 on steam (3 on the biggest articulated), 2
+   on diesels and early electrics, 1 on electrics from 1960, plus one guard per 4 cars (`trainCrewSize`): a Grasshopper
+   with 3 cars has a crew of 2, a 22-car articulated 7. The old per-locomotive `maintenancePerYear` was crew + fuel;
+   now 45 % of it is **fuel & servicing** (prices) and the crew is a separate **Crew wages** line. Stations: upkeep
+   (prices) + staff (wages), Depot 1 / Station 2 / Terminal 6 staff. Track: 70 % of the per-tile upkeep is gangers'
+   wages.
+2. **Track wear from use.** Per tile run: `(loco tonnes × axle factor + car tonnes × 0.8) / 100 × (1 + (v/100 km/h)²)`
+   (loco 18/45/90 t and axle factor 0.7/1/1.6 for light/medium/heavy; a car weighs 12 t + 18 t when full). Each train
+   accumulates wear units; the monthly step charges `units × $1 × (½ wages + ½ prices)` as **Track wear** and books it on the
+   train. Plus the fixed upkeep per tile (double track costs 16/10 of single, catenary +5 per tile).
+3. **Locomotive complexity.** Parts for a repair = 4 % of the engine's price (so a Mikado costs several times a Norris
+   to fix), +100 % at 40 years of age, ×0.75 once the model is more than 10 years past introduction (spares stocked).
+   Breakdown chance: a model that arrives *during the game* is one reliability step worse for its first 5 years
+   (teething); > 10 years on the market ×0.85; +100 % per 800,000 km run; ×(1 + age/20 years); ×0.5 within 60 days
+   of an Engine Shed visit; × difficulty.
+4. **Repair logistics.** Call-out = crew of 3 × days away (dispatch, trip out *and back*, fix) × daily wage + vehicle
+   running cost for the tiles driven both ways (handcar free; motor trolley $4/tile, service truck $8/tile at 1830
+   prices) + parts. The crew leaves from the **nearest Engine Shed** (buildable anywhere, $30k), so sheds near the ends of
+   a network shorten the wait — the real cost of a far breakdown is the days the train stands idle.
+5. **Taxes.** *Property tax* 0.5 %/year of the book value of track, stations and improvements, from day one.
+   *Corporate income tax* on the year's operating profit after interest (losses carried forward), charged at year
+   end: 0 before 1910, then 6 % (1910), 12 % (1920), 18 % (1935), 26 % (1945), 32 % (1960). Hard ×1.6 on both taxes,
+   Easy ×0.6.
+6. **Competition.** Buses and cars take a share of *short* (< 150 km, linearly less towards 150) passenger and mail
+   trips: 12 % in 1930, 25 % in 1950, 38 % in 1970, 45 % from 1990. Lorries take short-haul freight: 10 % in 1935,
+   25 % in 1955, 40 % from 2000, scaled by cargo (coal/ore 0.25, grain/wood 0.4, steel 0.5, lumber 0.6, goods/food/
+   livestock 1.0). Airlines take long passenger trips (> 300 km, full at 800 km): 15 % in 1960, 30 % in 1980. A train with a
+   top speed ≥ 200 km/h keeps 70 % of what road and air would take. News announces "Motor buses now compete on short
+   routes" (1920), lorries (1930) and airlines (1955). The loss is applied to the fare of each delivery, shown in the
+   train panel ("Buses, lorries and airlines take N % of this route's fares").
+7. **Freight rates by value and distance** stay as in §8.1; the freight real-rate curve in (1) is what makes 1830s–40s
+   bulk freight pay (it competes with the wagon and canal).
+
+Difficulty (§9.6) is now *tax, interest, build cost and breakdowns*, no longer a revenue multiplier.
 
 ### 9.6 Difficulty
 
 | | Easy | Normal | Hard |
 |---|---|---|---|
 | Cash | $1.5M | $1.0M | $0.6M |
-| Revenue mult | 1.25 | 1.0 | 0.8 |
+| Revenue mult | 1.25 | 1.0 | 1.0 (was 0.8; Hard is now harder through tax, not fares) |
 | Build cost mult | 0.8 | 1.0 | 1.2 |
 | Breakdowns | ×0.5 | ×1 | ×1.5 |
+| Tax schedule (property + income) | ×0.6 | ×1 | ×1.6 |
+| Interest | 4 % | 6 % | 8 % |
 
 ---
 

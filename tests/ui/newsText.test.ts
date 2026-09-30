@@ -19,6 +19,9 @@ describe("news text fallbacks", () => {
       { id: 9, tick: 0, kind: "cityFounded", cityId: 42 },
       { id: 10, tick: 0, kind: "discovery", industryId: 42 },
       { id: 11, tick: 0, kind: "goalCompleted", goalId: "missing", tier: "gold" },
+      { id: 12, tick: 0, kind: "competition", mode: "road" },
+      { id: 13, tick: 0, kind: "competition", mode: "truck" },
+      { id: 14, tick: 0, kind: "competition", mode: "air" },
     ];
     for (const item of items) {
       const text = formatNewsItem(state, item);

@@ -6,8 +6,6 @@
 import { repairPhase } from "../sim/trains/repairCrew";
 import { CARGO, type CargoType } from "../data/cargo";
 import {
-  BREAKDOWN_AGE_DIVISOR_YEARS,
-  BREAKDOWN_BASE_CHANCE_BY_RELIABILITY,
   buyableLocomotivesIn,
   locomotiveById,
   NEW_LOCOMOTIVE_BADGE_YEARS,
@@ -27,6 +25,9 @@ import type { GameState } from "../sim/state";
 import { calendarFromTicks, DAYS_PER_YEAR, HOURS_PER_DAY } from "../sim/time";
 import { getTrainRuntime, isElectrificationOnlyBlocker } from "../sim/trains";
 import { undeliverableCars } from "../sim/trains/undeliverable";
+import { monthlyBreakdownChance } from "../sim/trains/breakdown";
+import { locoRunningCostPerYear, trainCompetition, trainWagesPerYear } from "../sim/finance/costs";
+import { trainCrewSize } from "../data/economy";
 import { booksProfit, trainProfitPerYear, trainProfitStatus } from "../sim/trains/profit";
 import type { Train, TrainCar, TrainOrder } from "../sim/trains/types";
 import { cardList, cardRow } from "./components/cardRow";
@@ -351,8 +352,11 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
     function statsTab(t: Train): Node {
       const l = locomotiveById(t.locoModelId);
       const ageFrac = (state.ticks - t.purchaseTick) / (HOURS_PER_DAY * DAYS_PER_YEAR);
-      const baseChance = l ? (BREAKDOWN_BASE_CHANCE_BY_RELIABILITY[l.reliability] ?? 0.02) : 0.02;
-      const monthly = baseChance * (1 + ageFrac / BREAKDOWN_AGE_DIVISOR_YEARS);
+      const monthly = monthlyBreakdownChance(state, t);
+      const year = calendarFromTicks(state.startYear, state.ticks).year;
+      const running = l ? locoRunningCostPerYear(l, ageFrac, year) : 0;
+      const wages = l ? trainWagesPerYear(l, t.cars.length, year) : 0;
+      const competition = l ? trainCompetition(l, t, state.stations, state.map.width, year) : 0;
       const capacity = t.cars.reduce((sum, c) => sum + CARGO[c.cargoType].capacity, 0);
       const loaded = t.cars.reduce((sum, c) => sum + c.loadedUnits, 0);
       const byCargo = new Map<CargoType, number>();
@@ -391,11 +395,60 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
           }),
           statTile({
             icon: "wrench",
-            value: `${formatMoney(l?.maintenancePerYear ?? 0)}${strings.trains.stats.perYear}`,
+            value: `${formatMoney(running)}${strings.trains.stats.perYear}`,
             caption: p.runningCost,
           }),
           statTile({ icon: "calendar", value: p.ageYears(Math.floor(ageFrac)), caption: p.age }),
         ),
+        statRow(
+          statTile({
+            icon: "coin",
+            value: `${formatMoney(wages)}${strings.trains.stats.perYear}`,
+            caption: `${p.wagesPerYear} · ${p.crewOf(l ? trainCrewSize(l, t.cars.length) : 0)}`,
+          }),
+          statTile({
+            icon: "track",
+            value: formatMoney(t.profit.thisYear.wear ?? 0),
+            caption: p.trackWearThisYear,
+          }),
+          statTile({
+            icon: "wrench",
+            value: formatMoney(t.profit.thisYear.repairs),
+            caption: p.repairsThisYear,
+          }),
+        ),
+        ...(competition >= 0.01
+          ? [
+              h(
+                "div",
+                { className: "train-stat-line competition-note" },
+                icon("warning", "icon-sm"),
+                h(
+                  "span",
+                  { className: "train-stat-label" },
+                  p.competitionLoss(Math.round(competition * 100)),
+                ),
+              ),
+            ]
+          : []),
+        ...(t.status === "broken" && t.repairCrew?.cost
+          ? [
+              h(
+                "div",
+                { className: "train-stat-line repair-cost-note" },
+                icon("wrench", "icon-sm"),
+                h(
+                  "span",
+                  { className: "train-stat-label" },
+                  p.breakdownCallOut(
+                    formatMoney(t.repairCrew.cost.total),
+                    formatMoney(t.repairCrew.cost.wages + t.repairCrew.cost.vehicle),
+                    formatMoney(t.repairCrew.cost.parts),
+                  ),
+                ),
+              ),
+            ]
+          : []),
         h(
           "div",
           { className: "train-stat-line" },

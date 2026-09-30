@@ -22,6 +22,9 @@ export interface FinanceState {
   /** Monthly cash/net-worth samples for the finance panel's line chart (SPEC §10.2). Capped so a
    * very long game doesn't grow this unboundedly. */
   netWorthHistory: NetWorthSample[];
+  /** Operating losses from earlier years not yet set against profit for income tax (Economic model v2); absent
+   * in older saves. */
+  taxLossCarry?: number;
   /** Consecutive month-ends closed with cash < 0 and no credit left (SPEC §9.4). */
   negativeCashMonths: number;
   bankrupt: boolean;

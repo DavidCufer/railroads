@@ -5,7 +5,7 @@ import { DAYS_PER_YEAR, HOURS_PER_DAY } from "../time";
 import type { Train, TrainBooks, TrainProfit } from "./types";
 
 export function emptyBooks(): TrainBooks {
-  return { revenue: 0, running: 0, repairs: 0 };
+  return { revenue: 0, running: 0, wages: 0, wear: 0, repairs: 0 };
 }
 
 export function emptyTrainProfit(lifetimeRevenue = 0): TrainProfit {
@@ -17,7 +17,7 @@ export function emptyTrainProfit(lifetimeRevenue = 0): TrainProfit {
 }
 
 export function booksProfit(b: TrainBooks): number {
-  return b.revenue - b.running - b.repairs;
+  return b.revenue - b.running - (b.wages ?? 0) - (b.wear ?? 0) - b.repairs;
 }
 
 export function recordTrainRevenue(train: Train, amount: number): void {
@@ -29,6 +29,16 @@ export function recordTrainRevenue(train: Train, amount: number): void {
 export function recordTrainRunning(train: Train, amount: number): void {
   train.profit.thisYear.running += amount;
   train.profit.lifetime.running += amount;
+}
+
+export function recordTrainWages(train: Train, amount: number): void {
+  train.profit.thisYear.wages = (train.profit.thisYear.wages ?? 0) + amount;
+  train.profit.lifetime.wages = (train.profit.lifetime.wages ?? 0) + amount;
+}
+
+export function recordTrainWear(train: Train, amount: number): void {
+  train.profit.thisYear.wear = (train.profit.thisYear.wear ?? 0) + amount;
+  train.profit.lifetime.wear = (train.profit.lifetime.wear ?? 0) + amount;
 }
 
 export function recordTrainRepair(train: Train, amount: number): void {

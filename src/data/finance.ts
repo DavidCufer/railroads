@@ -9,6 +9,8 @@ export interface DifficultyDef {
   breakdownMult: number;
   interestRate: number;
   bankruptcy: boolean;
+  /** Multiplies the property and corporate income tax schedule (Hard = a heavier schedule, not lower revenue). */
+  taxMult: number;
 }
 
 export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
@@ -19,6 +21,7 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     breakdownMult: 0.5,
     interestRate: 0.04,
     bankruptcy: false,
+    taxMult: 0.6,
   },
   normal: {
     startingCash: 1_000_000,
@@ -27,14 +30,16 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     breakdownMult: 1.0,
     interestRate: 0.06,
     bankruptcy: true,
+    taxMult: 1.0,
   },
   hard: {
     startingCash: 600_000,
-    revenueMult: 0.8,
+    revenueMult: 1.0,
     buildCostMult: 1.2,
     breakdownMult: 1.5,
     interestRate: 0.08,
     bankruptcy: true,
+    taxMult: 1.6,
   },
 };
 
@@ -43,33 +48,6 @@ export const DEFAULT_DIFFICULTY: Difficulty = "normal";
 /** Era inflation (SPEC §9.5): all costs/revenues scale by this factor, ≈2.4× by 1950. */
 export function eraInflation(year: number): number {
   return 1.0 + (year - 1830) * 0.012;
-}
-
-/** PLAN Phase 27 D (docs/BALANCE.md: a Grasshopper on Town↔Town passengers lost $6k/yr): the first decades
- * were unplayable — 25 km/h engines barely cover their own upkeep. Until `EARLY_UPKEEP_END_YEAR` running
- * costs (track, station and locomotive upkeep) are relieved and until `EARLY_FARE_END_YEAR` passenger/mail
- * fares carry a novelty premium, both easing linearly back to 1× (freight is untouched: it already pays). */
-export const EARLY_UPKEEP_END_YEAR = 1850;
-export const EARLY_FARE_END_YEAR = 1845;
-export const EARLY_UPKEEP_FACTOR_1830 = 0.4;
-export const EARLY_FARE_FACTOR_1830 = 1.8;
-
-function earlyBlend(year: number, at1830: number, endYear: number): number {
-  if (year >= endYear) return 1;
-  const t = Math.max(0, (year - 1830) / (endYear - 1830));
-  return at1830 + (1 - at1830) * t;
-}
-
-/** Multiplier on track, station and locomotive upkeep (< 1 before `EARLY_UPKEEP_END_YEAR`). */
-export function earlyUpkeepFactor(year: number): number {
-  return earlyBlend(year, EARLY_UPKEEP_FACTOR_1830, EARLY_UPKEEP_END_YEAR);
-}
-
-/** Multiplier on passenger and mail fares (> 1 before `EARLY_FARE_END_YEAR`); 1 for every other cargo. */
-export function earlyFareFactor(year: number, cargo: string): number {
-  return cargo === "passengers" || cargo === "mail"
-    ? earlyBlend(year, EARLY_FARE_FACTOR_1830, EARLY_FARE_END_YEAR)
-    : 1;
 }
 
 // --- Loans (SPEC §9.1) -------------------------------------------------------------------------
@@ -98,9 +76,18 @@ export interface LedgerPeriod {
   passengers: number;
   mail: number;
   freight: number;
+  /** Fuel, oil and servicing of the locomotives. */
   trainMaintenance: number;
+  /** Wages of train crews (Economic model v2). */
+  crewWages: number;
   trackMaintenance: number;
+  /** Wear of the rails from the trains that ran on them (Economic model v2). */
+  trackWear: number;
   stationMaintenance: number;
+  /** Local property tax on track, stations and improvements (Economic model v2). */
+  propertyTax: number;
+  /** Corporate income tax, charged at the year's end (Economic model v2). */
+  incomeTax: number;
   breakdownRepairs: number;
   interest: number;
   construction: number;
@@ -113,8 +100,12 @@ export function emptyLedgerPeriod(): LedgerPeriod {
     mail: 0,
     freight: 0,
     trainMaintenance: 0,
+    crewWages: 0,
     trackMaintenance: 0,
+    trackWear: 0,
     stationMaintenance: 0,
+    propertyTax: 0,
+    incomeTax: 0,
     breakdownRepairs: 0,
     interest: 0,
     construction: 0,
@@ -135,7 +126,14 @@ export function ledgerRevenue(p: LedgerPeriod): number {
 /** Recurring costs of running the railway (SPEC §9.2, Phase 24A "operating" view). */
 export function ledgerOperatingCosts(p: LedgerPeriod): number {
   return (
-    p.trainMaintenance + p.trackMaintenance + p.stationMaintenance + p.breakdownRepairs + p.interest
+    p.trainMaintenance +
+    p.crewWages +
+    p.trackMaintenance +
+    p.trackWear +
+    p.stationMaintenance +
+    p.propertyTax +
+    p.breakdownRepairs +
+    p.interest
   );
 }
 
@@ -153,15 +151,7 @@ export function ledgerOperatingProfit(p: LedgerPeriod): number {
 export const OPERATING_HISTORY_MONTHS = 12;
 
 export function ledgerExpenses(p: LedgerPeriod): number {
-  return (
-    p.trainMaintenance +
-    p.trackMaintenance +
-    p.stationMaintenance +
-    p.breakdownRepairs +
-    p.interest +
-    p.construction +
-    p.rollingStock
-  );
+  return ledgerOperatingCosts(p) + p.incomeTax + ledgerInvestments(p);
 }
 
 export function ledgerNetProfit(p: LedgerPeriod): number {

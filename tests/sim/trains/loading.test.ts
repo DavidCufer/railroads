@@ -3,10 +3,14 @@ import { buildStation, buildTrack, buyTrain, setOrders } from "../../../src/sim/
 import { computeRevenue, stepLoading } from "../../../src/sim/trains/loading";
 import { CARGO } from "../../../src/data/cargo";
 import { KM_PER_TILE, WORLD_SCALE } from "../../../src/data/scale";
-import { DIFFICULTY, earlyFareFactor, eraInflation } from "../../../src/data/finance";
+import { DIFFICULTY } from "../../../src/data/finance";
+import { competitionLoss, fareIndex } from "../../../src/data/economy";
 import { makeTestMap, makeTestState, tileAt } from "../track/helpers";
 import type { GameState } from "../../../src/sim/state";
 import type { Station } from "../../../src/sim/stations/types";
+
+/** The 1830 fare level (Economic model v2: rail is a premium novelty, freight competes with the wagon). */
+const F = (cargo: keyof typeof CARGO): number => fareIndex(1830, cargo);
 
 const LOCO = "american-4-4-0"; // available from 1848, plenty of cars
 
@@ -51,24 +55,34 @@ describe("computeRevenue", () => {
       cargo: "coal",
       distanceTiles: 8 * WORLD_SCALE,
       days: 6,
-      expected: 1200 * 0.8 * (1 + 0.25 * (1 - 6 / 12)),
+      expected: 1200 * 0.8 * (1 + 0.25 * (1 - 6 / 12)) * F("coal"),
     },
-    { cargo: "coal", distanceTiles: 8 * WORLD_SCALE, days: 12, expected: 1200 * 0.8 * 1.0 },
+    {
+      cargo: "coal",
+      distanceTiles: 8 * WORLD_SCALE,
+      days: 12,
+      expected: 1200 * 0.8 * 1.0 * F("coal"),
+    },
     {
       cargo: "coal",
       distanceTiles: 8 * WORLD_SCALE,
       days: 42,
-      expected: 1200 * 0.8 * (1 - (42 - 12) / 60),
+      expected: 1200 * 0.8 * (1 - (42 - 12) / 60) * F("coal"),
     },
     // Very late: time factor floors at 0.2.
-    { cargo: "coal", distanceTiles: 8 * WORLD_SCALE, days: 500, expected: 1200 * 0.8 * 0.2 },
+    {
+      cargo: "coal",
+      distanceTiles: 8 * WORLD_SCALE,
+      days: 500,
+      expected: 1200 * 0.8 * 0.2 * F("coal"),
+    },
     // Passengers: urgency 1.0. expected = (20/2)*1+2 = 12 days.
-    // (× the 1830 novelty fare premium, Phase 27 D.)
+    // (× the 1830 fare level.)
     {
       cargo: "passengers",
       distanceTiles: 20 * WORLD_SCALE,
       days: 12,
-      expected: 1650 * 2 * 1.0 * earlyFareFactor(1830, "passengers"),
+      expected: 1650 * 2 * 1.0 * F("passengers"),
     },
   ];
 
@@ -97,7 +111,7 @@ describe("computeRevenue", () => {
           days <= expected
             ? 1 + 0.25 * (1 - days / expected)
             : Math.max(0.2, 1 - (days - expected) / (def.decayDays * 2));
-        const before = def.baseRate * (oldTiles / 10) * timeFactor * earlyFareFactor(1830, cargo);
+        const before = def.baseRate * (oldTiles / 10) * timeFactor * F(cargo);
         expect(computeRevenue(state, cargo, km / KM_PER_TILE, days)).toBeCloseTo(before, 6);
       }
     }
@@ -109,7 +123,9 @@ describe("computeRevenue", () => {
     state.startYear = 1830;
     state.ticks = (1950 - 1830) * 360 * 24; // ~1950
     const revenue = computeRevenue(state, "coal", 8 * WORLD_SCALE, 12);
-    const expected = 1200 * 0.8 * 1.0 * eraInflation(1950) * DIFFICULTY.hard.revenueMult;
+    const loss = competitionLoss(1950, "coal", 8 * WORLD_SCALE * KM_PER_TILE, 0); // lorries take a little
+    const expected =
+      1200 * 0.8 * 1.0 * fareIndex(1950, "coal") * (1 - loss) * DIFFICULTY.hard.revenueMult;
     expect(revenue).toBeCloseTo(expected, 0);
   });
 });

@@ -7,13 +7,15 @@ export interface StatTileOptions {
   value: string;
   caption: string;
   tone?: Tone | undefined;
+  /** Tooltip explaining the figure. */
+  title?: string | undefined;
 }
 
 /** STYLE §8.2 StatTile: icon + value over a tiny uppercase caption. */
 export function statTile(options: StatTileOptions): HTMLElement {
   return h(
     "div",
-    { className: "stat-tile" },
+    { className: "stat-tile", ...(options.title ? { title: options.title } : {}) },
     h(
       "div",
       { className: `stat-value${toneClass(options.tone)}` },

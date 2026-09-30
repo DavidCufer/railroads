@@ -4421,3 +4421,86 @@ stations are the §7.5 passing places) and a consist that has just reversed at a
 - Four existing e2e assertions changed: Year in Review opens from Finance (economy/eras/phase20), Station tool default (stations.spec).
 - Cost-bar colours depart from STYLE's "signal tints". "Terminal recommended" threshold (1.5×) is my choice. 28A's yard-queue status is not yet handled specially (the chip ignores it unless waiting long).
 - Before shots exist only for the modal cases; other items' "before" is described above (route step was the side panel; bulldoze removed adjacent main-line edges).
+
+## 2026-09-30 — Phase 28A: deadlock-free stations, noRoute, Bug 4, Engine Sheds, Economic model v2 (in progress)
+Runs in parallel with 28B (UX); this session stays in sim, data, finance and panel text. `npm run check` and full `npm run e2e` (189) green at each push.
+
+### 1. Deadlock (Bug 1/2) — `tests/sim/trains/yardQueue.test.ts` written first, red on the old code
+Repro from the play-test (18-tile line, N = 1…12 Atlantics alternating A→B / B→A, single and double track, Depot and Station): on the old code throughput dropped to 0 at N ≈ 2 × platforms.
+- **Design: platforms limit simultaneous loading, not entry.** The destination-slot rule of `tryEnterSection` is gone (departure needs only the line, SPEC §7.5). A train arriving at a station whose platforms are all loading — or whose yard already holds waiting trains — waits in the **yard**
+  (`train.inYardOf`, `yardSince`, status `waitingForStation`, text "Waiting in the yard at X for a platform (who)") and takes a platform oldest-first (`handleYard`). `platformHolders` = trains with status `loading` at the station tile; a train that finished loading, a `noRoute` train and a yard train hold none.
+- **Two more deadlocks the stress test found** (the new "moving at speed 0 for > 5 days" invariant of `phantomJam.test.ts` failed on the *old* code too, in 6 of 6 seeds within a week of game time):
+  (a) two trains meeting head-on at a through-station each held the tail block the other needed — a train standing in a station now drops its held blocks (stations are the passing places);
+  (b) the junction interlock starved the lowest-id waiters: the holder released its claims late in the same tick, trains stepped after it took the junction again. Claims are now released for every train before stepping, and a junction that comes free goes to the train that has waited longest (`crossingWait.since`).
+- **Bug 2 / Bug 4 cause:** a `noRoute` train parked in a station that is a dead end "reversed" one tile after 6 hours, arrived at the stub's end, re-routed, failed, and looped — `moving` at speed 0 for years, holding nothing but blocking the stub. Parked trains in stations no longer hop (`handleIdle`). `src/sim/trains/stuck.ts` (`stuckTrains`: stuck, broken, noRoute ≥ 30 days, waiting ≥ 10 days) is the hook for 28B's ⚠ chip.
+- Stress invariant (Bug 4): `moving` at speed 0 for > 5 days is a failure unless explained (junction wait, or queued behind an explained train), 60-day hard cap; over-subscribed variant (+4 trains shuttling between two stations, 3 seeds). +10 extra trains still starve one train for 60 days at a saturated junction pair — recorded below.
+- Tests: yardQueue (5), noRoute (1), signaling "platforms" (replaces the slot test), phantomJam (+3 seeds, +invariant). e2e `phase18 B` now builds a yard queue (3 trains, `fullLoad` at the far depot).
+
+### 2. Engine Sheds (Bug 6)
+`buildEngineShed` / `computeEngineShedPlan` (`ENGINE_SHED_COST` $30k × era price × build-cost mult), station Build tab row. Repair crews already started from the nearest shed. Tests `tests/sim/stations/engineShed.test.ts`.
+
+### 3. Economic model v2
+Rule from the player: *it must make sense; base it on real things; no flat cuts.* All numbers in `src/data/economy.ts` (+ `src/sim/finance/costs.ts` pure functions used by both the ledger and the panels), documented in SPEC §9.5b. The Phase 27 D stopgap (`earlyUpkeepFactor`, `earlyFareFactor`) is **removed**. The balance report (`BALANCE_REPORT=1 npx vitest run tests/sim/balanceReport.test.ts`) gained a key table (ROI on the train's price, 7 eras × 4 routes, mean of 3 seeds) and a cost-structure table; it was rerun after each mechanism.
+| # | Mechanism | Parameters (reason) | Shown as |
+|---|---|---|---|
+| 1 | Fares vs wages | passenger/mail real fare ×1.9 (1830) → 1.45 (1845, 1844 Act) → 1.0 (1860) → 0.78 (1885) → 0.62 (1905) → 0.5 (1965); freight ×1.5 (1830, beats wagon/canal) → 1.05 (1875) → 0.8 (1905) → 0.7; real wage ×1.5 (1880) ×2.2 (1930) ×3.4 (1980); $350/yr a railwayman in 1830; crew = footplate (steam 2, big articulated 3, diesel 2, late electric 1) + 1 guard per 4 cars; fuel & servicing = 45 % of the old per-loco upkeep; station upkeep + staff (1/2/6); track upkeep 70 % labour | Finance lines Fuel & servicing, Crew wages, Track upkeep, Stations & staff (hover notes); train panel (crew size, wages); station panel (upkeep = building + staff) |
+| 2 | Track wear | (loco t × axle factor + car t × 0.8)/100 × (1 + (v/100)²), loco 18/45/90 t, axle 0.7/1/1.6, car 12 t + 18 t loaded, $1/unit at 1830 prices (½ wages ½ prices); booked per train | Finance "Track wear"; train panel "Track wear" |
+| 3 | Locomotive complexity | parts = 4 % of loco price (+100 % at 40 years, ×0.75 when > 10 years on the market); teething: one reliability step worse for 5 years for models that arrive during the game; ×0.85 breakdowns when proven; +100 % per 800,000 km; | train panel breakdown risk, repair cost |
+| 4 | Repair logistics | crew of 3 × days away (dispatch, trip out and back, fix) × daily wage + vehicle $0/4/8 per tile (×2 for the round trip) + parts; nearest shed | Finance "Repairs"; train panel call-out line |
+| 5 | Taxes | property 0.5 %/yr of book value from day one; income tax on operating profit after interest, loss carry-forward: 0 → 6 % (1910) → 12 % (1920) → 18 % (1935) → 26 % (1945) → 32 % (1960); Hard ×1.6, Easy ×0.6; Hard revenue ×0.8 → ×1.0 | Finance "Property tax", "Income tax" |
+| 6 | Competition | road share of short (< 150 km) pax/mail 12 % (1930) → 25 % (1950) → 45 % (1990); lorries 10 % (1935) → 40 %, by cargo (coal 0.25 … goods 1); airlines 15 % (1960) → 30 % (1980) beyond 300 km; ≥ 200 km/h keeps 70 % | news "Motor buses now compete…", train panel "Buses, lorries and airlines take N % of this route's fares" |
+| 7 | Freight rates | freight real-rate curve above (1830s–40s bulk freight pays) | — |
+
+### Balance: before → after (Economic model v2, mean of 3 seeds; `revenue / profit (ROI on the train's price)`)
+
+**Passengers Town 12k ↔ Town 12k, 50 km**
+
+| Era / loco | before | after |
+|---|---|---|
+| 1830 grasshopper-0-4-0 | 5k / 1k (4%) | 6k / 1k (2%) |
+| 1840 norris-4-2-0 | 33k / 25k (42%) | 44k / 37k (61%) |
+| 1860 american-4-4-0 | 41k / 26k (28%) | 40k / 29k (30%) |
+| 1900 atlantic-4-4-2 | 59k / 33k (17%) | 38k / 14k (7%) |
+| 1920 pacific-4-6-2 | 67k / 34k (11%) | 37k / -6k (-2%) |
+| 1950 road-switcher-diesel | 79k / 40k (9%) | 34k / -18k (-4%) |
+| 1980 heavy-diesel | 91k / 24k (2%) | 33k / -79k (-7%) |
+
+**Passengers City 40k ↔ City 40k, 100 km**
+
+| Era / loco | before | after |
+|---|---|---|
+| 1830 grasshopper-0-4-0 | 15k / 10k (33%) | 16k / 10k (32%) |
+| 1840 norris-4-2-0 | 30k / 21k (34%) | 39k / 31k (51%) |
+| 1860 american-4-4-0 | 207k / 192k (204%) | 204k / 190k (203%) |
+| 1900 atlantic-4-4-2 | 387k / 361k (180%) | 250k / 221k (110%) |
+| 1920 pacific-4-6-2 | 440k / 406k (137%) | 250k / 175k (59%) |
+| 1950 road-switcher-diesel | 520k / 480k (102%) | 247k / 137k (29%) |
+| 1980 heavy-diesel | 605k / 537k (50%) | 260k / 82k (8%) |
+
+**Passengers Metropolis 250k ↔ City 100k, 100 km (a rich route)**
+
+| Era / loco | before | after |
+|---|---|---|
+| 1830 grasshopper-0-4-0 | 17k / 11k (34%) | 19k / 12k (39%) |
+| 1840 norris-4-2-0 | 43k / 34k (57%) | 57k / 49k (81%) |
+| 1860 american-4-4-0 | 310k / 295k (314%) | 305k / 291k (310%) |
+| 1900 atlantic-4-4-2 | 949k / 923k (460%) | 611k / 581k (290%) |
+| 1920 pacific-4-6-2 | 1157k / 1123k (380%) | 659k / 533k (180%) |
+| 1950 road-switcher-diesel | 1478k / 1438k (307%) | 704k / 471k (101%) |
+| 1980 heavy-diesel | 1950k / 1882k (176%) | 838k / 469k (44%) |
+
+**Coal mine → steel mill, 100 km**
+
+| Era / loco | before | after |
+|---|---|---|
+| 1830 grasshopper-0-4-0 | 10k / 3k (10%) | 14k / 9k (35%) |
+| 1840 norris-4-2-0 | 52k / 46k (94%) | 72k / 65k (133%) |
+| 1860 american-4-4-0 | 68k / 58k (75%) | 81k / 70k (90%) |
+| 1900 atlantic-4-4-2 | 105k / 85k (48%) | 87k / 62k (35%) |
+| 1920 pacific-4-6-2 | 119k / 92k (35%) | 91k / 40k (15%) |
+| 1950 road-switcher-diesel | 143k / 112k (26%) | 101k / 35k (8%) |
+| 1980 heavy-diesel | 162k / 104k (10%) | 110k / -16k (-2%) |
+
+Targets (asserted in `tests/sim/economy/economicModel.test.ts`, `balanceEarly.test.ts`): Norris 1840 Town↔Town 50 km ROI 61 % (≥ 25 %); Grasshopper Town↔Town 50/100 km ≥ break-even; rich route (250k ↔ 150k) ≤ 3.3× the train's price a year in 1900/1920/1950/1980 (290 %, 180 %, 101 %, 44 %); repairs < 10 % of revenue with a shed at each end in every era (measured ≈ 0–4 %); Hard profit < 0.95 × Normal in 1920 (taxes ×1.6, breakdowns ×1.5, build ×1.2, interest 8 %).
+Parameter reasons worth remembering: *teething only for designs that arrive during the game* (a Grasshopper game starting in 1830 would otherwise break down at 7 %/month); *wage base $350, running share 45 %, property tax 0.5 %* were the smallest values that let a Grasshopper on a 12k-town pair break even once crew and staff became explicit costs; *the 1905 fare anchor 0.62* puts the 1900 rich route at 290 % instead of 325 %; the heavy axle factor is 1.6 (1.8 made a heavy diesel pay 35 % of revenue in wear on half-empty trains).
+Old saves: ledger periods and train books lack the new lines; `deserializeGameState` fills zeros (no version bump, like the other optional fields since v4).

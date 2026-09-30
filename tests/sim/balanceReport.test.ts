@@ -5,7 +5,7 @@ import { describe, it } from "vitest";
 import { CITY_TIER_DEFS } from "../../src/data/cities";
 import { CARGO } from "../../src/data/cargo";
 import { citySupply } from "../../src/sim/economy/cityStats";
-import { measureRoute, type RouteSpec } from "./balanceRoutes";
+import { measureMean, measureRoute, type RouteSpec } from "./balanceRoutes";
 import type { City } from "../../src/sim/economy/types";
 
 const ERAS: Array<{ year: number; loco: string }> = [
@@ -14,6 +14,99 @@ const ERAS: Array<{ year: number; loco: string }> = [
   { year: 1900, loco: "atlantic-4-4-2" },
   { year: 1950, loco: "road-switcher-diesel" },
 ];
+/** The key table (Economic model v2): one row per era with the locomotive a player would buy then. */
+const KEY_ERAS: Array<{ year: number; loco: string }> = [
+  { year: 1830, loco: "grasshopper-0-4-0" },
+  { year: 1840, loco: "norris-4-2-0" },
+  { year: 1860, loco: "american-4-4-0" },
+  { year: 1900, loco: "atlantic-4-4-2" },
+  { year: 1920, loco: "pacific-4-6-2" },
+  { year: 1950, loco: "road-switcher-diesel" },
+  { year: 1980, loco: "heavy-diesel" },
+];
+
+const pct = (n: number): string => `${Math.round(n * 100)}%`;
+
+/** ROI and cost structure per era (see SPEC §9 "Economic model v2" for the targets). */
+function keyTables(): string[] {
+  const out: string[] = [];
+  const routes: Array<{ label: string; make: (e: (typeof KEY_ERAS)[number]) => RouteSpec }> = [
+    {
+      label: "Passengers Town 12k ↔ Town 12k, 50 km",
+      make: (e) => ({ cargo: "passengers", km: 50, ...e, population: 12_000, tier: "town" }),
+    },
+    {
+      label: "Passengers City 40k ↔ City 40k, 100 km",
+      make: (e) => ({ cargo: "passengers", km: 100, ...e, population: 40_000, tier: "city" }),
+    },
+    {
+      label: "Passengers Metropolis 250k ↔ City 100k, 100 km (a rich route)",
+      make: (e) => ({
+        cargo: "passengers",
+        km: 100,
+        ...e,
+        population: 150_000,
+        tier: "metropolis",
+      }),
+    },
+    {
+      label: "Coal mine → steel mill, 100 km",
+      make: (e) => ({ cargo: "coal", km: 100, ...e, producer: "coalMine", acceptor: "steelMill" }),
+    },
+  ];
+  out.push("## Key table: revenue / net profit per train-year (return on the train's price)", "");
+  out.push(
+    "Normal difficulty, year-3 ledger, mean of 3 seeds. `ROI` = net profit ÷ price of locomotive + cars.",
+    "",
+  );
+  for (const route of routes) {
+    out.push(`### ${route.label}`, "");
+    out.push("| Era / loco | price | revenue | profit | ROI |", "|---|---|---|---|---|");
+    for (const e of KEY_ERAS) {
+      try {
+        const a = measureMean(route.make(e));
+        out.push(
+          `| ${e.year} ${e.loco} | ${k(a.price)} | ${k(a.revenue)} | ${k(a.profit)} | ${pct(a.profit / a.price)} |`,
+        );
+      } catch (err) {
+        out.push(`| ${e.year} ${e.loco} | n/a (${(err as Error).message.slice(0, 40)}) | | | |`);
+      }
+    }
+    out.push("");
+  }
+  out.push(
+    "### Where the money goes: Passengers City 40k ↔ City 40k, 100 km (share of revenue)",
+    "",
+  );
+  const cols = [
+    ["trainMaintenance", "fuel & servicing"],
+    ["crewWages", "crew"],
+    ["trackMaintenance", "track"],
+    ["trackWear", "wear"],
+    ["stationMaintenance", "stations"],
+    ["breakdownRepairs", "repairs"],
+    ["propertyTax", "property tax"],
+    ["incomeTax", "income tax"],
+  ] as const;
+  out.push(
+    "| Era | revenue | " + cols.map(([, l]) => l).join(" | ") + " |",
+    "|---|---|" + cols.map(() => "---").join("|") + "|",
+  );
+  for (const e of KEY_ERAS) {
+    const a = measureMean({
+      cargo: "passengers",
+      km: 100,
+      ...e,
+      population: 40_000,
+      tier: "city",
+    });
+    out.push(
+      `| ${e.year} | ${k(a.revenue)} | ${cols.map(([key]) => pct((a.ledger[key as keyof typeof a.ledger] ?? 0) / Math.max(1, a.revenue))).join(" | ")} |`,
+    );
+  }
+  out.push("");
+  return out;
+}
 const KMS = [50, 100, 200];
 
 const k = (n: number): string => `${Math.round(n / 1000)}k`;
@@ -29,6 +122,11 @@ describe.runIf(process.env.BALANCE_REPORT === "1")("balance report", () => {
       "track/station upkeep included). Consist = min(loco max cars, 8). Cells: `revenue / profit`.",
     );
     out.push("");
+    out.push(...keyTables());
+    if (process.env.BALANCE_KEY_ONLY === "1") {
+      writeFileSync(process.env.BALANCE_OUT ?? "docs/BALANCE.md", out.join("\n"));
+      return;
+    }
     out.push("## City supply (per month, fully covered)");
     out.push("");
     out.push("| Pop | Passengers | = cars | Mail | = cars |", "|---|---|---|---|---|");

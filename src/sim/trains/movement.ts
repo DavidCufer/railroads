@@ -49,6 +49,7 @@ import { directionBetween, edgeDirectionFrom, edgeLengthTiles, tileXY } from "./
 import { blockIdForEdge, type Block, type BlockPartition } from "./blocks";
 import { trainBodyLength, updateCrossing } from "./crossing";
 import { applyPendingConsist, stepLoading } from "./loading";
+import { wearUnitsPerTile } from "../finance/costs";
 import { findTrainRoute } from "./route";
 import type { HeldBlock, Train, TrainOrder, TrainStatus } from "./types";
 import type { TrackEdge } from "../track/types";
@@ -1018,6 +1019,18 @@ function handleMoving(
 }
 
 export function stepTrain(state: GameState, train: Train, runtime: TrainRuntime): void {
+  const odometer = train.distanceTraveled;
+  stepTrainInner(state, train, runtime);
+  const moved = train.distanceTraveled - odometer;
+  if (moved > 0) {
+    const loco = locomotiveById(train.locoModelId);
+    if (loco)
+      train.wearUnits =
+        (train.wearUnits ?? 0) + moved * wearUnitsPerTile(loco, train.cars, train.speed);
+  }
+}
+
+function stepTrainInner(state: GameState, train: Train, runtime: TrainRuntime): void {
   train.renderFromX = train.renderToX;
   train.renderFromY = train.renderToY;
   train.waitTicks++;

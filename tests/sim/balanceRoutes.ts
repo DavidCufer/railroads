@@ -5,7 +5,12 @@ import { KM_PER_TILE } from "../../src/data/scale";
 import { CARGO, type CargoType } from "../../src/data/cargo";
 import { INDUSTRIES, type IndustryType } from "../../src/data/industries";
 import { locomotiveById } from "../../src/data/trains";
-import { ledgerNetProfit, ledgerRevenue } from "../../src/data/finance";
+import {
+  emptyLedgerPeriod,
+  ledgerNetProfit,
+  ledgerRevenue,
+  type LedgerPeriod,
+} from "../../src/data/finance";
 import { createRng } from "../../src/sim/rng";
 import { advanceOneHour } from "../../src/sim/tick";
 import { makeTestMap, makeTestState, tileAt } from "./track/helpers";
@@ -27,6 +32,11 @@ export interface RouteSpec {
   cars?: number;
   /** RNG seed (breakdowns); the balance tests average a few. */
   seed?: number;
+  difficulty?: GameState["difficulty"];
+  /** Station type at both ends (default: a Station for cities, a Depot for freight). */
+  stationType?: "depot" | "station" | "terminal";
+  /** Build a second Engine Shed at the far station (repair crews start from the nearest shed). */
+  shedAtBothEnds?: boolean;
 }
 
 export interface RouteResult {
@@ -35,6 +45,10 @@ export interface RouteResult {
   cars: number;
   /** Full-consist revenue of one one-way trip at time factor 1 (ideal, no era/difficulty). */
   fullTripRevenue: number;
+  /** What the train cost (locomotive + cars). */
+  price: number;
+  /** The last completed year's ledger. */
+  ledger: LedgerPeriod;
 }
 
 export function tickDays(state: GameState, days: number): void {
@@ -54,6 +68,7 @@ export function buildRoute(spec: RouteSpec): { state: GameState; cars: number } 
     startYear: spec.year,
     seed: spec.seed ?? 1,
     rng: createRng(spec.seed ?? 1),
+    ...(spec.difficulty ? { difficulty: spec.difficulty } : {}),
   });
   const trackY = 2;
   const ax = 1;
@@ -94,11 +109,12 @@ export function buildRoute(spec: RouteSpec): { state: GameState; cars: number } 
   }
   const path = Array.from({ length: bx - ax + 1 }, (_, i) => tileAt(map, ax + i, trackY));
   if (!buildTrack(state, path).ok) throw new Error("track");
-  const st = isCity ? "station" : "depot";
+  const st = spec.stationType ?? (isCity ? "station" : "depot");
   if (!buildStation(state, tileAt(map, ax, trackY), st).ok) throw new Error("station a");
   if (!buildStation(state, tileAt(map, bx, trackY), st).ok) throw new Error("station b");
   const sa = state.stations[0] as { id: number };
-  const sb = state.stations[1] as { id: number };
+  const sb = state.stations[1] as { id: number; hasEngineShed: boolean };
+  if (spec.shedAtBothEnds) sb.hasEngineShed = true;
   state.cash = 1e12;
   const bought = buyTrain(
     state,
@@ -127,5 +143,25 @@ export function measureRoute(spec: RouteSpec, years = 3): RouteResult {
     profit: ledgerNetProfit(last),
     cars,
     fullTripRevenue: cars * def.baseRate * (km / 100),
+    price: state.trains[0]!.purchasePrice,
+    ledger: last,
+  };
+}
+
+/** Mean of `measureRoute` over a few seeds: the breakdown dice make a single run noisy by ±15%. */
+export function measureMean(spec: RouteSpec, seeds: readonly number[] = [1, 2, 3]): RouteResult {
+  const runs = seeds.map((seed) => measureRoute({ ...spec, seed }));
+  const mean = (f: (r: RouteResult) => number): number =>
+    runs.reduce((a, r) => a + f(r), 0) / runs.length;
+  const ledger = emptyLedgerPeriod();
+  for (const key of Object.keys(ledger) as Array<keyof LedgerPeriod>)
+    ledger[key] = mean((r) => r.ledger[key] ?? 0);
+  return {
+    revenue: mean((r) => r.revenue),
+    profit: mean((r) => r.profit),
+    cars: runs[0]!.cars,
+    fullTripRevenue: runs[0]!.fullTripRevenue,
+    price: mean((r) => r.price),
+    ledger,
   };
 }

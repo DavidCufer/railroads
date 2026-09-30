@@ -165,7 +165,9 @@ export const strings = {
     catchment: "Catchment",
     maxTrainLength: "Max cars",
     storagePerCargo: "Storage",
-    monthlyMaintenance: "Upkeep",
+    monthlyMaintenance: "Upkeep / month",
+    upkeepBreakdown: (building: string, staff: number, wages: string) =>
+      `${building} building + ${staff} staff (${wages} wages) a month`,
     perMonth: "/mo",
     /** PLAN Phase 16: city/station Supplies chips spell out "/ month" plus the cargo's unit word
      * (if any) instead of a bare number, so "42" reads as "42 / month" and "13" as "13 bags /
@@ -367,7 +369,15 @@ export const strings = {
       profitLastYear: "Last year",
       profitLifetime: "Lifetime",
       paidBack: (pct: number, price: string) => `Paid back ${pct}% of ${price}`,
-      runningCost: "Running cost",
+      runningCost: "Fuel & servicing",
+      crewOf: (n: number) => `Crew of ${n}`,
+      wagesPerYear: "Wages",
+      trackWearThisYear: "Track wear",
+      repairsThisYear: "Repairs",
+      breakdownCallOut: (total: string, wages: string, parts: string) =>
+        `Call-out ${total} (crew ${wages}, parts ${parts})`,
+      competitionLoss: (pct: number) =>
+        `Buses, lorries and airlines take ${pct}% of this route's fares`,
       capacity: "Capacity",
       load: "Load",
       noCars: "No cars",
@@ -475,10 +485,29 @@ export const strings = {
     mail: "Mail",
     freight: "Freight",
     expenses: "Expenses",
-    trainMaintenance: "Train maint.",
-    trackMaintenance: "Track maint.",
-    stationMaintenance: "Station maint.",
+    trainMaintenance: "Fuel & servicing",
+    crewWages: "Crew wages",
+    trackMaintenance: "Track upkeep",
+    trackWear: "Track wear",
+    stationMaintenance: "Stations & staff",
+    propertyTax: "Property tax",
+    incomeTax: "Income tax",
     breakdownRepairs: "Repairs",
+    /** Economic model v2: what each cost line is (shown on hover / in Help). */
+    costNotes: {
+      trainMaintenance: "Coal, oil, water and depot servicing for every locomotive",
+      crewWages:
+        "Drivers, firemen and guards — bigger trains need bigger crews, and wages rise faster than prices",
+      trackMaintenance:
+        "Platelayers' wages plus ballast, sleepers and rail for every tile; double track and catenary cost more",
+      trackWear: "Rail wear caused by the trains that ran: heavy, fast, loaded trains wear it most",
+      stationMaintenance: "Building upkeep plus the station staff's wages",
+      propertyTax: "Local tax on the book value of your track, stations and improvements",
+      incomeTax:
+        "Corporate tax on the year's operating profit (from the 1910s; losses carry forward)",
+      breakdownRepairs:
+        "Repair crews' wages for the distance driven from the nearest Engine Shed, plus parts",
+    },
     interest: "Interest",
     construction: "Construction",
     rollingStock: "Rolling stock",
@@ -574,6 +603,12 @@ export const strings = {
       discovery: (cargo: string, nearName: string) => `${cargo} discovered near ${nearName}`,
       goalCompleted: (tierName: string, description: string) =>
         `${tierName} goal reached: ${description}`,
+      /** Economic model v2: other transport arrives (docs/SPEC.md §9). */
+      competition: {
+        road: "Motor buses now compete on short routes — short passenger and mail trips lose fares",
+        truck: "Motor lorries now compete for short-haul freight — bulk cargo is less affected",
+        air: "Airlines now compete for long-distance passengers — fast trains keep more of them",
+      },
     },
   },
   goals: {

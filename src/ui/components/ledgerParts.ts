@@ -32,14 +32,30 @@ export function incomeParts(period: LedgerPeriod): StackedBarPart[] {
 }
 
 /** Costs in graded steel-blue tints (Phase 28B: the old `--signal` reds clashed with the Mail colour). */
-const COST_TINTS = ["#6f8aa6", "#8aa1b8", "#5a7490", "#a4b6c8", "#485d75", "#c0cdda", "#374a5e"];
+const COST_TINTS = [
+  "#6f8aa6",
+  "#8aa1b8",
+  "#5a7490",
+  "#a4b6c8",
+  "#485d75",
+  "#c0cdda",
+  "#374a5e",
+  "#7d95ad",
+  "#9bb0c4",
+  "#506a85",
+  "#b2c2d2",
+];
 
 export function costParts(period: LedgerPeriod): StackedBarPart[] {
   const f = strings.finance;
   const rows: Array<[string, string, number]> = [
     ["trainMaintenance", f.trainMaintenance, period.trainMaintenance],
+    ["crewWages", f.crewWages, period.crewWages],
     ["trackMaintenance", f.trackMaintenance, period.trackMaintenance],
+    ["trackWear", f.trackWear, period.trackWear],
     ["stationMaintenance", f.stationMaintenance, period.stationMaintenance],
+    ["propertyTax", f.propertyTax, period.propertyTax],
+    ["incomeTax", f.incomeTax, period.incomeTax],
     ["breakdownRepairs", f.breakdownRepairs, period.breakdownRepairs],
     ["interest", f.interest, period.interest],
     ["construction", f.investmentLabel(f.construction), period.construction],
@@ -51,5 +67,6 @@ export function costParts(period: LedgerPeriod): StackedBarPart[] {
     label,
     color: COST_TINTS[i % COST_TINTS.length]!,
     display: formatMoney(value),
+    ...(key in f.costNotes ? { note: f.costNotes[key as keyof typeof f.costNotes] } : {}),
   }));
 }

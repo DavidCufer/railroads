@@ -8,7 +8,13 @@ import type { GameMap } from "../sim/map/types";
 import { TrackGraph } from "../sim/track/graph";
 import { computeStationEconomies } from "../sim/stations/economy";
 import { destinationCounts } from "../sim/stations/destinations";
-import type { SerializedGameMapV1, SerializedGameStateV3, SerializedTrainV3 } from "./format";
+import { emptyLedgerPeriod, type LedgerPeriod } from "../data/finance";
+import type {
+  SerializedFinanceStateV1,
+  SerializedGameMapV1,
+  SerializedGameStateV3,
+  SerializedTrainV3,
+} from "./format";
 import {
   decodeFloat32Array,
   decodeInt16Array,
@@ -96,6 +102,19 @@ export function serializeGameState(state: GameState): SerializedGameStateV3 {
   };
 }
 
+/** Ledger periods saved before Economic model v2 lack the wage, wear and tax lines — read them as zero
+ * (no version bump, like the other optional fields added since v4). */
+function normalizeFinance(f: SerializedFinanceStateV1): GameState["finance"] {
+  const period = (p: LedgerPeriod): LedgerPeriod => ({ ...emptyLedgerPeriod(), ...p });
+  return {
+    ...f,
+    thisMonth: period(f.thisMonth),
+    thisYear: period(f.thisYear),
+    lastYear: period(f.lastYear),
+    monthHistory: (f.monthHistory ?? []).map(period),
+  };
+}
+
 export function deserializeGameState(data: SerializedGameStateV3): GameState {
   const map = deserializeMap(data.map);
   const trackGraph = new TrackGraph();
@@ -129,7 +148,7 @@ export function deserializeGameState(data: SerializedGameStateV3): GameState {
     stationCargo: entriesMap(data.stationCargo),
     stationTransfer: entriesMap(data.stationTransfer ?? []),
     industryEconomy: entriesMap(data.industryEconomy),
-    finance: { ...data.finance, monthHistory: data.finance.monthHistory ?? [] },
+    finance: normalizeFinance(data.finance),
     pendingDeliveries: data.pendingDeliveries,
     news: data.news,
     nextNewsId: data.nextNewsId,

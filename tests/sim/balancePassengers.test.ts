@@ -2,21 +2,10 @@
  * balance report (docs/BALANCE.md), 1900 atlantic, Normal difficulty, 100 km. */
 import { describe, expect, it } from "vitest";
 import { CARGO } from "../../src/data/cargo";
-import { measureRoute as measureOne, type RouteSpec, type RouteResult } from "./balanceRoutes";
+import { measureMean } from "./balanceRoutes";
 import { destinationCounts, destinationSupplyMult } from "../../src/sim/stations/destinations";
 
-/** Mean over a few seeds: breakdown dice make a single run noisy by ±15%. */
-function measureRoute(spec: RouteSpec): RouteResult {
-  const runs = [1, 2, 3].map((seed) => measureOne({ ...spec, seed }));
-  const mean = (f: (r: RouteResult) => number): number =>
-    runs.reduce((a, r) => a + f(r), 0) / runs.length;
-  return {
-    revenue: mean((r) => r.revenue),
-    profit: mean((r) => r.profit),
-    cars: runs[0]!.cars,
-    fullTripRevenue: runs[0]!.fullTripRevenue,
-  };
-}
+const measureRoute = measureMean;
 
 const ERA = { year: 1900, loco: "atlantic-4-4-2" };
 

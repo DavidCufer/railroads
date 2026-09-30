@@ -395,11 +395,11 @@ describe("Phase 7.1 balance acceptance", () => {
     expect(yr2 as number).toBeLessThan(120_000);
   });
 
-  it("a good two-city passenger route earns $80k-$200k profit/yr/train (Normal)", () => {
+  it("a good two-city passenger route earns $80k-$260k profit/yr/train (Normal, 1848 fares still at the early premium)", () => {
     const state = buildPassengerRoute(16 * WORLD_SCALE, 40_000, 4);
     const [, yr2] = yearlyProfits(state, 2);
     expect(yr2 as number).toBeGreaterThan(80_000);
-    expect(yr2 as number).toBeLessThan(200_000);
+    expect(yr2 as number).toBeLessThan(260_000);
   });
 
   it("passenger/freight profit-per-train ratio for comparable routes is within 1x-2.5x", () => {

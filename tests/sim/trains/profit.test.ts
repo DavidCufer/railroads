@@ -29,8 +29,9 @@ describe("per-train books", () => {
     recordTrainRepair(train, 400);
     monthlyFinanceStep(state);
     expect(train.profit.thisYear.running).toBeGreaterThan(0);
+    expect(train.profit.thisYear.wages).toBeGreaterThan(0); // the crew is paid
     expect(booksProfit(train.profit.thisYear)).toBeCloseTo(
-      5000 - 400 - train.profit.thisYear.running,
+      5000 - 400 - train.profit.thisYear.running - (train.profit.thisYear.wages ?? 0),
     );
     expect(train.lifetimeRevenue).toBe(5000);
 

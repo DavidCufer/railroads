@@ -13,30 +13,28 @@ import {
   OPERATING_HISTORY_MONTHS,
   NET_WORTH_CONSTRUCTION_FRACTION,
   emptyLedgerPeriod,
-  earlyUpkeepFactor,
-  eraInflation,
+  ledgerOperatingProfit,
   type LedgerPeriod,
 } from "../../data/finance";
-import {
-  MAINTENANCE_BRIDGE,
-  MAINTENANCE_DOUBLE,
-  MAINTENANCE_ELECTRIFIED_SURCHARGE,
-  MAINTENANCE_SINGLE,
-} from "../../data/track";
-import { STATION_TYPE_DEFS } from "../../data/stations";
-import {
-  locomotiveById,
-  OBSOLESCENCE_AGE_YEARS,
-  OBSOLESCENCE_MAINTENANCE_MULT,
-  STEAM_MAINTENANCE_SURCHARGE_MULT,
-  STEAM_MAINTENANCE_SURCHARGE_YEAR,
-  type LocomotiveDef,
-} from "../../data/trains";
+import { locomotiveById } from "../../data/trains";
 import type { CargoType } from "../../data/cargo";
 import { calendarFromTicks, DAYS_PER_YEAR, HOURS_PER_DAY } from "../time";
 import type { GameState } from "../state";
-import { recordTrainRunning, rollTrainYear } from "../trains/profit";
+import {
+  recordTrainRunning,
+  recordTrainWages,
+  recordTrainWear,
+  rollTrainYear,
+} from "../trains/profit";
+import {
+  locoRunningCostPerYear,
+  stationMonthlyCost,
+  trackEdgeMonthlyCost,
+  trainWagesPerYear,
+  wearCostPerUnit,
+} from "./costs";
 import { NET_WORTH_HISTORY_MAX_SAMPLES } from "./types";
+import { PROPERTY_TAX_RATE, incomeTaxRate } from "../../data/economy";
 
 type ExpenseCategory = Exclude<keyof LedgerPeriod, "passengers" | "mail" | "freight">;
 
@@ -50,19 +48,6 @@ export function addRevenue(state: GameState, cargo: CargoType, amount: number): 
 export function addExpense(state: GameState, category: ExpenseCategory, amount: number): void {
   state.finance.thisMonth[category] += amount;
   state.finance.thisYear[category] += amount;
-}
-
-/** Maintenance multiplier from obsolescence (SPEC §7.6): +50% once a model is more than 25 years
- * past its introduction, and steam pays +50% after 1955 regardless of age — the *higher* of the
- * two applies (not stacked/multiplied together, since SPEC lists them as two separate triggers for
- * the same "maintenance costs more as it ages/the era moves on" idea, not compounding penalties). */
-function maintenanceMultiplier(loco: LocomotiveDef, ageYears: number, year: number): number {
-  let mult = 1;
-  if (ageYears > OBSOLESCENCE_AGE_YEARS) mult = Math.max(mult, OBSOLESCENCE_MAINTENANCE_MULT);
-  if (loco.type === "steam" && year > STEAM_MAINTENANCE_SURCHARGE_YEAR) {
-    mult = Math.max(mult, STEAM_MAINTENANCE_SURCHARGE_MULT);
-  }
-  return mult;
 }
 
 /** Locomotive/car value, depreciating from purchase price (SPEC §9.3: "5%/year, min 10%"). */
@@ -98,37 +83,42 @@ export function computeCreditLimit(state: GameState): number {
 /** Monthly maintenance, interest, bankruptcy check, and the chart's monthly sample (SPEC §9). */
 export function monthlyFinanceStep(state: GameState): void {
   const year = calendarFromTicks(state.startYear, state.ticks).year;
-  const inflation = eraInflation(year) * earlyUpkeepFactor(year);
   const diff = DIFFICULTY[state.difficulty];
 
   let trackMaint = 0;
-  for (const edge of state.trackGraph.allEdges()) {
-    trackMaint += edge.double ? MAINTENANCE_DOUBLE : MAINTENANCE_SINGLE;
-    if (edge.electrified) trackMaint += MAINTENANCE_ELECTRIFIED_SURCHARGE;
-    if (edge.bridge) trackMaint += MAINTENANCE_BRIDGE[edge.bridge];
-  }
-  trackMaint *= inflation;
+  for (const edge of state.trackGraph.allEdges()) trackMaint += trackEdgeMonthlyCost(edge, year);
 
   let stationMaint = 0;
   for (const station of state.stations)
-    stationMaint += STATION_TYPE_DEFS[station.type].monthlyMaintenance;
-  stationMaint *= inflation;
+    stationMaint += stationMonthlyCost(station.type, year).total;
 
   let trainMaint = 0;
+  let crewWages = 0;
+  let trackWear = 0;
   for (const train of state.trains) {
     const loco = locomotiveById(train.locoModelId);
     if (!loco) continue;
     const ageYears = (state.ticks - train.purchaseTick) / (HOURS_PER_DAY * DAYS_PER_YEAR);
-    const own =
-      (loco.maintenancePerYear / 12) * maintenanceMultiplier(loco, ageYears, year) * inflation;
-    trainMaint += own;
-    recordTrainRunning(train, own);
+    const running = locoRunningCostPerYear(loco, ageYears, year) / 12;
+    const wages = trainWagesPerYear(loco, train.cars.length, year) / 12;
+    trainMaint += running;
+    crewWages += wages;
+    recordTrainRunning(train, running);
+    recordTrainWages(train, wages);
+    const wear = (train.wearUnits ?? 0) * wearCostPerUnit(year);
+    train.wearUnits = 0;
+    trackWear += wear;
+    recordTrainWear(train, wear);
   }
 
   addExpense(state, "trackMaintenance", trackMaint);
   addExpense(state, "stationMaintenance", stationMaint);
   addExpense(state, "trainMaintenance", trainMaint);
-  state.cash -= trackMaint + stationMaint + trainMaint;
+  addExpense(state, "crewWages", crewWages);
+  const propertyTax = (state.finance.capitalInvested * PROPERTY_TAX_RATE * diff.taxMult) / 12;
+  addExpense(state, "propertyTax", propertyTax);
+  addExpense(state, "trackWear", trackWear);
+  state.cash -= trackMaint + stationMaint + trainMaint + crewWages + trackWear + propertyTax;
 
   if (state.finance.loans > 0) {
     const interest = state.finance.loans * (diff.interestRate / 12);
@@ -173,8 +163,28 @@ export function monthlyFinanceStep(state: GameState): void {
   state.finance.thisMonth = emptyLedgerPeriod();
 }
 
+/** Corporate income tax on the year that has just ended (Economic model v2): the rate of that year on the
+ * operating profit after interest, less losses carried forward. Booked into the closing year's ledger. */
+function chargeIncomeTax(state: GameState, taxYear: number): void {
+  const period = state.finance.thisYear;
+  const profit = ledgerOperatingProfit(period);
+  const carry = state.finance.taxLossCarry ?? 0;
+  if (profit <= 0) {
+    state.finance.taxLossCarry = carry - profit;
+    return;
+  }
+  const taxable = Math.max(0, profit - carry);
+  state.finance.taxLossCarry = Math.max(0, carry - profit);
+  const tax = taxable * incomeTaxRate(taxYear) * DIFFICULTY[state.difficulty].taxMult;
+  if (tax <= 0) return;
+  addExpense(state, "incomeTax", tax);
+  state.cash -= tax;
+}
+
 /** Rolls `thisYear` into `lastYear` at the year boundary (SPEC §9.2's "per year"). */
 export function yearlyFinanceRollover(state: GameState): void {
+  // The rollover runs in the first hour of the new year; the year being closed is the one before.
+  chargeIncomeTax(state, calendarFromTicks(state.startYear, Math.max(0, state.ticks - 1)).year);
   state.finance.lastYear = state.finance.thisYear;
   state.finance.thisYear = emptyLedgerPeriod();
   for (const train of state.trains) rollTrainYear(train);

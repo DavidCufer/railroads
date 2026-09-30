@@ -14,6 +14,7 @@ import { yearlyCityFoundingStep } from "./economy/founding";
 import { dailyGoalsStep, yearlyCargoDeliveredRollover } from "./economy/goalTracking";
 import { monthlyIndustryDynamicsStep } from "./economy/industryDynamics";
 import { monthlyIndustryStep } from "./economy/processing";
+import { COMPETITION_NEWS_YEARS } from "../data/economy";
 import { monthlyFinanceStep, yearlyFinanceRollover } from "./finance/ledger";
 import { pushNews } from "./news";
 import type { GameState } from "./state";
@@ -64,6 +65,9 @@ export function advanceOneHour(state: GameState): void {
     const year = calendarFromTicks(state.startYear, state.ticks).year;
     for (const loco of newlyAvailableLocomotives(state, year)) {
       pushNews(state, { kind: "newLocomotive", locoId: loco.id });
+    }
+    for (const mode of ["road", "truck", "air"] as const) {
+      if (COMPETITION_NEWS_YEARS[mode] === year) pushNews(state, { kind: "competition", mode });
     }
     yearlyWashoutStep(state);
     yearlyFinanceRollover(state);
