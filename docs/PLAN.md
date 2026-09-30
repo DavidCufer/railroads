@@ -994,3 +994,54 @@ templates can come later as a convenience):
       (e.g. slightly cheaper early running costs, better early loco capacity, or era-scaled rates) — rerun the report.
 - [ ] News text never shows "?" — fall back to "the line"/station name when a place lookup fails.
 - [ ] Toasts never cover an open panel's header (place them over the map area only).
+
+## Phase 28 — Play-test 1 fixes (docs/PLAYTEST-1.md)
+Source: the agent play-test (3 games, ~70 game years). Read the report first; bug numbers below refer to it.
+Two sessions after Phase 27 lands: **28A** (sim/economy) and **28B** (UX).
+
+### 28A — Deadlock-free stations, engine sheds, era balance
+- [ ] **Bug 1/2 platform deadlock — design decision:** platforms limit *simultaneous loading*, not physical entry.
+      A train may always enter its destination station; if all platforms are busy it waits in the station's yard
+      (holding tracks, unlimited, drawn as trains standing on sidings/approach beside the platforms) and loads in
+      FIFO order. Departure only needs the line path (§7.5), never a destination platform. So a train never holds a
+      platform while waiting to leave, and no platform cycle can form. Update SPEC §7.5. Regression test from the
+      report: seed 11, 18-tile line, N = 1…12 Atlantics alternating A→B/B→A on single and double track — throughput
+      must be non-decreasing up to the line's capacity and never drop to 0; ≥ 90 % of N−1 throughput at N = 2 ×
+      platforms. Extend the phantom-jam stress test with over-subscribed stations.
+- [ ] `noRoute` trains leave their platform (go to the yard) immediately and, after 30 days, are flagged in the stuck
+      indicator (28B); never block others.
+- [ ] **Bug 4**: a train must never be `moving` at speed 0 for > 5 days — find the cause (suspected one-tile stub next
+      to a station) and fix; add an invariant to the stress test.
+- [ ] **Bug 6 Engine Sheds**: buildable at any station ($30k era-scaled per SPEC §6.2); trains can be bought at any
+      station with a shed; repair crews dispatch from the nearest shed. Repair call-out cost `$3k + $40/tile`
+      (era-scaled), capped at $8k; breakdown −50 % applies to trains serviced at *any* shed. Target: repair spend ≤ 10 %
+      of revenue in every era (measure with the balance report).
+- [ ] **Early era (1830–1850)**: make it playable: halve pre-1860 station upkeep, and raise pre-1850 fares or cut early
+      running costs so a Norris on a 10-tile Town↔Town line returns ≥ 25 %/yr on its price, a Grasshopper on a
+      short line at least breaks even; freight before 1850 pays ≥ passengers per car. Rerun BALANCE.md.
+- [ ] **Late game & Hard**: bring 1900+ in line (today one Atlantic makes $500–900k/yr, costs are 5 % of revenue):
+      tune passenger/mail fares so late-era trains earn at most ~3× their price per year on good routes; track and
+      station upkeep scale with network size; Hard revenueMult 0.8 → 0.6 and higher interest; goal thresholds
+      (gold/silver) retuned from the balance report so they are real targets. Document the chosen numbers.
+- [ ] **Electrification** must be worth it: electric locos faster than their steam contemporaries (early-electric
+      ≥ 110 km/h), running cost −30 %, better reliability.
+- [ ] Frontier villages grow to ≥ 3,000 within 10 years while served; stop founding next to unused stations.
+- [ ] Update BALANCE.md with before/after and write the targets into balance tests.
+
+### 28B — UX from the play-test
+- [ ] **Stuck indicator**: top-bar ⚠ chip with a count of trains waiting > 10 days / noRoute / broken; tap cycles the
+      camera through them and opens the train panel. Traffic-jam news one per station pair.
+- [ ] **Modals never block**: Year-in-Review becomes a badge on the Finance button + a toast on Jan 1 (open from
+      Finance); new-locomotive cards collapse into one card listing all new engines; no modal may swallow a map drag.
+      Year-in-Review "Net profit" shows operating profit and investments separately; fix colour clash (Mail vs
+      Expenses) and sign formatting.
+- [ ] **Buy-train route step as a bottom sheet** (map stays visible above, ~40 % height), compact order list, plus
+      "Add stop" from a searchable station list as well as by tapping the map.
+- [ ] **Bulldoze**: highlight exactly the edges/objects that will be removed during the drag, with refund; explain
+      "$0" ("drag along a whole track piece"); allow removing a station (with confirm). Fix Bug 5 over-removal.
+- [ ] **Bug 3**: extending a line through a station at > 45° is refused (or shows a red "trains can't pass" marker).
+- [ ] **Station tool** defaults to Station, remembers the last type; type cards show platforms; hint "Terminal
+      recommended" when many trains use a station.
+- [ ] Discovery / founding news tappable → camera focuses the place. Bug 9: "Passengers + mail" suggestion fills all
+      car slots. Bug 10: regenerate closes panels. `user-select: none` on the HUD.
+- [ ] Screenshots of each change at 800×360; open and check them.
