@@ -944,3 +944,53 @@ Two parallel sessions: **26A** (sim/economy: 3, 4, 6) and **26B** (UI/render: 1,
       drawn as deep sea/"map edge" styling, not black.
 - [x] Screenshots: news with Clear all + collapsed item, the player's junction before/after, station Build tab, Help
       screen, map edge. Open and check each.
+
+## Phase 27 — Junction rules: every layout the player can build must render and interlock correctly
+Player report (Ljubljana Food Plant, 1843): a single-track branch and a crossing line meet a diagonal double-track
+main in one spot. Result: "strange junction, weird shapes, and trains pass through each other" (third screenshot:
+two trains overlapping where a diagonal line crosses the double track next to the branch). "Can this be solved in
+general, or do we need predefined junctions?"
+
+Reviewer's diagnosis: the free-form tile graph allows layouts whose *geometry* is not representable by our
+turnout/crossing model, and conflicts the sim can't see:
+- two diagonal edges can cross in the middle of a tile (A→B and C→D form an X) with **no shared node**, so neither
+  the 25A node claim nor block reservations know they conflict;
+- a single track can run through the lane clearance of a double track, or join it at a node where the main line
+  itself bends, or several turnouts/crossings can share one node or neighbouring nodes — too close for any clean
+  turnout geometry.
+Decision: solve it **in general with build-time rules + geometric conflict groups** (no predefined pieces needed;
+templates can come later as a convenience):
+
+### A. Build-time layout rules (commands.ts, with reasons and red preview like sharp turns)
+- [ ] No mid-tile crossings: a new diagonal edge may not cross an existing diagonal edge between nodes. Crossings are
+      only allowed **at a node**, straight-over (diamond: the two lines pass through the node without connecting).
+- [ ] Clearance: no edge may pass within the lane clearance of another track except where it connects to it (a new
+      single line next to a double line must keep ≥ 1 tile, or join it properly).
+- [ ] Junction geometry: a junction node needs its through line straight across the node (no junction on a bend of
+      the main line); at most one diverging leg per side per node; consecutive junction/crossing nodes on the same
+      line at least 2 tiles apart (room for the turnout curve). Double-track mains: a branch joins through the outer
+      lane's turnout (already rendered since 24B).
+- [ ] Rules apply to every building path (drag, quick build, upgrade to double, bulldoze-and-rebuild); existing saves
+      with violating layouts still load (flag them on the map with a warning marker; trains still interlock via B).
+- [ ] Unit tests for each rule with the player's layout reproduced: it is refused with a clear reason, and the
+      nearest legal alternative (join 2 tiles further along, cross at a node) builds.
+
+### B. Geometric conflict groups (sim)
+- [ ] Precompute from the track graph + lane geometry which edges/nodes physically overlap (shared node, crossing
+      segments, overlapping clearance incl. double-track lane offsets, turnout fans). Each overlap set is a conflict
+      group; the 25A dynamic claim works on conflict groups instead of single nodes, so *any* physical overlap is
+      exclusive. Recomputed when track changes; saved state unaffected.
+- [ ] Extend the phantom-jam stress test with random legal layouts that include crossings, wyes and branches off
+      double track, plus a render-geometry check: at every tick, no two trains' vehicle rectangles overlap anywhere
+      on the map (not just on nodes). This check must fail on today's main for the player's layout.
+
+### C. Render
+- [ ] With A in place, the turnout/crossing renderer only has to handle legal shapes: diamond crossings (90° and 45°),
+      turnouts off straight/diagonal single and double, wyes, crossovers between the two lanes of a double track.
+      Screenshot each at zoom 1.5/2 and open them; no overlapping tie fans, no rails drawn through the other lane.
+
+### D. Carry-overs
+- [ ] 1830s passenger trains lose money (BALANCE.md: Grasshopper on Town↔Town −6k/yr). Make the first decade playable
+      (e.g. slightly cheaper early running costs, better early loco capacity, or era-scaled rates) — rerun the report.
+- [ ] News text never shows "?" — fall back to "the line"/station name when a place lookup fails.
+- [ ] Toasts never cover an open panel's header (place them over the map area only).
