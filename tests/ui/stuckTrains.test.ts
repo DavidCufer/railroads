@@ -3,7 +3,7 @@ import { isTrainStuck, nextStuck, STUCK_WAIT_DAYS } from "../../src/ui/stuckTrai
 import type { Train } from "../../src/sim/trains/types";
 
 const train = (id: number, status: string, waitTicks = 0): Train =>
-  ({ id, status, waitTicks }) as unknown as Train;
+  ({ id, status, waitTicks, orders: [{}, {}] }) as unknown as Train;
 
 describe("stuck trains (Phase 28B)", () => {
   it("flags noRoute, stuck and broken, and long waits only", () => {
@@ -15,6 +15,9 @@ describe("stuck trains (Phase 28B)", () => {
   });
   it("ignores unknown statuses", () => {
     expect(isTrainStuck(train(1, "inYard"))).toBe(false);
+  });
+  it("flags a train left with fewer than two stops (a demolished station, Phase 29 B)", () => {
+    expect(isTrainStuck({ ...train(1, "moving"), orders: [{}] } as unknown as Train)).toBe(true);
   });
   it("cycles", () => {
     const list = [train(1, "noRoute"), train(2, "noRoute"), train(3, "noRoute")];

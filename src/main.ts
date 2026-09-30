@@ -410,6 +410,10 @@ function main(): void {
     openStationPanel(ui, state, stationId, {
       onBuyTrain: () => openBuyTrain(stationId),
       onOpenTrain: (trainId) => openTrainPanel(ui, state, trainId),
+      onDemolished: (tile) => {
+        refreshStationTiles();
+        trackRenderer.invalidateTiles([tile]);
+      },
     });
   }
 

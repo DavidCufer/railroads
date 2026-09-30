@@ -3,7 +3,7 @@ import "./gameWindow";
 
 /** Phase 29 A: explicit node routes — turnout, diamond, single slip and double slip render as real track, and the
  * player's case (a line joining a turnout node from the other side) keeps the turnout. */
-test.use({ deviceScaleFactor: 4 });
+test.use({ deviceScaleFactor: 2 });
 
 const PHONE_VIEWPORT = { width: 800, height: 360 };
 const shot = (name: string): string => `docs/screenshots/phase-29-${name}.png`;
@@ -176,5 +176,45 @@ test.describe("Phase 29 — node routes", () => {
         clip: { x: 300, y: 100, width: 200, height: 160 },
       });
     }
+  });
+});
+
+test.describe("Phase 29 — demolish station", () => {
+  test("Build tab: two-tap demolish removes the stop from the train's orders", async ({ page }) => {
+    await setup(page);
+    await clearArea(page, 40, 140, 20, 80);
+    await build(
+      page,
+      range(12, (i) => ({ x: 50 + i, y: 30 })),
+    );
+    await station(page, 50, 30, "depot");
+    await station(page, 55, 30, "station");
+    await station(page, 61, 30, "station");
+    const ids = await page.evaluate(() => window.__game!.getStations().map((s) => s.id));
+    await page.evaluate((ids) => {
+      const g = window.__game!;
+      const r = g.buyTrain(ids[0]!, "atlantic-4-4-2", ["passengers"]);
+      if (!r.ok) throw new Error(`buyTrain: ${r.reason}`);
+      g.setOrders(
+        r.trainId!,
+        ids.map((stationId) => ({ stationId, rule: "auto" })),
+      );
+    }, ids);
+    await page.evaluate((id) => window.__game!.debugOpenStation(id), ids[1]!);
+    await page.locator(".tab", { hasText: "Build" }).click();
+    const btn = page.locator(".station-demolish-btn");
+    await btn.scrollIntoViewIfNeeded();
+    await expect(page.locator(".station-demolish-note")).toContainText("1 train stops here");
+    await page.screenshot({ path: shot("demolish-station-panel") });
+    await btn.click();
+    await expect(btn).toContainText("Tap again");
+    await page.screenshot({ path: shot("demolish-station-armed") });
+    await btn.click();
+    await expect(page.locator(".panel")).toHaveCount(0);
+    const after = await page.evaluate(() => ({
+      stations: window.__game!.getStations().length,
+      orders: window.__game!.getTrains()[0]!.orders.length,
+    }));
+    expect(after).toEqual({ stations: 2, orders: 2 });
   });
 });

@@ -16,6 +16,7 @@ const WAITING = new Set<string>(["waitingForBlock", "waitingForStation"]);
 export function isTrainStuck(train: Train): boolean {
   const status: string = train.status;
   if (ALWAYS_FLAGGED.has(status)) return true;
+  if (train.orders.length < 2) return true; // a stop was demolished from its orders (Phase 29 B)
   return WAITING.has(status) && train.waitTicks > STUCK_WAIT_DAYS * HOURS_PER_DAY;
 }
 

@@ -21,6 +21,7 @@ export type NewsPayload =
   | { kind: "trafficJam"; tile: number; toStationId?: number | undefined }
   | { kind: "noRoute"; trainId: number; stationId: number }
   | { kind: "undeliverable"; trainId: number; cargo: CargoType; cars: number }
+  | { kind: "stationDemolished"; name: string; trains: number }
   | { kind: "cityGrowth"; cityId: number; tier: CityTier }
   | { kind: "civicInvestment"; cityId: number }
   | { kind: "cityFounded"; cityId: number }

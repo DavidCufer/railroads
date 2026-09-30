@@ -82,6 +82,8 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
         item.cars,
         CARGO[item.cargo].name.toLowerCase(),
       );
+    case "stationDemolished":
+      return strings.news.kinds.stationDemolished(item.name, item.trains);
     case "cityGrowth":
       return strings.news.kinds.cityGrowth(
         cityName(state, item.cityId),
@@ -140,6 +142,7 @@ const NEWS_ICONS: Record<NewsItem["kind"], { icon: IconName; tone: Tone }> = {
   trafficJam: { icon: "warning", tone: "signal" },
   noRoute: { icon: "warning", tone: "signal" },
   undeliverable: { icon: "warning", tone: "signal" },
+  stationDemolished: { icon: "trash", tone: "brass" },
   cityGrowth: { icon: "city", tone: "go" },
   civicInvestment: { icon: "coin", tone: "go" },
   cityFounded: { icon: "village", tone: "go" },

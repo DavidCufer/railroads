@@ -27,6 +27,8 @@ import {
   computeWaterTowerPlan,
   renameStation,
   upgradeStation,
+  demolishStation,
+  stationRefund,
 } from "../sim/commands";
 import { previewStationEconomy, stationStorageCap, type StationEconomy } from "../sim/stations";
 import type { Station } from "../sim/stations/types";
@@ -446,6 +448,7 @@ function buildTab(
   state: GameState,
   station: Station,
   render: () => void,
+  handlers?: StationPanelHandlers,
 ): Node[] {
   const stationId = station.id;
   const out: Node[] = [];
@@ -622,7 +625,58 @@ function buildTab(
       statsGrid(station.type, calendarFromTicks(state.startYear, state.ticks).year),
     ]),
   );
+  out.push(demolishButton(container, state, station, render, handlers));
   return out;
+}
+
+/** Station whose Demolish button has been tapped once (two-tap confirm: demolishing is irreversible). */
+let demolishArmed: number | null = null;
+
+function demolishButton(
+  container: HTMLElement,
+  state: GameState,
+  station: Station,
+  render: () => void,
+  handlers?: StationPanelHandlers,
+): Node {
+  const refund = formatMoney(stationRefund(state, station));
+  const users = state.trains.filter((t) => t.orders.some((o) => o.stationId === station.id)).length;
+  const armed = demolishArmed === station.id;
+  const p = strings.station.demolish;
+  const btn = footerButton({
+    icon: "trash",
+    label: armed ? p.confirm(refund) : p.label(refund),
+    kind: "danger",
+    className: "station-demolish-btn btn-danger",
+    onClick: () => {
+      if (!armed) {
+        demolishArmed = station.id;
+        window.setTimeout(() => {
+          if (demolishArmed === station.id) {
+            demolishArmed = null;
+            if (btn.isConnected) render();
+          }
+        }, 4000);
+        render();
+        return;
+      }
+      demolishArmed = null;
+      const result = demolishStation(state, station.id);
+      if (!result.ok) {
+        showToast(container, strings.build.reasons[result.reason], "warn");
+        render();
+        return;
+      }
+      closePanel();
+      handlers?.onDemolished?.(station.tile);
+    },
+  });
+  return h(
+    "div",
+    { className: "station-demolish" },
+    users > 0 ? h("p", { className: "station-demolish-note" }, p.note(users)) : null,
+    btn,
+  );
 }
 
 export interface StationPanelHandlers {
@@ -630,6 +684,8 @@ export interface StationPanelHandlers {
   onBuyTrain: () => void;
   /** Fired when the player taps a train in the panel's Trains list (STYLE §6). */
   onOpenTrain: (trainId: number) => void;
+  /** Fired after the station was demolished from the Build tab (the map redraws its tile). */
+  onDemolished?: (tile: number) => void;
 }
 
 /** Opens the management panel for an already-built station (Station or Info mode tap). The name
@@ -705,7 +761,7 @@ export function openStationPanel(
     } else if (tab === "trains") {
       body.push(trainsTab(state, station, handlers));
     } else {
-      body.push(...buildTab(container, state, station, render));
+      body.push(...buildTab(container, state, station, render, handlers));
     }
 
     const footer: Node[] = [];

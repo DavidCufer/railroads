@@ -419,6 +419,62 @@ export function removeStation(state: GameState, stationId: number): CommandResul
   return { ok: true, cost: -refund };
 }
 
+/**
+ * Demolishes a station from its panel (PLAN Phase 29 B): unlike the Bulldoze tap it does not refuse while trains
+ * stop there — every such stop is taken out of the trains' orders (a train left with fewer than two stops shows up
+ * in the stuck indicator), cargo waiting at the station is lost, the track stays and part of the price is refunded.
+ * Refused only for the last Engine Shed.
+ */
+export function demolishStation(state: GameState, stationId: number): CommandResult {
+  const station = state.stations.find((s) => s.id === stationId);
+  if (!station) return { ok: false, reason: "invalid-station" };
+  if (station.hasEngineShed && state.stations.filter((s) => s.hasEngineShed).length <= 1)
+    return { ok: false, reason: "last-engine-shed" };
+  let affected = 0;
+  for (const train of state.trains) {
+    const removedHere = (i: number): boolean => train.orders[i]?.stationId === stationId;
+    const touched = train.orders.some((o) => o.stationId === stationId);
+    if (touched) {
+      affected++;
+      let index = train.currentOrderIndex;
+      for (let i = 0; i < train.currentOrderIndex; i++) if (removedHere(i)) index--;
+      train.orders = train.orders.filter((o) => o.stationId !== stationId);
+      train.currentOrderIndex = train.orders.length > 0 ? index % train.orders.length : 0;
+    }
+    const atDemolished =
+      train.inYardOf === stationId || train.route[train.routeIndex] === station.tile;
+    if (train.inYardOf === stationId) {
+      delete train.inYardOf;
+      delete train.yardSince;
+    }
+    if (train.waitingForStationId === stationId) delete train.waitingForStationId;
+    if (train.sectionTargetStationId === stationId) delete train.sectionTargetStationId;
+    if (train.noRouteReportedStationId === stationId) delete train.noRouteReportedStationId;
+    if (train.waitingOn?.stationId === stationId) delete train.waitingOn;
+    // A train standing at (loading in) the station leaves for its next stop from the same tile.
+    if (atDemolished && train.status === "loading") {
+      train.route = [train.route[train.routeIndex] as number];
+      train.routeIndex = 0;
+      train.edgeProgress = 0;
+      train.status = "moving";
+      train.waitTicks = 0;
+      train.loadTicksLeft = -1;
+      train.loadExtraWaitDays = 0;
+    }
+  }
+  const refund = stationRefund(state, station);
+  pushNews(state, {
+    kind: "stationDemolished",
+    name: station.name,
+    trains: affected,
+  });
+  dropStation(state, station);
+  state.cash += refund;
+  state.trackVersion++;
+  refreshStationEconomy(state);
+  return { ok: true, cost: -refund };
+}
+
 // --- Stations (SPEC §6.1, §6.3) --------------------------------------------------------------
 
 /** Recomputes every station's cached supply/acceptance (SPEC §6.3) — call after any command that

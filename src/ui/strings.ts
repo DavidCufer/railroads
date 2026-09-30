@@ -146,6 +146,13 @@ export const strings = {
     quickBuild: "Quick build",
   },
   station: {
+    /** PLAN Phase 29 B: Build tab → Demolish station (two-tap confirm). */
+    demolish: {
+      label: (refund: string) => `Demolish station +${refund}`,
+      confirm: (refund: string) => `Tap again to demolish +${refund}`,
+      note: (trains: number) =>
+        `${trains} ${trains === 1 ? "train stops" : "trains stop"} here — the stop is removed from ${trains === 1 ? "its" : "their"} orders. Cargo waiting here is lost; the track stays.`,
+    },
     /** PLAN Phase 18 C: Warehouse transfer hub. */
     transferTitle: "Waiting for transfer",
     transferEmpty: "Warehouse: trains can leave any cargo here for another train to pick up",
@@ -608,6 +615,10 @@ export const strings = {
         `${trainName} has no route to ${stationName}`,
       undeliverable: (trainName: string, cars: number, cargo: string) =>
         `${trainName} carries ${cars} ${cars === 1 ? "car" : "cars"} of ${cargo} that no stop on its route accepts`,
+      stationDemolished: (name: string, trains: number) =>
+        trains === 0
+          ? `${name} was demolished`
+          : `${name} was demolished — removed from the orders of ${trains} ${trains === 1 ? "train" : "trains"}`,
       cityGrowth: (cityName: string, tierName: string) =>
         `${cityName} has grown into a ${tierName}!`,
       civicInvestment: (cityName: string) => `Civic Investment boosts growth in ${cityName}`,

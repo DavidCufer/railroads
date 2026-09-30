@@ -6,9 +6,10 @@ import type { Train } from "./types";
 export const NO_ROUTE_FLAG_DAYS = 30;
 export const WAITING_FLAG_DAYS = 10;
 
-export type StuckReason = "stuck" | "noRoute" | "waiting" | "broken";
+export type StuckReason = "stuck" | "noRoute" | "waiting" | "broken" | "fewStops";
 
 export function stuckReason(train: Train): StuckReason | undefined {
+  if (train.orders.length < 2) return "fewStops";
   const days = train.waitTicks / 24;
   switch (train.status) {
     case "stuck":
