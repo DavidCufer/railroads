@@ -255,4 +255,21 @@ describe("turnout off double track", () => {
       expect(branch.lane.halfWidthAt(s)).toBe(0);
     }
   });
+
+  it("draws a crossing (two straight pairs, any angle, single or double) with no connector arcs (PLAN Phase 27)", () => {
+    for (const double of [false, true]) {
+      const graph = new TrackGraph();
+      for (let x = 10; x < 20; x++) addEdge(graph, t(x, 20), t(x + 1, 20), double);
+      for (let i = 0; i < 10; i++) addEdge(graph, t(10 + i, 15 + i), t(11 + i, 16 + i));
+      expect(graph.neighborsOf(t(15, 20)).length).toBe(4);
+      const strands = buildTrackStrands({ mapWidth: W, graph, stationTiles: new Set() });
+      expect(strands.filter((s) => s.connector)).toEqual([]);
+    }
+    // A turnout (one straight pair plus one branch) still gets its connector.
+    const y = new TrackGraph();
+    for (let x = 10; x < 20; x++) addEdge(y, t(x, 20), t(x + 1, 20));
+    for (let i = 0; i < 4; i++) addEdge(y, t(15 + i, 20 + i), t(16 + i, 21 + i));
+    const strands = buildTrackStrands({ mapWidth: W, graph: y, stationTiles: new Set() });
+    expect(strands.some((s) => s.connector)).toBe(true);
+  });
 });

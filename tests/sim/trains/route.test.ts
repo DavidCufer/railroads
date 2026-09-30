@@ -208,4 +208,26 @@ describe("isElectrificationOnlyBlocker", () => {
     );
     expect(blocked).toBe(false);
   });
+
+  it("crosses a 45° X straight over: a train cannot turn from one line onto the other there (PLAN Phase 27)", () => {
+    const g = new TrackGraph();
+    addStraightLine(g, WIDTH, 2, 12, 10); // west-east through (7,10)
+    for (let i = 0; i < 9; i++) addEdge(g, WIDTH, 3 + i, 6 + i, 4 + i, 7 + i); // diagonal through (7,10)
+    const cross = tile(WIDTH, 7, 10);
+    expect(g.neighborsOf(cross).length).toBe(4);
+    // Straight over works, turning onto the diagonal (a legal 45° bend elsewhere) does not.
+    expect(
+      findTrainRoute(WIDTH, g, tile(WIDTH, 2, 10), tile(WIDTH, 12, 10), baseOptions()),
+    ).not.toBeNull();
+    expect(
+      findTrainRoute(WIDTH, g, tile(WIDTH, 2, 10), tile(WIDTH, 11, 14), baseOptions()),
+    ).toBeNull();
+    // With one line missing its far arm the same node is an ordinary turnout and turning is fine.
+    const h = new TrackGraph();
+    addStraightLine(h, WIDTH, 2, 12, 10);
+    for (let i = 0; i < 5; i++) addEdge(h, WIDTH, 7 + i, 10 + i, 8 + i, 11 + i);
+    expect(
+      findTrainRoute(WIDTH, h, tile(WIDTH, 2, 10), tile(WIDTH, 11, 14), baseOptions()),
+    ).not.toBeNull();
+  });
 });

@@ -29,6 +29,7 @@
  */
 import { DIRS8 } from "../sim/map/grid";
 import { directionSteps, edgeKey, type TrackGraph } from "../sim/track/graph";
+import { legsFormCrossing } from "../sim/track/turn";
 import { directionBetween } from "../sim/trains/geometry";
 import {
   DOUBLE_TRACK_SPACING_TILES,
@@ -408,6 +409,8 @@ export function buildTrackStrands(env: GeomEnv): Strand[] {
     const neighbors = graph.neighborsOf(j).sort((p, q) => p - q);
     if (neighbors.length < 3 || stationTiles.has(j)) continue;
     const dirs = neighbors.map((n) => awayDir(j, n, mapWidth));
+    // A crossing (two straight pairs) has no connector arcs: the lines run straight over each other.
+    if (legsFormCrossing(dirs)) continue;
     const through = dirs.map((d, i) =>
       dirs.some((d2, i2) => i2 !== i && directionSteps(d, d2) === 4),
     );

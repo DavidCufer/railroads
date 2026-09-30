@@ -9,7 +9,7 @@
 import type { WeightClass } from "../../data/trains";
 import { WOODEN_BRIDGE_MAX_WEIGHT_CLASS } from "../../data/track";
 import { directionSteps, type TrackGraph } from "../track/graph";
-import { turnAllowed } from "../track/turn";
+import { isCrossingNode, turnAllowed } from "../track/turn";
 import { directionBetween, edgeLengthTiles, octileTileDistance } from "./geometry";
 
 const WEIGHT_ORDER: readonly WeightClass[] = ["light", "medium", "heavy"];
@@ -154,6 +154,14 @@ export function findTrainRoute(
         const isStation = options.stationTiles.has(current.tile);
         const reversal = directionSteps(current.dir, dirOut) === 4;
         if (!turnAllowed(current.dir, dirOut) && !(isStation && reversal)) continue;
+        // A crossing (two straight pairs) is crossed straight over; lines do not connect there.
+        if (
+          !isStation &&
+          dirOut !== current.dir &&
+          graph.neighborsOf(current.tile).length === 4 &&
+          isCrossingNode(graph, current.tile)
+        )
+          continue;
       }
 
       const blockId = options.edgeToBlock?.get(

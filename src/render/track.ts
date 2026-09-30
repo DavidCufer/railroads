@@ -23,6 +23,7 @@ import {
   TIE_COLOR,
   TRACK_COLOR,
 } from "./palette";
+import { findExistingLayoutIssues } from "../sim/track/layout";
 import { hasSharpJunction } from "../sim/track/turn";
 import { directionBetween } from "../sim/trains/geometry";
 import type { TrackGraph } from "../sim/track/graph";
@@ -111,6 +112,8 @@ export class TrackRenderer {
   private stationTiles: ReadonlySet<number> = new Set();
   /** Lazily rebuilt strand decomposition of `graph` (dropped whenever the track or stations change). */
   private strands: Strand[] | null = null;
+  /** Tile-space centres of layout-rule breaks already in the graph (old saves, PLAN Phase 27 A). */
+  private layoutMarkers: Array<[number, number]> | null = null;
 
   constructor(mapWidth: number, mapHeight: number, graph: TrackGraph) {
     this.mapWidth = mapWidth;
@@ -124,6 +127,7 @@ export class TrackRenderer {
     this.graph = graph;
     this.stationTiles = new Set();
     this.strands = null;
+    this.layoutMarkers = null;
     this.cache.clear();
   }
 
@@ -133,6 +137,7 @@ export class TrackRenderer {
   setStations(stationTiles: ReadonlySet<number>): void {
     this.stationTiles = stationTiles;
     this.strands = null;
+    this.layoutMarkers = null;
     this.cache.clear();
   }
 
@@ -142,6 +147,7 @@ export class TrackRenderer {
    * too. */
   invalidateTiles(tiles: readonly number[]): void {
     this.strands = null;
+    this.layoutMarkers = null;
     const buckets: ZoomBucket[] = [1, 0.5, 0.25];
     const dropped = new Set<string>();
     for (const tile of tiles) {
@@ -165,6 +171,19 @@ export class TrackRenderer {
    * the Phase 12 memory-bounds e2e test. */
   get cacheSize(): number {
     return this.cache.size;
+  }
+
+  private getLayoutMarkers(): Array<[number, number]> {
+    this.layoutMarkers ??= findExistingLayoutIssues(
+      this.graph,
+      this.mapWidth,
+      this.stationTiles,
+    ).map((issue): [number, number] => {
+      const [x, y] = tileXY(issue.tile, this.mapWidth);
+      // A mid-tile crossing is reported at its cell's top-left tile: the crossing is the cell's centre.
+      return issue.kind === "midTileCrossing" ? [x + 1, y + 1] : [x + 0.5, y + 0.5];
+    });
+    return this.layoutMarkers;
   }
 
   private getStrands(): Strand[] {
@@ -291,6 +310,15 @@ export class TrackRenderer {
         if (x < rangeMinX || x > rangeMaxX || y < rangeMinY || y > rangeMaxY) continue;
         if (this.isDiamond(node)) this.drawDiamond(ctx, node, frame);
         else this.drawJunction(ctx, node, frame);
+      }
+      for (const [mx, my] of this.getLayoutMarkers()) {
+        if (mx < rangeMinX || mx > rangeMaxX + 1 || my < rangeMinY || my > rangeMaxY + 1) continue;
+        this.drawLayoutWarning(
+          ctx,
+          (mx - frame.originX) * frame.px,
+          (my - frame.originY) * frame.px,
+          frame.scale,
+        );
       }
     }
 
@@ -567,6 +595,25 @@ export class TrackRenderer {
         ctx.restore();
       }
     }
+  }
+
+  /** Warning ring on a junction that breaks the Phase 27 layout rules (only old saves have any). */
+  private drawLayoutWarning(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    scale: number,
+  ): void {
+    ctx.strokeStyle = "rgba(20, 10, 10, 0.85)";
+    ctx.lineWidth = Math.max(1.5, 2.6 * scale);
+    ctx.beginPath();
+    ctx.arc(x, y, 3.6 * scale, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = SHARP_TURN_MARKER_COLOR;
+    ctx.lineWidth = Math.max(1, 1.4 * scale);
+    ctx.beginPath();
+    ctx.arc(x, y, 3.6 * scale, 0, Math.PI * 2);
+    ctx.stroke();
   }
 
   private drawJunction(ctx: CanvasRenderingContext2D, node: number, f: Frame): void {

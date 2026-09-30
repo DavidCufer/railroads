@@ -100,3 +100,18 @@ export function findSharpSteps<T extends NewEdgeStep>(
   }
   return steps.filter((s) => bad.has(s));
 }
+
+/** PLAN Phase 27: a crossing node — four legs forming two straight-through pairs (a diamond at 90°, an X at
+ * 45°) — is crossed straight over: the two lines pass through without connecting, so no train may turn from
+ * one onto the other there (routing) and no connector arcs are drawn (rendering). Legs are outward DIRS8
+ * directions. A node with only one straight pair plus branches is an ordinary turnout, not a crossing. */
+export function legsFormCrossing(legs: readonly number[]): boolean {
+  if (legs.length !== 4) return false;
+  let pairs = 0;
+  for (const a of legs) if (legs.includes((a + 4) % 8)) pairs++;
+  return pairs === 4;
+}
+
+export function isCrossingNode(graph: TrackGraph, node: number): boolean {
+  return legsFormCrossing(outwardLegs(graph, node));
+}
