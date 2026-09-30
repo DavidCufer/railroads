@@ -27,6 +27,7 @@ import { STATION_TYPES } from "../../../src/data/stations";
 import type { GameState } from "../../../src/sim/state";
 import type { Train } from "../../../src/sim/trains/types";
 import { makeTestMap, makeTestState, tileAt } from "../track/helpers";
+import { describeOverlap, vehicleOverlapsNow } from "./geometryHelpers";
 import { makeCrossingWatch } from "./crossingHelpers";
 
 const BIG = process.env.STRESS_BIG === "1";
@@ -361,6 +362,8 @@ describe("phantom jam stress", () => {
           const c = collision(state);
           if (c) log.push(`tick ${state.ticks}: ${c}`);
           watchCrossings(state, log);
+          for (const o of vehicleOverlapsNow(state))
+            log.push(`tick ${state.ticks}: vehicles overlap: ${o} ${describeOverlap(state, o)}`);
         }
         checkInvariants(state, waited, log);
         if (process.env.TRACE) {
@@ -398,7 +401,7 @@ describe("phantom jam stress", () => {
       setStaleReservationReporter(undefined);
       setCrossingForcedReporter(undefined);
       expect(log.slice(0, 10)).toEqual([]);
-    }, 60_000);
+    }, 120_000);
   }
 });
 

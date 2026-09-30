@@ -56,12 +56,17 @@ export interface HeldBlock {
 
 /** A junction/crossing node a train has claimed (PLAN Phase 25A, src/sim/trains/crossing.ts). */
 export interface NodeClaim {
+  /** A junction node's tile index, or a mid-tile crossing's point id (`mapSize + cell`, see
+   * `src/sim/track/conflicts.ts`). */
   node: number;
   /** `train.distanceTraveled` value at which the head reaches the node. */
   atDistance: number;
   /** Route neighbours the train enters from / leaves to (-1 unknown). */
   inNode: number;
   outNode: number;
+  /** Tiles the claim is held before the head / after the tail (per-junction geometry, Phase 27 B);
+   * absent in older saves = `CROSSING_CLEARANCE_TILES`. */
+  clearance?: number;
 }
 
 /** What is currently keeping a train from departing (SPEC §7.5 wait-for graph, PLAN Phase 18 B).

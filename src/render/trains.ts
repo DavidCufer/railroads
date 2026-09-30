@@ -31,7 +31,7 @@ const DIR_ANGLE: readonly number[] = DIRS8.map(([dx, dy]) => Math.atan2(dy, dx))
 // "vehicles read too small at zoom 1") bumps every dimension ~20% and tightens the coupler gap to
 // ~1px. (Render-only sizing here — LOCO_LENGTH_TILES/CAR_LENGTH_TILES in data/trains.ts already
 // carry the 20% bump since the signaling model's tail-length math shares them.)
-const VEHICLE_WIDTH_TILES = 8.4 / TILE_SIZE;
+export const VEHICLE_WIDTH_TILES = 8.4 / TILE_SIZE;
 export const CAR_DRAW_LEN_TILES = 14.4 / TILE_SIZE;
 export const VEHICLE_GAP_TILES = 1 / TILE_SIZE;
 

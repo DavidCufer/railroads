@@ -22,6 +22,8 @@ import {
   LOCO_LENGTH_TILES,
 } from "../../data/trains";
 import type { GameState } from "../state";
+import { computeConflictMap, type ConflictMap } from "../track/conflicts";
+import { edgeKey } from "../track/graph";
 import { edgeLengthTiles } from "./geometry";
 import type { NodeClaim, Train } from "./types";
 
@@ -40,11 +42,32 @@ export function isConflictNode(
   return !stationTiles.has(node) && state.trackGraph.neighborsOf(node).length >= 3;
 }
 
+const conflictCache = new WeakMap<GameState, { version: number; map: ConflictMap }>();
+
+/** Geometric conflict points of the current track (PLAN Phase 27 B), recomputed when `trackVersion` changes. */
+export function getConflictMap(state: GameState): ConflictMap {
+  const hit = conflictCache.get(state);
+  if (hit && hit.version === state.trackVersion) return hit.map;
+  const map = computeConflictMap(
+    state.trackGraph,
+    new Set(state.stations.map((s) => s.tile)),
+    state.map.width,
+    state.map.height,
+  );
+  conflictCache.set(state, { version: state.trackVersion, map });
+  return map;
+}
+
 /** Whether two claims on the same node can coexist: opposing movements over the same pair of
  * legs on double track use separate lanes. */
 function compatible(state: GameState, node: number, a: NodeClaim, b: NodeClaim): boolean {
   if (a.inNode < 0 || a.outNode < 0 || b.inNode < 0 || b.outNode < 0) return false;
   if (a.inNode !== b.outNode || a.outNode !== b.inNode) return false;
+  // A mid-tile crossing point lies on the edge itself: opposing trains on its two lanes are apart.
+  if (node >= state.map.width * state.map.height) {
+    const e = state.trackGraph.getEdge(a.inNode, a.outNode);
+    return !!e && e.double;
+  }
   const e1 = state.trackGraph.getEdge(node, a.inNode);
   const e2 = state.trackGraph.getEdge(node, a.outNode);
   return !!e1 && !!e2 && e1.double && e2.double;
@@ -86,7 +109,7 @@ export function releaseClaims(train: Train): void {
   if (!claims || claims.length === 0) return;
   const tail = train.distanceTraveled - trainBodyLength(train);
   train.nodeClaims = claims.filter((c) => {
-    if (c.atDistance + CROSSING_CLEARANCE_TILES < tail) return false;
+    if (c.atDistance + (c.clearance ?? CROSSING_CLEARANCE_TILES) < tail) return false;
     if (c.atDistance > train.distanceTraveled + 1e-6) {
       return train.route.indexOf(c.node, train.routeIndex + 1) >= 0;
     }
@@ -113,25 +136,56 @@ export function updateCrossing(
   const length = trainBodyLength(train);
   const graph = state.trackGraph;
 
-  // Forward distance from the nose to route[i], for i > routeIndex (and 0 for the node under it).
-  let dist = 0;
+  // Conflict items ahead, in route order: junction nodes and mid-tile crossing points, each with its
+  // distance from the nose and its geometric clearance.
+  const conflicts = getConflictMap(state);
+  interface Item {
+    i: number;
+    node: number;
+    dist: number;
+    clearance: number;
+    inNode: number;
+    outNode: number;
+  }
+  const conflict: Item[] = [];
   const headEdge =
     train.routeIndex + 1 < route.length
       ? graph.getEdge(route[train.routeIndex] as number, route[train.routeIndex + 1] as number)
       : undefined;
-  const toNext = headEdge ? (1 - train.edgeProgress) * edgeLengthTiles(headEdge) : 0;
-  const nodes: Array<{ i: number; node: number; dist: number }> = [];
-  if (train.edgeProgress === 0)
-    nodes.push({ i: train.routeIndex, node: route[train.routeIndex] as number, dist: 0 });
-  dist = toNext;
-  for (let i = train.routeIndex + 1; i <= last; i++) {
-    if (dist > CROSSING_CLAIM_LOOKAHEAD_TILES + length * 4 + 8) break;
-    nodes.push({ i, node: route[i] as number, dist });
-    const e = graph.getEdge(route[i] as number, route[i + 1] as number);
+  let nodeDist = headEdge ? -train.edgeProgress * edgeLengthTiles(headEdge) : 0;
+  for (let i = train.routeIndex; i <= last; i++) {
+    const node = route[i] as number;
+    if (i > train.routeIndex && nodeDist > CROSSING_CLAIM_LOOKAHEAD_TILES + length * 4 + 8) break;
+    if (
+      (i > train.routeIndex || train.edgeProgress === 0) &&
+      isConflictNode(state, stationTiles, node)
+    )
+      conflict.push({
+        i,
+        node,
+        dist: Math.max(0, nodeDist),
+        clearance: conflicts.clearance.get(node) ?? CROSSING_CLEARANCE_TILES,
+        inNode: i > 0 ? (route[i - 1] as number) : -1,
+        outNode: i + 1 < route.length ? (route[i + 1] as number) : -1,
+      });
+    if (i >= last) break;
+    const e = graph.getEdge(node, route[i + 1] as number);
     if (!e) break;
-    dist += edgeLengthTiles(e);
+    const len = edgeLengthTiles(e);
+    for (const pt of conflicts.crossingsOnEdge.get(edgeKey(e.a, e.b)) ?? []) {
+      const d = nodeDist + (node === e.a ? pt.frac : 1 - pt.frac) * len;
+      if (d < -1e-9) continue; // the nose is already past it
+      conflict.push({
+        i,
+        node: pt.id,
+        dist: Math.max(0, d),
+        clearance: conflicts.clearance.get(pt.id) ?? CROSSING_CLEARANCE_TILES,
+        inNode: node,
+        outNode: route[i + 1] as number,
+      });
+    }
+    nodeDist += len;
   }
-  const conflict = nodes.filter((n) => isConflictNode(state, stationTiles, n.node));
 
   const previousWait = train.crossingWait;
   delete train.crossingWait;
@@ -148,7 +202,7 @@ export function updateCrossing(
       const next = conflict[k] as (typeof conflict)[number];
       if (
         next.dist - prev.dist >
-        length + CROSSING_CLAIM_LOOKAHEAD_TILES + 2 * CROSSING_CLEARANCE_TILES
+        length + CROSSING_CLAIM_LOOKAHEAD_TILES + prev.clearance + next.clearance
       )
         break;
       cluster.push(next);
@@ -167,11 +221,12 @@ export function updateCrossing(
     )
       continue;
 
-    const mine = cluster.map((c) => ({
+    const mine: NodeClaim[] = cluster.map((c) => ({
       node: c.node,
       atDistance: train.distanceTraveled + c.dist,
-      inNode: c.i > 0 ? (route[c.i - 1] as number) : -1,
-      outNode: c.i + 1 < route.length ? (route[c.i + 1] as number) : -1,
+      inNode: c.inNode,
+      outNode: c.outNode,
+      clearance: c.clearance,
     }));
     const blockers = new Set<number>();
     for (const other of state.trains) {
@@ -186,7 +241,7 @@ export function updateCrossing(
           if (oc.node === mc.node && !compatible(state, mc.node, mc, oc)) blockers.add(other.id);
       }
     }
-    const stopAt = first.dist - CROSSING_CLEARANCE_TILES;
+    const stopAt = first.dist - first.clearance;
     const leaderInTheWay = leaderHeadDist < first.dist;
     if (blockers.size === 0 && !leaderInTheWay) {
       claims.push(...mine);

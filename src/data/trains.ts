@@ -468,6 +468,14 @@ export const CROSSING_CLAIM_LOOKAHEAD_TILES = 4;
 /** A junction/crossing node is "occupied" from this far before the head reaches it until the tail
  * is this far past it; a waiting train stops this far short of the node. */
 export const CROSSING_CLEARANCE_TILES = 0.35;
+/** PLAN Phase 27 B: per-junction clearance is derived from the geometry of its legs (see
+ * `src/sim/track/conflicts.ts`) — two vehicle rectangles (`JUNCTION_VEHICLE_SEP_TILES`: drawn width 0.26 +
+ * margin) plus `JUNCTION_LANE_SEP_TILES` for each double-track leg (the lane offset), spread over the angle
+ * between the legs, clamped to this range. */
+export const JUNCTION_VEHICLE_SEP_TILES = 0.36;
+export const JUNCTION_LANE_SEP_TILES = 0.16;
+export const JUNCTION_CLEARANCE_MIN_TILES = 0.35;
+export const JUNCTION_CLEARANCE_MAX_TILES = 1.4;
 
 /** Engines slower than this (km/h) get the "slow engines lose the speed bonus on long routes" hint in the
  * Buy Train route step (Phase 26A; see docs/BALANCE.md: the 25 km/h grasshopper loses money on 200 km). */

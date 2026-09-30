@@ -51,6 +51,7 @@ import { trainBodyLength, updateCrossing } from "./crossing";
 import { applyPendingConsist, stepLoading } from "./loading";
 import { findTrainRoute } from "./route";
 import type { HeldBlock, Train, TrainOrder, TrainStatus } from "./types";
+import type { TrackEdge } from "../track/types";
 
 export interface TrainRuntime {
   trackVersion: number;
@@ -231,6 +232,13 @@ function holdsBlockFor(train: Train, runtime: TrainRuntime, a: number, b: number
   return blockId !== undefined && train.heldBlocks.some((hb) => hb.blockId === blockId);
 }
 
+/** True when `t`'s route has turned back on itself at or before its head (a terminal reversal): its
+ * odometer no longer measures where its tail is. */
+function hasReversed(t: Train): boolean {
+  for (let i = 1; i <= t.routeIndex; i++) if (t.route[i - 1] === t.route[i + 1]) return true;
+  return false;
+}
+
 /** The nearest same-direction leader ahead of `train` in the blocks it holds, with the clear gap
  * (tiles) between the follower's nose and the leader's tail. Uses each train's monotonic
  * `distanceTraveled` marks, so it also sees a leader in a block further along the follower's
@@ -256,10 +264,16 @@ export function nearestLeader(
           )
         )
           continue;
-        // Only the block the leader's head is actually in counts (a clamped, passed block would
-        // understate the gap).
+        // Only a block the leader still occupies counts: its head is in it, or its tail still is
+        // (a leader that has turned off at the block's end junction still has its tail on this line,
+        // and a follower that stopped short of the junction must not run into it — PLAN Phase 27 B).
         const into = t.distanceTraveled - hb.enteredAtDistance;
-        if (into < 0 || into > hb.lengthTiles) continue;
+        if (into < 0) continue;
+        if (
+          into > hb.lengthTiles &&
+          (hasReversed(t) || into - trainLengthTiles(t) > hb.lengthTiles)
+        )
+          continue;
         const headGap = mine.enteredAtDistance + into - train.distanceTraveled;
         if (headGap <= 0) continue;
         const gap = headGap - trainLengthTiles(t);
@@ -350,6 +364,29 @@ function blockEntryDirection(block: Block, a: number, b: number, mapWidth: numbe
   return directionBetween(nodes[last] as number, nodes[last - 1] as number, mapWidth);
 }
 
+/** Tiles between the end of `block` that edge `a -> b` is travelled away from and node `a` (0 when the
+ * block is a closed ring or the edge is not in it). Lets a remapped train whose tail sits mid-block
+ * record the block's *true* entry point, so `nearestLeader`'s "position in block" agrees between a
+ * remapped train and one that entered the block whole (they used to disagree by up to a block length,
+ * and a follower then ran into a stopped leader — PLAN Phase 27 B). */
+function distanceFromBlockEntry(block: Block, a: number, b: number): number {
+  if (block.nodeA === block.nodeB) return 0;
+  const k = block.edges.findIndex((e) => (e.a === a && e.b === b) || (e.a === b && e.b === a));
+  if (k === -1) return 0;
+  const nodes = [block.nodeA];
+  for (const edge of block.edges) {
+    const cur = nodes[nodes.length - 1] as number;
+    nodes.push(edge.a === cur ? edge.b : edge.a);
+  }
+  const forward = nodes[k] === a;
+  let d = 0;
+  if (forward) for (let i = 0; i < k; i++) d += edgeLengthTiles(block.edges[i] as TrackEdge);
+  else
+    for (let i = k + 1; i < block.edges.length; i++)
+      d += edgeLengthTiles(block.edges[i] as TrackEdge);
+  return d;
+}
+
 export function remapReservations(state: GameState, train: Train, runtime: TrainRuntime): void {
   const mapWidth = state.map.width;
   const held: HeldBlock[] = [];
@@ -414,7 +451,10 @@ export function remapReservations(state: GameState, train: Train, runtime: Train
       held.push({
         blockId,
         direction: blockEntryDirection(block, a, b, mapWidth),
-        enteredAtDistance: train.distanceTraveled + cumulative,
+        enteredAtDistance:
+          train.distanceTraveled +
+          cumulative -
+          (i === startIndex ? distanceFromBlockEntry(block, a, b) : 0),
         lengthTiles: block.lengthTiles,
       });
       lastBlockId = blockId;
@@ -482,7 +522,10 @@ function tryEnterSection(
       batch.push({
         blockId,
         direction: directionBetween(a, b, state.map.width),
-        enteredAtDistance: train.distanceTraveled + cumulative,
+        enteredAtDistance:
+          train.distanceTraveled +
+          cumulative -
+          (i === startIndex ? distanceFromBlockEntry(block, a, b) : 0),
         lengthTiles: block.lengthTiles,
       });
       lastBlockId = blockId;
