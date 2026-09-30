@@ -132,6 +132,8 @@ export const strings = {
     confirmUpgrade: "Upgrade",
     confirmElectrify: "Electrify",
     confirmBulldoze: "Bulldoze",
+    stationBendWarning: (name: string) =>
+      `Trains can stop at ${name} but can't run through it — the line bends too sharply there`,
     bulldozeHint: "Drag along a whole track piece",
     removeStation: "Remove",
     removeStationTitle: (name: string) => `Remove ${name}?`,

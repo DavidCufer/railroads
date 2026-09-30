@@ -107,6 +107,7 @@ import type { City } from "./sim/economy/types";
 import { findBuildPath } from "./sim/track/pathfind";
 import { directionIndex } from "./sim/track/graph";
 import { spanTilesBetween, validBridgeTypes } from "./sim/track/cost";
+import { findStationBends } from "./sim/track/layout";
 import { canPlaceStationAt, stationAtTile, stationCatchmentTiles } from "./sim/stations";
 import { terrainId } from "./sim/map/terrain";
 import { inBounds, tileIndex } from "./sim/map/grid";
@@ -589,6 +590,16 @@ function main(): void {
     ];
   }
 
+  /** Bug 3: a build that leaves a station on a bend trains can't run through is allowed, but says so. */
+  function warnStationBends(plan: BuildPlan): void {
+    if (!plan.valid) return;
+    const stationTileSet = new Set(state.stations.map((st) => st.tile));
+    const bends = findStationBends(state.trackGraph, state.map.width, stationTileSet, plan.toBuild);
+    const first = bends[0];
+    const station = first === undefined ? undefined : stationAtTile(state.stations, first);
+    if (station) showToast(ui, strings.build.stationBendWarning(station.name), "warn");
+  }
+
   /** Why `plan` is refused, if it breaks a build rule. */
   function planRuleReason(plan: BuildPlan): string | undefined {
     if (plan.sharpSteps.length > 0) return strings.build.reasons.sharpTurn;
@@ -825,6 +836,7 @@ function main(): void {
       if (dragState.mode === "track") {
         const reason = planRuleReason(dragState.plan as BuildPlan);
         if (reason) showToast(ui, reason, "warn");
+        else warnStationBends(dragState.plan as BuildPlan);
       }
       if (quickBuild) {
         commit();

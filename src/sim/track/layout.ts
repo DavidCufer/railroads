@@ -12,6 +12,11 @@
  *  3. **Junction spacing** — two junction nodes on one line must be ≥ `JUNCTION_MIN_SPACING_TILES`
  *     apart along it (room for the turnout curve).
  *
+ *  4. **Station bend** (PLAYTEST-1 Bug 3, a warning rather than a refusal: trains may still stop and reverse at
+ *     such a station) — a station tile whose track bends by more than 45° can't be run *through*; extending a
+ *     line out of a station at a sharper angle than it arrived strands every train that needs to pass it.
+ *     `findStationBends` lists them for the build warning and the map marker.
+ *
  * There is no separate clearance rule: on the 8-direction grid, edges that share no node are always ≥ 1/√2
  * tile apart (≥ 0.43 between the outer lanes of two double lines) and a vehicle is 0.26 wide, so the only
  * way for unconnected track to conflict is to cross (rule 1); connected track is rules 2–3 plus the
@@ -23,6 +28,7 @@
  */
 import { DIRS8 } from "../map/grid";
 import { directionSteps, type TrackGraph } from "./graph";
+import { legsConnect } from "./turn";
 import type { TrackEdge } from "./types";
 
 export const JUNCTION_MIN_SPACING_TILES = 2;
@@ -216,8 +222,32 @@ export function findLayoutViolations(
   return out;
 }
 
+/** Station nodes that a build of `steps` leaves (or makes) unpassable: two or more legs, one of which connects to
+ * none of the others within the 45° rule (Phase 28B, Bug 3). Pass no steps to check the graph as it is. */
+export function findStationBends(
+  graph: TrackGraph,
+  mapWidth: number,
+  stationTiles: ReadonlySet<number>,
+  steps: readonly LayoutStep[] = [],
+): number[] {
+  const view = new View(graph, mapWidth, steps);
+  const nodes = new Set<number>(
+    steps.length > 0 ? steps.flatMap((s) => [s.a, s.b]) : graph.allNodes(),
+  );
+  const out: number[] = [];
+  for (const node of nodes) {
+    if (!stationTiles.has(node)) continue;
+    const legs = legsOf(view, node);
+    if (legs.length < 2) continue;
+    if (legs.some((leg, i) => !legs.some((other, j) => i !== j && legsConnect(leg, other)))) {
+      out.push(node);
+    }
+  }
+  return out;
+}
+
 export interface ExistingLayoutIssue {
-  kind: LayoutViolationKind;
+  kind: LayoutViolationKind | "stationBend";
   tile: number;
 }
 
@@ -230,6 +260,7 @@ export function findExistingLayoutIssues(
   const issues: ExistingLayoutIssue[] = [];
   const view = new View(graph, mapWidth, []);
   for (const node of graph.allNodes()) {
+    if (stationTiles.has(node)) continue;
     if (!isJunction(view, stationTiles, node)) continue;
     const shape = junctionShape(legsOf(view, node));
     if (shape !== "ok")
@@ -255,6 +286,9 @@ export function findExistingLayoutIssues(
     if (e.b % mapWidth !== ax + 1) continue;
     if (graph.hasEdge(ay * mapWidth + ax + 1, (ay + 1) * mapWidth + ax))
       issues.push({ kind: "midTileCrossing", tile: ay * mapWidth + ax });
+  }
+  for (const tile of findStationBends(graph, mapWidth, stationTiles)) {
+    issues.push({ kind: "stationBend", tile });
   }
   return issues;
 }

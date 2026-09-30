@@ -1,7 +1,16 @@
 /** PLAN Phase 27 A: build-time junction layout rules, with the player's Ljubljana layout reproduced. */
 import { describe, expect, it } from "vitest";
-import { buildTrack, computeBuildPlan, upgradeTrack } from "../../../src/sim/commands";
-import { junctionShape, findExistingLayoutIssues } from "../../../src/sim/track/layout";
+import {
+  buildStation,
+  buildTrack,
+  computeBuildPlan,
+  upgradeTrack,
+} from "../../../src/sim/commands";
+import {
+  junctionShape,
+  findExistingLayoutIssues,
+  findStationBends,
+} from "../../../src/sim/track/layout";
 import type { GameState } from "../../../src/sim/state";
 import { makeTestMap, makeTestState, tileAt } from "./helpers";
 
@@ -29,6 +38,41 @@ function playerMain(): GameState {
   expect(buildTrack(s, P(s, row(5, 5, 9))).ok).toBe(true);
   return s;
 }
+
+describe("station bends (PLAN Phase 28B, PLAYTEST-1 Bug 3)", () => {
+  function terminus(): { s: GameState; st: ReadonlySet<number> } {
+    const s = world();
+    expect(buildTrack(s, P(s, row(10, 2, 10))).ok).toBe(true);
+    expect(buildStation(s, tileAt(s.map, 10, 10), "station").ok).toBe(true);
+    return { s, st: new Set([tileAt(s.map, 10, 10)]) };
+  }
+
+  it("flags an extension out of a station at more than 45° to how the line arrived", () => {
+    const { s, st } = terminus();
+    const sharp = P(s, [
+      [10, 10],
+      [10, 11],
+      [10, 12],
+    ]);
+    const plan = computeBuildPlan(s, sharp);
+    expect(findStationBends(s.trackGraph, N, st, plan.toBuild)).toEqual([tileAt(s.map, 10, 10)]);
+    // Still buildable (trains can stop and reverse there) — a warning, not a refusal.
+    expect(buildTrack(s, sharp).ok).toBe(true);
+    expect(findExistingLayoutIssues(s.trackGraph, N, st)).toContainEqual({
+      kind: "stationBend",
+      tile: tileAt(s.map, 10, 10),
+    });
+  });
+
+  it("straight and 45° extensions are fine", () => {
+    const a = terminus();
+    const straight = computeBuildPlan(a.s, P(a.s, row(10, 10, 14)));
+    expect(findStationBends(a.s.trackGraph, N, a.st, straight.toBuild)).toEqual([]);
+    const b = terminus();
+    const diagonal = computeBuildPlan(b.s, P(b.s, diag(10, 10, 4)));
+    expect(findStationBends(b.s.trackGraph, N, b.st, diagonal.toBuild)).toEqual([]);
+  });
+});
 
 describe("layout rules (PLAN Phase 27 A)", () => {
   it("refuses a diagonal line crossing the diagonal main mid-tile, next to the branch", () => {

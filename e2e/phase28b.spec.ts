@@ -334,3 +334,20 @@ test.describe("Phase 28B — bulldoze", () => {
     expect(left).toHaveLength(1);
   });
 });
+
+test.describe("Phase 28B — station on a bend", () => {
+  test("extending out of a station at a sharp angle warns that trains can't run through", async ({
+    page,
+  }) => {
+    await lineWithTrain(page);
+    await page.evaluate(() => window.__game!.setQuickBuild(true));
+    await centerOn(page, 62, 35, 2);
+    await page.getByRole("button", { name: "Track", exact: true }).click();
+    await dragTiles(page, { x: 64, y: 35 }, { x: 64, y: 37 }, true);
+    await expect(page.locator(".toast", { hasText: "run through" })).toBeVisible();
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: shot("station-bend") });
+    const edges = await page.evaluate(() => window.__game!.getTrackEdges().length);
+    expect(edges).toBe(12 + 2);
+  });
+});
