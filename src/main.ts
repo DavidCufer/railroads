@@ -89,9 +89,12 @@ import {
   computeUpgradePlan,
   electrifyTrack,
   refreshStationEconomy,
+  removeStation,
   repayLoan,
   sellTrain,
   setOrders,
+  stationRefund,
+  stationRemovalBlocker,
   takeLoan,
   upgradeTrack,
   type BuildPlan,
@@ -596,12 +599,19 @@ function main(): void {
   function updateDragVisuals(canvasX: number, canvasY: number): void {
     if (!dragState) return;
     const sharp = dragState.mode === "track" ? badSteps(dragState.plan as BuildPlan) : [];
+    const removal = dragState.mode === "bulldoze" ? (dragState.plan as BulldozePlan) : null;
     ghost = {
       mode: dragState.mode,
       path: dragState.path,
       ok: dragState.ok,
       ...(sharp.length > 0
         ? { badSegments: sharp.map((st) => [st.a, st.b] as [number, number]) }
+        : {}),
+      ...(removal
+        ? {
+            removeEdges: removal.edges.map((e) => [e.a, e.b] as [number, number]),
+            removeStationTiles: removal.stations.map((st) => st.tile),
+          }
         : {}),
     };
     showDragCostLabel(
@@ -612,6 +622,11 @@ function main(): void {
       dragState.ok,
       window.innerWidth,
       window.innerHeight,
+      removal && !dragState.ok
+        ? strings.build.bulldozeHint
+        : removal
+          ? `+${formatMoney(dragState.cost)}`
+          : undefined,
     );
   }
 
@@ -677,8 +692,53 @@ function main(): void {
       showToast(ui, strings.build.reasons[result.reason], "warn");
     } else {
       invalidateAlongPath(path);
+      if (mode === "bulldoze") refreshStationTiles();
     }
     cancelDrag();
+  }
+
+  /** Bulldoze + tap a station: explain if it can't go, else confirm with the refund (Phase 28B). */
+  function offerStationRemoval(station: Station): void {
+    const blocker = stationRemovalBlocker(state, station);
+    if (blocker) {
+      showToast(
+        ui,
+        blocker.reason === "station-in-use"
+          ? strings.build.stationInUse(station.name, blocker.trainNames)
+          : strings.build.reasons[blocker.reason],
+        "warn",
+      );
+      return;
+    }
+    const refund = stationRefund(state, station);
+    ghost = {
+      mode: "bulldoze",
+      path: [station.tile, station.tile],
+      ok: true,
+      removeEdges: [],
+      removeStationTiles: [station.tile],
+    };
+    showConfirmBar(ui, {
+      mode: "bulldoze",
+      cost: refund,
+      ok: true,
+      title: strings.build.removeStationTitle(station.name),
+      confirmLabel: strings.build.removeStation,
+      onConfirm: () => {
+        const result = removeStation(state, station.id);
+        if (!result.ok) showToast(ui, strings.build.reasons[result.reason], "warn");
+        else {
+          refreshStationTiles();
+          trackRenderer.invalidateTiles([station.tile]);
+        }
+        ghost = null;
+        hideConfirmBar();
+      },
+      onCancel: () => {
+        ghost = null;
+        hideConfirmBar();
+      },
+    });
   }
 
   function cancelDrag(): void {
@@ -719,9 +779,16 @@ function main(): void {
           existingAnyTrack: state.trackGraph,
         });
       } else if (dragState.mode === "bulldoze") {
-        // Bulldozing traces the raw tiles the finger passes over — no pathfinding, just remove
-        // whatever track already exists along the way.
-        path = bresenhamTiles(state.map.width, start, goal);
+        // Bulldozing follows the existing track between the two points (like Electrify) and removes
+        // exactly the edges along it (Phase 28B, Bug 5); a fingertip a tile off the rail snaps to it.
+        const from = snapToTrackNode(start);
+        const to = snapToTrackNode(goal);
+        path =
+          from !== null && to !== null
+            ? findBuildPath(state.map, from, to, currentYear(), {
+                existingAnyTrack: state.trackGraph,
+              })
+            : null;
       } else {
         // Prefer a route that obeys the 45° turn rule; if none exists, still show the best route
         // so the offending segment can be drawn red (buildTrack will refuse it, PLAN Phase 18 A).
@@ -745,6 +812,12 @@ function main(): void {
     onEnd: (committed) => {
       if (!dragState) return;
       hideDragCostLabel();
+      if (committed && dragState.mode === "bulldoze" && dragState.path.length < 2) {
+        const tapped = stationAtTile(state.stations, dragState.path[0] as number);
+        cancelDrag();
+        if (tapped) offerStationRemoval(tapped);
+        return;
+      }
       if (!committed || dragState.path.length < 2) {
         cancelDrag();
         return;
@@ -761,31 +834,27 @@ function main(): void {
     },
   };
 
-  function bresenhamTiles(mapWidth: number, from: number, to: number): number[] {
-    let x0 = from % mapWidth;
-    let y0 = Math.floor(from / mapWidth);
-    const x1 = to % mapWidth;
-    const y1 = Math.floor(to / mapWidth);
-    const dx = Math.abs(x1 - x0);
-    const dy = -Math.abs(y1 - y0);
-    const sx = x0 < x1 ? 1 : -1;
-    const sy = y0 < y1 ? 1 : -1;
-    let err = dx + dy;
-    const tiles: number[] = [y0 * mapWidth + x0];
-    for (let guard = 0; guard < mapWidth + Math.floor(from / mapWidth) + mapWidth * 2; guard++) {
-      if (x0 === x1 && y0 === y1) break;
-      const e2 = 2 * err;
-      if (e2 >= dy) {
-        err += dy;
-        x0 += sx;
+  /** `tile` itself if track meets it, else a track node among its 8 neighbours (nearest first), else null. */
+  function snapToTrackNode(tile: number): number | null {
+    const graph = state.trackGraph;
+    if (graph.edgesAt(tile).length > 0) return tile;
+    const w = state.map.width;
+    const x = tile % w;
+    const y = Math.floor(tile / w);
+    let best: number | null = null;
+    let bestD = Infinity;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if ((dx === 0 && dy === 0) || !inBounds(state.map, x + dx, y + dy)) continue;
+        const t = tileIndex(state.map, x + dx, y + dy);
+        const d = Math.abs(dx) + Math.abs(dy);
+        if (d < bestD && graph.edgesAt(t).length > 0) {
+          best = t;
+          bestD = d;
+        }
       }
-      if (e2 <= dx) {
-        err += dx;
-        y0 += sy;
-      }
-      tiles.push(y0 * mapWidth + x0);
     }
-    return tiles;
+    return best;
   }
 
   function setTool(tool: ToolId): void {

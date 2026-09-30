@@ -24,6 +24,10 @@ export interface GhostPreview {
   /** Segments (tile pairs) that break the 45° turn rule (PLAN Phase 18 A) — drawn as a heavy red
    * overlay so the player sees which part to redraw. */
   badSegments?: ReadonlyArray<readonly [number, number]>;
+  /** Bulldoze (Phase 28B): exactly the edges the drag will remove, and the tiles of stations removed with
+   * them. When set, these are drawn instead of the raw drag path. */
+  removeEdges?: ReadonlyArray<readonly [number, number]>;
+  removeStationTiles?: readonly number[];
 }
 
 function tileCenterWorld(tile: number, mapWidth: number): [number, number] {
@@ -50,6 +54,10 @@ export function drawBuildPreview(
 ): void {
   if (preview.path.length < 2) return;
   const color = modeColor(preview.mode, preview.ok);
+  if (preview.mode === "bulldoze" && preview.removeEdges) {
+    drawRemovalPreview(ctx, camera, viewportW, viewportH, mapWidth, preview);
+    return;
+  }
 
   ctx.save();
   ctx.lineCap = "round";
@@ -125,5 +133,60 @@ export function drawBuildPreview(
     ctx.stroke();
   }
 
+  ctx.restore();
+}
+
+/** Bulldoze ghost: the drag's route as a thin dashed guide, every edge that will go as a thick red line,
+ * and a ring on each station that goes with it (PLAN Phase 28B). */
+function drawRemovalPreview(
+  ctx: CanvasRenderingContext2D,
+  camera: Camera,
+  viewportW: number,
+  viewportH: number,
+  mapWidth: number,
+  preview: GhostPreview,
+): void {
+  const at = (tile: number): { x: number; y: number } => {
+    const [wx, wy] = tileCenterWorld(tile, mapWidth);
+    return camera.worldToScreen(wx, wy, viewportW, viewportH);
+  };
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.globalAlpha = 0.9;
+  ctx.setLineDash([4, 5]);
+  ctx.strokeStyle = "rgba(240, 240, 240, 0.55)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  preview.path.forEach((tile, i) => {
+    const s = at(tile);
+    if (i === 0) ctx.moveTo(s.x, s.y);
+    else ctx.lineTo(s.x, s.y);
+  });
+  ctx.stroke();
+  ctx.setLineDash([]);
+  const edges = preview.removeEdges ?? [];
+  if (edges.length > 0) {
+    for (const pass of [0, 1]) {
+      ctx.strokeStyle = pass === 0 ? "rgba(20, 10, 10, 0.9)" : GHOST_BULLDOZE_COLOR;
+      ctx.lineWidth = Math.max(pass === 0 ? 5 : 3, (pass === 0 ? 9 : 6) * camera.zoom);
+      ctx.beginPath();
+      for (const [a, b] of edges) {
+        const sa = at(a);
+        const sb = at(b);
+        ctx.moveTo(sa.x, sa.y);
+        ctx.lineTo(sb.x, sb.y);
+      }
+      ctx.stroke();
+    }
+  }
+  ctx.lineWidth = Math.max(2, 3 * camera.zoom);
+  ctx.strokeStyle = GHOST_BULLDOZE_COLOR;
+  for (const tile of preview.removeStationTiles ?? []) {
+    const s = at(tile);
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, Math.max(10, 18 * camera.zoom), 0, Math.PI * 2);
+    ctx.stroke();
+  }
   ctx.restore();
 }

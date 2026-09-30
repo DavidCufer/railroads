@@ -80,6 +80,9 @@ export type CommandReasonCode =
   | "nothing-to-bulldoze"
   | "station-no-track"
   | "station-occupied"
+  | "invalid-station"
+  | "station-in-use"
+  | "last-engine-shed"
   | "invalid-station-upgrade"
   | "invalid-station-name"
   | "no-engine-shed"
@@ -176,30 +179,83 @@ export function computeUpgradePlan(state: GameState, path: readonly number[]): U
 }
 
 export interface BulldozePlan {
+  /** Exactly the edges the drag removes (Phase 28B, Bug 5): those the path runs along. */
   edges: TrackEdge[];
+  /** Stations left with no track at all once `edges` are gone — removed with it. */
+  stations: Station[];
   refund: number;
   valid: boolean;
 }
 
-/** Prices `path` (the raw tiles a bulldoze drag passed over, not a built-track path) as a
- * Bulldoze-mode removal, without mutating state. Collects every edge incident to any dragged
- * tile — not just edges between *consecutive* tiles in `path` — so a bridge (whose endpoints are
- * graph nodes but whose spanned tiles aren't) is still removed as long as the drag crosses either
- * shore, and so is every edge at a junction the drag passes through. */
+/** Prices `path` (the tiles a bulldoze drag ran along the existing track) as a Bulldoze-mode removal,
+ * without mutating state. An edge is removed only when the path runs along it: its two tiles are
+ * consecutive in `path` (ordinary edges) or both on `path` (a bridge, whose spanned tiles aren't graph
+ * nodes). Edges merely meeting the path at a junction stay — dragging a one-tile stub beside a station
+ * no longer takes the main line with it (PLAYTEST-1 Bug 5). */
 export function computeBulldozePlan(state: GameState, path: readonly number[]): BulldozePlan {
-  if (path.length < 2) return { edges: [], refund: 0, valid: false };
+  const none: BulldozePlan = { edges: [], stations: [], refund: 0, valid: false };
+  if (path.length < 2) return none;
+  const width = state.map.width;
+  const indexOf = new Map<number, number>();
+  path.forEach((tile, i) => indexOf.set(tile, i));
   const seen = new Set<string>();
   const edges: TrackEdge[] = [];
-  for (const tile of path) {
-    for (const edge of state.trackGraph.edgesAt(tile)) {
+  path.forEach((tile, i) => {
+    for (const n of state.trackGraph.neighborsOf(tile)) {
+      const j = indexOf.get(n);
+      if (j === undefined) continue;
+      const adjacent =
+        Math.abs((tile % width) - (n % width)) <= 1 &&
+        Math.abs(Math.floor(tile / width) - Math.floor(n / width)) <= 1;
+      if (adjacent && Math.abs(i - j) !== 1) continue;
+      const edge = state.trackGraph.getEdge(tile, n);
+      if (!edge) continue;
       const key = `${edge.a}|${edge.b}`;
       if (seen.has(key)) continue;
       seen.add(key);
       edges.push(edge);
     }
+  });
+  if (edges.length === 0) return none;
+  const removedAt = new Map<number, number>();
+  for (const e of edges) {
+    removedAt.set(e.a, (removedAt.get(e.a) ?? 0) + 1);
+    removedAt.set(e.b, (removedAt.get(e.b) ?? 0) + 1);
   }
-  const refund = edges.reduce((sum, e) => sum + e.cost * BULLDOZE_REFUND_FRACTION, 0);
-  return { edges, refund, valid: edges.length > 0 };
+  const stations = state.stations.filter(
+    (st) =>
+      (removedAt.get(st.tile) ?? 0) > 0 &&
+      removedAt.get(st.tile) === state.trackGraph.edgesAt(st.tile).length,
+  );
+  const refund =
+    edges.reduce((sum, e) => sum + e.cost * BULLDOZE_REFUND_FRACTION, 0) +
+    stations.reduce((sum, st) => sum + stationRefund(state, st), 0);
+  return { edges, stations, refund, valid: true };
+}
+
+/** What removing `station` pays back: a fraction of its current build price (improvements are lost). */
+export function stationRefund(state: GameState, station: Station): number {
+  return stationCost(station.type, costContext(state)) * BULLDOZE_REFUND_FRACTION;
+}
+
+/** Why `station` can't be removed right now, or null: trains still stop there, or it is the last Engine Shed. */
+export function stationRemovalBlocker(
+  state: GameState,
+  station: Station,
+): { reason: "station-in-use" | "last-engine-shed"; trainNames: string[] } | null {
+  const users = state.trains.filter((t) => t.orders.some((o) => o.stationId === station.id));
+  if (users.length > 0) return { reason: "station-in-use", trainNames: users.map((t) => t.name) };
+  if (station.hasEngineShed && state.stations.filter((s) => s.hasEngineShed).length <= 1) {
+    return { reason: "last-engine-shed", trainNames: [] };
+  }
+  return null;
+}
+
+function dropStation(state: GameState, station: Station): void {
+  state.stations.splice(state.stations.indexOf(station), 1);
+  state.stationEconomy.delete(station.id);
+  state.stationCargo.delete(station.id);
+  state.stationTransfer.delete(station.id);
 }
 
 /** Builds plain single track along `path` (a sequence of ≥2 tile indices, as produced by
@@ -303,18 +359,38 @@ export function electrifyTrack(state: GameState, path: readonly number[]): Comma
   return { ok: true, cost: plan.cost };
 }
 
-/** Removes track along `path`'s edges, refunding 25% of each edge's recorded build cost
- * (SPEC §5.2). Edges not present are skipped silently (dragging past bare ground is fine). */
+/** Removes the track the drag ran along, refunding 25% of each edge's recorded build cost (SPEC §5.2),
+ * plus any station left with no track (refused while trains stop there — see `stationRemovalBlocker`). */
 export function bulldoze(state: GameState, path: readonly number[]): CommandResult {
   if (path.length < 2) return { ok: false, reason: "no-path" };
   const plan = computeBulldozePlan(state, path);
   if (!plan.valid) return { ok: false, reason: "nothing-to-bulldoze" };
+  for (const station of plan.stations) {
+    const blocker = stationRemovalBlocker(state, station);
+    if (blocker) return { ok: false, reason: blocker.reason };
+  }
 
   for (const edge of plan.edges) state.trackGraph.removeEdge(edge.a, edge.b);
+  for (const station of plan.stations) dropStation(state, station);
   state.cash += plan.refund;
   state.finance.capitalInvested -= plan.edges.reduce((sum, e) => sum + e.cost, 0);
-  if (plan.edges.length > 0) state.trackVersion++;
+  state.trackVersion++;
+  if (plan.stations.length > 0) refreshStationEconomy(state);
   return { ok: true, cost: -plan.refund };
+}
+
+/** Removes a station (Bulldoze tool, tap a station) and refunds part of its price; the track stays. */
+export function removeStation(state: GameState, stationId: number): CommandResult {
+  const station = state.stations.find((s) => s.id === stationId);
+  if (!station) return { ok: false, reason: "invalid-station" };
+  const blocker = stationRemovalBlocker(state, station);
+  if (blocker) return { ok: false, reason: blocker.reason };
+  const refund = stationRefund(state, station);
+  dropStation(state, station);
+  state.cash += refund;
+  state.trackVersion++; // the station no longer splits its block
+  refreshStationEconomy(state);
+  return { ok: true, cost: -refund };
 }
 
 // --- Stations (SPEC §6.1, §6.3) --------------------------------------------------------------

@@ -272,3 +272,65 @@ test.describe("Phase 28B — buy-train route sheet", () => {
     expect(trains[1]!.orders).toHaveLength(3);
   });
 });
+
+async function dragTiles(page: Page, from: P, to: P, release = false): Promise<void> {
+  const p1 = await page.evaluate(({ x, y }) => window.__game!.tileScreenPoint(x, y), from);
+  const p2 = await page.evaluate(({ x, y }) => window.__game!.tileScreenPoint(x, y), to);
+  await page.mouse.move(p1.x, p1.y);
+  await page.mouse.down();
+  await page.mouse.move(p2.x, p2.y, { steps: 8 });
+  await page.waitForTimeout(120);
+  if (release) await page.mouse.up();
+}
+
+test.describe("Phase 28B — bulldoze", () => {
+  test("highlights exactly what goes; a stub beside the line leaves the main line; empty drags explain $0", async ({
+    page,
+  }) => {
+    await lineWithTrain(page);
+    await page.evaluate(() => window.__game!.sellTrain(window.__game!.getTrains()[0]!.id));
+    await build(page, [
+      { x: 58, y: 35 },
+      { x: 59, y: 36 },
+    ]);
+    await centerOn(page, 58, 35, 2);
+    const edgesBefore = await page.evaluate(() => window.__game!.getTrackEdges().length);
+    await page.getByRole("button", { name: "Bulldoze", exact: true }).click();
+    // A drag over bare ground explains itself instead of a silent "$0".
+    await dragTiles(page, { x: 61, y: 37 }, { x: 63, y: 37 });
+    await expect(page.locator(".build-cost-label")).toContainText("whole track piece");
+    await page.screenshot({ path: shot("bulldoze-empty") });
+    await page.mouse.up();
+    // The stub drag: preview shows a refund, then the main line survives the removal.
+    await dragTiles(page, { x: 59, y: 36 }, { x: 58, y: 35 });
+    await expect(page.locator(".build-cost-label")).toContainText("+$");
+    await page.screenshot({ path: shot("bulldoze-stub") });
+    await page.mouse.up();
+    await page.locator(".confirm-bar-build").click();
+    await page.waitForTimeout(200);
+    const edgesAfter = await page.evaluate(() => window.__game!.getTrackEdges().length);
+    expect(edgesAfter).toBe(edgesBefore - 1);
+  });
+
+  test("tapping a station with Bulldoze asks to confirm; trains on its orders block it", async ({
+    page,
+  }) => {
+    const { b } = await lineWithTrain(page);
+    await centerOn(page, 62, 35, 1.5);
+    await page.getByRole("button", { name: "Bulldoze", exact: true }).click();
+    const p = await page.evaluate(() => window.__game!.tileScreenPoint(64, 35));
+    await page.mouse.click(p.x, p.y);
+    await expect(page.locator(".toast", { hasText: "orders" })).toBeVisible();
+    expect(await page.evaluate(() => window.__game!.getStations().length)).toBe(2);
+    await page.evaluate(() => window.__game!.sellTrain(window.__game!.getTrains()[0]!.id));
+    await page.waitForTimeout(3700);
+    await page.mouse.click(p.x, p.y);
+    await expect(page.locator(".confirm-bar")).toContainText("Remove");
+    await page.screenshot({ path: shot("bulldoze-station") });
+    await page.locator(".confirm-bar-build").click();
+    await page.waitForTimeout(200);
+    const left = await page.evaluate(() => window.__game!.getStations().map((s) => s.id));
+    expect(left).not.toContain(b);
+    expect(left).toHaveLength(1);
+  });
+});

@@ -1252,6 +1252,15 @@ button.chip {
   box-shadow: var(--shadow);
   z-index: 25;
 }
+.confirm-bar-title {
+  color: var(--paper);
+  font: 600 var(--fs-s) var(--font-display);
+  padding: 0 var(--gap-2);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .confirm-bar-cost {
   color: var(--text);
   font: 700 var(--fs-m) var(--font-ui);

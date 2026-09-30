@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 import { BULLDOZE_REFUND_FRACTION, DOUBLE_TRACK_UPGRADE_MULTIPLIER } from "../../src/data/track";
 import { LOAN_INCREMENT } from "../../src/data/finance";
 import {
+  buildStation,
   buildTrack,
   bulldoze,
+  computeBulldozePlan,
+  removeStation,
+  setOrders,
   creditLimit,
   repayLoan,
   takeLoan,
@@ -157,6 +161,59 @@ describe("bulldoze", () => {
     const result = bulldoze(state, dragTrace);
     expect(result.ok).toBe(true);
     expect(state.trackGraph.edgeCount).toBe(0);
+  });
+
+  it("removes only the edges the drag runs along, not the main line at a junction (Bug 5)", () => {
+    const map = makeTestMap(["ppppppppp", "ppppppppp"]);
+    const state = makeTestState(map);
+    // Main line along row 0, plus a one-tile stub from (4,0) down to (4,1).
+    buildTrack(
+      state,
+      [0, 1, 2, 3, 4, 5, 6, 7, 8].map((x) => tileAt(map, x, 0)),
+    );
+    const stubBuilt = buildTrack(state, [tileAt(map, 4, 0), tileAt(map, 5, 1)]);
+    expect(stubBuilt).toEqual({ ok: true, cost: expect.any(Number) });
+    expect(state.trackGraph.edgeCount).toBe(9);
+
+    const stub = [tileAt(map, 5, 1), tileAt(map, 4, 0)];
+    const plan = computeBulldozePlan(state, stub);
+    expect(plan.edges.length).toBe(1);
+    expect(bulldoze(state, stub).ok).toBe(true);
+    expect(state.trackGraph.edgeCount).toBe(8);
+    expect(state.trackGraph.hasEdge(tileAt(map, 3, 0), tileAt(map, 4, 0))).toBe(true);
+    expect(state.trackGraph.hasEdge(tileAt(map, 4, 0), tileAt(map, 5, 0))).toBe(true);
+  });
+
+  it("a drag that only touches a tile of track (no edge run along) removes nothing", () => {
+    const map = makeTestMap(["ppppp", "ppppp"]);
+    const state = makeTestState(map);
+    buildTrack(
+      state,
+      [0, 1, 2, 3, 4].map((x) => tileAt(map, x, 0)),
+    );
+    const plan = computeBulldozePlan(state, [tileAt(map, 2, 0), tileAt(map, 2, 1)]);
+    expect(plan.valid).toBe(false);
+  });
+
+  it("removes a station whose track goes, refusing while trains stop there", () => {
+    const map = makeTestMap(["ppppp"]);
+    const state = makeTestState(map);
+    const line = [0, 1, 2, 3, 4].map((x) => tileAt(map, x, 0));
+    buildTrack(state, line);
+    expect(buildStation(state, line[0] as number, "station").ok).toBe(true);
+    expect(buildStation(state, line[4] as number, "station").ok).toBe(true);
+    const [a, b] = state.stations;
+    // Tap-removal: the second station has no Engine Shed and no trains → allowed, with a refund.
+    const cash = state.cash;
+    const removed = removeStation(state, (b as { id: number }).id);
+    expect(removed.ok).toBe(true);
+    expect(state.stations.length).toBe(1);
+    expect(state.cash).toBeGreaterThan(cash);
+    // The first station holds the only Engine Shed.
+    const last = removeStation(state, (a as { id: number }).id);
+    expect(last.ok).toBe(false);
+    if (!last.ok) expect(last.reason).toBe("last-engine-shed");
+    expect(setOrders).toBeTypeOf("function");
   });
 
   it("fails with nothing-to-bulldoze where there's no track", () => {

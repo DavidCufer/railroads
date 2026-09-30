@@ -26,10 +26,9 @@ import { closePanel, openPanel } from "./panel";
 import { nextRule, RULE_ICONS } from "./routeTimeline";
 import { openSheet, type SheetHandle } from "./sheet";
 import { playSound } from "./sound";
-import { SLOW_ENGINE_KMH } from "../data/trains";
 import { strings } from "./strings";
 import { showToast } from "./toast";
-import { consistStrip, heroPlate, locoArt, tractionIcon, wheelGlyphEl } from "./trainArt";
+import { heroPlate, locoArt, tractionIcon, wheelGlyphEl } from "./trainArt";
 
 export interface BuyTrainHandlers {
   /** Puts the map into "tap a station to add it as a stop" mode; `onPicked` fires once, with the

@@ -30,9 +30,11 @@ export function showDragCostLabel(
   ok: boolean,
   viewportW: number,
   viewportH: number,
+  /** Replaces the money figure (bulldoze: "+$3k", or why there is nothing to remove). */
+  text?: string,
 ): void {
   const el = ensureCostLabel(container);
-  el.textContent = formatMoney(cost);
+  el.textContent = text ?? formatMoney(cost);
   el.classList.toggle("build-cost-blocked", !ok);
 
   const OFFSET_Y = 46;
@@ -63,6 +65,9 @@ export interface ConfirmBarOptions {
   ok: boolean;
   /** Set when the path includes a bridge — label of the current type, tap to cycle. */
   bridgeLabel?: string;
+  /** Replaces the default button label / adds a lead-in line (station removal: "Remove Ashtown"). */
+  title?: string;
+  confirmLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
   onCycleBridge?: () => void;
@@ -80,7 +85,9 @@ export function showConfirmBar(container: HTMLElement, options: ConfirmBarOption
 
   const costText =
     options.mode === "bulldoze" ? `+${formatMoney(options.cost)}` : formatMoney(options.cost);
-  const children: Node[] = [h("span", { className: "confirm-bar-cost" }, costText)];
+  const children: Node[] = [];
+  if (options.title) children.push(h("span", { className: "confirm-bar-title" }, options.title));
+  children.push(h("span", { className: "confirm-bar-cost" }, costText));
   if (options.bridgeLabel) {
     children.push(
       h(
@@ -103,7 +110,7 @@ export function showConfirmBar(container: HTMLElement, options: ConfirmBarOption
         onClick: () => options.onConfirm(),
       },
       icon("check", "icon-sm"),
-      CONFIRM_LABEL[options.mode],
+      options.confirmLabel ?? CONFIRM_LABEL[options.mode],
     ),
     h(
       "button",
