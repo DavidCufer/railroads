@@ -1013,18 +1013,40 @@ Two sessions after Phase 27 lands: **28A** (sim/economy) and **28B** (UX).
 - [ ] **Bug 4**: a train must never be `moving` at speed 0 for > 5 days — find the cause (suspected one-tile stub next
       to a station) and fix; add an invariant to the stress test.
 - [ ] **Bug 6 Engine Sheds**: buildable at any station ($30k era-scaled per SPEC §6.2); trains can be bought at any
-      station with a shed; repair crews dispatch from the nearest shed. Repair call-out cost `$3k + $40/tile`
-      (era-scaled), capped at $8k; breakdown −50 % applies to trains serviced at *any* shed. Target: repair spend ≤ 10 %
-      of revenue in every era (measure with the balance report).
-- [ ] **Early era (1830–1850)**: make it playable: halve pre-1860 station upkeep, and raise pre-1850 fares or cut early
-      running costs so a Norris on a 10-tile Town↔Town line returns ≥ 25 %/yr on its price, a Grasshopper on a
-      short line at least breaks even; freight before 1850 pays ≥ passengers per car. Rerun BALANCE.md.
-- [ ] **Late game & Hard**: bring 1900+ in line (today one Atlantic makes $500–900k/yr, costs are 5 % of revenue):
-      tune passenger/mail fares so late-era trains earn at most ~3× their price per year on good routes; track and
-      station upkeep scale with network size; Hard revenueMult 0.8 → 0.6 and higher interest; goal thresholds
-      (gold/silver) retuned from the balance report so they are real targets. Document the chosen numbers.
-- [ ] **Electrification** must be worth it: electric locos faster than their steam contemporaries (early-electric
-      ≥ 110 km/h), running cost −30 %, better reliability.
+      station with a shed; repair crews dispatch from the nearest shed. Repair cost follows mechanism 3–4 below;
+      breakdown −50 % applies to trains serviced at *any* shed.
+- [ ] **Economic model v2 — mechanisms, not multipliers** (player's rule: "it must make sense, based on real
+      things; don't just cut profit in half"). Every balance change must come from one of these modelled causes, each
+      a small data table in `src/data/economy.ts`, shown to the player where it costs money (Finance breakdown lines,
+      train/station panels), and documented in SPEC §9 "Economic model v2". No flat global revenue cuts.
+      1. **Historical fares vs wages.** Keep era inflation, but split it: *fares* follow a real-terms curve that is
+         high when rail is a novelty (1830s rail travel was premium-priced vs stagecoach) and declines as rail
+         becomes mass transit; *wages* (crew, station staff, track gangs) rise faster than general prices over the
+         era. Early small trains need a small crew (cheap); big late trains need larger crews.
+      2. **Track wear from use.** Track upkeep = small fixed cost per tile + wear ∝ gross tonnage hauled × speed factor
+         × axle load (loco weight class, loaded cars). Light 1830s trains barely wear track; long heavy fast trains
+         cost real upkeep. Double track = two tracks to maintain; electrified adds catenary upkeep per tile.
+      3. **Locomotive complexity.** Price, running cost and *repair cost per breakdown* scale with the engine's
+         power/complexity (a Grasshopper is cheap to fix; a Mikado or big diesel is not). Old proven models (> 10 years
+         after introduction) are more reliable and their parts cheaper; brand-new models have a teething period
+         (lower reliability for their first ~5 years on the market). Loco wear rises with age and km run.
+      4. **Repair logistics.** Call-out cost = crew travel distance from the nearest Engine Shed × wage + parts
+         (by loco complexity). More sheds → cheaper, faster repairs (Bug 6).
+      5. **Taxes and regulation (history-based).** Property tax on track and stations (per tile/station, small, from
+         the start); corporate income tax on *operating profit* introduced in a later era (e.g. 1910s) and rising in
+         steps; Hard = heavier tax schedule and higher interest, not lower revenue. Shown as its own Finance line.
+      6. **Competition from other transport.** From the 1920s roads (buses, trucks) and later airlines take share:
+         short-distance passengers and short-haul freight (< ~150 km) lose demand and fares; long-distance, fast and
+         bulk traffic keeps it. High-speed trains win passengers back. Announced in news ("Motor buses now compete on
+         short routes"). This makes late-game network design matter instead of just printing money.
+      7. **Freight rates by value and distance**: keep, but make pre-1850 freight competitive with canal/wagon
+         transport (bulk freight paid well where no canal existed).
+      Tuning: choose each mechanism's parameters from rough historical plausibility first, then check the outcomes in
+      BALANCE.md against targets: a Norris on a 10-tile Town↔Town line returns ≥ 25 %/yr of its price; a Grasshopper on
+      a short line at least breaks even; repair spend ≤ 10 % of revenue in every era with sensible shed placement;
+      1900+ good routes earn ≤ ~3× the train's price per year after tax and wear; Hard is clearly harder. If a target
+      misses, adjust the *mechanism* (and explain why in PROGRESS), never a blanket multiplier. Retune goal
+      thresholds from the new numbers.
 - [ ] Frontier villages grow to ≥ 3,000 within 10 years while served; stop founding next to unused stations.
 - [ ] Update BALANCE.md with before/after and write the targets into balance tests.
 
