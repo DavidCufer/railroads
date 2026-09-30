@@ -244,6 +244,20 @@ export function updateCrossing(
     }
     const stopAt = first.dist - first.clearance;
     const leaderInTheWay = leaderHeadDist < first.dist;
+    const since = previousWait?.node === first.node ? previousWait.since : state.ticks;
+    if (blockers.size === 0 && !leaderInTheWay) {
+      // First come, first served (PLAN 28A, Bug 4): a junction that has just come free goes to the train
+      // that has waited longest for it, not to whichever happens to be checked (or arrive) first —
+      // otherwise a busy junction starves the trains waiting at a terminal next to it for months.
+      for (const other of state.trains) {
+        const w = other.crossingWait;
+        if (other.id === train.id || other.status !== "moving" || !w) continue;
+        if (!cluster.some((c) => c.node === w.node)) continue;
+        if (w.since > since || (w.since === since && other.id > train.id)) continue;
+        if (isAheadOnSharedBlock(train, other)) continue; // queued behind me: I cannot wait for it
+        blockers.add(other.id);
+      }
+    }
     if (blockers.size === 0 && !leaderInTheWay) {
       claims.push(...mine);
       continue;
@@ -257,7 +271,6 @@ export function updateCrossing(
       continue;
     }
     if (blockers.size > 0) {
-      const since = previousWait?.node === first.node ? previousWait.since : state.ticks;
       train.crossingWait = { node: first.node, trainIds: [...blockers], since };
       // Safety net (should never fire; the stress test asserts it does not): if the wait has
       // dragged on and it is part of a wait-for cycle, the cycle member with the lowest id goes.

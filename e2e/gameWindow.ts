@@ -97,7 +97,7 @@ export interface GameWindow {
   ) => { ok: boolean; reason?: string; trainId?: number };
   setOrders: (
     trainId: number,
-    orders: Array<{ stationId: number; rule: string }>,
+    orders: Array<{ stationId: number; rule: string; maxWaitDays?: number }>,
   ) => { ok: boolean; reason?: string };
   sellTrain: (trainId: number) => { ok: boolean; reason?: string };
   getTrains: () => Array<{

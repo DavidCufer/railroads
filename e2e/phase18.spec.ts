@@ -90,23 +90,24 @@ test.describe("Phase 18 — play-test 5", () => {
         const [a, b] = g.getStations();
         const trains: number[] = [];
         for (let i = 0; i < 3; i++) {
-          const bought = g.buyTrain(a!.id, loco, []);
+          const bought = g.buyTrain(a!.id, loco, ["passengers"]);
           if (!bought.ok) throw new Error(`buy ${bought.reason}`);
           trains.push(bought.trainId!);
+          // Waiting for a full load keeps the far depot's two platforms busy, so the third train queues in the yard.
           g.setOrders(bought.trainId!, [
             { stationId: a!.id, rule: "passThrough" },
-            { stationId: b!.id, rule: "passThrough" },
+            { stationId: b!.id, rule: "fullLoad", maxWaitDays: 6 },
           ]);
         }
         return { trains, a: a!.id };
       },
       { y: ROW_Y, loco: LOCO },
     );
-    await page.evaluate(() => window.__game!.runDays(1));
+    await page.evaluate(() => window.__game!.runDays(7));
     const waiting = await page.evaluate(() =>
       window.__game!.getTrains().find((t) => t.status === "waitingForStation"),
     );
-    expect(waiting, "a train waits for the far depot's second slot").toBeDefined();
+    expect(waiting, "a train waits in the far depot's yard for a platform").toBeDefined();
     // Open that train's panel from the station's train list.
     await selectTool(page, "Info");
     await centerOn(page, 74, ROW_Y, 1.5);
@@ -115,7 +116,7 @@ test.describe("Phase 18 — play-test 5", () => {
     await page.locator(".tab", { hasText: "Trains" }).click();
     await page.locator(".train-loco-btn", { hasText: waiting!.name }).click();
     await page.waitForTimeout(300);
-    await expect(page.locator(".panel")).toContainText("Waiting for platform at");
+    await expect(page.locator(".panel")).toContainText("Waiting in the yard at");
     await expect(page.locator(".panel")).toContainText("Train");
     await page.screenshot({ path: "docs/screenshots/phase-18-train-waiting.png" });
     expect(ids.trains).toHaveLength(3);
@@ -196,7 +197,7 @@ test.describe("Phase 18 — play-test 5", () => {
     let sawStock = false;
     let screenshotDone = false;
     for (let i = 0; i < 60 && !sawStock; i++) {
-      await page.evaluate(() => window.__game!.runDays(3));
+      await page.evaluate(() => window.__game!.runDays(7));
       const stock = await page.evaluate(
         (id) => window.__game!.getStationTransfer(id),
         setupResult.hub,
@@ -232,7 +233,7 @@ test.describe("Phase 18 — play-test 5", () => {
       }, setupResult);
     let r = await revenue();
     for (let i = 0; i < 60 && r.carrier <= 0; i++) {
-      await page.evaluate(() => window.__game!.runDays(3));
+      await page.evaluate(() => window.__game!.runDays(7));
       r = await revenue();
     }
     expect(r.carrier).toBeGreaterThan(0);

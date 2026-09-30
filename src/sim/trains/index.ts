@@ -2,6 +2,7 @@
  * for the pieces. `stepTrains` is the tick entrypoint main.ts's game loop calls. */
 import { computeBlocks, type BlockPartition } from "./blocks";
 import { remapReservations, stepTrain, type TrainRuntime } from "./movement";
+import { releaseClaims } from "./crossing";
 import { edgeKey } from "../track/graph";
 import type { GameState } from "../state";
 
@@ -10,6 +11,7 @@ export * from "./blocks";
 export * from "./route";
 export * from "./geometry";
 export * from "./movement";
+export * from "./stuck";
 export { setCrossingForcedReporter } from "./crossing";
 
 interface CacheEntry {
@@ -120,5 +122,9 @@ export function stepTrains(state: GameState): void {
     for (const train of state.trains) remapReservations(state, train, runtime);
   }
   if (state.ticks % 24 === 0) clearStaleReservations(state);
+  // Claims are released for everyone first: a waiting train with a lower id than the holder would otherwise
+  // never see the junction free (the holder releases later in the same tick, and trains stepped after it
+  // take it again) and starve behind a steady stream of traffic (PLAN 28A, Bug 4).
+  for (const train of state.trains) releaseClaims(train);
   for (const train of state.trains) stepTrain(state, train, runtime);
 }

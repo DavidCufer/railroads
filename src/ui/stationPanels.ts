@@ -18,6 +18,8 @@ import { locomotiveById } from "../data/trains";
 import {
   buildImprovement,
   buildStation,
+  buildEngineShed,
+  computeEngineShedPlan,
   buildWaterTower,
   computeImprovementPlan,
   computeStationBuildPlan,
@@ -579,10 +581,30 @@ function buildTab(
       improvementRow({
         className: "station-engine-shed-row",
         icon: "shed",
-        name: strings.station.engineShedFree,
+        name: strings.station.engineShedBuilt,
         benefit: strings.station.engineShedBenefit,
         built: true,
         trailing: checkMark(),
+      }),
+    );
+  } else {
+    const shedPlan = computeEngineShedPlan(state, stationId);
+    rows.push(
+      improvementRow({
+        className: "station-engine-shed-row",
+        icon: "shed",
+        name: strings.station.buildEngineShed,
+        benefit: strings.station.engineShedBenefit,
+        trailing: formatMoney(shedPlan.cost),
+        disabled: shedPlan.cost > state.cash,
+        onClick: () => {
+          const result = buildEngineShed(state, stationId);
+          if (!result.ok) {
+            showToast(container, strings.build.reasons[result.reason], "warn");
+            return;
+          }
+          render();
+        },
       }),
     );
   }

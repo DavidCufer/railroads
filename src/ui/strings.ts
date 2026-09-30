@@ -180,6 +180,8 @@ export const strings = {
     noSupplies: "Nothing to ship yet",
     accepts: "Demands",
     engineShedFree: "Free Engine Shed",
+    engineShedBuilt: "Engine Shed",
+    buildEngineShed: "Build Engine Shed",
     waterTowerBuilt: "Water Tower",
     buildWaterTower: "Build Water Tower",
     rename: "Name",
@@ -205,7 +207,8 @@ export const strings = {
       livestockPens: "Needed to load livestock here",
     },
     waterTowerBenefit: "Steam engines refill water here",
-    engineShedBenefit: "Breakdowns −50% for trains serviced here; repair crews start here",
+    engineShedBenefit:
+      "Buy and service trains here (breakdowns −50%); repair crews start from the nearest shed — more sheds, shorter call-outs",
     /** "Why?" hints shown under a tile when the improvement would (not) help right now. */
     why: {
       needsCity: "No town or city in range",
@@ -272,12 +275,12 @@ export const strings = {
      * back to the plain `statusNames` label otherwise (e.g. right after a reroute attempt, before
      * a fresh target is known). */
     waitingForLineClear: (station: string) => `Waiting for line clear to ${station}`,
-    waitingForPlatform: (station: string) => `Waiting for platform at ${station}`,
+    waitingForPlatform: (station: string) => `Waiting in the yard at ${station} for a platform`,
     /** PLAN Phase 18 B: the panel names the blocker, not just the destination. */
     waitingForTrainOnLine: (trains: string, station: string) =>
       `Waiting for ${trains} (single track to ${station})`,
     waitingForTrainAtPlatform: (station: string, trains: string) =>
-      `Waiting for platform at ${station} (${trains})`,
+      `Waiting in the yard at ${station} for a platform (${trains})`,
     /** PLAN Phase 25A: halted just short of a junction/crossing another train is using. */
     waitingAtCrossing: (trains: string) => `Waiting at crossing for ${trains}`,
     /** Floating label for cargo left at a Warehouse hub (no payment yet). */

@@ -249,7 +249,7 @@ Monthly: $10 per edge single, $16 double, +$5 electrified. Bridges: +$50 wood, +
 
 | Improvement | Available | Cost | Effect |
 |---|---|---|---|
-| Engine Shed | always | $30k | Trains whose orders include this station get periodic servicing: breakdown chance −50%. New trains can only be bought at a station with an Engine Shed (the first station built gets a free one). |
+| Engine Shed | always | $30k (era-scaled, ×build-cost difficulty) | Trains that stop here get serviced: breakdown chance −50%. New trains can only be bought at a station with an Engine Shed (the first station built gets a free one; **any** station can build another, Phase 28A). A repair crew leaves from the *nearest* shed, so sheds near the ends of a big network make call-outs short and cheap. |
 | Water Tower | steam era | $8k | Steam locomotives stopping here are refilled; steam trains that go > 40 tiles without a Water Tower stop lose 20% speed until next refill. (Diesel/electric ignore.) |
 | Post Office | always | $25k | Mail supply +50%, mail revenue +25% for mail loaded here. |
 | Hotel | always | $50k | Passenger revenue +25% for passengers delivered here; +20% city growth contribution. |
@@ -336,20 +336,28 @@ when the stretch of track to its next station is safe to run through end to end.
   waiting points.
 - **Departure check (atomic)**: before leaving a station, the train reserves every block of its path up to the
   next station on its route. It may depart only if:
-  1. no block on that path is occupied or reserved by a train travelling in the **opposite direction**
-     (single track), and
-  2. the next station has a free **slot**, counting trains already inside it plus trains already reserved
-     toward it. (A train that has reserved its departure from that station no longer counts against it.)
-  Otherwise it stays in the station with status "waiting for line clear" / "waiting for platform" (signal icon).
+  no block on that path is occupied or reserved by a train travelling in the **opposite direction**
+  (single track).
+  (Phase 28A: there is no rule about the destination station's capacity. A train may always enter the station
+  it is heading for; **platforms limit simultaneous loading, not entry**, see "Platforms and the yard" below.)
+  Otherwise it stays in the station with status "waiting for line clear" (signal icon).
 - **Same direction is fine**: any number of trains may be in a section heading the same way. Followers keep a
   2-tile spacing and brake behind the leader (on single and double track).
-- **Double track**: opposing trains use separate lanes, so rule 1 never blocks them; rule 2 still applies.
-- **Station slots**: Depot 2, Station 3, Terminal 5 (the minimum is 2, so every station can act as a passing
-  loop). Trains passing *through* a station they don't stop at still need a slot while inside it, and they
-  reserve the next section before entering, so they never stop on the main line.
+- **Double track**: opposing trains use separate lanes, so the line rule never blocks them.
+- **Platforms and the yard (Phase 28A)**: a station has *platforms* (Depot 2, Station 3, Terminal 5) that limit how many
+  trains **load at once**. A train arriving at a destination whose platforms are all busy (or whose yard already holds
+  waiting trains) waits in the station's **yard** (holding tracks, unlimited) with status "waiting for platform" and
+  takes the next free platform oldest-first (FIFO). A train that has finished loading gives its platform up and needs
+  only the line to depart, never a platform at the next station; a `noRoute` train holds no platform either. So no
+  train holds a platform while waiting to leave and no platform cycle can form (PLAYTEST-1 Bug 1/2: the old
+  hold-and-wait deadlock at N ≥ 2 × platforms). A train standing in a station (waiting for its line) also stops
+  holding the blocks its tail lies on — stations are the passing places — so two trains meeting head-on at a
+  through-station can never hold each other's tails.
+  Trains passing *through* a station they don't stop at take no platform, and they reserve the next section before
+  entering, so they never stop on the main line.
 - **Releasing**: a block is released when the train's tail leaves it; the section reservation shrinks as the
   train advances.
-- **Junctions and crossings (Phase 25A)**: a node with three or more legs that is not a station (an X
+- **Junctions and crossings (Phase 25A)** (Phase 28A: claims are released for every train at the start of the tick, and a junction that comes free goes to the train that has waited longest for it, so a busy junction cannot starve the trains waiting at a terminal next to it): a node with three or more legs that is not a station (an X
   crossing, a junction, a merge) is used by **one train at a time**. Section reservation stays as above;
   on top of it a moving train *claims* the next junction node — together with every further junction node
   within one train length of it, all or none — once its head is within 4 tiles, and releases each node

@@ -70,6 +70,12 @@ export const STATION_ACCEPTANCE_THRESHOLD = 8;
  * — it predates this phase and several call sites already key off that boolean directly. */
 export const WATER_TOWER_COST = 8_000;
 
+/** Engine Shed (SPEC §6.2, PLAN Phase 28A Bug 6): the company's first station gets one free; any station can
+ * build another. A shed lets the player buy trains there, services trains that stop (breakdown chance −50 %)
+ * and is a repair-crew base — the nearest shed sends the crew, so sheds near the far ends of a network make
+ * call-outs short and cheap. Era-scaled like every build cost. */
+export const ENGINE_SHED_COST = 30_000;
+
 /** The rest of SPEC §6.2's improvement roster (Water Tower and Engine Shed keep their own bespoke
  * fields/commands from earlier phases — see `Station.hasEngineShed`/`hasWaterTower`). Each is
  * buildable once per station via the generic `buildImprovement` command (src/sim/commands.ts). */

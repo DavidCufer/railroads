@@ -14,6 +14,7 @@ import {
   STATION_IMPROVEMENTS,
   STATION_TYPE_DEFS,
   STATION_UPGRADE_ORDER,
+  ENGINE_SHED_COST,
   WATER_TOWER_COST,
   type StationImprovementType,
   type StationType,
@@ -536,6 +537,33 @@ export function buildWaterTower(state: GameState, stationId: number): CommandRes
   if (plan.cost > state.cash) return { ok: false, reason: "cant-afford" };
 
   station.hasWaterTower = true;
+  state.cash -= plan.cost;
+  state.finance.capitalInvested += plan.cost;
+  addExpense(state, "construction", plan.cost);
+  return { ok: true, cost: plan.cost };
+}
+
+/** Prices building an Engine Shed at `stationId` (SPEC §6.2), without mutating state. */
+export function computeEngineShedPlan(
+  state: GameState,
+  stationId: number,
+): { cost: number; valid: boolean } {
+  const station = state.stations.find((s) => s.id === stationId);
+  if (!station || station.hasEngineShed) return { cost: 0, valid: false };
+  const ctx = costContext(state);
+  return { cost: ENGINE_SHED_COST * eraInflation(ctx.year) * ctx.buildCostMult, valid: true };
+}
+
+/** Builds an Engine Shed at `stationId` (PLAN Phase 28A): trains can be bought and serviced there, and repair
+ * crews dispatch from the nearest shed. */
+export function buildEngineShed(state: GameState, stationId: number): CommandResult {
+  const station = state.stations.find((s) => s.id === stationId);
+  if (!station) return { ok: false, reason: "invalid-station-name" };
+  if (station.hasEngineShed) return { ok: false, reason: "already-improved" };
+  const plan = computeEngineShedPlan(state, stationId);
+  if (plan.cost > state.cash) return { ok: false, reason: "cant-afford" };
+
+  station.hasEngineShed = true;
   state.cash -= plan.cost;
   state.finance.capitalInvested += plan.cost;
   addExpense(state, "construction", plan.cost);

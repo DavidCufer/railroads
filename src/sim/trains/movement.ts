@@ -850,6 +850,9 @@ function handleIdle(
   if (
     targetStation &&
     node !== targetStation.tile &&
+    // A train parked in a station is already off the line (PLAN 28A, Bug 2/4): hopping it back and forth
+    // along a stub next to the station made it look `moving` at speed 0 for years.
+    !runtime.stationTiles.has(node) &&
     state.trackGraph.neighborsOf(node).length === 1 &&
     train.waitTicks >= DEAD_END_REVERSE_HOURS
   ) {
@@ -950,6 +953,10 @@ function handleMoving(
       const attempt = tryEnterSection(state, train, runtime);
       if (!attempt.ok) {
         dropClaims(train);
+        // Stopped in a station, the train stands in its passing loop: its tail no longer holds the line it
+        // came in on. Holding it made two trains meeting head-on at a through-station block each other's
+        // tails for ever (PLAN 28A, Bug 4's followers sat behind such a pair).
+        if (runtime.stationTiles.has(a)) train.heldBlocks = [];
         checkDeadlockTimeout(state, train, runtime, loco, attempt.blockingBlockId);
         return;
       }
