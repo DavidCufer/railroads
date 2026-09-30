@@ -66,3 +66,17 @@ export function improvementHint(
       return undefined;
   }
 }
+
+/** Trains with `station` on their orders. */
+export function trainsUsingStation(state: GameState, station: Station): number {
+  return state.trains.filter((t) => t.orders.some((o) => o.stationId === station.id)).length;
+}
+
+/** "Terminal recommended" when more trains call here than its platforms handle comfortably
+ * (PLAYTEST-1: keep trains per station ≤ ~1.5 × platforms), or null. */
+export function terminalHint(state: GameState, station: Station): string | null {
+  if (station.type === "terminal") return null;
+  const platforms = STATION_TYPE_DEFS[station.type].trainCapacity;
+  const trains = trainsUsingStation(state, station);
+  return trains > platforms * 1.5 ? strings.station.terminalRecommended(trains, platforms) : null;
+}

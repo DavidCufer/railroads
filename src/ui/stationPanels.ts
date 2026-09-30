@@ -13,7 +13,7 @@ import {
   STATION_TYPE_DEFS,
 } from "../data/stations";
 import type { StationImprovementType, StationType } from "../data/stations";
-import { improvementHint, stationTypeBenefit } from "./stationUpgrades";
+import { improvementHint, stationTypeBenefit, terminalHint } from "./stationUpgrades";
 import { locomotiveById } from "../data/trains";
 import {
   buildImprovement,
@@ -45,6 +45,33 @@ import { closePanel, openPanel } from "./panel";
 import { strings } from "./strings";
 import { formatMoney } from "./format";
 import { showToast } from "./toast";
+
+const STATION_TYPE_KEY = "railroads.lastStationType";
+let lastStationType: StationType | null = null;
+
+/** The type the Station tool opens with: the last one built, else the everyday "Station" (Depot is a
+ * freight-siding size — PLAYTEST-1 Bug 8). */
+function rememberedStationType(): StationType {
+  if (lastStationType) return lastStationType;
+  try {
+    const stored = localStorage.getItem(STATION_TYPE_KEY);
+    if (stored && (STATION_TYPES as readonly string[]).includes(stored)) {
+      return stored as StationType;
+    }
+  } catch {
+    // storage unavailable — fall through to the default
+  }
+  return "station";
+}
+
+function rememberStationType(type: StationType): void {
+  lastStationType = type;
+  try {
+    localStorage.setItem(STATION_TYPE_KEY, type);
+  } catch {
+    // ignore: the in-memory value still applies this session
+  }
+}
 
 function currentYear(state: GameState): number {
   return calendarFromTicks(state.startYear, state.ticks).year;
@@ -241,7 +268,7 @@ export function openStationPlacementPanel(
   tile: number,
   callbacks: StationPlacementCallbacks,
 ): void {
-  let selectedType: StationType = "depot";
+  let selectedType: StationType = rememberedStationType();
 
   const typeButtonByType = new Map<StationType, HTMLButtonElement>();
   const typeButtons = STATION_TYPES.map((type) => {
@@ -258,6 +285,12 @@ export function openStationPlacementPanel(
       icon(TYPE_ICONS[type], "type-icon"),
       h("span", null, strings.station.types[type]),
       h("span", { className: "cost" }, formatMoney(def.cost)),
+      h(
+        "span",
+        { className: "type-platforms", title: strings.station.platforms(def.trainCapacity) },
+        ...Array.from({ length: def.trainCapacity }, () => h("i", { className: "plat-pip" })),
+        h("b", null, String(def.trainCapacity)),
+      ),
     );
     typeButtonByType.set(type, btn);
     return btn;
@@ -283,6 +316,7 @@ export function openStationPlacementPanel(
       showToast(container, strings.build.reasons[result.reason], "warn");
       return;
     }
+    rememberStationType(selectedType);
     closePanel();
   });
 
@@ -355,7 +389,8 @@ const STATUS_ICONS: Record<string, { icon: IconName; tone: Tone }> = {
 function trainsTab(state: GameState, station: Station, handlers?: StationPanelHandlers): Node {
   const serving = state.trains.filter((t) => t.orders.some((o) => o.stationId === station.id));
   if (serving.length === 0) return emptyState(strings.trains.none, "trains");
-  return cardList(
+  const hint = terminalHint(state, station);
+  const list = cardList(
     ...serving.map((t) => {
       const st = STATUS_ICONS[t.status] ?? STATUS_ICONS["moving"]!;
       const next = state.stations.find((x) => x.id === t.orders[t.currentOrderIndex]?.stationId);
@@ -378,6 +413,12 @@ function trainsTab(state: GameState, station: Station, handlers?: StationPanelHa
       });
     }),
   );
+  return hint ? h("div", { className: "station-trains" }, hintLine(hint), list) : list;
+}
+
+/** A one-line advisory (icon + text) used for "Terminal recommended". */
+function hintLine(text: string): HTMLElement {
+  return h("div", { className: "station-hint" }, icon("warning", "icon-sm"), h("span", null, text));
 }
 
 const IMPROVEMENT_ICONS: Record<StationImprovementType, IconName> = {
@@ -400,6 +441,8 @@ function buildTab(
   const out: Node[] = [];
   const nextType = STATION_TYPES[STATION_TYPES.indexOf(station.type) + 1] as
     StationType | undefined;
+  const terminalAdvice = terminalHint(state, station);
+  if (terminalAdvice) out.push(hintLine(terminalAdvice));
   if (nextType) {
     const plan = computeStationUpgradePlan(state, stationId, nextType);
     out.push(

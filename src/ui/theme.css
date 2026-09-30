@@ -4225,3 +4225,41 @@ button.rule-chip:active {
   font-size: var(--fs-xs);
   font-variant-numeric: tabular-nums;
 }
+
+/* Station type cards show their platforms; advisory lines ("Terminal recommended"). */
+.station-type-btn .type-platforms {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+}
+.station-type-btn.active .type-platforms {
+  color: var(--ink-900);
+}
+.type-platforms .plat-pip {
+  width: 8px;
+  height: 5px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0.85;
+}
+.type-platforms b {
+  margin-left: 3px;
+  font-weight: 700;
+}
+.station-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  padding: var(--gap-2) var(--gap-3);
+  margin-bottom: var(--gap-2);
+  border-radius: var(--radius-m);
+  background: var(--brass-soft);
+  color: var(--brass);
+  font: 600 var(--fs-xs) var(--font-ui);
+}
+.station-trains {
+  display: flex;
+  flex-direction: column;
+}

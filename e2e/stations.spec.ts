@@ -115,6 +115,9 @@ test.describe("Phase 5 — stations", () => {
 
     await expect(page.locator(".panel-title")).toHaveText("New Station");
     await expect(page.locator(".station-type-btn")).toHaveCount(3);
+    // Phase 28B: the tool opens on Station (not Depot); pick the smallest type to check its catchment.
+    await expect(page.locator(".station-type-btn.active")).toContainText("Station");
+    await page.locator(".station-type-btn", { hasText: "Depot" }).click();
     await expect(page.locator(".station-type-btn.active")).toContainText("Depot");
 
     // On a Dunville tile, even the smallest (Depot) catchment should already clear the acceptance

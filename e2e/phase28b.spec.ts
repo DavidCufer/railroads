@@ -351,3 +351,55 @@ test.describe("Phase 28B — station on a bend", () => {
     expect(edges).toBe(12 + 2);
   });
 });
+
+test.describe("Phase 28B — station tool", () => {
+  test("defaults to Station, shows platforms, remembers the last type, recommends a Terminal", async ({
+    page,
+  }) => {
+    await setup(page);
+    await page.evaluate(() => localStorage.removeItem("railroads.lastStationType"));
+    await clearArea(page, 50, 70, 30, 40);
+    await build(
+      page,
+      range(13, (i) => ({ x: 52 + i, y: 35 })),
+    );
+    await centerOn(page, 58, 35, 2);
+    await page.getByRole("button", { name: "Station", exact: true }).click();
+    const p = await page.evaluate(() => window.__game!.tileScreenPoint(56, 35));
+    await page.mouse.click(p.x, p.y);
+    await expect(page.locator(".station-type-btn.active")).toContainText("Station");
+    await expect(page.locator(".station-type-btn .type-platforms")).toHaveCount(3);
+    await expect(page.locator(".station-type-btn", { hasText: "Terminal" })).toContainText("5");
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: shot("station-tool") });
+    await page.locator(".station-type-btn", { hasText: "Terminal" }).click();
+    await page.locator(".panel-action-build").click();
+    await page.waitForTimeout(300);
+    // The next placement opens on Terminal.
+    const q = await page.evaluate(() => window.__game!.tileScreenPoint(61, 35));
+    await page.mouse.click(q.x, q.y);
+    await expect(page.locator(".station-type-btn.active")).toContainText("Terminal");
+    await page.locator(".panel-action-cancel").click();
+  });
+
+  test("a Station with many trains on its orders recommends a Terminal", async ({ page }) => {
+    const { a, b } = await lineWithTrain(page);
+    await page.evaluate(
+      ({ a, b }) => {
+        for (let i = 0; i < 5; i++) {
+          const r = window.__game!.buyTrain(a, "atlantic-4-4-2", ["passengers"]);
+          window.__game!.setOrders(r.trainId!, [
+            { stationId: a, rule: "auto" },
+            { stationId: b, rule: "auto" },
+          ]);
+        }
+      },
+      { a, b },
+    );
+    await page.evaluate((id) => window.__game!.debugOpenStation(id), a);
+    await page.locator(".tab", { hasText: "Build" }).click();
+    await expect(page.locator(".station-hint")).toContainText("Terminal recommended");
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: shot("terminal-hint") });
+  });
+});

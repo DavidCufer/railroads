@@ -157,6 +157,9 @@ export const strings = {
       terminal: "Terminal",
     },
     newStationTitle: "New Station",
+    platforms: (n: number) => `${n} platforms`,
+    terminalRecommended: (trains: number, platforms: number) =>
+      `Terminal recommended — ${trains} trains call here but it has ${platforms} platforms`,
     type: "Type",
     tapTrackTile: "Tap a straight or dead-end track tile to place a station",
     catchment: "Catchment",
