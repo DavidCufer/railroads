@@ -403,3 +403,60 @@ test.describe("Phase 28B — station tool", () => {
     await page.screenshot({ path: shot("terminal-hint") });
   });
 });
+
+test.describe("Phase 28B — small fixes", () => {
+  test("discovery news is tappable: the toast and the News panel focus the place", async ({
+    page,
+  }) => {
+    await setup(page);
+    const target = await page.evaluate(() => {
+      const s = window.__game!.getState() as unknown as {
+        industries: Array<{ id: number; x: number; y: number }>;
+        pendingNews: unknown[];
+        news: unknown[];
+      };
+      const ind = s.industries[s.industries.length - 1]!;
+      const item = { id: 9100, tick: 0, kind: "discovery", industryId: ind.id };
+      s.news.push(item);
+      s.pendingNews.push(item);
+      window.__game!.camera.setCenter(10 * 32, 10 * 32);
+      return { x: ind.x, y: ind.y };
+    });
+    await page.evaluate(() => window.__game!.runDays(1));
+    const toast = page.locator(".toast.toast-tappable");
+    await expect(toast).toBeVisible();
+    await toast.click();
+    let c = await page.evaluate(() => window.__game!.camera.getCenter());
+    expect(Math.abs(c.x - (target.x + 0.5) * 32)).toBeLessThan(2);
+    expect(Math.abs(c.y - (target.y + 0.5) * 32)).toBeLessThan(2);
+    // And from the News panel.
+    await page.evaluate(() => window.__game!.camera.setCenter(10 * 32, 10 * 32));
+    await page.locator(".news-button").click();
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: shot("news-tappable") });
+    await page.locator(".news-item.tappable").first().click();
+    c = await page.evaluate(() => window.__game!.camera.getCenter());
+    expect(Math.abs(c.x - (target.x + 0.5) * 32)).toBeLessThan(2);
+    await expect(page.locator(".panel")).toHaveCount(0);
+  });
+
+  test("regenerate closes open panels; HUD text is not selectable", async ({ page }) => {
+    const { trainId } = await lineWithTrain(page);
+    await page.evaluate((id) => window.__game!.debugOpenTrain(id), trainId);
+    await expect(page.locator(".panel")).toBeVisible();
+    await page.evaluate(() =>
+      window.__game!.regenerate({
+        seed: 99,
+        size: "medium",
+        waterLevel: "normal",
+        startYear: 1900,
+      }),
+    );
+    await page.waitForTimeout(300);
+    await expect(page.locator(".panel")).toHaveCount(0);
+    const sel = await page.evaluate(
+      () => getComputedStyle(document.querySelector(".top-bar")!).userSelect,
+    );
+    expect(sel).toBe("none");
+  });
+});

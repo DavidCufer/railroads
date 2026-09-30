@@ -4263,3 +4263,20 @@ button.rule-chip:active {
   display: flex;
   flex-direction: column;
 }
+
+.toast.toast-tappable {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* The HUD is not text: dragging across it on desktop must not select labels (PLAYTEST-1). */
+body {
+  user-select: none;
+  -webkit-user-select: none;
+}
+input,
+textarea,
+select {
+  user-select: text;
+  -webkit-user-select: text;
+}

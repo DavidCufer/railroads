@@ -21,13 +21,29 @@ function openPanelInset(): number {
   return panel ? Math.round(panel.getBoundingClientRect().width) : 0;
 }
 
-export function showToast(container: HTMLElement, message: string, kind: ToastKind = "info"): void {
+/** `onTap` makes the toast a button (news that is about a place: tap to look at it). */
+export function showToast(
+  container: HTMLElement,
+  message: string,
+  kind: ToastKind = "info",
+  onTap?: () => void,
+): void {
   const toastRoot = ensureContainer(container);
   const inset = openPanelInset();
   toastRoot.style.setProperty("--toast-right-inset", `${inset}px`);
   // With a panel open the map area is narrow: also keep clear of the tool column on the left.
   toastRoot.style.setProperty("--toast-left-inset", inset > 0 ? `${TOOL_COLUMN_PX}px` : "0px");
-  const el = h("div", { className: `toast toast-${kind}` }, message);
+  const el = h(
+    "div",
+    { className: `toast toast-${kind}${onTap ? " toast-tappable" : ""}` },
+    message,
+  );
+  if (onTap) {
+    el.addEventListener("click", () => {
+      onTap();
+      el.remove();
+    });
+  }
   toastRoot.appendChild(el);
   void el.offsetWidth;
   el.classList.add("toast-visible");

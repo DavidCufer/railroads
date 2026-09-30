@@ -19,7 +19,7 @@ import { footerButton } from "./components/footer";
 import { h } from "./h";
 import { locoArt } from "./trainArt";
 import { icon, type IconName } from "./icons";
-import { openPanel } from "./panel";
+import { closePanel, openPanel } from "./panel";
 import { strings } from "./strings";
 
 function trainName(state: GameState, trainId: number): string {
@@ -109,6 +109,28 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
   }
 }
 
+/** Tile a news item is about, for "tap to look" (discoveries, new/growing towns, washouts, jams), else null. */
+export function newsFocusTile(state: GameState, item: NewsItem): { x: number; y: number } | null {
+  const width = state.map.width;
+  switch (item.kind) {
+    case "discovery": {
+      const industry = state.industries.find((i) => i.id === item.industryId);
+      return industry ? { x: industry.x, y: industry.y } : null;
+    }
+    case "cityFounded":
+    case "cityGrowth":
+    case "civicInvestment": {
+      const city = state.cities.find((c) => c.id === item.cityId);
+      return city ? { x: city.anchorX, y: city.anchorY } : null;
+    }
+    case "washout":
+    case "trafficJam":
+      return { x: item.tile % width, y: Math.floor(item.tile / width) };
+    default:
+      return null;
+  }
+}
+
 const NEWS_ICONS: Record<NewsItem["kind"], { icon: IconName; tone: Tone }> = {
   newLocomotive: { icon: "steam", tone: "brass" },
   breakdown: { icon: "wrench", tone: "signal" },
@@ -127,6 +149,7 @@ export function openNewsPanel(
   container: HTMLElement,
   state: GameState,
   onChange: () => void = () => {},
+  onFocus?: (tile: { x: number; y: number }) => void,
 ): void {
   const unreadFrom = state.newsReadUpTo;
   const items = [...state.news].reverse();
@@ -150,8 +173,18 @@ export function openNewsPanel(
               const thumb = loco
                 ? h("span", { className: "news-thumb-art" }, locoArt(loco, 30))
                 : h("span", { className: `news-thumb tone-${meta.tone}` }, icon(meta.icon));
+              const focusTile = onFocus ? newsFocusTile(state, item) : null;
               return cardRow({
-                className: `news-item${item.id > unreadFrom ? " unread" : ""}`,
+                className: `news-item${item.id > unreadFrom ? " unread" : ""}${focusTile ? " tappable" : ""}`,
+                ...(focusTile && onFocus
+                  ? {
+                      chevron: true,
+                      onClick: () => {
+                        closePanel();
+                        onFocus(focusTile);
+                      },
+                    }
+                  : {}),
                 thumb,
                 title:
                   formatNewsItem(state, item) +
@@ -180,7 +213,7 @@ export function openNewsPanel(
       }
       clearAllNews(state);
       onChange();
-      openNewsPanel(container, state, onChange);
+      openNewsPanel(container, state, onChange, onFocus);
     },
   });
   openPanel(container, {

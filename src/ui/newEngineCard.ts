@@ -129,3 +129,8 @@ export function announceNewEngine(
   host = { container, onRoster };
   render();
 }
+
+/** Drops the card and any engines waiting in it (a new game or a loaded save). */
+export function dismissNewEngineCard(): void {
+  close();
+}

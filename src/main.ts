@@ -123,7 +123,8 @@ import { advanceOneHour } from "./sim/tick";
 import type { TrainOrder } from "./sim/trains/types";
 import type { Station } from "./sim/stations/types";
 import { debugTriggerCrash, installErrorBoundary } from "./ui/errorBoundary";
-import { announceNewEngine } from "./ui/newEngineCard";
+import { announceNewEngine, dismissNewEngineCard } from "./ui/newEngineCard";
+import { closeSheet } from "./ui/sheet";
 import { openRosterSheet } from "./ui/roster";
 import {
   openBuyTrainPanel,
@@ -132,10 +133,10 @@ import {
   setStationPickHooks,
 } from "./ui/trainPanels";
 import { createTrainListButton } from "./ui/toolbar";
-import { createNewsButton, formatNewsItem, openNewsPanel } from "./ui/newsPanel";
+import { createNewsButton, formatNewsItem, newsFocusTile, openNewsPanel } from "./ui/newsPanel";
 import { openHelpPanel } from "./ui/helpPanel";
 import { openFinancePanel } from "./ui/financePanel";
-import { setYearReportBadge } from "./ui/yearReportBadge";
+import { clearYearReportBadge, setYearReportBadge } from "./ui/yearReportBadge";
 import { createGoalsButton, openGoalCelebration, openGoalsPanel } from "./ui/goalsPanel";
 import { isPanelOpen } from "./ui/panel";
 import { formatMoney } from "./ui/format";
@@ -224,6 +225,7 @@ function main(): void {
   let settings: Settings = loadSettings();
   let overlayState: OverlayState = defaultOverlayState();
   let dragState: DragState | null = null;
+  let lastStuckTrainId: number | null = null;
   let ghost: GhostPreview | null = null;
   let stationPreview: StationCatchmentPreview | null = null;
   let stationPlacementOpen = false;
@@ -298,6 +300,12 @@ function main(): void {
     floatingLabels = [];
     hideConfirmBar();
     hideDragCostLabel();
+    // A new world invalidates whatever was open about the old one (Bug 10: panels, sheets, cards).
+    closePanel(true);
+    closeSheet();
+    dismissNewEngineCard();
+    clearYearReportBadge();
+    lastStuckTrainId = null;
     newsButton.refreshBadge(state);
     setTool("info");
   }
@@ -947,7 +955,10 @@ function main(): void {
         // A new locomotive model gets an announcement card (STYLE §11.4) instead of a toast.
         if (item.kind === "newLocomotive") {
           announceNewEngine(ui, item.locoId, () => openRosterSheet(ui, state));
-        } else showToast(ui, formatNewsItem(state, item), "warn");
+        } else {
+          const at = newsFocusTile(state, item);
+          showToast(ui, formatNewsItem(state, item), "warn", at ? () => focusTile(at) : undefined);
+        }
       }
       state.pendingNews.length = 0;
       newsButton.refreshBadge(state);
@@ -1124,7 +1135,11 @@ function main(): void {
     },
   });
 
-  let lastStuckTrainId: number | null = null;
+  /** Centres the camera on a tile (news that is about a place). */
+  function focusTile(at: { x: number; y: number }): void {
+    camera.x = (at.x + 0.5) * TILE_SIZE;
+    camera.y = (at.y + 0.5) * TILE_SIZE;
+  }
   const topBar = createTopBar(ui, {
     onSetSpeed: (speed: GameSpeed) => loop.setSpeed(speed),
     getSpeed: () => loop.getSpeed(),
@@ -1160,7 +1175,7 @@ function main(): void {
   const floatingPill = createFloatingPill(ui);
   createGoalsButton(floatingPill, () => openGoalsPanel(ui, state));
   const newsButton = createNewsButton(floatingPill, () => {
-    openNewsPanel(ui, state, () => newsButton.refreshBadge(state));
+    openNewsPanel(ui, state, () => newsButton.refreshBadge(state), focusTile);
     newsButton.refreshBadge(state);
   });
   createTrainListButton(floatingPill, () => {
