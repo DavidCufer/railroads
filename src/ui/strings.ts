@@ -426,6 +426,8 @@ export const strings = {
   },
   newEngine: {
     overline: "New locomotive",
+    overlineMany: (n: number) => `${n} new locomotives`,
+    cars: "cars",
     roster: "Roster",
     ok: "OK",
     year: (y: number) => `${y}`,
@@ -478,6 +480,7 @@ export const strings = {
     title: (year: number) => `${year} Year in Review`,
     close: "Close",
     newTechnology: "New technology",
+    toast: (year: number) => `${year} Year in Review is ready — open it from Finance`,
   },
   help: {
     menuEntry: "Help",

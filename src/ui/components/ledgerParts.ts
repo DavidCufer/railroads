@@ -31,8 +31,8 @@ export function incomeParts(period: LedgerPeriod): StackedBarPart[] {
   ];
 }
 
-/** Costs in graded `--signal` tints (darkest = biggest categories first in the legend order). */
-const COST_TINTS = ["#c2452d", "#d0664f", "#a83a26", "#dd8a76", "#8c2f1f", "#e6a897", "#71261a"];
+/** Costs in graded steel-blue tints (Phase 28B: the old `--signal` reds clashed with the Mail colour). */
+const COST_TINTS = ["#6f8aa6", "#8aa1b8", "#5a7490", "#a4b6c8", "#485d75", "#c0cdda", "#374a5e"];
 
 export function costParts(period: LedgerPeriod): StackedBarPart[] {
   const f = strings.finance;

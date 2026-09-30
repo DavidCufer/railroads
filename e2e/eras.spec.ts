@@ -269,6 +269,8 @@ test.describe("Phase 8 — eras and technology", () => {
       startYear: 1904,
     });
     await page.evaluate(() => window.__game!.runDays(366));
+    await page.locator(".top-bar .cash").click(); // Phase 28B: the report opens from Finance
+    await page.getByRole("button", { name: "Yearly Report" }).click();
     await page.waitForTimeout(300); // clear the panel's own slide-in transition
 
     await expect(page.locator(".panel-title")).toHaveText("1904 Year in Review");

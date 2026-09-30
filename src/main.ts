@@ -131,7 +131,7 @@ import { createTrainListButton } from "./ui/toolbar";
 import { createNewsButton, formatNewsItem, openNewsPanel } from "./ui/newsPanel";
 import { openHelpPanel } from "./ui/helpPanel";
 import { openFinancePanel } from "./ui/financePanel";
-import { openYearlyReport } from "./ui/yearlyReport";
+import { setYearReportBadge } from "./ui/yearReportBadge";
 import { createGoalsButton, openGoalCelebration, openGoalsPanel } from "./ui/goalsPanel";
 import { isPanelOpen } from "./ui/panel";
 import { formatMoney } from "./ui/format";
@@ -874,8 +874,11 @@ function main(): void {
       if (goal) openGoalCelebration(ui, state, goal);
     }
 
-    if (isYearBoundary(state.ticks) && !isPanelOpen()) {
-      openYearlyReport(ui, state);
+    if (isYearBoundary(state.ticks)) {
+      // Phase 28B: never a modal — a toast plus a badge on the Finance button; the report opens from Finance.
+      const reportYear = calendarFromTicks(state.startYear, state.ticks).year - 1;
+      setYearReportBadge(reportYear);
+      showToast(ui, strings.yearlyReport.toast(reportYear));
     }
   }
 

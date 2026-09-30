@@ -28,6 +28,7 @@ import { strings } from "./strings";
 import { formatMoney } from "./format";
 import { showToast } from "./toast";
 import { openYearlyReport } from "./yearlyReport";
+import { yearReportBadge } from "./yearReportBadge";
 
 type FinanceTab = "overview" | "year";
 type YearView = "thisYear" | "lastYear";
@@ -213,7 +214,7 @@ export function openFinancePanel(container: HTMLElement, state: GameState): void
       footerButton({
         icon: "news",
         label: strings.finance.yearlyReport,
-        className: "fbtn-wide",
+        className: `fbtn-wide${yearReportBadge() !== null ? " has-badge" : ""}`,
         onClick: () => openYearlyReport(container, state),
       }),
     ];

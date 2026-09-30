@@ -3715,6 +3715,57 @@ button.rule-chip:active {
   justify-content: center;
   background: rgba(10, 14, 20, 0.62);
 }
+/* Phase 28B: the new-engine card is not a modal — no dimming, the map stays draggable around it. */
+.new-engine-scrim {
+  position: absolute;
+  top: calc(52px + var(--safe-top));
+  left: 0;
+  right: 0;
+  z-index: 45;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.new-engine-scrim .new-engine-card {
+  pointer-events: auto;
+  max-height: calc(100vh - 64px - var(--safe-top));
+  overflow-y: auto;
+}
+.new-engine-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 168px;
+  overflow-y: auto;
+}
+.new-engine-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-3);
+  padding: 4px 8px;
+  border-radius: var(--radius-m);
+  background: var(--ink-750);
+}
+.new-engine-thumb {
+  flex: 0 0 auto;
+  border-radius: var(--radius-s, 6px);
+  background: #ece4d2;
+}
+.new-engine-row-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.new-engine-row .eng-name {
+  font-size: var(--fs-m);
+  white-space: nowrap;
+}
+.new-engine-row-stats {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
 .new-engine-card {
   width: min(460px, calc(100% - 32px));
   box-sizing: border-box;
@@ -3955,4 +4006,28 @@ button.rule-chip:active {
   font-size: var(--fs-xs);
   color: var(--muted);
   margin-bottom: var(--gap-2);
+}
+
+/* Badge dot (Year in Review waiting): Finance chip in the top bar, Yearly Report button in Finance. */
+.top-bar .cash.has-badge,
+.fbtn.has-badge {
+  position: relative;
+}
+.top-bar .cash.has-badge::after,
+.fbtn.has-badge::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--signal);
+  box-shadow: 0 0 0 2px var(--ink-800);
+}
+.yearly-report-investments {
+  text-align: center;
+  color: var(--muted);
+  font: var(--fs-xs) var(--font-ui);
+  margin-top: -4px;
 }

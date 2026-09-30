@@ -3,7 +3,12 @@
  * automatically at the year boundary (src/main.ts, when no other panel is in the way) and from the
  * Finance panel's own button.
  */
-import { ledgerExpenses, ledgerNetProfit, ledgerRevenue } from "../data/finance";
+import {
+  ledgerInvestments,
+  ledgerOperatingCosts,
+  ledgerOperatingProfit,
+  ledgerRevenue,
+} from "../data/finance";
 import type { GameState } from "../sim/state";
 import { calendarFromTicks } from "../sim/time";
 import { newlyAvailableLocomotives } from "../sim/tick";
@@ -15,7 +20,8 @@ import { h } from "./h";
 import { icon } from "./icons";
 import { openPanel } from "./panel";
 import { strings } from "./strings";
-import { formatMoney } from "./format";
+import { formatMoney, formatSigned } from "./format";
+import { clearYearReportBadge } from "./yearReportBadge";
 import { formatSpeed, loadSettings } from "./settings";
 
 export function openYearlyReport(container: HTMLElement, state: GameState): void {
@@ -23,14 +29,20 @@ export function openYearlyReport(container: HTMLElement, state: GameState): void
   // the year that just finished and the current calendar year is the new one already underway.
   const year = calendarFromTicks(state.startYear, state.ticks).year - 1;
   const period = state.finance.lastYear;
-  const profit = ledgerNetProfit(period);
+  const profit = ledgerOperatingProfit(period);
+  clearYearReportBadge();
 
   const body: Node[] = [
     h(
       "div",
       { className: `yearly-report-headline ${profit >= 0 ? "good" : "bad"}` },
       icon(profit >= 0 ? "trendUp" : "arrowDown"),
-      `${strings.finance.netProfit}: ${formatMoney(profit)}`,
+      `${strings.finance.operatingProfit}: ${formatSigned(profit)}`,
+    ),
+    h(
+      "div",
+      { className: "yearly-report-investments", title: strings.finance.investmentsNote },
+      `${strings.finance.investments}: ${formatMoney(ledgerInvestments(period))}`,
     ),
     statRow(
       statTile({
@@ -41,8 +53,8 @@ export function openYearlyReport(container: HTMLElement, state: GameState): void
       }),
       statTile({
         icon: "arrowDown",
-        value: formatMoney(ledgerExpenses(period)),
-        caption: strings.finance.expenses,
+        value: formatMoney(ledgerOperatingCosts(period)),
+        caption: strings.finance.operatingCosts,
         tone: "signal",
       }),
       statTile({

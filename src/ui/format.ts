@@ -13,6 +13,11 @@ export function formatMoney(n: number): string {
   return `${sign}$${Math.round(abs)}`;
 }
 
+/** "+$12k" / "−$3k" — always signed, for profit figures. */
+export function formatSigned(n: number): string {
+  return `${n < 0 ? "−" : "+"}${formatMoney(Math.abs(n))}`;
+}
+
 export function formatDate(calendar: Calendar): string {
   const month = MONTH_NAMES[calendar.month - 1] ?? "";
   return `${month.slice(0, 3)} ${calendar.day}, ${calendar.year}`;

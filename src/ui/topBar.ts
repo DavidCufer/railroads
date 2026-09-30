@@ -11,6 +11,7 @@ import { icon, type IconName } from "./icons";
 import { strings } from "./strings";
 import { formatDate, formatMoney } from "./format";
 import type { Calendar } from "../sim/time";
+import { onYearReportBadgeChange, yearReportBadge } from "./yearReportBadge";
 
 const SPEEDS: GameSpeed[] = [0, 1, 2, 4, 8];
 const SPEED_LABELS: Record<GameSpeed, string> = { 0: "", 1: "1×", 2: "2×", 4: "4×", 8: "8×" };
@@ -48,6 +49,10 @@ export function createTopBar(container: HTMLElement, handlers: TopBarHandlers): 
     icon("coin", "icon-sm"),
     cashAmount,
   );
+  const syncBadge = (): void => {
+    cashEl.classList.toggle("has-badge", yearReportBadge() !== null);
+  };
+  onYearReportBadgeChange(syncBadge);
   const eraIcon = h("span", { className: "era-icon" });
   const eraYear = h("span", { className: "era-year" }, "");
   const eraEl = h(

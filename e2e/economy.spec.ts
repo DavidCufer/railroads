@@ -248,7 +248,7 @@ test.describe("Phase 7 — cargo flow and economy", () => {
     await page.screenshot({ path: "docs/screenshots/phase-7-finance-panel.png" });
   });
 
-  test("yearly report opens automatically at the year boundary with the past year's ledger", async ({
+  test("yearly report is reachable from Finance after the year boundary with the past year's ledger", async ({
     page,
   }) => {
     await setup(page, {
@@ -271,6 +271,12 @@ test.describe("Phase 7 — cargo flow and economy", () => {
     // while the labels near the left edge of the panel were still on-screen).
     await page.waitForTimeout(300);
 
+    // Phase 28B: the report no longer pops up on its own — a badge on Finance, opened from there.
+    await expect(page.locator(".panel-title")).toHaveCount(0);
+    await expect(page.locator(".top-bar .cash.has-badge")).toBeVisible();
+    await page.locator(".top-bar .cash").click();
+    await page.getByRole("button", { name: "Yearly Report" }).click();
+    await page.waitForTimeout(300);
     await expect(page.locator(".panel-title")).toHaveText("1848 Year in Review");
     await expect(page.locator(".yearly-report-headline")).toBeVisible();
     await page.screenshot({ path: "docs/screenshots/phase-7-yearly-report.png" });

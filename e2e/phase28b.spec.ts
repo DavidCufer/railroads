@@ -160,3 +160,59 @@ test.describe("Phase 28B — stuck indicator", () => {
     await expect(page.locator(".stuck-chip")).toBeHidden();
   });
 });
+
+test.describe("Phase 28B — modals never block", () => {
+  test("Jan 1: toast + badge, no panel, map still drags; report opens from Finance", async ({
+    page,
+  }) => {
+    await lineWithTrain(page);
+    await page.evaluate(() => window.__game!.runDays(366));
+    await page.waitForTimeout(400);
+    await expect(page.locator(".panel-open")).toHaveCount(0);
+    await expect(page.locator(".top-bar .cash.has-badge")).toBeVisible();
+    await expect(page.locator(".toast", { hasText: "Year in Review" })).toBeVisible();
+    await page.screenshot({ path: shot("year-toast-badge") });
+    // A drag on the map pans the camera (nothing swallows it).
+    const before = await page.evaluate(() => window.__game!.camera.getCenter());
+    await page.mouse.move(400, 200);
+    await page.mouse.down();
+    await page.mouse.move(300, 160, { steps: 6 });
+    await page.mouse.up();
+    const after = await page.evaluate(() => window.__game!.camera.getCenter());
+    expect(Math.abs(after.x - before.x) + Math.abs(after.y - before.y)).toBeGreaterThan(20);
+    await page.locator(".top-bar .cash").click();
+    await page.waitForTimeout(300);
+    await expect(page.locator(".fbtn.has-badge")).toBeVisible();
+    await page.getByRole("button", { name: "Yearly Report" }).click();
+    await page.waitForTimeout(400);
+    await expect(page.locator(".yearly-report-headline")).toContainText("Operating profit");
+    await expect(page.locator(".yearly-report-investments")).toBeVisible();
+    await expect(page.locator(".top-bar .cash.has-badge")).toHaveCount(0);
+    await page.waitForTimeout(4000); // let the toasts clear
+    await page.screenshot({ path: shot("year-report") });
+  });
+
+  test("several new engines share one card and do not block map drags", async ({ page }) => {
+    await setup(page);
+    await page.evaluate(() => {
+      const s = window.__game!.getState() as unknown as { pendingNews: Array<unknown> };
+      s.pendingNews.push(
+        { id: 9001, tick: 0, kind: "newLocomotive", locoId: "pacific-4-6-2" },
+        { id: 9002, tick: 0, kind: "newLocomotive", locoId: "early-electric" },
+        { id: 9003, tick: 0, kind: "newLocomotive", locoId: "mikado-2-8-2" },
+      );
+    });
+    await page.evaluate(() => window.__game!.runDays(1));
+    await page.waitForTimeout(300);
+    await expect(page.locator(".new-engine-card")).toHaveCount(1);
+    await expect(page.locator(".new-engine-row")).toHaveCount(3);
+    await page.screenshot({ path: shot("new-engines") });
+    const before = await page.evaluate(() => window.__game!.camera.getCenter());
+    await page.mouse.move(690, 300);
+    await page.mouse.down();
+    await page.mouse.move(640, 280, { steps: 5 });
+    await page.mouse.up();
+    const after = await page.evaluate(() => window.__game!.camera.getCenter());
+    expect(Math.abs(after.x - before.x)).toBeGreaterThan(10);
+  });
+});

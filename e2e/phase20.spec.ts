@@ -214,6 +214,8 @@ test.describe("Phase 20 — UI v2 panels", () => {
     const vp = page.viewportSize()!;
     void vp;
     await page.evaluate(() => window.__game!.runDays(330));
+    await page.locator(".top-bar .cash").click(); // Phase 28B: the report opens from Finance
+    await page.getByRole("button", { name: "Yearly Report" }).click();
     await page.waitForTimeout(400);
     await shot(page, "yearly-report");
   });
