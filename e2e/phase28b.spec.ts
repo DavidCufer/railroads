@@ -240,7 +240,6 @@ test.describe("Phase 28B — buy-train route sheet", () => {
     expect(box.y + box.height).toBeGreaterThanOrEqual(355);
     await page.screenshot({ path: shot("route-sheet-empty") });
     // Stop 1 via the map-pick hook, stop 2 via the searchable list.
-    await page.locator(".train-pick-station-btn").click();
     await page.evaluate((sid) => window.__game!.debugPickStation(sid), a);
     await expect(page.locator('[data-testid="tl-stop"]')).toHaveCount(1);
     await page.locator(".rs-list-btn").click();
@@ -253,8 +252,7 @@ test.describe("Phase 28B — buy-train route sheet", () => {
     await page.locator('[data-testid="rs-station"]').nth(1).click();
     await expect(page.locator('[data-testid="tl-stop"]')).toHaveCount(2);
     // A third stop so the compact list has to scroll within its sheet.
-    await page.locator(".train-pick-station-btn").click();
-    await page.evaluate((sid) => window.__game!.debugPickStation(sid), b);
+    await page.evaluate((sid) => window.__game!.debugPickStation(sid), a);
     await expect(page.locator('[data-testid="tl-stop"]')).toHaveCount(3);
     await page.waitForTimeout(300);
     await page.screenshot({ path: shot("route-sheet-stops") });

@@ -43,3 +43,12 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   }
   return el;
 }
+
+/** Briefly highlights the last element matching `selector` (a stop that was just added to an order list). */
+export function flashLast(selector: string): void {
+  const all = document.querySelectorAll(selector);
+  const el = all[all.length - 1];
+  if (!el) return;
+  el.classList.add("pick-flash");
+  window.setTimeout(() => el.classList.remove("pick-flash"), 700);
+}

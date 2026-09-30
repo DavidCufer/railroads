@@ -115,8 +115,7 @@ test.describe("Phase 22 — train screens", () => {
     await expect(page.locator(".sheet")).toHaveCount(0);
     await expect(page.locator(".panel-title")).toContainText("Buy train");
     await expect(page.locator(".panel-action-build")).toBeDisabled();
-    for (const id of [ids.a, ids.b]) {
-      await page.locator(".train-pick-station-btn").click();
+    for (const id of [ids.a, ids.a, ids.b]) {
       await page.evaluate((sid) => window.__game!.debugPickStation(sid), id);
     }
     await expect(page.locator('[data-testid="tl-stop"]')).toHaveCount(2);
@@ -153,7 +152,6 @@ test.describe("Phase 22 — train screens", () => {
     await page.locator(".tab", { hasText: "Route" }).click();
 
     // A third stop through the map-pick hook (as if the player tapped a station).
-    await page.locator(".train-pick-station-btn").click();
     await page.evaluate((sid) => window.__game!.debugPickStation(sid), ids.a);
     await expect(page.locator('[data-testid="tl-stop"]')).toHaveCount(3);
     await page.locator(".panel-body").evaluate((el) => {

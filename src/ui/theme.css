@@ -4280,3 +4280,37 @@ select {
   user-select: text;
   -webkit-user-select: text;
 }
+
+/* Phase 29 C: confirmation pulse when a stop is added by tapping the map. */
+.pick-pulse {
+  position: fixed;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border-radius: 50%;
+  border: 3px solid var(--brass);
+  pointer-events: none;
+  z-index: 50;
+  animation: pick-pulse 0.7s ease-out forwards;
+}
+@keyframes pick-pulse {
+  from {
+    transform: scale(0.6);
+    opacity: 1;
+  }
+  to {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+.pick-flash {
+  animation: pick-flash 0.7s ease-out;
+}
+@keyframes pick-flash {
+  from {
+    background: var(--brass);
+  }
+  to {
+    background: transparent;
+  }
+}

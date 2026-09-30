@@ -85,7 +85,6 @@ test.describe("Phase 17 — tap targeting", () => {
     await page.waitForTimeout(300);
     await page.locator(".wizard-next").click(); // Engine → Cars
     await page.locator(".wizard-next").click(); // Cars → Route
-    await page.locator(".train-pick-station-btn").click();
     const cityTile = await tilePoint(page, 66, 147);
     await page.mouse.click(cityTile.x, cityTile.y);
     await page.waitForTimeout(100);

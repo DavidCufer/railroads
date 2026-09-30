@@ -437,9 +437,29 @@ function main(): void {
 
   /** Delivers a station chosen while adding stops to an order list. */
   function deliverStationPick(stationId: number): void {
-    const picked = stationPickHandler;
-    stationPickHandler = null;
-    picked?.(stationId);
+    // Picking stays on after each tap (PLAN Phase 29 C): the panel cancels it when it closes or is toggled off.
+    stationPickHandler?.(stationId);
+    pulseStation(stationId);
+  }
+
+  /** A short ring on the map where a stop was just added. */
+  function pulseStation(stationId: number): void {
+    const station = state.stations.find((st) => st.id === stationId);
+    if (!station) return;
+    const x = station.tile % state.map.width;
+    const y = Math.floor(station.tile / state.map.width);
+    const at = camera.worldToScreen(
+      (x + 0.5) * TILE_SIZE,
+      (y + 0.5) * TILE_SIZE,
+      window.innerWidth,
+      window.innerHeight,
+    );
+    const ring = document.createElement("div");
+    ring.className = "pick-pulse";
+    ring.style.left = `${at.x}px`;
+    ring.style.top = `${at.y}px`;
+    ui.appendChild(ring);
+    window.setTimeout(() => ring.remove(), 700);
   }
 
   function applyOutcome(

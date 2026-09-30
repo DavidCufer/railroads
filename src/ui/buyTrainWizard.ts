@@ -19,7 +19,7 @@ import { emptyState } from "./components/emptyState";
 import { footerButton } from "./components/footer";
 import { consistBuilder, suggestConsists } from "./consistBuilder";
 import { formatMoney } from "./format";
-import { h } from "./h";
+import { flashLast, h } from "./h";
 import { icon, type IconName } from "./icons";
 import { bestOf, engineStats } from "./locoStats";
 import { closePanel, openPanel } from "./panel";
@@ -547,19 +547,23 @@ export function openBuyTrainPanel(
       closePanel();
     }
 
-    function togglePick(): void {
-      if (picking) {
-        stopPicking();
-        render();
-        return;
-      }
+    /** Map-tap entry is on by default (PLAN Phase 29 C): every tap on a station appends a stop. */
+    let pickEnabled = true;
+    function startPicking(): void {
       picking = true;
-      render();
       handlers.pickStationOnMap((pickedStationId) => {
-        picking = false;
+        // Tapping the same station twice in a row adds one stop.
+        if (orders[orders.length - 1]?.stationId === pickedStationId) return;
         addStop(pickedStationId);
         render();
+        flashLast(".rs-orders li");
       });
+    }
+
+    function togglePick(): void {
+      pickEnabled = !pickEnabled;
+      if (!pickEnabled) stopPicking();
+      render();
     }
 
     function backButton(): HTMLElement {
@@ -583,6 +587,8 @@ export function openBuyTrainPanel(
     }
 
     function render(): void {
+      if (picking && (listMode || !pickEnabled || orders.length >= 8)) stopPicking();
+      else if (!picking && pickEnabled && !listMode && orders.length < 8) startPicking();
       switching = true;
       openPanel(container, {
         title: listMode ? w.addFromListTitle : `${w.title(stationName)} · ${w.steps.route}`,

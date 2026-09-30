@@ -41,7 +41,7 @@ import { tabs } from "./components/tabs";
 import { consistBuilder } from "./consistBuilder";
 import { formatMoney } from "./format";
 import { chipTextColor } from "./infoPanels";
-import { h } from "./h";
+import { flashLast, h } from "./h";
 import { icon, type IconName } from "./icons";
 import { closePanel, openPanel } from "./panel";
 import { routeTimeline, type TimelineMarker } from "./routeTimeline";
@@ -246,6 +246,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
   let tab: TrainTab = "route";
   let armed = false;
   let picking = false;
+  let pickEnabled = true;
 
   const render = (): void => {
     const train = state.trains.find((t) => t.id === trainId);
@@ -278,6 +279,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
       const t = state.trains.find((x) => x.id === trainId);
       if (!t) return;
       tabBody.replaceChildren(tab === "route" ? routeTab(t) : statsTab(t));
+      if (tab !== "route") syncPicking(t);
     };
 
     const applyRule = (index: number, rule: TrainOrder["rule"]): void => {
@@ -292,7 +294,27 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
       fillTab();
     };
 
+    /** Map-tap entry is on by default (PLAN Phase 29 C) while the route tab shows. */
+    function syncPicking(t: Train): void {
+      const want = pickHooks !== null && pickEnabled && tab === "route" && t.orders.length < 8;
+      if (picking && !want) {
+        picking = false;
+        pickHooks?.cancelPickStationOnMap();
+      } else if (!picking && want) {
+        picking = true;
+        pickHooks?.pickStationOnMap((sid) => {
+          const cur = state.trains.find((x) => x.id === trainId);
+          if (!cur || cur.orders.length >= 8) return;
+          // Tapping the same station twice in a row adds one stop.
+          if (cur.orders[cur.orders.length - 1]?.stationId === sid) return;
+          changeOrders([...cur.orders, { stationId: sid, rule: "auto" }]);
+          flashLast(".tl-stop");
+        });
+      }
+    }
+
     function routeTab(t: Train): Node {
+      syncPicking(t);
       const canPick = pickHooks !== null && t.orders.length < 8;
       const pickBtn = h(
         "button",
@@ -300,22 +322,8 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
           className: `train-pick-station-btn${picking ? " active" : ""}`,
           disabled: !canPick,
           onClick: () => {
-            if (!pickHooks) return;
-            if (picking) {
-              picking = false;
-              pickHooks.cancelPickStationOnMap();
-              fillTab();
-              return;
-            }
-            picking = true;
+            pickEnabled = !pickEnabled;
             fillTab();
-            pickHooks.pickStationOnMap((sid) => {
-              picking = false;
-              const cur = state.trains.find((x) => x.id === trainId);
-              if (cur && cur.orders.length < 8) {
-                changeOrders([...cur.orders, { stationId: sid, rule: "auto" }]);
-              } else fillTab();
-            });
           },
         },
         icon("plus", "icon-sm"),
@@ -500,7 +508,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
       if (s === lastSig) return;
       lastSig = s;
       fillLive();
-      if (tab === "route" && !picking) fillTab();
+      if (tab === "route") fillTab();
     }, 800);
 
     const sellPlan = computeSellTrainPlan(state, trainId);
@@ -579,6 +587,9 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
         }
       },
     });
+    // The replaced panel's onClose has just cancelled picking: resume it for the new one.
+    const shown = state.trains.find((x) => x.id === trainId);
+    if (shown) syncPicking(shown);
   };
 
   render();

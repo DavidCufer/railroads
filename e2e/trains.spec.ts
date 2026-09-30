@@ -247,14 +247,13 @@ test.describe("Phase 6 — Trains", () => {
 
     // The panel covers the right ~45% of the viewport, so re-center each target tile toward the
     // left before tapping it — otherwise the tap would land on the panel instead of the map.
-    await page.locator(".train-pick-station-btn").click();
     await centerOn(page, 87, ROW_Y, 1.5);
     const pB = await tileScreenPoint(page, 81, ROW_Y);
     await page.mouse.click(pB.x, pB.y);
     await page.waitForTimeout(100);
-    await page.locator(".train-pick-station-btn").click();
     await centerOn(page, 68, ROW_Y, 1.5);
     const pA = await tileScreenPoint(page, 62, ROW_Y);
+    await page.waitForTimeout(800); // not a double-tap on the previous tap point
     await page.mouse.click(pA.x, pA.y);
     await page.waitForTimeout(100);
 
