@@ -560,7 +560,19 @@ export const strings = {
         },
         {
           icon: "wrench",
-          text: "Trains, track and stations cost upkeep every month; breakdowns cost repairs.",
+          text: "Fuel, crew wages, track upkeep and wear, and station staff cost money every month. Wages rise faster than prices, and heavy, fast trains wear the track most.",
+        },
+        {
+          icon: "wrench",
+          text: "A breakdown sends a repair crew from the nearest Engine Shed — the farther it drives, the longer the train waits and the more the call-out costs. Build sheds near the ends of long lines.",
+        },
+        {
+          icon: "coin",
+          text: "Property tax is charged on everything you build. From the 1910s the company pays income tax on its profit, and the rate climbs through the century.",
+        },
+        {
+          icon: "trendUp",
+          text: "Fares fall in real terms as rail becomes mass transit. From the 1920s buses, lorries and airlines take short trips and short-haul freight; long, fast and bulk traffic keeps its share.",
         },
         {
           icon: "finance",

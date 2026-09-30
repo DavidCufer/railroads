@@ -4422,7 +4422,7 @@ stations are the §7.5 passing places) and a consist that has just reversed at a
 - Cost-bar colours depart from STYLE's "signal tints". "Terminal recommended" threshold (1.5×) is my choice. 28A's yard-queue status is not yet handled specially (the chip ignores it unless waiting long).
 - Before shots exist only for the modal cases; other items' "before" is described above (route step was the side panel; bulldoze removed adjacent main-line edges).
 
-## 2026-09-30 — Phase 28A: deadlock-free stations, noRoute, Bug 4, Engine Sheds, Economic model v2 (in progress)
+## 2026-09-30 — Phase 28A: deadlock-free stations, noRoute, Bug 4, Engine Sheds, Economic model v2, electrification, frontier towns, goal retune
 Runs in parallel with 28B (UX); this session stays in sim, data, finance and panel text. `npm run check` and full `npm run e2e` (189) green at each push.
 
 ### 1. Deadlock (Bug 1/2) — `tests/sim/trains/yardQueue.test.ts` written first, red on the old code
@@ -4504,3 +4504,29 @@ Rule from the player: *it must make sense; base it on real things; no flat cuts.
 Targets (asserted in `tests/sim/economy/economicModel.test.ts`, `balanceEarly.test.ts`): Norris 1840 Town↔Town 50 km ROI 61 % (≥ 25 %); Grasshopper Town↔Town 50/100 km ≥ break-even; rich route (250k ↔ 150k) ≤ 3.3× the train's price a year in 1900/1920/1950/1980 (290 %, 180 %, 101 %, 44 %); repairs < 10 % of revenue with a shed at each end in every era (measured ≈ 0–4 %); Hard profit < 0.95 × Normal in 1920 (taxes ×1.6, breakdowns ×1.5, build ×1.2, interest 8 %).
 Parameter reasons worth remembering: *teething only for designs that arrive during the game* (a Grasshopper game starting in 1830 would otherwise break down at 7 %/month); *wage base $350, running share 45 %, property tax 0.5 %* were the smallest values that let a Grasshopper on a 12k-town pair break even once crew and staff became explicit costs; *the 1905 fare anchor 0.62* puts the 1900 rich route at 290 % instead of 325 %; the heavy axle factor is 1.6 (1.8 made a heavy diesel pay 35 % of revenue in wear on half-empty trains).
 Old saves: ledger periods and train books lack the new lines; `deserializeGameState` fills zeros (no version bump, like the other optional fields since v4).
+
+### 4. Electrification and frontier villages
+- **Early Electric** 90 → 110 km/h and running cost $6,000 → $4,200 a year (~30 % under the Atlantic's $7,000 before the crew split), electric engines cause 20 % less rail wear (`ELECTRIC_WEAR_MULT`, no reciprocating masses). `tests/sim/economy/electrification.test.ts`: faster and cheaper than the Atlantic, and on an electrified 1910 rich route (catenary upkeep in the ledger) the Early Electric out-earns the Atlantic per year. Silver goal "Electrify 200 tiles" was 400 tiles (2,000 km) on today's 5 km tiles: now 120 tiles (600 km).
+- **Frontier villages**: (a) *served* now means a train actually stopped at the station this month (`station.visitedThisMonth`, set in `arriveAtStation`, cleared by the monthly frontier step) — orders alone, or a sold fleet, found no more villages; (b) villages founded by the step carry `city.frontier`, and while a train stops at their station they grow in a railway boom: growth points worth 25 % of a growth step each served month (+5 % per four months, ≈ 1.25 %/month) until they are towns. A village passes 3,000 in about seven years of service (`emptyLand.test.ts`: ≥ 3,000 after 10 years served; < 1,100 with no trains).
+
+### 5. Goal thresholds and balance tests
+`tests/sim/referenceOperator.ts` is an "able player" that compounds the balance report's measured per-train profit (City 40k ↔ 40k, 100 km, the era's locomotive) with a fleet growing 0.5 trains a year and 90 % of cash reinvested each January, at `ROUTE_QUALITY = 0.3` of the archetype's profit (real networks mix smaller towns and freight; a second train splits a pair's supply). Calibration: on the *old* economy it reproduces the play-test's Central Europe game (16 trains, revenue ≈ $1.07M in 1869 vs $1.18M observed; its net worth $8.1M is ~1.7× the $4.7M the play-tester reached, who sat on cash and paid $650k for the Alps). Reference results on the new economy: gb 1870 net worth $13.8M; Central Europe 1930 $130M (old economy $197M); us-east 1880 revenue $1.9M; us-west 1900 revenue $1.6M, 1920 net worth $66M; random 1900 start, 1950: revenue $2.0M, net worth $36M. Gold goals must sit at 0.8–3× that, silver 0.3–1.5× (`tests/sim/goalCalibration.test.ts`).
+| Goal | Old | New |
+|---|---|---|
+| us-east silver: annual revenue by 1880 | $5M | $2.5M |
+| gb gold: net worth by 1870 | $5M | $15M |
+| central-eu silver: electrified tiles by 1930 | 400 tiles | 120 tiles |
+| central-eu gold: net worth by 1930 | $30M | $150M |
+| us-west gold: annual revenue by 1900 | $10M | $3M |
+| random gold: net worth / annual revenue | 20× / 5× start cash | 40× / 3× |
+The old revenue goals were out of reach for the old economy too (us-east silver: the able player makes $2M by 1880); the net-worth ones were trivial, as the play-test said.
+Other test changes: the Phase 7.1 passenger range is $80k–$260k (1848 fares are still at the early premium); `balanceEarly.test.ts` now asserts the Norris ROI and the Grasshopper break-even instead of the stopgap helpers; Hard: income-tax schedule a decade ahead (`taxYearShift`), so a 1905 profit is taxed on Hard but not on Normal.
+Hard ÷ Normal profit per train-year (City 40k ↔ 40k): 1900 90 %, 1920 91 %, 1950 65 %, 1980 71 % (BALANCE.md); before the 1910s the difference is the dearer building, 8 % interest, $600k start and ×1.5 breakdowns.
+
+### Deviations / known
+- Hard's revenue multiplier is now 1.0 (was 0.8), as the plan asked; SPEC §9.6 and the deviations list record the new difficulty table.
+- The over-subscribed stress variant uses +4 trains; with +10 a saturated junction pair (two junctions a train-length apart, one train at a time) starves one terminal train for 60 days — a capacity limit, not a deadlock, but a junction-queue by arrival time would be the next fix.
+- The yard is a counter, not geometry: trains queued for a platform stand on the station tile in the sim; drawing them on sidings beside the platforms (plan text) is render work for a later phase. The geometry stress test still exempts vehicles within 3.5 tiles of one station.
+- Competition is applied to the fare of each delivery (not to station supply), so a lost fare shows in the train panel, not in the station's supply figures.
+- Mail and passengers share the passenger curves; the freight curve covers every other cargo.
+- `src/sim/trains/stuck.ts` exists for 28B's ⚠ chip but nothing in the UI reads it yet (28B owns the chip).

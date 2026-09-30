@@ -186,13 +186,15 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     name: "Early Electric",
     type: "electric",
     introYear: 1905,
-    maxSpeedKmh: 90,
+    // PLAN 28A: faster than the Atlantic (100) and ~30 % cheaper to run than steam of its size (no coal, no
+    // firebox, far fewer moving parts) — otherwise a $191k electrification bought nothing.
+    maxSpeedKmh: 110,
     power: 12,
     maxCars: 9,
     weightClass: "medium",
     reliability: 3,
     cost: 120_000,
-    maintenancePerYear: 6_000,
+    maintenancePerYear: 4_200,
   },
   {
     id: "streamliner-diesel",

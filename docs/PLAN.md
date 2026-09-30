@@ -1002,7 +1002,8 @@ Source: the agent play-test (3 games, ~70 game years). Read the report first; bu
 Two sessions after Phase 27 lands: **28A** (sim/economy) and **28B** (UX).
 
 ### 28A — Deadlock-free stations, engine sheds, era balance
-- [ ] **Bug 1/2 platform deadlock — design decision:** platforms limit *simultaneous loading*, not physical entry.
+**Done (2026-09-30)** — see docs/PROGRESS.md "Phase 28A" for the design, parameters, before/after balance tables and deviations.
+- [x] **Bug 1/2 platform deadlock — design decision:** platforms limit *simultaneous loading*, not physical entry.
       A train may always enter its destination station; if all platforms are busy it waits in the station's yard
       (holding tracks, unlimited, drawn as trains standing on sidings/approach beside the platforms) and loads in
       FIFO order. Departure only needs the line path (§7.5), never a destination platform. So a train never holds a
@@ -1010,14 +1011,14 @@ Two sessions after Phase 27 lands: **28A** (sim/economy) and **28B** (UX).
       report: seed 11, 18-tile line, N = 1…12 Atlantics alternating A→B/B→A on single and double track — throughput
       must be non-decreasing up to the line's capacity and never drop to 0; ≥ 90 % of N−1 throughput at N = 2 ×
       platforms. Extend the phantom-jam stress test with over-subscribed stations.
-- [ ] `noRoute` trains leave their platform (go to the yard) immediately and, after 30 days, are flagged in the stuck
+- [x] `noRoute` trains leave their platform (go to the yard) immediately and, after 30 days, are flagged in the stuck
       indicator (28B); never block others.
-- [ ] **Bug 4**: a train must never be `moving` at speed 0 for > 5 days — find the cause (suspected one-tile stub next
+- [x] **Bug 4**: a train must never be `moving` at speed 0 for > 5 days — find the cause (suspected one-tile stub next
       to a station) and fix; add an invariant to the stress test.
-- [ ] **Bug 6 Engine Sheds**: buildable at any station ($30k era-scaled per SPEC §6.2); trains can be bought at any
+- [x] **Bug 6 Engine Sheds**: buildable at any station ($30k era-scaled per SPEC §6.2); trains can be bought at any
       station with a shed; repair crews dispatch from the nearest shed. Repair cost follows mechanism 3–4 below;
       breakdown −50 % applies to trains serviced at *any* shed.
-- [ ] **Economic model v2 — mechanisms, not multipliers** (player's rule: "it must make sense, based on real
+- [x] **Economic model v2 — mechanisms, not multipliers** (player's rule: "it must make sense, based on real
       things; don't just cut profit in half"). Every balance change must come from one of these modelled causes, each
       a small data table in `src/data/economy.ts`, shown to the player where it costs money (Finance breakdown lines,
       train/station panels), and documented in SPEC §9 "Economic model v2". No flat global revenue cuts.
@@ -1049,8 +1050,8 @@ Two sessions after Phase 27 lands: **28A** (sim/economy) and **28B** (UX).
       1900+ good routes earn ≤ ~3× the train's price per year after tax and wear; Hard is clearly harder. If a target
       misses, adjust the *mechanism* (and explain why in PROGRESS), never a blanket multiplier. Retune goal
       thresholds from the new numbers.
-- [ ] Frontier villages grow to ≥ 3,000 within 10 years while served; stop founding next to unused stations.
-- [ ] Update BALANCE.md with before/after and write the targets into balance tests.
+- [x] Frontier villages grow to ≥ 3,000 within 10 years while served; stop founding next to unused stations.
+- [x] Update BALANCE.md with before/after and write the targets into balance tests.
 
 ### 28B — UX from the play-test
 - [x] **Stuck indicator**: top-bar ⚠ chip with a count of trains waiting > 10 days / noRoute / broken; tap cycles the

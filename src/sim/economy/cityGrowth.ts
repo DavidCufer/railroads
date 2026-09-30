@@ -23,6 +23,7 @@ import {
   CITY_UNSERVED_BASELINE_GROWTH_PER_YEAR,
   type CityTier,
 } from "../../data/cities";
+import { FRONTIER_BOOM_STEP_SHARE } from "../../data/economy";
 import type { CargoType } from "../../data/cargo";
 import { DIRS8, inBounds, tileIndex } from "../map/grid";
 import { terrainId } from "../map/terrain";
@@ -165,8 +166,17 @@ function applyGrowthStep(state: GameState, city: City, fraction: number): void {
  * running growth-points balance, then applies as many population steps as the balance now affords
  * (capped per month so a huge one-off score, e.g. from Civic Investment, can't loop indefinitely). */
 export function monthlyCityGrowthStep(state: GameState): void {
+  // Cities a train stopped at this month (visit flags are cleared by the frontier step that follows).
+  const visited = new Set<number>();
+  for (const station of state.stations)
+    if (station.visitedThisMonth)
+      for (const id of citiesCoveringStation(state, station)) visited.add(id);
+
   for (const city of state.cities) {
     const growth = getOrCreateCityGrowth(state, city.id);
+    // Railway boom (Phase 28A): settlers follow the railway into a frontier village while trains stop there.
+    if (city.frontier && visited.has(city.id) && city.population < CITY_TIER_DEFS.town.minPop)
+      growth.points += city.population * CITY_GROWTH_THRESHOLD_FACTOR * FRONTIER_BOOM_STEP_SHARE;
     const served = growth.monthlyScore >= CITY_SERVED_SCORE_THRESHOLD;
     growth.lastServed = served;
     growth.points += served

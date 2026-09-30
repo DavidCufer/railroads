@@ -1,5 +1,5 @@
 /**
- * Frontier towns (Phase 26A "empty land becomes useful"): a station that has been on a train's orders
+ * Frontier towns (Phase 26A "empty land becomes useful"): a station that trains have actually stopped at
  * for a while with no city in its catchment attracts a new village beside it. The village then grows
  * like any other city as trains serve it. Deterministic: seeded RNG only.
  */
@@ -22,11 +22,13 @@ import type { City } from "./types";
 export function monthlyFrontierStep(state: GameState): void {
   const rng = createRng((state.seed ^ (state.ticks * 2654435761) ^ 202) >>> 0);
   const map = state.map;
-  const onOrders = new Set<number>();
-  for (const train of state.trains) for (const o of train.orders) onOrders.add(o.stationId);
 
   for (const station of state.stations) {
-    if (!onOrders.has(station.id)) continue;
+    // Served means a train actually stopped here this month — a station whose trains were sold, or whose
+    // orders nobody can reach, attracts no settlers (PLAYTEST-1: villages appeared beside dead stations).
+    const visited = station.visitedThisMonth === true;
+    delete station.visitedThisMonth;
+    if (!visited) continue;
     station.servedMonths = (station.servedMonths ?? 0) + 1;
     if (station.frontierFounded || station.servedMonths < FRONTIER_SERVED_MONTHS) continue;
 
@@ -76,6 +78,7 @@ export function monthlyFrontierStep(state: GameState): void {
       anchorY: Math.floor(idx / map.width),
       tiles: [idx],
       coastal: false,
+      frontier: true,
     };
     city.coastal = isCoastal(map, city);
     state.cities.push(city);

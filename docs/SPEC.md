@@ -568,8 +568,8 @@ shown to the player where it costs money (Finance cost lines with tooltips, trai
    a network shorten the wait — the real cost of a far breakdown is the days the train stands idle.
 5. **Taxes.** *Property tax* 0.5 %/year of the book value of track, stations and improvements, from day one.
    *Corporate income tax* on the year's operating profit after interest (losses carried forward), charged at year
-   end: 0 before 1910, then 6 % (1910), 12 % (1920), 18 % (1935), 26 % (1945), 32 % (1960). Hard ×1.6 on both taxes,
-   Easy ×0.6.
+   end: 0 before 1910, then 6 % (1910), 12 % (1920), 18 % (1935), 26 % (1945), 32 % (1960). Hard ×1.6 on both taxes and
+   a schedule a decade ahead of the calendar (6 % from 1900), Easy ×0.6 and a decade late.
 6. **Competition.** Buses and cars take a share of *short* (< 150 km, linearly less towards 150) passenger and mail
    trips: 12 % in 1930, 25 % in 1950, 38 % in 1970, 45 % from 1990. Lorries take short-haul freight: 10 % in 1935,
    25 % in 1955, 40 % from 2000, scaled by cargo (coal/ore 0.25, grain/wood 0.4, steel 0.5, lumber 0.6, goods/food/
@@ -590,7 +590,7 @@ Difficulty (§9.6) is now *tax, interest, build cost and breakdowns*, no longer 
 | Revenue mult | 1.25 | 1.0 | 1.0 (was 0.8; Hard is now harder through tax, not fares) |
 | Build cost mult | 0.8 | 1.0 | 1.2 |
 | Breakdowns | ×0.5 | ×1 | ×1.5 |
-| Tax schedule (property + income) | ×0.6 | ×1 | ×1.6 |
+| Tax schedule (property + income) | ×0.6, a decade late | ×1 | ×1.6, a decade early |
 | Interest | 4 % | 6 % | 8 % |
 
 ---
@@ -660,9 +660,9 @@ ui-bg rgba(24,28,34,0.88) ui-accent #F2B544 good #5BC27A bad #E05A4F
 ## 11. Scenarios & goals
 
 Each real-world region ships with 1–2 optional goal sets (bronze/silver/gold), e.g.:
-- `us-east`: "Connect New York and Chicago by 1860", "Annual revenue $5M by 1880", "Chicago reaches Metropolis".
+- `us-east`: "Connect New York and Chicago by 1860", "Annual revenue $2.5M by 1880", "Chicago reaches Metropolis".
 - `gb`: "Connect London–Birmingham–Manchester–Liverpool by 1845", "Deliver 1,000 carloads of coal in a year".
-- `central-eu`: "Cross the Alps: connect Munich/Vienna to Milan or Venice/Trieste", "Electrify 200 tiles by 1930".
+- `central-eu`: "Cross the Alps: connect Munich/Vienna to Milan or Venice/Trieste", "Electrify 120 tiles by 1930".
 - `us-west`: "Connect Sacramento to Salt Lake City by 1870", "Net worth $50M by 1920".
 
 Goal types (data-driven): `connect(cityA, cityB, byYear)`, `annualRevenue(amount, byYear)`,
@@ -787,3 +787,7 @@ localization (English only, but keep strings in one `strings.ts` file for later)
 - [Phase 27] §7.5 interlock works on geometric conflict points (`src/sim/track/conflicts.ts`): a junction node, or a *mid-tile crossing point* (two diagonals of one cell; id `mapSize + cell`). Each has a clearance derived from the angle between its legs and whether they are double track (≈ 0.4–1.4 tiles) that replaces the fixed 0.35 tile: a train claims from `clearance` before the point until its tail is `clearance` past it, and a waiting train stops `clearance` short. Also fixed: (1) `CAR_LENGTH_TILES` 0.3 → 0.481 (its drawn length + coupler gap; the sim's tail used to be ~0.7 tile short of the drawn one); (2) a train remapped after a track change recorded its block entry mid-block, so a follower did not see a leader that entered the block whole; (3) a follower keeps seeing a leader that has turned off at the block's end junction while the leader's tail is still on the line.
 - [Phase 27 D] §8/§9 the first decades are playable: track/station/locomotive upkeep is × 0.4 in 1830 easing to 1× by 1850 and passenger/mail fares × 1.8 in 1830 easing to 1× by 1845 (`earlyUpkeepFactor`, `earlyFareFactor`; a longer premium pushed the 1848-calibrated Phase 7.1 passenger acceptance ranges out of bounds); freight unchanged. Phase 28A retunes the early era on top of this. Toasts are laid out over the map area only (never over an open panel or the tool column); a failed name lookup in news/train text reads "a train", "a station", "a nearby town" or "the line", never "?".
 
+- [Phase 28A] §7.5: platforms limit simultaneous **loading**, not entry — the destination-slot departure rule is gone; a train arriving at a full station waits in its yard (FIFO) and a train standing in a station drops the blocks its tail holds; junction claims are released before trains are stepped and go to the longest waiter. Fixes the hold-and-wait deadlock (PLAYTEST-1 Bug 1/2) and the "moving at speed 0" trains (Bug 4: a parked `noRoute` train no longer hops along a dead-end stub beside its station).
+- [Phase 28A] §6.2: Engine Sheds can be built at any station ($30k, era-scaled and × the build-cost multiplier); §9.5b/§9.6: Economic model v2 replaces the flat multipliers — fares and freight rates follow real-terms curves, wages outrun prices, crews scale with the train, track wear, engine complexity, repair call-outs by distance, property and income tax, road and air competition. Hard no longer has a revenue penalty (was ×0.8): it is a ×1.6 tax schedule, 8 % interest, ×1.2 build cost, ×1.5 breakdowns. Easy: ×0.6 taxes. The Phase 27 D stopgap helpers were removed.
+- [Phase 28A] §11: goal thresholds re-set from the new economy (`tests/sim/referenceOperator.ts`): Annual revenue $2.5M by 1880 (us-east silver, was $5M), Net worth $15M by 1870 (gb gold, was $5M), Net worth $150M by 1930 (central-eu gold, was $30M), Annual revenue $3M by 1900 (us-west gold, was $10M), Electrify 120 tiles (600 km) by 1930 (central-eu silver; "200 tiles" of the old 10 km grid is 400 tiles today). Random-map gold goals: net worth 40× (was 20×) / annual revenue 3× (was 5×) the starting cash.
+- [Phase 28A] §7.7: the Early Electric is 110 km/h (was 90) with ~30 % lower running cost, and electric engines cause 20 % less rail wear, so electrification pays. Frontier villages (§8.3, Phase 26A) now need trains that actually *stop* at the station (not just orders), and grow in a railway boom (+5 % per four served months) until they are towns.

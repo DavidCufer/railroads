@@ -175,7 +175,8 @@ function chargeIncomeTax(state: GameState, taxYear: number): void {
   }
   const taxable = Math.max(0, profit - carry);
   state.finance.taxLossCarry = Math.max(0, carry - profit);
-  const tax = taxable * incomeTaxRate(taxYear) * DIFFICULTY[state.difficulty].taxMult;
+  const diff = DIFFICULTY[state.difficulty];
+  const tax = taxable * incomeTaxRate(taxYear + diff.taxYearShift) * diff.taxMult;
   if (tax <= 0) return;
   addExpense(state, "incomeTax", tax);
   state.cash -= tax;

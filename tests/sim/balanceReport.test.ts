@@ -75,6 +75,26 @@ function keyTables(): string[] {
     out.push("");
   }
   out.push(
+    "### Hard vs Normal: Passengers City 40k ↔ City 40k, 100 km (profit per train-year)",
+    "",
+  );
+  out.push("| Era | Normal | Hard | Hard ÷ Normal |", "|---|---|---|---|");
+  for (const e of KEY_ERAS) {
+    const base = {
+      cargo: "passengers" as const,
+      km: 100,
+      ...e,
+      population: 40_000,
+      tier: "city" as const,
+    };
+    const normal = measureMean(base);
+    const hard = measureMean({ ...base, difficulty: "hard" });
+    out.push(
+      `| ${e.year} | ${k(normal.profit)} | ${k(hard.profit)} | ${pct(hard.profit / normal.profit)} |`,
+    );
+  }
+  out.push("");
+  out.push(
     "### Where the money goes: Passengers City 40k ↔ City 40k, 100 km (share of revenue)",
     "",
   );
@@ -120,6 +140,17 @@ describe.runIf(process.env.BALANCE_REPORT === "1")("balance report", () => {
     );
     out.push(
       "track/station upkeep included). Consist = min(loco max cars, 8). Cells: `revenue / profit`.",
+    );
+    out.push("");
+    out.push(
+      "**Targets** (Economic model v2, SPEC §9.5b; asserted in `tests/sim/economy/economicModel.test.ts` and `balanceEarly.test.ts`):",
+      "- a Norris on a 10-tile (50 km) Town↔Town line returns ≥ 25 % of its price a year;",
+      "- a Grasshopper on a short line at least breaks even;",
+      "- repairs < 10 % of revenue in every era with an Engine Shed at each end;",
+      "- a rich route (250k ↔ 150k cities, 100 km) earns ≤ ~3.3× the train's price a year after tax and wear from 1900 on;",
+      "- Hard is clearly harder than Normal (heavier tax schedule, higher interest, dearer building, more breakdowns).",
+      "",
+      "Earlier versions of this file (before Phase 28A) are in git history and in the Phase 28A entry of PROGRESS.md.",
     );
     out.push("");
     out.push(...keyTables());

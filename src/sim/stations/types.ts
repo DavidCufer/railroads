@@ -19,6 +19,8 @@ export interface Station {
   improvements: StationImprovementType[];
   /** Months this station has been on a train's orders (frontier-town founding, Phase 26A). Absent in older saves. */
   servedMonths?: number;
+  /** A train stopped here since the month began (Phase 28A): what "served" means for frontier towns. Cleared monthly. */
+  visitedThisMonth?: boolean;
   /** True once a frontier village was founded next to this station. */
   frontierFounded?: boolean;
 }

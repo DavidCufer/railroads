@@ -21,6 +21,8 @@ export interface City {
    * starts with `tiles: []`/`population: 0` in `GameState.cities` until
    * `GameState.pendingCityFoundings` applies it — see src/sim/economy/founding.ts. */
   foundingYear?: number;
+  /** Founded beside a station by the frontier step (Phase 26A): grows in a railway boom while trains stop (Phase 28A). */
+  frontier?: boolean;
 }
 
 export interface Industry {

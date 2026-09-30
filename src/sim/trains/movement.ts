@@ -765,6 +765,7 @@ function arriveAtStation(state: GameState, train: Train, station: Station): void
   train.loadExtraWaitDays = 0;
   // Engine Shed servicing and Water Tower refills happen on any stop at a station that has them
   // (SPEC §6.2), not just a scheduled order stop.
+  station.visitedThisMonth = true;
   if (station.hasEngineShed) train.lastServicedTick = state.ticks;
   if (station.hasWaterTower) train.tilesSinceWaterTower = 0;
   // A queued "Edit cars" change (PLAN Phase 15) is applied the moment the train next stops

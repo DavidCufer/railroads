@@ -13,6 +13,10 @@
  * - central-eu's "connect Munich/Vienna to Milan or Venice/Trieste" is an OR of OR — simplified to
  *   one representative pair (Munich-Milan) rather than adding "any of" logic to the goal system
  *   for a single example.
+ * - Phase 28A re-set every money threshold from the Economic model v2 numbers with the reference operator of
+ *   `tests/sim/referenceOperator.ts` (an able player compounding the balance report's measured per-train profit,
+ *   calibrated to the play-test): gold sits at about 1.2–2× what that operator reaches, silver at about 0.8–1.3×
+ *   (`tests/sim/goalCalibration.test.ts` keeps them there). The electrified-tiles goal was 400 tiles (2,000 km).
  * - Every region's SPEC example list gives only 2-3 goals, not always a full bronze/silver/gold
  *   trio, and several omit a target year entirely (e.g. gb's "Deliver 1,000 carloads of coal in a
  *   year", us-east's "Chicago reaches Metropolis"). Where SPEC gives no year, one was chosen that
@@ -43,7 +47,7 @@ export interface RegionGoalDef {
 export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
   "us-east": [
     { tier: "bronze", def: { type: "connect", cities: ["New York", "Chicago"], byYear: 1860 } },
-    { tier: "silver", def: { type: "annualRevenue", amount: 5_000_000, byYear: 1880 } },
+    { tier: "silver", def: { type: "annualRevenue", amount: 2_500_000, byYear: 1880 } },
     {
       tier: "gold",
       def: { type: "cityTier", city: "Chicago", tier: "metropolis", byYear: 1900 },
@@ -59,12 +63,12 @@ export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
       },
     },
     { tier: "silver", def: { type: "delivered", cargo: "coal", amount: 1000, withinYear: 1850 } },
-    { tier: "gold", def: { type: "netWorth", amount: 5_000_000, byYear: 1870 } },
+    { tier: "gold", def: { type: "netWorth", amount: 15_000_000, byYear: 1870 } },
   ],
   "central-eu": [
     { tier: "bronze", def: { type: "connect", cities: ["Munich", "Milan"], byYear: 1875 } },
-    { tier: "silver", def: { type: "electrifiedTiles", amount: 200 * WORLD_SCALE, byYear: 1930 } },
-    { tier: "gold", def: { type: "netWorth", amount: 30_000_000, byYear: 1930 } },
+    { tier: "silver", def: { type: "electrifiedTiles", amount: 60 * WORLD_SCALE, byYear: 1930 } },
+    { tier: "gold", def: { type: "netWorth", amount: 150_000_000, byYear: 1930 } },
   ],
   "us-west": [
     {
@@ -72,6 +76,6 @@ export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
       def: { type: "connect", cities: ["Sacramento", "Salt Lake City"], byYear: 1870 },
     },
     { tier: "silver", def: { type: "netWorth", amount: 50_000_000, byYear: 1920 } },
-    { tier: "gold", def: { type: "annualRevenue", amount: 10_000_000, byYear: 1900 } },
+    { tier: "gold", def: { type: "annualRevenue", amount: 3_000_000, byYear: 1900 } },
   ],
 };

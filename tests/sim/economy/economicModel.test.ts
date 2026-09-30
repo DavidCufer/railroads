@@ -206,6 +206,18 @@ describe("5. taxes", () => {
     expect(DIFFICULTY.hard.revenueMult).toBe(1); // harder through tax and interest, not lower fares
   });
 
+  it("Hard's schedule runs a decade ahead: a 1905 profit is already taxed, on Normal it is not", () => {
+    const tax = (d: "easy" | "normal" | "hard") => {
+      const s = yearWithProfit(1905, d, 400_000);
+      s.ticks = 24 * 360 * 1;
+      yearlyFinanceRollover(s);
+      return s.finance.lastYear.incomeTax;
+    };
+    expect(tax("hard")).toBeGreaterThan(0);
+    expect(tax("normal")).toBe(0);
+    expect(tax("easy")).toBe(0);
+  });
+
   it("the tax steps up through the century", () => {
     expect(incomeTaxRate(1900)).toBe(0);
     for (const [a, b] of [

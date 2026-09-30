@@ -7,6 +7,7 @@ import {
   CAR_AXLE_FACTOR,
   CAR_EMPTY_TONS,
   CAR_LOAD_TONS,
+  ELECTRIC_WEAR_MULT,
   LOCO_TONS,
   RUNNING_COST_SHARE,
   STATION_STAFF,
@@ -104,8 +105,12 @@ export function wearUnitsPerTile(
   let carTons = 0;
   for (const c of cars)
     carTons += CAR_EMPTY_TONS + CAR_LOAD_TONS * (c.loadedUnits / CARGO[c.cargoType].capacity);
-  const tons =
-    LOCO_TONS[loco.weightClass] * AXLE_LOAD_FACTOR[loco.weightClass] + carTons * CAR_AXLE_FACTOR;
+  // An electric engine has no reciprocating masses hammering the rail.
+  const locoWear =
+    LOCO_TONS[loco.weightClass] *
+    AXLE_LOAD_FACTOR[loco.weightClass] *
+    (loco.type === "electric" ? ELECTRIC_WEAR_MULT : 1);
+  const tons = locoWear + carTons * CAR_AXLE_FACTOR;
   const speed = speedKmh / WEAR_SPEED_REF_KMH;
   return (tons / 100) * (1 + speed * speed);
 }

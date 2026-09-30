@@ -291,3 +291,13 @@ export function competitionLoss(
     interpolateYear(TRUCK_SHARE_ANCHORS, year) * (TRUCK_SUSCEPTIBILITY[cargo] ?? 1) * shortness
   );
 }
+
+// --- Electrification and frontier towns --------------------------------------------------------------
+
+/** An electric locomotive has no reciprocating masses hammering the rail: its share of the wear is this much lower. */
+export const ELECTRIC_WEAR_MULT = 0.8;
+
+/** Railway towns boom (PLAN Phase 28A): a frontier village that a train stops at this month gets growth points worth
+ * this share of one growth step — 0.25 means a step (+5 %) every four served months, about 1.25 %/month, so a
+ * village of 1,000 passes 3,000 in about seven years of service. The boom ends when it has become a town. */
+export const FRONTIER_BOOM_STEP_SHARE = 0.25;

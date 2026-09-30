@@ -11,6 +11,8 @@ export interface DifficultyDef {
   bankruptcy: boolean;
   /** Multiplies the property and corporate income tax schedule (Hard = a heavier schedule, not lower revenue). */
   taxMult: number;
+  /** Years the income tax schedule is ahead of the calendar (Hard = the state taxes railways a decade early). */
+  taxYearShift: number;
 }
 
 export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
@@ -22,6 +24,7 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     interestRate: 0.04,
     bankruptcy: false,
     taxMult: 0.6,
+    taxYearShift: -10,
   },
   normal: {
     startingCash: 1_000_000,
@@ -31,6 +34,7 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     interestRate: 0.06,
     bankruptcy: true,
     taxMult: 1.0,
+    taxYearShift: 0,
   },
   hard: {
     startingCash: 600_000,
@@ -40,6 +44,7 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     interestRate: 0.08,
     bankruptcy: true,
     taxMult: 1.6,
+    taxYearShift: 10,
   },
 };
 

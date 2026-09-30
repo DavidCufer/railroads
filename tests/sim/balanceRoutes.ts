@@ -1,6 +1,12 @@
 /** Hand-built single routes for the balance report (docs/BALANCE.md) — one straight line on a
  * synthetic plain map, a cargo, a loco, a distance in km. Used by tests/sim/balanceReport.test.ts. */
-import { buildStation, buildTrack, buyTrain, setOrders } from "../../src/sim/commands";
+import {
+  buildStation,
+  buildTrack,
+  buyTrain,
+  electrifyTrack,
+  setOrders,
+} from "../../src/sim/commands";
 import { KM_PER_TILE } from "../../src/data/scale";
 import { CARGO, type CargoType } from "../../src/data/cargo";
 import { INDUSTRIES, type IndustryType } from "../../src/data/industries";
@@ -37,6 +43,8 @@ export interface RouteSpec {
   stationType?: "depot" | "station" | "terminal";
   /** Build a second Engine Shed at the far station (repair crews start from the nearest shed). */
   shedAtBothEnds?: boolean;
+  /** Electrify the line (catenary upkeep is part of the ledger; the electrification itself is capital). */
+  electrified?: boolean;
 }
 
 export interface RouteResult {
@@ -109,6 +117,10 @@ export function buildRoute(spec: RouteSpec): { state: GameState; cars: number } 
   }
   const path = Array.from({ length: bx - ax + 1 }, (_, i) => tileAt(map, ax + i, trackY));
   if (!buildTrack(state, path).ok) throw new Error("track");
+  if (spec.electrified) {
+    state.cash = 1e12;
+    if (!electrifyTrack(state, path).ok) throw new Error("electrify");
+  }
   const st = spec.stationType ?? (isCity ? "station" : "depot");
   if (!buildStation(state, tileAt(map, ax, trackY), st).ok) throw new Error("station a");
   if (!buildStation(state, tileAt(map, bx, trackY), st).ok) throw new Error("station b");
