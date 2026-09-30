@@ -309,6 +309,12 @@ export const strings = {
       removeCar: (name: string) => `Remove ${name} car`,
       clear: "Clear",
       stopsHint: "Add at least two stops",
+      tapOnMap: "Tap on map",
+      fromList: "From list",
+      addFromListTitle: "Add a stop",
+      searchStations: "Search stations",
+      noStationsFound: "No station matches",
+      tilesAway: (n: number) => `${n} tiles`,
       longerRoutesHint:
         "Longer routes pay more per trip and load less often, so a fast engine earns more on them.",
       longerRoutesHintSlow:

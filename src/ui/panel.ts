@@ -34,6 +34,10 @@ export interface PanelOptions {
   /** Identifies "the same panel, re-rendered" (e.g. `station:3`). Re-opening with the key of the
    * panel currently shown keeps its scroll position. */
   key?: string | undefined;
+  /** `bottom`: a bottom sheet across the map area (Phase 28B route step) instead of the right-hand
+   * side panel; `className` adds modifier classes (e.g. the taller station-list mode). */
+  placement?: "side" | "bottom" | undefined;
+  className?: string | undefined;
 }
 
 /** Opens a panel, replacing any panel currently open. A replacement swaps in place (no slide-in
@@ -60,7 +64,13 @@ export function openPanel(container: HTMLElement, options: PanelOptions): void {
   if (options.footer && options.footer.length > 0) {
     children.push(h("div", { className: "panel-actions" }, ...options.footer));
   }
-  const root = h("div", { className: "panel" }, ...children);
+  const root = h(
+    "div",
+    {
+      className: `panel${options.placement === "bottom" ? " panel-bottom" : ""}${options.className ? ` ${options.className}` : ""}`,
+    },
+    ...children,
+  );
   container.appendChild(root);
   if (previous) {
     root.classList.add("panel-instant", "panel-open");

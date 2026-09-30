@@ -216,3 +216,59 @@ test.describe("Phase 28B — modals never block", () => {
     expect(Math.abs(after.x - before.x)).toBeGreaterThan(10);
   });
 });
+
+test.describe("Phase 28B — buy-train route sheet", () => {
+  test("bottom sheet keeps the map tappable; stops from the tap hook and from a searchable list", async ({
+    page,
+  }) => {
+    const { a, b } = await lineWithTrain(page);
+    await build(
+      page,
+      range(10, (i) => ({ x: 64 + i, y: 35 })),
+    );
+    await station(page, 73, 35);
+    await page.evaluate((id) => window.__game!.debugOpenStation(id), a);
+    await page.locator(".station-buy-train-btn").click();
+    await page.locator(".wizard-next").click();
+    await page.locator(".train-car-add-btn", { hasText: "Passengers" }).click();
+    await page.locator(".wizard-next").click();
+    const sheet = page.locator(".panel.panel-bottom");
+    await expect(sheet).toBeVisible();
+    await page.waitForTimeout(400);
+    const box = (await sheet.boundingBox())!;
+    expect(box.height).toBeLessThanOrEqual(0.45 * 360);
+    expect(box.y + box.height).toBeGreaterThanOrEqual(355);
+    await page.screenshot({ path: shot("route-sheet-empty") });
+    // Stop 1 via the map-pick hook, stop 2 via the searchable list.
+    await page.locator(".train-pick-station-btn").click();
+    await page.evaluate((sid) => window.__game!.debugPickStation(sid), a);
+    await expect(page.locator('[data-testid="tl-stop"]')).toHaveCount(1);
+    await page.locator(".rs-list-btn").click();
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: shot("route-sheet-list") });
+    await page.locator(".rs-search").fill("zzzz");
+    await expect(page.locator('[data-testid="rs-station"]')).toHaveCount(0);
+    await page.locator(".rs-search").fill("");
+    await expect(page.locator('[data-testid="rs-station"]')).toHaveCount(3);
+    await page.locator('[data-testid="rs-station"]').nth(1).click();
+    await expect(page.locator('[data-testid="tl-stop"]')).toHaveCount(2);
+    // A third stop so the compact list has to scroll within its sheet.
+    await page.locator(".train-pick-station-btn").click();
+    await page.evaluate((sid) => window.__game!.debugPickStation(sid), b);
+    await expect(page.locator('[data-testid="tl-stop"]')).toHaveCount(3);
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: shot("route-sheet-stops") });
+    // The map above the sheet still takes drags.
+    const before = await page.evaluate(() => window.__game!.camera.getCenter());
+    await page.mouse.move(500, 60 + 40);
+    await page.mouse.down();
+    await page.mouse.move(420, 100, { steps: 5 });
+    await page.mouse.up();
+    const after = await page.evaluate(() => window.__game!.camera.getCenter());
+    expect(Math.abs(after.x - before.x)).toBeGreaterThan(20);
+    await page.locator(".panel-action-build").click();
+    const trains = await page.evaluate(() => window.__game!.getTrains());
+    expect(trains).toHaveLength(2);
+    expect(trains[1]!.orders).toHaveLength(3);
+  });
+});

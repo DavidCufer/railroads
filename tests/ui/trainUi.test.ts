@@ -44,6 +44,13 @@ describe("suggested consists", () => {
     expect(out.every((s) => s.cars.length <= loco.maxCars)).toBe(true);
   });
 
+  it("fills every car slot with passengers + mail (Bug 9)", () => {
+    const loco = locomotiveById("pacific-4-6-2")!;
+    const out = suggestConsists(economy({ passengers: 12 }), loco, 1910);
+    expect(out[0]!.cars.length).toBe(loco.maxCars);
+    expect(out[0]!.cars.filter((c) => c === "mail").length).toBeGreaterThanOrEqual(1);
+  });
+
   it("never suggests freight cars for a passenger-only trainset", () => {
     const loco = locomotiveById("high-speed-trainset")!;
     const out = suggestConsists(economy({ passengers: 5, coal: 50 }), loco, 1990);

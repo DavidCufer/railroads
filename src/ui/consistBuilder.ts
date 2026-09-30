@@ -37,10 +37,12 @@ export function suggestConsists(
   const out: Suggestion[] = [];
   const supply = economy?.supply ?? {};
   if (allowed.has("passengers") && (supply.passengers ?? 0) > 0.05) {
-    const cars: CargoType[] = [];
-    for (let i = 0; i < n; i++) {
-      cars.push(i === n - 1 && allowed.has("mail") && n > 1 ? "mail" : "passengers");
-    }
+    // Fills every car slot (Phase 28B, Bug 9); about one car in four carries mail, at the tail.
+    const slots = Math.max(1, loco.maxCars);
+    const mailCars = allowed.has("mail") && slots > 1 ? Math.max(1, Math.floor(slots / 4)) : 0;
+    const cars: CargoType[] = Array.from({ length: slots }, (_, i) =>
+      i >= slots - mailCars ? "mail" : "passengers",
+    );
     out.push({ label: strings.trains.wizard.suggestPassengers, cars });
   }
   const freight = (Object.entries(supply) as Array<[CargoType, number]>)

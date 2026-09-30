@@ -20,10 +20,10 @@ import { footerButton } from "./components/footer";
 import { consistBuilder, suggestConsists } from "./consistBuilder";
 import { formatMoney } from "./format";
 import { h } from "./h";
-import { icon } from "./icons";
+import { icon, type IconName } from "./icons";
 import { bestOf, engineStats } from "./locoStats";
 import { closePanel, openPanel } from "./panel";
-import { routeTimeline } from "./routeTimeline";
+import { nextRule, RULE_ICONS } from "./routeTimeline";
 import { openSheet, type SheetHandle } from "./sheet";
 import { playSound } from "./sound";
 import { SLOW_ENGINE_KMH } from "../data/trains";
@@ -38,6 +38,9 @@ export interface BuyTrainHandlers {
   /** Cancels an active `pickStationOnMap` early (toggled off, or the panel closed). */
   cancelPickStationOnMap: () => void;
   onBought?: (trainId: number) => void;
+  /** Pans the camera down by `dyScreenPx` screen pixels (negative = back up), so what was centred
+   * stays centred in the map area left visible above the route bottom sheet. */
+  panCameraBy?: (dyScreenPx: number) => void;
 }
 
 type Filter = "all" | LocomotiveType;
@@ -83,8 +86,17 @@ export function openBuyTrainPanel(
     handlers.cancelPickStationOnMap();
   }
 
+  /** Screen pixels the camera was panned by to clear the route sheet (undone when it goes away). */
+  let sheetPan = 0;
+  function unpanForSheet(): void {
+    if (sheetPan === 0) return;
+    handlers.panCameraBy?.(-sheetPan);
+    sheetPan = 0;
+  }
+
   function endWizard(): void {
     stopPicking();
+    unpanForSheet();
   }
 
   function fitCarsToLoco(): void {
@@ -333,112 +345,193 @@ export function openBuyTrainPanel(
     );
   }
 
-  // ---- step 3: route (side panel; the map stays visible) --------------------------------------
+  // ---- step 3: route (bottom sheet; the map stays visible and tappable above it) ----------------
 
   function showRouteStep(): void {
     closeChrome();
-    const bodyHost = h("div", { className: "route-step" });
-    const buyBtn = h("button", { className: "panel-action-build" });
-    const pickBtn = h("button", { className: "train-pick-station-btn" });
+    let listMode = false;
+    let query = "";
 
-    function planNow(): { cost: number; valid: boolean } {
-      return selected ? computeBuyTrainPlan(state, selected.id, cars) : { cost: 0, valid: false };
+    const planNow = (): { cost: number; valid: boolean } =>
+      selected ? computeBuyTrainPlan(state, selected.id, cars) : { cost: 0, valid: false };
+    const tileXY = (tile: number): [number, number] => [
+      tile % state.map.width,
+      Math.floor(tile / state.map.width),
+    ];
+
+    function addStop(id: number): void {
+      if (orders.length < 8) orders.push({ stationId: id, rule: "auto" });
     }
 
-    function render(): void {
+    function compactRow(o: TrainOrder, i: number): HTMLElement {
+      const p = strings.trains.panel;
+      const mini = (
+        name: IconName,
+        label: string,
+        disabled: boolean,
+        fn: () => void,
+      ): HTMLElement =>
+        h(
+          "button",
+          { className: "tl-btn", "aria-label": label, disabled, onClick: fn },
+          icon(name, "icon-xs"),
+        );
+      return h(
+        "li",
+        { className: "rs-stop", "data-testid": "tl-stop" },
+        h("span", { className: "tl-dot" }, String(i + 1)),
+        h("span", { className: "rs-name" }, stationLabel(o.stationId)),
+        h(
+          "button",
+          {
+            className: "rule-chip",
+            title: t.ruleHint[o.rule],
+            "aria-label": `${p.changeRule}: ${t.loadingRules[o.rule]}`,
+            "data-testid": "rule-chip",
+            onClick: () => {
+              o.rule = nextRule(o.rule);
+              render();
+            },
+          },
+          icon(RULE_ICONS[o.rule], "icon-xs"),
+          h("span", null, t.loadingRules[o.rule]),
+        ),
+        mini("arrowUp", p.moveUp, i === 0, () => swap(i, i - 1)),
+        mini("arrowDown", p.moveDown, i === orders.length - 1, () => swap(i, i + 1)),
+        mini("close", p.removeStop, false, () => {
+          orders.splice(i, 1);
+          render();
+        }),
+      );
+    }
+
+    function swap(i: number, j: number): void {
+      const a = orders[i];
+      const b = orders[j];
+      if (!a || !b) return;
+      orders[i] = b;
+      orders[j] = a;
+      render();
+    }
+
+    function stationListBody(): Node[] {
+      const last = orders[orders.length - 1];
+      const from = state.stations.find((s) => s.id === (last?.stationId ?? stationId));
+      const [fx, fy] = from ? tileXY(from.tile) : [0, 0];
+      const rowsHost = h("div", { className: "rs-station-list" });
+      const fill = (): void => {
+        const q = query.trim().toLowerCase();
+        const rows = state.stations
+          .filter((s) => q === "" || s.name.toLowerCase().includes(q))
+          .map((s) => {
+            const [x, y] = tileXY(s.tile);
+            return { s, d: Math.round(Math.hypot(x - fx, y - fy)) };
+          })
+          .sort((a, b) => a.d - b.d);
+        rowsHost.replaceChildren(
+          ...(rows.length === 0
+            ? [emptyState(w.noStationsFound, "mapPin")]
+            : rows.map(({ s, d }) =>
+                h(
+                  "button",
+                  {
+                    className: "rs-station",
+                    "data-testid": "rs-station",
+                    disabled: orders.length >= 8,
+                    onClick: () => {
+                      addStop(s.id);
+                      listMode = false;
+                      query = "";
+                      render();
+                    },
+                  },
+                  h("span", { className: "rs-name" }, s.name),
+                  h("span", { className: "rs-dist" }, w.tilesAway(d)),
+                ),
+              )),
+        );
+      };
+      const search = h("input", {
+        className: "rs-search",
+        type: "search",
+        placeholder: w.searchStations,
+        "aria-label": w.searchStations,
+        value: query,
+      });
+      search.addEventListener("input", () => {
+        query = search.value;
+        fill();
+      });
+      fill();
+      return [h("div", { className: "rs-search-row" }, backButton(), search), rowsHost];
+    }
+
+    function mainBody(): Node[] {
       const plan = planNow();
       const ordersOk = orders.length >= 2 && orders.length <= 8;
-      buyBtn.textContent = `${t.buy} · ${formatMoney(plan.cost)}`;
-      buyBtn.disabled = !plan.valid || plan.cost > state.cash || !ordersOk;
-
-      pickBtn.replaceChildren(
-        icon("plus", "icon-sm"),
-        h("span", null, picking ? t.tapAStation : t.panel.addStop),
+      const buyBtn = h(
+        "button",
+        {
+          className: "panel-action-build",
+          disabled: !plan.valid || plan.cost > state.cash || !ordersOk,
+          onClick: buy,
+        },
+        `${t.buy} · ${formatMoney(plan.cost)}`,
       );
-      pickBtn.classList.toggle("active", picking);
-      (pickBtn as HTMLButtonElement).disabled = orders.length >= 8;
-
-      const kids: Node[] = [];
-      if (selected) {
-        kids.push(
-          h(
-            "div",
-            { className: "route-summary" },
-            consistStrip({
-              locoId: selected.id,
-              cars: cars.map((c) => ({ cargoType: c, fill01: 0 })),
-              year,
-              height: 30,
-            }),
-          ),
-        );
-      }
-      kids.push(
+      const pickBtn = h(
+        "button",
+        {
+          className: `train-pick-station-btn${picking ? " active" : ""}`,
+          disabled: orders.length >= 8,
+          onClick: togglePick,
+        },
+        icon("mapPin", "icon-sm"),
+        h("span", null, picking ? t.tapAStation : w.tapOnMap),
+      );
+      const listBtn = h(
+        "button",
+        {
+          className: "rs-list-btn",
+          disabled: orders.length >= 8,
+          onClick: () => {
+            stopPicking();
+            listMode = true;
+            render();
+          },
+        },
+        icon("plus", "icon-sm"),
+        h("span", null, w.fromList),
+      );
+      const list =
+        orders.length === 0
+          ? emptyState(w.stopsHint, "mapPin")
+          : h("ol", { className: "rs-orders" }, ...orders.map(compactRow));
+      return [
         h(
           "div",
-          { className: "section" },
+          { className: "rs-main" },
           h(
             "div",
-            { className: "section-head route-head" },
+            { className: "rs-left" },
             h(
               "div",
-              { className: "panel-section-title" },
-              t.orders,
+              { className: "rs-head" },
+              h("span", { className: "panel-section-title" }, t.orders),
               h("span", { className: "route-count tabular" }, w.stopCount(orders.length)),
             ),
-            pickBtn,
+            list,
           ),
           h(
-            "p",
-            { className: "section-note" },
-            selected && selected.maxSpeedKmh < SLOW_ENGINE_KMH
-              ? w.longerRoutesHintSlow
-              : w.longerRoutesHint,
+            "div",
+            { className: "rs-right" },
+            h("div", { className: "rs-add-row" }, pickBtn, listBtn),
+            h("div", { className: "rs-buy-row" }, backButton(), buyBtn),
           ),
-          orders.length === 0
-            ? emptyState(w.stopsHint, "mapPin")
-            : routeTimeline({
-                stops: orders.map((o) => ({ name: stationLabel(o.stationId), rule: o.rule })),
-                onRule: (i, rule) => {
-                  const o = orders[i];
-                  if (o) o.rule = rule;
-                  render();
-                },
-                onRemove: (i) => {
-                  orders.splice(i, 1);
-                  render();
-                },
-                onMove: (i, dir) => {
-                  const j = i + dir;
-                  const a = orders[i];
-                  const b = orders[j];
-                  if (!a || !b) return;
-                  orders[i] = b;
-                  orders[j] = a;
-                  render();
-                },
-              }),
         ),
-      );
-      bodyHost.replaceChildren(...kids);
+      ];
     }
 
-    pickBtn.addEventListener("click", () => {
-      if (picking) {
-        stopPicking();
-        render();
-        return;
-      }
-      picking = true;
-      render();
-      handlers.pickStationOnMap((pickedStationId) => {
-        picking = false;
-        if (orders.length < 8) orders.push({ stationId: pickedStationId, rule: "auto" });
-        render();
-      });
-    });
-
-    buyBtn.addEventListener("click", () => {
+    function buy(): void {
       if (!selected) return;
       const bought = buyTrain(state, stationId, selected.id, cars);
       if (!bought.ok) {
@@ -453,28 +546,64 @@ export function openBuyTrainPanel(
         handlers.onBought?.(train.id);
       }
       closePanel();
-    });
+    }
 
-    const backBtn = footerButton({
-      icon: "arrowLeft",
-      ariaLabel: w.back,
-      kind: "secondary",
-      onClick: () => {
+    function togglePick(): void {
+      if (picking) {
         stopPicking();
-        showCarsStep();
-      },
-    });
-    backBtn.classList.add("panel-action-cancel");
+        render();
+        return;
+      }
+      picking = true;
+      render();
+      handlers.pickStationOnMap((pickedStationId) => {
+        picking = false;
+        addStop(pickedStationId);
+        render();
+      });
+    }
 
-    openPanel(container, {
-      title: w.title(stationName),
-      subtitle: w.stepOf(3, 3, w.steps.route),
-      body: [bodyHost],
-      footer: [backBtn, buyBtn],
-      onClose: () => {
-        if (!switching) endWizard();
-      },
-    });
+    function backButton(): HTMLElement {
+      const backBtn = footerButton({
+        icon: "arrowLeft",
+        ariaLabel: w.back,
+        kind: "secondary",
+        onClick: () => {
+          if (listMode) {
+            listMode = false;
+            render();
+            return;
+          }
+          stopPicking();
+          unpanForSheet();
+          showCarsStep();
+        },
+      });
+      backBtn.classList.add("panel-action-cancel");
+      return backBtn;
+    }
+
+    function render(): void {
+      switching = true;
+      openPanel(container, {
+        title: listMode ? w.addFromListTitle : `${w.title(stationName)} · ${w.steps.route}`,
+        subtitle: undefined,
+        body: listMode ? stationListBody() : mainBody(),
+        placement: "bottom",
+        className: `route-sheet${listMode ? " route-sheet-tall" : ""}`,
+        key: "route-step",
+        onClose: () => {
+          if (!switching) endWizard();
+        },
+      });
+      switching = false;
+      if (sheetPan === 0) {
+        const sheetH = document.querySelector(".panel-bottom")?.getBoundingClientRect().height ?? 0;
+        sheetPan = Math.round(sheetH / 2);
+        handlers.panCameraBy?.(sheetPan);
+      }
+    }
+
     render();
   }
 

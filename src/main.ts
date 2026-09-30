@@ -446,6 +446,9 @@ function main(): void {
       cancelPickStationOnMap: () => {
         stationPickHandler = null;
       },
+      panCameraBy: (dyScreenPx) => {
+        camera.y += dyScreenPx / camera.zoom;
+      },
     });
   }
 

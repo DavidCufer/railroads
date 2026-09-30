@@ -4031,3 +4031,188 @@ button.rule-chip:active {
   font: var(--fs-xs) var(--font-ui);
   margin-top: -4px;
 }
+
+/* ---------- Buy-train route step: bottom sheet (Phase 28B). The map above stays visible and tappable. ---------- */
+.panel.panel-bottom {
+  top: auto;
+  left: calc(var(--safe-left) + 68px);
+  right: var(--safe-right);
+  bottom: var(--safe-bottom);
+  width: auto;
+  height: clamp(150px, 42vh, 230px);
+  border-radius: var(--radius-l) var(--radius-l) 0 0;
+  transform: translateY(100%);
+}
+.panel.panel-bottom.panel-open {
+  transform: translateY(0);
+}
+.panel.route-sheet-tall {
+  height: clamp(200px, 74vh, 320px);
+}
+.panel-bottom .panel-header {
+  height: 34px;
+}
+.panel-bottom .panel-header::after {
+  display: none;
+}
+.panel-bottom .panel-title {
+  font-size: var(--fs-m);
+}
+.panel-bottom .panel-body {
+  padding: 6px var(--gap-3);
+  gap: 6px;
+  overflow: hidden;
+}
+.rs-main {
+  display: flex;
+  gap: var(--gap-3);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.rs-left {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+}
+.rs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 0 0 auto;
+}
+.rs-orders {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rs-stop {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 4px;
+  border-radius: var(--radius-s);
+  background: var(--ink-750);
+  flex: 0 0 auto;
+}
+.rs-stop .tl-dot {
+  position: static;
+  transform: none;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  font-size: var(--fs-xs);
+}
+.rs-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.rs-stop .rule-chip {
+  padding: 2px 8px;
+}
+.rs-right {
+  flex: 0 0 min(250px, 40%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  justify-content: flex-end;
+}
+.rs-right .route-summary {
+  padding: 3px 4px 0;
+  overflow: hidden;
+}
+.rs-add-row,
+.rs-buy-row {
+  display: flex;
+  gap: 6px;
+}
+.rs-add-row > button {
+  flex: 1 1 0;
+  min-height: 36px;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font: 700 var(--fs-xs) var(--font-ui);
+  white-space: nowrap;
+}
+.rs-list-btn {
+  border-radius: var(--radius-m);
+  border: 1px solid var(--ink-600);
+  background: var(--ink-750);
+  color: var(--text);
+}
+.rs-buy-row > button {
+  min-height: 40px;
+  border-radius: var(--radius-m);
+  border: none;
+  font: 700 var(--fs-s) var(--font-ui);
+}
+.rs-buy-row .panel-action-build {
+  flex: 1 1 auto;
+}
+.rs-buy-row .panel-action-cancel {
+  flex: 0 0 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rs-search-row {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.rs-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--ink-600);
+  background: var(--ink-700);
+  color: var(--text);
+  font: var(--fs-s) var(--font-ui);
+  user-select: text;
+}
+.rs-station-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rs-station {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  flex: 0 0 auto;
+  padding: 0 10px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: var(--ink-750);
+  color: var(--text);
+  font: var(--fs-s) var(--font-ui);
+  text-align: left;
+}
+.rs-dist {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}

@@ -17,7 +17,7 @@ export type ToastKind = "info" | "warn";
 
 /** Width of the open side panel (0 if none): toasts are laid out over the map area to its left. */
 function openPanelInset(): number {
-  const panel = document.querySelector(".panel.panel-open");
+  const panel = document.querySelector(".panel.panel-open:not(.panel-bottom)");
   return panel ? Math.round(panel.getBoundingClientRect().width) : 0;
 }
 
