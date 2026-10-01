@@ -44,6 +44,13 @@ export const CITY_SUPPLY_BOOST = 1.5;
 /** Mail is boosted more: a car pays 1.3× a passenger car now (was 2.4×), so it needs the volume to keep
  * a mail train worth ~0.8× a passenger train on the same route. */
 export const CITY_MAIL_SUPPLY_BOOST = 2.2;
+/** Phase 30A (PLAYTEST-2 Top 10 #9): mail was 48–55 % of every run's revenue — one bag per ~420 residents a
+ * month, as much money as the passengers. Real railways carried mail on a contract and it was a small share of
+ * a passenger line's receipts (a few %, 10–20 % at the very most on the great mail routes), because a letter
+ * weighs grams and a household wrote a few a week. Supply per head is now 1/4.7 of the old figure so mail is
+ * ~15 % of a city line's revenue; the rate per bag (1.3× a passenger, and the Post Office's +50 % supply /
+ * +25 % pay) is unchanged, which makes the Post Office a sensible extra rather than the best investment. */
+export const MAIL_VOLUME_FACTOR = 0.213;
 
 /** Monthly passenger/mail supply per resident (SPEC §8.3: "passengers = pop/250, mail = pop/800").
  * **Deviation (Phase 7.1 balance pass)**: SPEC's pop/250 made two decent-sized cities' passenger
@@ -57,7 +64,7 @@ export const CITY_MAIL_SUPPLY_BOOST = 2.2;
  * for passengers, 1.5× for mail) so `population / divisor` still yields the same number of
  * carloads/month as before, just expressed in real people/bags. */
 export const CITY_PASSENGER_SUPPLY_DIVISOR = 650 / 2 / CITY_SUPPLY_BOOST;
-export const CITY_MAIL_SUPPLY_DIVISOR = 1_400 / 1.5 / CITY_MAIL_SUPPLY_BOOST;
+export const CITY_MAIL_SUPPLY_DIVISOR = 1_400 / 1.5 / CITY_MAIL_SUPPLY_BOOST / MAIL_VOLUME_FACTOR;
 
 /** Destination bonus (Phase 26A): a station's passenger and mail supply grows by this fraction for
  * every *additional* distinct station its passenger/mail trains reach (a plain A↔B shuttle has one

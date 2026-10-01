@@ -7,10 +7,12 @@
  */
 import {
   CARGO_TYPES,
+  WAITING_PATIENCE,
   WAITING_DECAY_RATE_PER_DAY,
   waitingDecayThresholdDays,
 } from "../../data/cargo";
 import { cargoDecayExempt, stationStorageCap } from "../stations/improvements";
+import { recordTurnedAway } from "../stations/flow";
 import { DAYS_PER_MONTH } from "../time";
 import type { GameState, StationCargoPile } from "../state";
 
@@ -32,6 +34,25 @@ export function accrueDailyCargo(state: GameState): void {
       const monthly = economy.supply[cargo] ?? 0;
       const daily = monthly / DAYS_PER_MONTH;
       const entry: StationCargoPile = pile[cargo] ?? { amount: 0, waitingDays: 0 };
+      const patience = WAITING_PATIENCE[cargo];
+      if (patience !== undefined) {
+        // People and post (Phase 30A): no storage cap. Once nobody has collected for `graceDays`, a share
+        // `giveUpPerDay` of the pile gives up each day; that is what the station panel counts as "turned away".
+        entry.amount += daily;
+        if (entry.amount > DECAY_FLOOR) {
+          entry.waitingDays++;
+          if (entry.waitingDays > patience.graceDays) {
+            const leaving = entry.amount * patience.giveUpPerDay;
+            entry.amount -= leaving;
+            recordTurnedAway(state, station.id, cargo, leaving);
+          }
+        } else {
+          entry.amount = 0;
+          entry.waitingDays = 0;
+        }
+        pile[cargo] = entry;
+        continue;
+      }
       if (daily > 0) entry.amount = Math.min(cap, entry.amount + daily);
 
       if (entry.amount > DECAY_FLOOR) {

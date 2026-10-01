@@ -17,6 +17,7 @@ import { monthlyIndustryStep } from "./economy/processing";
 import { COMPETITION_NEWS_YEARS } from "../data/economy";
 import { monthlyFinanceStep, yearlyFinanceRollover } from "./finance/ledger";
 import { pushNews } from "./news";
+import { monthlyStationFlowRollover, yearlyStationFlowRollover } from "./stations/flow";
 import type { GameState } from "./state";
 import { calendarFromTicks, isDayBoundary, isMonthBoundary, isYearBoundary } from "./time";
 import { monthlyBreakdownStep } from "./trains/breakdown";
@@ -54,6 +55,7 @@ export function advanceOneHour(state: GameState): void {
     // Processed cargo's supply figures just changed (monthlyOutput), so the cached per-station
     // supply/accept map needs refreshing before tomorrow's accrual reads it.
     refreshStationEconomy(state);
+    monthlyStationFlowRollover(state);
     monthlyFinanceStep(state);
     monthlyBreakdownStep(state);
   }
@@ -70,6 +72,7 @@ export function advanceOneHour(state: GameState): void {
       if (COMPETITION_NEWS_YEARS[mode] === year) pushNews(state, { kind: "competition", mode });
     }
     yearlyWashoutStep(state);
+    yearlyStationFlowRollover(state);
     yearlyFinanceRollover(state);
     yearlyCargoDeliveredRollover(state);
     yearlyCityFoundingStep(state);

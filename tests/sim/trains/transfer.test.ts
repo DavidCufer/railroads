@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { buildStation, buildTrack, buyTrain, setOrders } from "../../../src/sim/commands";
 import { CARGO } from "../../../src/data/cargo";
 import { accrueDailyCargo } from "../../../src/sim/economy/cargoFlow";
-import { stationStorageCap } from "../../../src/sim/stations/improvements";
+import { transferStorageCap } from "../../../src/sim/stations/improvements";
 import { computeRevenue, stepLoading } from "../../../src/sim/trains/loading";
 import type { GameState } from "../../../src/sim/state";
 import type { Station } from "../../../src/sim/stations/types";
@@ -194,7 +194,7 @@ describe("warehouse transfer hub", () => {
 
   it("respects the warehouse capacity: overflow stays on the train", () => {
     const { state, a, h } = world();
-    const cap = stationStorageCap(h, "coal");
+    const cap = transferStorageCap(h, "coal");
     state.stationTransfer.set(h.id, [
       {
         cargoType: "coal",

@@ -262,7 +262,7 @@ describe("6. competition from other transport", () => {
 });
 
 describe("balance targets (BALANCE.md)", () => {
-  it("a rich route earns at most ~3.3× the train's price a year after tax and wear, in every era from 1900", () => {
+  it("a rich route earns at most ~4.5× the train's price a year after tax and wear, in every era from 1900 (a full train both ways: the pile has no hidden cap since Phase 30A)", () => {
     const eras = [
       { year: 1900, loco: "atlantic-4-4-2" },
       { year: 1920, loco: "pacific-4-6-2" },
@@ -277,7 +277,7 @@ describe("balance targets (BALANCE.md)", () => {
         population: 150_000,
         tier: "metropolis",
       });
-      expect(r.profit / r.price, `${e.year}`).toBeLessThanOrEqual(3.3);
+      expect(r.profit / r.price, `${e.year}`).toBeLessThanOrEqual(4.5);
       expect(r.profit, `${e.year}`).toBeGreaterThan(0);
     }
   });

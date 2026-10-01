@@ -111,6 +111,7 @@ import { directionIndex } from "./sim/track/graph";
 import { spanTilesBetween, validBridgeTypes } from "./sim/track/cost";
 import { findStationBends } from "./sim/track/layout";
 import { canPlaceStationAt, stationAtTile, stationCatchmentTiles } from "./sim/stations";
+import type { StationFlow } from "./sim/stations/flow";
 import { terrainId } from "./sim/map/terrain";
 import { inBounds, tileIndex } from "./sim/map/grid";
 import { calendarFromTicks, isMonthBoundary, isYearBoundary } from "./sim/time";
@@ -1381,6 +1382,8 @@ function main(): void {
             stationId: number,
           ) => Partial<Record<string, { amount: number; waitingDays: number }>> | null;
           getFinance: () => GameState["finance"];
+          /** Phase 30A: revenue loaded here and passengers / mail turned away (units and est. fares) per period. */
+          getStationFlow: (stationId: number) => StationFlow | null;
           takeLoan: (amount: number) => { ok: boolean; reason?: string };
           repayLoan: (amount: number) => { ok: boolean; reason?: string };
           /** Test-only: injects a raw-producer/port industry directly (bypassing map-gen
@@ -1634,6 +1637,7 @@ function main(): void {
         return result;
       },
       getFinance: () => state.finance,
+      getStationFlow: (stationId) => state.stationFlow.get(stationId) ?? null,
       takeLoan: (amount) => {
         const result = takeLoan(state, amount);
         return result.ok ? { ok: true } : { ok: false, reason: result.reason };

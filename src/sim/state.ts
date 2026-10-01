@@ -10,6 +10,7 @@ import type { CargoType } from "../data/cargo";
 import { TrackGraph } from "./track/graph";
 import type { Station } from "./stations/types";
 import type { StationEconomy } from "./stations/economy";
+import type { StationFlow } from "./stations/flow";
 import type { Train } from "./trains/types";
 import { createFinanceState, type FinanceState } from "./finance/types";
 import type { NewsItem } from "./news";
@@ -92,6 +93,8 @@ export interface GameState {
   /** Per-station waiting cargo (SPEC §6.3), accrued daily by src/sim/economy/cargoFlow.ts and
    * drained by src/sim/trains/loading.ts. */
   stationCargo: Map<number, Partial<Record<CargoType, StationCargoPile>>>;
+  /** Per-station revenue and turned-away passengers / mail (Phase 30A) — see src/sim/stations/flow.ts. */
+  stationFlow: Map<number, StationFlow>;
   /** Transfer stock per Warehouse station (PLAN Phase 18 C), oldest lot first. */
   stationTransfer: Map<number, TransferLot[]>;
   /** Per-industry processing state (SPEC §8.2), keyed by `Industry.id`. */
@@ -211,6 +214,7 @@ export function createGameState(options: NewGameOptions): GameState {
     trackVersion: 0,
     stationCargo: new Map(),
     stationTransfer: new Map(),
+    stationFlow: new Map(),
     industryEconomy: initIndustryEconomy(industries),
     finance: createFinanceState(),
     pendingDeliveries: [],

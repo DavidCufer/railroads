@@ -7,7 +7,7 @@ import {
   WAREHOUSE_STORAGE_MULT,
   type StationImprovementType,
 } from "../../data/stations";
-import { cargoUnitFactor, type CargoType } from "../../data/cargo";
+import { cargoUnitFactor, givesUpWaiting, type CargoType } from "../../data/cargo";
 import type { Station } from "./types";
 
 export function hasImprovement(station: Station, type: StationImprovementType): boolean {
@@ -21,13 +21,30 @@ export function hasImprovement(station: Station, type: StationImprovementType): 
  * figure (e.g. comparing before/after a Warehouse, independent of any specific cargo). */
 export function stationStorageCap(station: Station, cargo?: CargoType): number {
   const base = STATION_TYPE_DEFS[station.type].storagePerCargo;
-  const withWarehouse = hasImprovement(station, "warehouse") ? base * WAREHOUSE_STORAGE_MULT : base;
+  // Phase 30A: a Warehouse stores freight only. Passengers and mail have no storage cap at all (they give
+  // up waiting instead, see `WAITING_PATIENCE_DAYS`); the figure returned for them is only the station
+  // type's nominal pile size, which the station panel uses to scale its bar.
+  const withWarehouse =
+    hasImprovement(station, "warehouse") && !(cargo && givesUpWaiting(cargo))
+      ? base * WAREHOUSE_STORAGE_MULT
+      : base;
   return cargo ? withWarehouse * cargoUnitFactor(cargo) : withWarehouse;
 }
 
-/** True if `cargo` waiting at `station` is exempt from waiting-cargo decay (SPEC §6.2): Warehouse
- * exempts everything, Cold Storage exempts food/livestock specifically. */
+/** Room for transfer stock at a Warehouse hub — any cargo, ×`WAREHOUSE_STORAGE_MULT` (a hub holds goods in
+ * transit, not people waiting). */
+export function transferStorageCap(station: Station, cargo: CargoType): number {
+  return (
+    STATION_TYPE_DEFS[station.type].storagePerCargo *
+    WAREHOUSE_STORAGE_MULT *
+    cargoUnitFactor(cargo)
+  );
+}
+
+/** True if `cargo` waiting at `station` is exempt from waiting-cargo decay (SPEC §6.2): a Warehouse
+ * exempts freight (never passengers or mail, who give up regardless), Cold Storage food/livestock. */
 export function cargoDecayExempt(station: Station, cargo: CargoType): boolean {
+  if (givesUpWaiting(cargo)) return false;
   if (hasImprovement(station, "warehouse")) return true;
   if (hasImprovement(station, "coldStorage") && (cargo === "food" || cargo === "livestock")) {
     return true;

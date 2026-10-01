@@ -30,13 +30,14 @@ import {
   TICKS_PER_CAR_HANDLED,
 } from "../../data/trains";
 import { addRevenue } from "../finance/ledger";
+import { recordLoadedRevenue } from "../stations/flow";
 import { recordTrainRevenue } from "./profit";
 import { accrueCityGrowthScore } from "../economy/cityGrowth";
 import { getOrCreateIndustryEconomy } from "../economy/processing";
 import { calendarFromTicks, HOURS_PER_DAY } from "../time";
 import type { DeliveryEvent, GameState, StationCargoPile } from "../state";
 import type { Station } from "../stations/types";
-import { hasImprovement, stationLoadSpeedMult, stationStorageCap } from "../stations/improvements";
+import { hasImprovement, stationLoadSpeedMult, transferStorageCap } from "../stations/improvements";
 import { stationAtTile, stationCatchmentTiles } from "../stations/placement";
 import { tileXY } from "./geometry";
 import type { Train, TrainCar, TrainOrder } from "./types";
@@ -60,7 +61,7 @@ export function transferUnits(state: GameState, stationId: number, cargo: CargoT
 /** Room left in a Warehouse's transfer stock for `cargo` (same per-cargo cap as its waiting pile). */
 function transferRoom(state: GameState, station: Station, cargo: CargoType): number {
   if (!hasImprovement(station, "warehouse")) return 0;
-  return Math.max(0, stationStorageCap(station, cargo) - transferUnits(state, station.id, cargo));
+  return Math.max(0, transferStorageCap(station, cargo) - transferUnits(state, station.id, cargo));
 }
 
 function accepts(state: GameState, stationId: number, cargo: CargoType): boolean {
@@ -296,6 +297,7 @@ function settleUnload(state: GameState, train: Train, station: Station, car: Tra
 
     state.cash += revenue;
     addRevenue(state, cargo, revenue);
+    if (loadedStation) recordLoadedRevenue(state, loadedStation.id, cargo, unitsDelivered, revenue);
     recordTrainRevenue(train, revenue);
     queueDelivery(state, train, {
       stationId: station.id,

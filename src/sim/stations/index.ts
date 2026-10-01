@@ -4,6 +4,7 @@ export {
   hasImprovement,
   stationLoadSpeedMult,
   stationStorageCap,
+  transferStorageCap,
 } from "./improvements";
 export { stationCost, stationUpgradeCost } from "./cost";
 export { defaultStationName } from "./naming";

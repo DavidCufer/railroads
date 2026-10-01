@@ -69,6 +69,23 @@ export function waitingDecayThresholdDays(cargo: CargoType): number {
 
 export const WAITING_DECAY_RATE_PER_DAY = 0.05;
 
+/** Passengers and mail are people and post, not goods in a shed (Phase 30A, PLAYTEST-2 exploit 1): they have
+ * no storage cap and no warehouse. A pile nobody has collected from for `graceDays` starts to give up: every day
+ * `giveUpPerDay` of it leaves (takes the coach or stays at home), so a pile settles at about
+ * `supply / giveUpPerDay` and a long gap between trains simply loses people. Mail waits a little longer: a
+ * posted letter can sit in the sorting office, but an unserved mail contract moves to the road mail coach. */
+export const WAITING_PATIENCE: Partial<
+  Record<CargoType, { graceDays: number; giveUpPerDay: number }>
+> = {
+  passengers: { graceDays: 10, giveUpPerDay: 0.05 },
+  mail: { graceDays: 15, giveUpPerDay: 0.05 },
+};
+
+/** True for cargo whose waiting pile is made of people / post (patience, no storage cap). */
+export function givesUpWaiting(cargo: CargoType): boolean {
+  return WAITING_PATIENCE[cargo] !== undefined;
+}
+
 /** Pre-Phase-16 cargo-agnostic carload size (every car held exactly 20 abstract "units", full or
  * empty — see PROGRESS.md's Phase 16 entry for the play-test bug this caused). Real per-cargo
  * capacities (`CargoDef.capacity`) replaced it as the actual car cap, but this is kept as the

@@ -30,7 +30,7 @@ describe("Phase 26A passenger & mail balance", () => {
     expect(ratio).toBeLessThanOrEqual(1.2);
   });
 
-  it("a mail car pays about 1.3× a passenger car per trip, and a mail train earns 0.5–1.0× a passenger train", () => {
+  it("a mail car pays about 1.3× a passenger car per trip, and a mail train earns 0.1–0.35× a passenger train (mail ≈ 15 % of a line's revenue, Phase 30A)", () => {
     expect(CARGO.mail.baseRate / CARGO.passengers.baseRate).toBeGreaterThan(1.2);
     expect(CARGO.mail.baseRate / CARGO.passengers.baseRate).toBeLessThan(1.4);
     const pax = measureRoute({
@@ -41,8 +41,8 @@ describe("Phase 26A passenger & mail balance", () => {
       tier: "town",
     });
     const mail = measureRoute({ cargo: "mail", km: 100, ...ERA, population: 12_000, tier: "town" });
-    expect(mail.revenue / pax.revenue).toBeGreaterThan(0.5);
-    expect(mail.revenue / pax.revenue).toBeLessThan(1.0);
+    expect(mail.revenue / pax.revenue).toBeGreaterThan(0.1);
+    expect(mail.revenue / pax.revenue).toBeLessThan(0.35);
   });
 
   it("a longer line pays more per train-year than a short one with a fast enough engine", () => {

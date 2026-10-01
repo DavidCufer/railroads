@@ -78,3 +78,53 @@ describe("accrueDailyCargo", () => {
     expect(state.stationCargo.get(station.id)?.coal?.amount).toBeCloseTo(20 * 0.95, 5);
   });
 });
+
+describe("passengers and mail give up waiting (Phase 30A)", () => {
+  function peopleStation(warehouse: boolean) {
+    const { state, station } = stationWithCoalMine();
+    const st = state.stations[0] as { improvements: string[] };
+    if (warehouse) st.improvements.push("warehouse");
+    const eco = state.stationEconomy.get(station.id)!;
+    eco.supply = { passengers: 300, mail: 60 };
+    return { state, station };
+  }
+
+  it("has no storage cap: a never-served pile grows until giving up balances supply", () => {
+    const { state, station } = peopleStation(false);
+    for (let day = 0; day < 120; day++) accrueDailyCargo(state);
+    const pax = state.stationCargo.get(station.id)?.passengers?.amount ?? 0;
+    expect(pax).toBeGreaterThan(STATION_TYPE_DEFS.depot.storagePerCargo * 2);
+    // settles near supply per day / give-up rate = 10 / 0.05
+    expect(pax).toBeLessThan(10 / 0.05 + 1);
+  });
+
+  it("counts the people who gave up, with the fares lost, per station and month", () => {
+    const { state, station } = peopleStation(false);
+    for (let day = 0; day < 40; day++) accrueDailyCargo(state);
+    const month = state.stationFlow.get(station.id)?.month.passengers;
+    expect(month?.lostUnits).toBeGreaterThan(10);
+    expect(month?.lostRevenue).toBeGreaterThan(0);
+    expect(state.stationFlow.get(station.id)?.month.mail?.lostUnits ?? 0).toBeGreaterThan(0);
+  });
+
+  it("a Warehouse does nothing for passengers and mail (PLAYTEST-2 exploit 1)", () => {
+    const plain = peopleStation(false);
+    const stocked = peopleStation(true);
+    for (let day = 0; day < 90; day++) {
+      accrueDailyCargo(plain.state);
+      accrueDailyCargo(stocked.state);
+    }
+    const a = plain.state.stationCargo.get(plain.station.id);
+    const b = stocked.state.stationCargo.get(stocked.station.id);
+    expect(b?.passengers?.amount).toBeCloseTo(a?.passengers?.amount ?? 0, 6);
+    expect(b?.mail?.amount).toBeCloseTo(a?.mail?.amount ?? 0, 6);
+  });
+
+  it("a Warehouse still doubles the freight pile", () => {
+    const { state, station } = stationWithCoalMine();
+    (state.stations[0] as { improvements: string[] }).improvements.push("warehouse");
+    for (let day = 0; day < 400; day++) accrueDailyCargo(state);
+    const coal = state.stationCargo.get(station.id)?.coal?.amount ?? 0;
+    expect(coal).toBeGreaterThan(STATION_TYPE_DEFS.depot.storagePerCargo);
+  });
+});
