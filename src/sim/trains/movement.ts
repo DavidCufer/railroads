@@ -50,7 +50,7 @@ import { directionSteps } from "../track/graph";
 import { directionBetween, edgeDirectionFrom, edgeLengthTiles, tileXY } from "./geometry";
 import { blockIdForEdge, type Block, type BlockPartition } from "./blocks";
 import { trainBodyLength, updateCrossing } from "./crossing";
-import { applyPendingConsist, stepLoading } from "./loading";
+import { activeOrderIndex, applyPendingConsist, stepLoading } from "./loading";
 import { wearUnitsPerTile } from "../finance/costs";
 import { kmSinceService } from "./breakdown";
 import { addEdgeWear, edgeWearRatio, slowOrderMult } from "../track/condition";
@@ -754,6 +754,22 @@ function checkDeadlockTimeout(
   tryEnterSection(state, train, runtime);
 }
 
+/** Index of the (non pass-through) order at station tile `tile` that the train runs through on its way to
+ * `target`, if any. */
+function callingOrderAt(
+  train: Train,
+  runtime: TrainRuntime,
+  tile: number,
+  target: Station,
+): { index: number; station: Station } | undefined {
+  if (!runtime.stationTiles.has(tile) || tile === target.tile) return undefined;
+  if (train.route[train.routeIndex + 1] === undefined) return undefined;
+  const here = [...runtime.stationsById.values()].find((s) => s.tile === tile);
+  if (!here) return undefined;
+  const index = train.orders.findIndex((o) => o.stationId === here.id && o.rule !== "passThrough");
+  return index >= 0 && index !== train.currentOrderIndex ? { index, station: here } : undefined;
+}
+
 function arriveAtStation(state: GameState, train: Train, station: Station): void {
   if (train.routeIndex > 0) {
     train.lastApproachNode = train.route[train.routeIndex - 1] as number;
@@ -835,12 +851,13 @@ function handleYard(state: GameState, train: Train, runtime: TrainRuntime): void
 
 function handleLoading(state: GameState, train: Train, runtime: TrainRuntime): void {
   if (train.orders.length === 0) return;
-  const order = train.orders[train.currentOrderIndex];
+  const order = train.orders[activeOrderIndex(train)];
   const station = order && runtime.stationsById.get(order.stationId);
   if (!station) return;
 
   if (stepLoading(state, train, station)) {
-    train.currentOrderIndex = (train.currentOrderIndex + 1) % train.orders.length;
+    if (train.callingIndex !== undefined) delete train.callingIndex;
+    else train.currentOrderIndex = (train.currentOrderIndex + 1) % train.orders.length;
     setStatus(train, "moving");
   }
 }
@@ -1029,6 +1046,15 @@ function handleMoving(
       train.route[train.routeIndex + 1] === train.route[train.routeIndex - 1]
     )
       dropClaims(train);
+
+    // Calling point (Phase 31): a station the route runs through that is also one of the train's stops is a
+    // stop here too (a 3-stop line A-B-C that returns through B calls at B both ways).
+    const calling = callingOrderAt(train, runtime, b, targetStation);
+    if (calling) {
+      train.callingIndex = calling.index;
+      arriveAtStation(state, train, calling.station);
+      return;
+    }
 
     if (
       train.routeTrackVersion !== runtime.trackVersion &&

@@ -618,6 +618,7 @@ export function demolishStation(state: GameState, stationId: number): CommandRes
       train.loadTicksLeft = -1;
       train.loadExtraWaitDays = 0;
       delete train.headwayHold;
+      delete train.callingIndex;
       delete train.headwayWaitTicks;
     }
   }
@@ -1123,6 +1124,7 @@ export function setOrders(
 
   train.orders = orders.map((o) => ({ ...o }));
   train.currentOrderIndex = 0;
+  delete train.callingIndex;
   // (the destination bonus follows the orders at the next monthly economy refresh)
   return { ok: true, cost: 0 };
 }
