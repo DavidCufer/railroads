@@ -23,4 +23,10 @@ export interface Station {
   visitedThisMonth?: boolean;
   /** True once a frontier village was founded next to this station. */
   frontierFounded?: boolean;
+  /** Phase 30A: a passing loop, not a station — a short double section on a single line where trains can wait for
+   * an opposing train. It splits the line into sections like a station does (SPEC §7.5) but has no catchment,
+   * platforms, staff, cargo or orders. */
+  passingLoop?: boolean;
+  /** Sim tick the last train left this station (departure spacing, Phase 30A). */
+  lastDepartureTick?: number;
 }

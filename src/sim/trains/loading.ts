@@ -42,6 +42,9 @@ import { stationAtTile, stationCatchmentTiles } from "../stations/placement";
 import { tileXY } from "./geometry";
 import type { Train, TrainCar, TrainOrder } from "./types";
 
+/** A train waits at most this many headways for its departure slot (a queue of trains cannot stall for ever). */
+const HEADWAY_QUEUE_MAX = 4;
+
 interface LoadPlan {
   unload: number[];
   /** Cars whose cargo goes into the station's transfer stock (Warehouse hub, PLAN Phase 18 C). */
@@ -109,7 +112,7 @@ function planLoadUnload(
 
   // Bug 1 (PLAYTEST-2): "Wait for full load" re-plans on every extra wait day. Cars are only
   // unloaded on the first pass of a stop, and never at the station they were loaded at.
-  const firstPass = train.loadExtraWaitDays === 0;
+  const firstPass = train.loadExtraWaitDays === 0 && !train.headwayHold;
   train.cars.forEach((car, i) => {
     if (car.loadedUnits <= 0 || !firstPass) return;
     if (car.loadedTile === station.tile) return;
@@ -470,6 +473,28 @@ export function stepLoading(state: GameState, train: Train, station: Station): b
   const plan = planLoadUnload(state, train, station, order);
   for (const i of plan.unload) applyUnload(state, train, station, i);
   for (const i of plan.transfer) applyTransfer(state, train, station, i);
+
+  // Departure spacing (Phase 30A): hold the train — already unloaded, not yet loaded, so the people keep
+  // collecting for the train that actually leaves — until the headway since the last departure has passed.
+  if (order.minGapDays !== undefined && order.minGapDays > 0) {
+    const sinceLast =
+      station.lastDepartureTick === undefined
+        ? Infinity
+        : (state.ticks - station.lastDepartureTick) / HOURS_PER_DAY;
+    const waited = train.headwayWaitTicks ?? 0;
+    if (
+      sinceLast < order.minGapDays &&
+      waited < order.minGapDays * HOURS_PER_DAY * HEADWAY_QUEUE_MAX
+    ) {
+      train.headwayHold = true;
+      train.headwayWaitTicks = waited + 1;
+      train.loadTicksLeft = 0;
+      return false;
+    }
+  }
+  delete train.headwayHold;
+  delete train.headwayWaitTicks;
+
   for (const i of plan.load) applyLoad(state, train, station, i);
 
   if (order.rule === "fullLoad") {
@@ -483,5 +508,6 @@ export function stepLoading(state: GameState, train: Train, station: Station): b
   }
 
   train.loadTicksLeft = -1;
+  station.lastDepartureTick = state.ticks;
   return true;
 }

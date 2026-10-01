@@ -13,6 +13,10 @@ export interface TrainOrder {
   rule: LoadingRule;
   /** Only meaningful for `fullLoad` (SPEC §7.2: "optional max wait days"). */
   maxWaitDays?: number;
+  /** Departure spacing (Phase 30A, PLAYTEST-2 #6): the train leaves this stop no sooner than this many days after
+   * the last train left this station, so trains on a single line run spaced out instead of in a convoy (real
+   * railways ran timetables with headways). Unset = leave as soon as loaded. */
+  minGapDays?: number;
 }
 
 export type TrainStatus =
@@ -176,6 +180,10 @@ export interface Train {
   /** Extra whole days waited beyond the initial load pass for a "Wait for full load" stop (SPEC
    * §7.2) — reset to 0 on arrival. */
   loadExtraWaitDays: number;
+  /** Set while a train that has unloaded at this stop waits for its departure headway (`TrainOrder.minGapDays`). */
+  headwayHold?: boolean;
+  /** Ticks spent waiting for the headway at this stop (capped so a queue cannot wait for ever). */
+  headwayWaitTicks?: number;
   /** Total price paid for this train (locomotive + cars) and the tick it was bought — SPEC §9.3's
    * depreciating rolling-stock value, and the age input for breakdown chance/obsolescence (§7.6). */
   purchasePrice: number;

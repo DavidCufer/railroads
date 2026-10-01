@@ -44,7 +44,7 @@ import {
 } from "./track/cost";
 import type { TrackEdge } from "./track/types";
 import { canPlaceStationAt, stationAtTile, stationCatchmentTiles } from "./stations/placement";
-import { stationCost, stationUpgradeCost } from "./stations/cost";
+import { passingLoopCost, stationCost, stationUpgradeCost } from "./stations/cost";
 import { defaultStationName } from "./stations/naming";
 import { computeStationEconomies } from "./stations/economy";
 import { destinationCounts } from "./stations/destinations";
@@ -237,7 +237,10 @@ export function computeBulldozePlan(state: GameState, path: readonly number[]): 
 
 /** What removing `station` pays back: a fraction of its current build price (improvements are lost). */
 export function stationRefund(state: GameState, station: Station): number {
-  return stationCost(station.type, costContext(state)) * BULLDOZE_REFUND_FRACTION;
+  const price = station.passingLoop
+    ? passingLoopCost(costContext(state))
+    : stationCost(station.type, costContext(state));
+  return price * BULLDOZE_REFUND_FRACTION;
 }
 
 /** Why `station` can't be removed right now, or null: trains still stop there, or it is the last Engine Shed. */
@@ -460,6 +463,8 @@ export function demolishStation(state: GameState, stationId: number): CommandRes
       train.waitTicks = 0;
       train.loadTicksLeft = -1;
       train.loadExtraWaitDays = 0;
+      delete train.headwayHold;
+      delete train.headwayWaitTicks;
     }
   }
   const refund = stationRefund(state, station);
@@ -549,6 +554,54 @@ export function buildStation(state: GameState, tile: number, type: StationType):
   return { ok: true, cost };
 }
 
+/** Prices a passing loop at `tile` (a plain single-track tile between two other tiles, not a station), without
+ * mutating state. `valid` is false on a double track, a bridge, a junction, a bend, a dead end or a station. */
+export function computePassingLoopPlan(state: GameState, tile: number): StationBuildPlan {
+  const edges = state.trackGraph.edgesAt(tile);
+  const straight =
+    edges.length === 2 &&
+    canPlaceStationAt(state.map, state.trackGraph, tile) &&
+    !stationAtTile(state.stations, tile);
+  const plain = edges.every((e) => !e.double && !e.bridge);
+  return { cost: passingLoopCost(costContext(state)), valid: straight && plain };
+}
+
+/** Builds a passing loop at `tile` (Phase 30A, PLAYTEST-2 Top 10 #6): the cheap way to let trains meet on a single
+ * line. Trains reserve the line from loop to loop instead of end to end (SPEC §7.5), so opposing trains can wait
+ * in the loop instead of at the far terminal. */
+export function buildPassingLoop(state: GameState, tile: number): CommandResult {
+  const plan = computePassingLoopPlan(state, tile);
+  if (!plan.valid) {
+    return {
+      ok: false,
+      reason: stationAtTile(state.stations, tile) ? "station-occupied" : "station-no-track",
+    };
+  }
+  if (plan.cost > state.cash) return { ok: false, reason: "cant-afford" };
+  const station: Station = {
+    id: state.nextStationId++,
+    tile,
+    type: "depot",
+    name: defaultLoopName(state),
+    hasEngineShed: false,
+    hasWaterTower: false,
+    improvements: [],
+    passingLoop: true,
+  };
+  state.stations.push(station);
+  state.cash -= plan.cost;
+  state.finance.capitalInvested += plan.cost;
+  addExpense(state, "construction", plan.cost);
+  state.trackVersion++;
+  refreshStationEconomy(state);
+  return { ok: true, cost: plan.cost };
+}
+
+function defaultLoopName(state: GameState): string {
+  const n = state.stations.filter((s) => s.passingLoop).length + 1;
+  return `Passing loop ${n}`;
+}
+
 export interface StationUpgradePlan {
   cost: number;
   valid: boolean;
@@ -563,6 +616,7 @@ export function computeStationUpgradePlan(
 ): StationUpgradePlan {
   const station = state.stations.find((s) => s.id === stationId);
   if (!station) return { cost: 0, valid: false };
+  if (station.passingLoop) return { cost: 0, valid: false };
   if (STATION_UPGRADE_ORDER.indexOf(type) <= STATION_UPGRADE_ORDER.indexOf(station.type)) {
     return { cost: 0, valid: false };
   }
@@ -605,7 +659,7 @@ export function computeWaterTowerPlan(
   stationId: number,
 ): { cost: number; valid: boolean } {
   const station = state.stations.find((s) => s.id === stationId);
-  if (!station || station.hasWaterTower) return { cost: 0, valid: false };
+  if (!station || station.passingLoop || station.hasWaterTower) return { cost: 0, valid: false };
   return { cost: WATER_TOWER_COST * eraInflation(costContext(state).year), valid: true };
 }
 
@@ -630,7 +684,7 @@ export function computeEngineShedPlan(
   stationId: number,
 ): { cost: number; valid: boolean } {
   const station = state.stations.find((s) => s.id === stationId);
-  if (!station || station.hasEngineShed) return { cost: 0, valid: false };
+  if (!station || station.passingLoop || station.hasEngineShed) return { cost: 0, valid: false };
   const ctx = costContext(state);
   return { cost: ENGINE_SHED_COST * eraInflation(ctx.year) * ctx.buildCostMult, valid: true };
 }
@@ -665,7 +719,9 @@ export function computeImprovementPlan(
   type: StationImprovementType,
 ): ImprovementBuildPlan {
   const station = state.stations.find((s) => s.id === stationId);
-  if (!station || station.improvements.includes(type)) return { cost: 0, valid: false };
+  if (!station || station.passingLoop || station.improvements.includes(type)) {
+    return { cost: 0, valid: false };
+  }
   const def = STATION_IMPROVEMENTS[type];
   const year = costContext(state).year;
   if (def.availableYear !== undefined && year < def.availableYear) {
@@ -870,6 +926,9 @@ export function setOrders(
   if (orders.length < 2 || orders.length > 8) return { ok: false, reason: "invalid-orders" };
   const stationIds = new Set(state.stations.map((s) => s.id));
   if (orders.some((o) => !stationIds.has(o.stationId)))
+    return { ok: false, reason: "invalid-orders" };
+  // A passing loop is not a stop (Phase 30A).
+  if (orders.some((o) => state.stations.find((s) => s.id === o.stationId)?.passingLoop))
     return { ok: false, reason: "invalid-orders" };
 
   train.orders = orders.map((o) => ({ ...o }));

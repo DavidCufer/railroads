@@ -34,7 +34,8 @@ import {
   wearCostPerUnit,
 } from "./costs";
 import { NET_WORTH_HISTORY_MAX_SAMPLES } from "./types";
-import { PROPERTY_TAX_RATE, incomeTaxRate } from "../../data/economy";
+import { PROPERTY_TAX_RATE, incomeTaxRate, priceIndex } from "../../data/economy";
+import { PASSING_LOOP_UPKEEP_MONTHLY } from "../../data/stations";
 
 type ExpenseCategory = Exclude<keyof LedgerPeriod, "passengers" | "mail" | "freight">;
 
@@ -90,7 +91,9 @@ export function monthlyFinanceStep(state: GameState): void {
 
   let stationMaint = 0;
   for (const station of state.stations)
-    stationMaint += stationMonthlyCost(station.type, year).total;
+    stationMaint += station.passingLoop
+      ? PASSING_LOOP_UPKEEP_MONTHLY * priceIndex(year)
+      : stationMonthlyCost(station.type, year).total;
 
   let trainMaint = 0;
   let crewWages = 0;

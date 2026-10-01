@@ -48,6 +48,8 @@ export function computeStationEconomies(
   industryEconomy?: ReadonlyMap<number, IndustryEconomyState>,
   destinations?: ReadonlyMap<number, number>,
 ): Map<number, StationEconomy> {
+  const all = stations;
+  stations = stations.filter((s) => !s.passingLoop); // a passing loop draws and accepts nothing (Phase 30A)
   const catchments = new Map<number, number[]>();
   for (const station of stations) {
     catchments.set(
@@ -57,7 +59,7 @@ export function computeStationEconomies(
   }
 
   const result = new Map<number, StationEconomy>();
-  for (const station of stations) {
+  for (const station of all) {
     result.set(station.id, { supply: {}, acceptPoints: {}, accepts: [] });
   }
 

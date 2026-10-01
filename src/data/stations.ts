@@ -137,6 +137,12 @@ export const STATION_IMPROVEMENTS: Record<StationImprovementType, StationImprove
   },
 };
 
+/** Passing loop (Phase 30A): a few hundred metres of second track with two sets of points, at 1830 prices. Cheaper
+ * than a Depot because it has no buildings or staff; the upkeep is the extra track and the points. */
+export const PASSING_LOOP_COST = 12_000;
+/** Monthly upkeep of a passing loop at 1830 prices (a Depot's building upkeep without staff). */
+export const PASSING_LOOP_UPKEEP_MONTHLY = 12;
+
 /** Mail supply multiplier from a Post Office (SPEC §6.2). */
 export const POST_OFFICE_MAIL_SUPPLY_MULT = 1.5;
 /** Revenue multiplier for mail loaded at a Post Office station. */

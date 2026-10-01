@@ -763,6 +763,8 @@ function arriveAtStation(state: GameState, train: Train, station: Station): void
   train.direction = -1;
   train.loadTicksLeft = -1;
   train.loadExtraWaitDays = 0;
+  delete train.headwayHold;
+  delete train.headwayWaitTicks;
   // Engine Shed servicing and Water Tower refills happen on any stop at a station that has them
   // (SPEC §6.2), not just a scheduled order stop.
   station.visitedThisMonth = true;
@@ -802,6 +804,8 @@ function handleYard(state: GameState, train: Train, runtime: TrainRuntime): void
     delete train.waitingForStationId;
     train.loadTicksLeft = -1;
     train.loadExtraWaitDays = 0;
+    delete train.headwayHold;
+    delete train.headwayWaitTicks;
     setStatus(train, "loading");
     return;
   }
