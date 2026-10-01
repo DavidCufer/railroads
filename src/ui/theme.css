@@ -4443,3 +4443,9 @@ select {
 .eng-card .cant-chip + * {
   margin-left: 0;
 }
+
+/* Lines view (Phase 30B): long station-name pairs wrap instead of truncating. */
+.line-row .card-title {
+  white-space: normal;
+  overflow: visible;
+}

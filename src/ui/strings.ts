@@ -224,6 +224,18 @@ export const strings = {
       freightYard: "Trains load and unload 2× faster",
       livestockPens: "Needed to load livestock here",
     },
+    results: {
+      title: "Results here",
+      none: "No fares from this station yet — run a train that loads here.",
+      revenue: "Revenue",
+      turnedAwayCaption: "Turned away",
+      lostFares: "Lost fares",
+      turnedAway: (n: number, fares: string) => `${n} gave up waiting · ${fares} lost`,
+      noneLost: "Nobody turned away",
+      lastMonthNote: "Last month. Fares of cargo loaded here, paid when it is delivered.",
+      thisMonthNote: "This month so far. Fares of cargo loaded here, paid when it is delivered.",
+    },
+    estimate: (money: string) => `≈ +${money}/yr at current traffic`,
     waterTowerBenefit: "Steam engines refill water here",
     engineShedBenefit:
       "Buy and service trains here (breakdowns −50%); repair crews start from the nearest shed — more sheds, shorter call-outs",
@@ -363,7 +375,17 @@ export const strings = {
       stopCount: (n: number) => `${n} / 8 stops`,
       yourTrain: "Your train",
     },
-    list: { sortName: "Name", sortProfit: "Profit", perYear: "/yr", losing: "Losing money" },
+    list: {
+      sortName: "Name",
+      sortProfit: "Profit",
+      sortLines: "Lines",
+      perYear: "/yr",
+      losing: "Losing money",
+      noLines: "No lines yet — a line is trains that share the same stops.",
+      lineTrains: (n: number) => (n === 1 ? "1 train" : `${n} trains`),
+      lineRevenue: "Revenue",
+      lineCosts: "Costs",
+    },
     stats: {
       speed: "Top speed",
       power: "Power",
@@ -641,6 +663,10 @@ export const strings = {
           `A steam locomotive needs water. Run more than about ${km} km without a Water Tower and it loses 20% of its speed. Put a tower at a station on long lines.`,
       },
       {
+        icon: "finance",
+        text: "A line is the trains that share the same stops. Open Trains and tap Lines to see each line's revenue, costs and profit a year, and drop the ones that lose money.",
+      },
+      {
         icon: "cargo",
         text: "“Wait for full load” holds a train until every car is full. It suits freight at a mine; on a passenger line it can leave the track idle.",
       },
@@ -656,7 +682,7 @@ export const strings = {
       },
       {
         icon: "clock",
-        text: "Locomotives age: reliability drops and running cost rises. After 30 to 40 years retire an engine or overhaul it.",
+        text: "Locomotives age: after 15 years running cost and breakdowns creep up. A steam engine is worn out at about 35 years, a diesel at 40, an electric at 45 — then overhaul it in the shed or replace it.",
       },
       {
         icon: "city",
@@ -672,7 +698,7 @@ export const strings = {
       },
       {
         icon: "trendUp",
-        text: "Upgrade cards show an estimated gain per year at your current traffic. It is an estimate: check the station's Lines profit afterwards.",
+        text: "Upgrade cards show an estimated gain per year at your current traffic. It is an estimate: check the station's Results and the Lines view afterwards.",
       },
     ],
   },

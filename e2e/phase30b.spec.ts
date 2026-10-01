@@ -124,4 +124,50 @@ test.describe("Phase 30B", () => {
     await page.waitForTimeout(300);
     await page.screenshot({ path: shot("help-upkeep") });
   });
+
+  test("Lines view shows per-line profit; station panel shows revenue and turned-away", async ({
+    page,
+  }) => {
+    const { a } = await lineWithTrain(page);
+    await page.evaluate(() => window.__game!.runDays(200));
+    await page.locator(".train-list-button").click();
+    await page.locator('[data-testid="list-sort-lines"]').click();
+    await expect(page.locator('[data-testid="line-row"]')).toHaveCount(1);
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: shot("lines-view") });
+    // Give the station a recorded turned-away pile so the panel has something to say.
+    await page.evaluate((id) => {
+      const f = window.__game!.getStationFlow(id);
+      if (!f) throw new Error("no flow");
+      f.lastMonth.passengers = {
+        revenue: f.lastMonth.passengers?.revenue ?? 4200,
+        units: 30,
+        lostUnits: 18,
+        lostRevenue: 1300,
+      };
+      window.__game!.debugOpenStation(id);
+    }, a);
+    await expect(page.getByText("Results here")).toBeVisible();
+    await expect(page.getByText(/18 gave up waiting/)).toBeVisible();
+    await page.locator(".panel-body").evaluate((el) => (el.scrollTop = el.scrollHeight));
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: shot("station-results") });
+  });
+
+  test("upgrade cards show an estimate computed from the station's flows", async ({ page }) => {
+    const { a } = await lineWithTrain(page);
+    await page.evaluate((id) => {
+      const f = window.__game!.getStationFlow(id)!;
+      f.lastMonth.mail = { revenue: 2000, units: 40, lostUnits: 10, lostRevenue: 500 };
+      f.lastMonth.passengers = { revenue: 6000, units: 90, lostUnits: 0, lostRevenue: 0 };
+      window.__game!.debugOpenStation(id);
+    }, a);
+    await page.locator('[data-tab="build"]').click();
+    const est = page.locator('[data-testid="upgrade-estimate"]');
+    await expect(est.first()).toContainText("at current traffic");
+    await expect(est.first()).toContainText("/yr");
+    await page.locator(".panel-body").evaluate((el) => (el.scrollTop = 110));
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: shot("upgrade-estimate") });
+  });
 });

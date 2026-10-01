@@ -120,7 +120,7 @@ import { directionIndex } from "./sim/track/graph";
 import { spanTilesBetween, validBridgeTypes } from "./sim/track/cost";
 import { findStationBends } from "./sim/track/layout";
 import { canPlaceStationAt, stationAtTile, stationCatchmentTiles } from "./sim/stations";
-import type { StationFlow } from "./sim/stations/flow";
+import { getStationFlow as getStationFlowOf, type StationFlow } from "./sim/stations/flow";
 import { wornEdges } from "./sim/track/condition";
 import { washOut, type Washout } from "./sim/track/washout";
 import { terrainId } from "./sim/map/terrain";
@@ -1672,7 +1672,7 @@ function main(): void {
         return result;
       },
       getFinance: () => state.finance,
-      getStationFlow: (stationId) => state.stationFlow.get(stationId) ?? null,
+      getStationFlow: (stationId) => getStationFlowOf(state, stationId),
       relayTrack: (path) => {
         const result = relayTrack(state, path);
         return result.ok ? { ok: true, cost: result.cost } : { ok: false, reason: result.reason };

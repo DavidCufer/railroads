@@ -128,6 +128,13 @@ export interface GameWindow {
   ) => Array<{ cargoType: string; loadedUnits: number; capacity: number }>;
   debugPreviewBuild: (path: number[]) => void;
   debugOpenStation: (stationId: number) => void;
+  /** Live per-station flow record (created empty on first access); tests may edit it. */
+  getStationFlow: (stationId: number) => {
+    lastMonth: Record<
+      string,
+      { revenue: number; units: number; lostUnits: number; lostRevenue: number } | undefined
+    >;
+  } | null;
   debugPickStation: (stationId: number) => void;
   debugOpenTrain: (trainId: number) => void;
   debugOpenCity: (cityId: number) => void;

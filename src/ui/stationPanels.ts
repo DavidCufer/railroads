@@ -13,6 +13,7 @@ import {
   STATION_TYPE_DEFS,
 } from "../data/stations";
 import type { StationImprovementType, StationType } from "../data/stations";
+import { improvementEstimate, typeUpgradeEstimate } from "../sim/stations/estimates";
 import { improvementHint, stationTypeBenefit, terminalHint } from "./stationUpgrades";
 import { locomotiveById } from "../data/trains";
 import {
@@ -41,7 +42,7 @@ import { h } from "./h";
 import { acceptorsOf } from "../sim/stations/acceptors";
 import { INDUSTRIES } from "../data/industries";
 import { locoArt } from "./trainArt";
-import { icon, type IconName } from "./icons";
+import { cargoIcon, icon, type IconName } from "./icons";
 import { cardList, cardRow } from "./components/cardRow";
 import { emptyState } from "./components/emptyState";
 import { footerButton } from "./components/footer";
@@ -189,6 +190,67 @@ function economyBody(
           )
         : emptyState(strings.station.noDemands, "cargo"),
     ]),
+  ];
+}
+
+/** "Results here" (PLAN Phase 30B): revenue from cargo loaded at this station and the passengers/mail that gave
+ * up waiting, per month (last full month, else the month so far). Reads `state.stationFlow`. */
+function resultsSection(state: GameState, station: Station): Node[] {
+  const t = strings.station.results;
+  const flow = state.stationFlow.get(station.id);
+  if (!flow) return [section(t.title, [emptyState(t.none, "coin")])];
+  const last = Object.keys(flow.lastMonth).length > 0;
+  const period = last ? flow.lastMonth : flow.month;
+  let revenue = 0;
+  let lostUnits = 0;
+  let lostFares = 0;
+  const lines: Node[] = [];
+  for (const cargo of CARGO_TYPES) {
+    const b = period[cargo];
+    if (!b) continue;
+    revenue += b.revenue;
+    if (cargo === "passengers" || cargo === "mail") {
+      lostUnits += b.lostUnits;
+      lostFares += b.lostRevenue;
+    }
+    if (b.revenue < 1 && b.lostUnits < 0.5) continue;
+    lines.push(
+      cardRow({
+        className: "flow-row",
+        thumb: cargoIcon(cargo, "cargo-icon-lg"),
+        title: CARGO[cargo].name,
+        meta:
+          b.lostUnits >= 0.5
+            ? t.turnedAway(Math.round(b.lostUnits), formatMoney(b.lostRevenue))
+            : t.noneLost,
+        trailing: formatMoney(b.revenue),
+      }),
+    );
+  }
+  if (lines.length === 0) return [section(t.title, [emptyState(t.none, "coin")])];
+  return [
+    section(
+      t.title,
+      [
+        statRow(
+          statTile({ icon: "coin", value: formatMoney(revenue), caption: t.revenue, tone: "go" }),
+          statTile({
+            icon: "town",
+            value: String(Math.round(lostUnits)),
+            caption: t.turnedAwayCaption,
+            ...(lostUnits >= 0.5 ? { tone: "signal" as const } : {}),
+          }),
+          statTile({
+            icon: "arrowDown",
+            value: formatMoney(lostFares),
+            caption: t.lostFares,
+            ...(lostFares >= 1 ? { tone: "signal" as const } : {}),
+          }),
+        ),
+        cardList(...(lines as HTMLElement[])),
+      ],
+      last ? t.lastMonthNote : t.thisMonthNote,
+    ),
   ];
 }
 
@@ -517,6 +579,7 @@ function buildTab(
           ),
           h("span", { className: "upgrade-cost" }, formatMoney(plan.cost)),
           h("span", { className: "upgrade-benefit" }, stationTypeBenefit(nextType)),
+          estimateLine(typeUpgradeEstimate(state, station, nextType)),
         ),
         icon("arrowUp", "icon-sm"),
       ),
@@ -530,6 +593,7 @@ function buildTab(
     name: string;
     benefit: string;
     hint?: { text: string; helps: boolean } | undefined;
+    estimate?: number | undefined;
     trailing: Node | string;
     built?: boolean;
     onClick?: () => void;
@@ -550,6 +614,7 @@ function buildTab(
               opts.hint.text,
             )
           : null,
+        opts.estimate !== undefined ? estimateLine(opts.estimate) : null,
       ),
       trailing: opts.trailing,
       ...(opts.onClick ? { onClick: opts.onClick } : {}),
@@ -573,6 +638,7 @@ function buildTab(
     return improvementRow({
       ...common,
       hint: improvementHint(state, station, type),
+      estimate: improvementEstimate(state, station, type),
       trailing: notYetAvailable
         ? strings.station.improvementAvailableFrom(def.availableYear as number)
         : formatMoney(plan.cost),
@@ -660,6 +726,17 @@ function buildTab(
   );
   out.push(demolishButton(container, state, station, render, handlers));
   return out;
+}
+
+/** "≈ +$X/yr at current traffic" (an estimate from this station's own revenue), or nothing. */
+function estimateLine(gain: number | undefined): HTMLElement | null {
+  return gain === undefined
+    ? null
+    : h(
+        "span",
+        { className: "upgrade-estimate improvement-hint helps", "data-testid": "upgrade-estimate" },
+        strings.station.estimate(formatMoney(Math.round(gain / 100) * 100)),
+      );
 }
 
 /** Station whose Demolish button has been tapped once (two-tap confirm: demolishing is irreversible). */
@@ -795,6 +872,7 @@ export function openStationPanel(
         );
       }
       body.push(...transferSection(container, state, station));
+      body.push(...resultsSection(state, station));
     } else if (tab === "trains") {
       body.push(trainsTab(state, station, handlers));
     } else {

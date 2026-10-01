@@ -29,6 +29,7 @@ import { monthlyBreakdownChance } from "../sim/trains/breakdown";
 import { mechanicalAgeYears } from "../sim/trains/ageing";
 import { locoRunningCostPerYear, trainCompetition, trainWagesPerYear } from "../sim/finance/costs";
 import { trainCrewSize } from "../data/economy";
+import { lineSummaries } from "../sim/finance/lines";
 import { booksProfit, trainProfitPerYear, trainProfitStatus } from "../sim/trains/profit";
 import type { Train, TrainCar, TrainOrder } from "../sim/trains/types";
 import { cardList, cardRow } from "./components/cardRow";
@@ -736,6 +737,50 @@ function profitTile(profit: number, caption: string): HTMLElement {
   });
 }
 
+// --- lines (per-line P&L) ---
+
+function signedMoney(v: number): string {
+  return `${v >= 0 ? "+" : "−"}${formatMoney(Math.abs(v))}`;
+}
+
+function linesList(
+  container: HTMLElement,
+  state: GameState,
+  onFocus: (trainId: number) => void,
+): HTMLElement {
+  const L = strings.trains.list;
+  const lines = lineSummaries(state);
+  if (lines.length === 0) return emptyState(L.noLines, "trains");
+  const nameOf = (id: number): string =>
+    state.stations.find((s) => s.id === id)?.name ?? strings.fallback.station;
+  return cardList(
+    ...lines.map((line) => {
+      const costs = line.thisYear.revenue - booksProfit(line.thisYear);
+      const profit = line.profitPerYear;
+      return cardRow({
+        className: "line-row",
+        testId: "line-row",
+        thumb: icon("trains", "icon-sm tone-brass"),
+        title: line.stationIds.map(nameOf).join(" – "),
+        meta: `${L.lineTrains(line.trainIds.length)} · ${L.lineRevenue} ${formatMoney(line.thisYear.revenue)} · ${L.lineCosts} ${formatMoney(costs)}`,
+        trailing: h(
+          "span",
+          { className: `train-profit-col profit-${profit >= 0 ? "good" : "bad"}` },
+          h("i", { className: "profit-dot" }),
+          `${signedMoney(profit)}${L.perYear}`,
+        ),
+        chevron: true,
+        onClick: () => {
+          const first = line.trainIds[0];
+          if (first === undefined) return;
+          onFocus(first);
+          openTrainPanel(container, state, first);
+        },
+      });
+    }),
+  );
+}
+
 // --- train list ----------------------------------------------------------------------------------
 
 function locoThumbFor(t: Train): Node {
@@ -749,7 +794,7 @@ export function openTrainListPanel(
   container: HTMLElement,
   state: GameState,
   onFocus: (trainId: number) => void,
-  sortBy: "name" | "profit" = "name",
+  sortBy: "name" | "profit" | "lines" = "name",
 ): void {
   const L = strings.trains.list;
   const trains =
@@ -758,59 +803,64 @@ export function openTrainListPanel(
           (a, b) => trainProfitPerYear(b, state.ticks) - trainProfitPerYear(a, state.ticks),
         )
       : state.trains;
+  const sortRow = (): HTMLElement =>
+    h(
+      "div",
+      { className: "segmented-row list-sort" },
+      ...(["name", "profit", "lines"] as const).map((key) =>
+        h(
+          "button",
+          {
+            className: `segmented-btn${sortBy === key ? " active" : ""}`,
+            "data-testid": `list-sort-${key}`,
+            onClick: () => openTrainListPanel(container, state, onFocus, key),
+          },
+          key === "name" ? L.sortName : key === "profit" ? L.sortProfit : L.sortLines,
+        ),
+      ),
+    );
   const body: Node[] =
     state.trains.length === 0
       ? [emptyState(strings.trains.none, "trains")]
-      : [
-          h(
-            "div",
-            { className: "segmented-row list-sort" },
-            ...(["name", "profit"] as const).map((key) =>
-              h(
-                "button",
-                {
-                  className: `segmented-btn${sortBy === key ? " active" : ""}`,
-                  onClick: () => openTrainListPanel(container, state, onFocus, key),
-                },
-                key === "name" ? L.sortName : L.sortProfit,
-              ),
-            ),
-          ),
-          cardList(
-            ...trains.map((t) => {
-              const st = STATUS_ICON[t.status];
-              const verdict = trainProfitStatus(t, state.ticks);
-              const perYear = trainProfitPerYear(t, state.ticks);
-              return cardRow({
-                className: "train-list-row",
-                thumb: h("div", { className: "eng-thumb" }, locoThumbFor(t)),
-                title: t.name,
-                meta: h(
-                  "span",
-                  { className: "card-meta-inline" },
-                  icon(st.icon, `icon-xs tone-${st.tone}`),
-                  statusText(state, t),
-                ),
-                trailing: h(
-                  "span",
-                  {
-                    className: `train-profit-col profit-${verdict}`,
-                    title: verdict === "bad" ? L.losing : "",
+      : sortBy === "lines"
+        ? [sortRow(), linesList(container, state, onFocus)]
+        : [
+            sortRow(),
+            cardList(
+              ...trains.map((t) => {
+                const st = STATUS_ICON[t.status];
+                const verdict = trainProfitStatus(t, state.ticks);
+                const perYear = trainProfitPerYear(t, state.ticks);
+                return cardRow({
+                  className: "train-list-row",
+                  thumb: h("div", { className: "eng-thumb" }, locoThumbFor(t)),
+                  title: t.name,
+                  meta: h(
+                    "span",
+                    { className: "card-meta-inline" },
+                    icon(st.icon, `icon-xs tone-${st.tone}`),
+                    statusText(state, t),
+                  ),
+                  trailing: h(
+                    "span",
+                    {
+                      className: `train-profit-col profit-${verdict}`,
+                      title: verdict === "bad" ? L.losing : "",
+                    },
+                    h("i", { className: "profit-dot" }),
+                    verdict === "new"
+                      ? "—"
+                      : `${perYear >= 0 ? "+" : "−"}${formatMoney(Math.abs(perYear))}${L.perYear}`,
+                  ),
+                  chevron: true,
+                  onClick: () => {
+                    onFocus(t.id);
+                    openTrainPanel(container, state, t.id);
                   },
-                  h("i", { className: "profit-dot" }),
-                  verdict === "new"
-                    ? "—"
-                    : `${perYear >= 0 ? "+" : "−"}${formatMoney(Math.abs(perYear))}${L.perYear}`,
-                ),
-                chevron: true,
-                onClick: () => {
-                  onFocus(t.id);
-                  openTrainPanel(container, state, t.id);
-                },
-              });
-            }),
-          ),
-        ];
+                });
+              }),
+            ),
+          ];
 
   openPanel(container, {
     title: strings.trains.listTitle,
