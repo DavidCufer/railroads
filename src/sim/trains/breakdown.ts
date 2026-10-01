@@ -19,8 +19,10 @@ import {
 import {
   BREAKDOWN_AGE_DIVISOR_YEARS,
   BREAKDOWN_BASE_CHANCE_BY_RELIABILITY,
-  BREAKDOWN_ENGINE_SHED_MULT,
-  BREAKDOWN_ENGINE_SHED_WINDOW_DAYS,
+  BREAKDOWN_SERVICE_MAX_MULT,
+  BREAKDOWN_SERVICE_MIN_MULT,
+  BREAKDOWN_SERVICE_PER_INTERVAL,
+  SERVICE_INTERVAL_KM,
   BREAKDOWN_REPAIR_MAX_DAYS,
   BREAKDOWN_REPAIR_MIN_DAYS,
   locomotiveById,
@@ -56,6 +58,20 @@ export function effectiveReliability(loco: LocomotiveDef, year: number, startYea
     : loco.reliability;
 }
 
+/** Kilometres `train` has run since it was last serviced at an Engine Shed. */
+export function kmSinceService(train: Train): number {
+  return Math.max(0, train.distanceTraveled - (train.serviceOdometerTiles ?? 0)) * KM_PER_TILE;
+}
+
+/** Breakdown-chance multiplier from kilometres since the last service (see `SERVICE_INTERVAL_KM`). */
+export function serviceBreakdownMult(km: number, loco: LocomotiveDef): number {
+  return Math.min(
+    BREAKDOWN_SERVICE_MAX_MULT,
+    BREAKDOWN_SERVICE_MIN_MULT +
+      (BREAKDOWN_SERVICE_PER_INTERVAL * km) / SERVICE_INTERVAL_KM[loco.type],
+  );
+}
+
 /** Chance that `train` breaks down in a given month (SPEC §7.6 + Economic model v2): base by the year's
  * reliability rating × age × kilometres run × proven-design bonus × Engine Shed servicing × difficulty. */
 export function monthlyBreakdownChance(state: GameState, train: Train): number {
@@ -66,16 +82,13 @@ export function monthlyBreakdownChance(state: GameState, train: Train): number {
     BREAKDOWN_BASE_CHANCE_BY_RELIABILITY[effectiveReliability(loco, year, state.startYear)] ?? 0.02;
   const ageYears = mechanicalAgeYears(state, train);
   const kmRun = train.distanceTraveled * KM_PER_TILE;
-  const servicedRecently =
-    train.lastServicedTick !== undefined &&
-    (state.ticks - train.lastServicedTick) / HOURS_PER_DAY <= BREAKDOWN_ENGINE_SHED_WINDOW_DAYS;
   return (
     base *
     (1 + ageYears / BREAKDOWN_AGE_DIVISOR_YEARS) *
     ageBreakdownMult(ageYears, loco) *
     (1 + kmRun / WEAR_KM_DOUBLING) *
     (modelYearsOnMarket(loco, year) > PROVEN_YEARS ? PROVEN_BREAKDOWN_MULT : 1) *
-    (servicedRecently ? BREAKDOWN_ENGINE_SHED_MULT : 1) *
+    serviceBreakdownMult(kmSinceService(train), loco) *
     DIFFICULTY[state.difficulty].breakdownMult
   );
 }

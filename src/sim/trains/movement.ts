@@ -20,6 +20,8 @@ import {
   CAR_WEIGHT_EMPTY,
   CAR_WEIGHT_LOADED,
   CURVE_SPEED_FACTOR,
+  SERVICE_INTERVAL_KM,
+  SERVICE_MIN_INTERVAL_FRACTION,
   DEADLOCK_BLOCK_PENALTY,
   DEADLOCK_REROUTE_DAYS,
   DEADLOCK_STUCK_DAYS,
@@ -50,6 +52,7 @@ import { blockIdForEdge, type Block, type BlockPartition } from "./blocks";
 import { trainBodyLength, updateCrossing } from "./crossing";
 import { applyPendingConsist, stepLoading } from "./loading";
 import { wearUnitsPerTile } from "../finance/costs";
+import { kmSinceService } from "./breakdown";
 import { addEdgeWear, edgeWearRatio, slowOrderMult } from "../track/condition";
 import { findTrainRoute } from "./route";
 import type { HeldBlock, Train, TrainOrder, TrainStatus } from "./types";
@@ -772,7 +775,17 @@ function arriveAtStation(state: GameState, train: Train, station: Station): void
   // Engine Shed servicing and Water Tower refills happen on any stop at a station that has them
   // (SPEC §6.2), not just a scheduled order stop.
   station.visitedThisMonth = true;
-  if (station.hasEngineShed) train.lastServicedTick = state.ticks;
+  if (station.hasEngineShed) {
+    const loco = locomotiveById(train.locoModelId);
+    if (
+      loco &&
+      kmSinceService(train) >= SERVICE_INTERVAL_KM[loco.type] * SERVICE_MIN_INTERVAL_FRACTION
+    ) {
+      train.servicePending = true;
+    }
+    train.lastServicedTick = state.ticks;
+    train.serviceOdometerTiles = train.distanceTraveled;
+  }
   if (station.hasWaterTower) train.tilesSinceWaterTower = 0;
   // A queued "Edit cars" change (PLAN Phase 15) is applied the moment the train next stops
   // anywhere, whether or not this is one of its scheduled order stops.

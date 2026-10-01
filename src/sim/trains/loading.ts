@@ -25,6 +25,7 @@ import {
 import {
   DEFAULT_FULL_LOAD_MAX_WAIT_DAYS,
   MIN_LOADING_TICKS,
+  SERVICE_DELAY_TICKS,
   OVERLENGTH_SLOWDOWN_MULT,
   locomotiveById,
   TICKS_PER_CAR_HANDLED,
@@ -463,7 +464,10 @@ export function stepLoading(state: GameState, train: Train, station: Station): b
 
   if (train.loadTicksLeft < 0) {
     const plan = planLoadUnload(state, train, station, order);
-    train.loadTicksLeft = computeDwellTicks(state, train, station, plan);
+    train.loadTicksLeft =
+      computeDwellTicks(state, train, station, plan) +
+      (train.servicePending ? SERVICE_DELAY_TICKS : 0);
+    delete train.servicePending;
   }
   if (train.loadTicksLeft > 0) {
     train.loadTicksLeft--;

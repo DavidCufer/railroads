@@ -17,8 +17,9 @@ import {
   electrifyTrack,
 } from "../../../src/sim/commands";
 import {
+  SERVICE_INTERVAL_KM,
   BREAKDOWN_BASE_CHANCE_BY_RELIABILITY,
-  BREAKDOWN_ENGINE_SHED_MULT,
+  BREAKDOWN_SERVICE_MIN_MULT,
   buyableLocomotivesIn,
   locomotivesAvailableIn,
   STEAM_PHASE_OUT_YEAR,
@@ -26,6 +27,7 @@ import {
   TRADE_IN_MIN_FRACTION,
 } from "../../../src/data/trains";
 import { eraInflation } from "../../../src/data/finance";
+import { KM_PER_TILE } from "../../../src/data/scale";
 import { ELECTRIFICATION_ERA } from "../../../src/data/track";
 import { monthlyBreakdownStep } from "../../../src/sim/trains/breakdown";
 import { DAYS_PER_YEAR, HOURS_PER_DAY } from "../../../src/sim/time";
@@ -184,22 +186,25 @@ describe("monthly breakdown roll", () => {
     expect(rate).toBeLessThan(expected * 1.5);
   });
 
-  it("halves for a loco serviced at an Engine Shed within the last 60 days", () => {
+  it("is about half as likely for a loco fresh from an Engine Shed as for one that has run one service interval", () => {
     const map = makeTestMap(["p"]);
-    const unserviced = makeTestState(map, { startYear: 1848, seed: 1 });
-    const serviced = makeTestState(map, { startYear: 1848, seed: 1 });
+    const fresh = makeTestState(map, { startYear: 1848, seed: 1 });
+    const due = makeTestState(map, { startYear: 1848, seed: 1 });
+    const interval = SERVICE_INTERVAL_KM.steam / KM_PER_TILE;
     for (let i = 0; i < TRIALS; i++) {
-      unserviced.trains.push(bareTrain(i, "american-4-4-0", unserviced.ticks));
-      serviced.trains.push(bareTrain(i, "american-4-4-0", serviced.ticks, serviced.ticks));
+      fresh.trains.push(bareTrain(i, "american-4-4-0", fresh.ticks, fresh.ticks));
+      const t = bareTrain(i, "american-4-4-0", due.ticks, due.ticks);
+      t.distanceTraveled = interval; // a whole service interval since the shed
+      t.serviceOdometerTiles = 0;
+      due.trains.push(t);
     }
-    monthlyBreakdownStep(unserviced);
-    monthlyBreakdownStep(serviced);
-    const unservicedRate =
-      unserviced.trains.filter((t) => t.breakdownTicksLeft > 0).length / TRIALS;
-    const servicedRate = serviced.trains.filter((t) => t.breakdownTicksLeft > 0).length / TRIALS;
-    // Not an exact 2x (both are noisy samples), but serviced should clearly land lower.
-    expect(servicedRate).toBeLessThan(unservicedRate * (BREAKDOWN_ENGINE_SHED_MULT + 0.35));
-    expect(servicedRate).toBeGreaterThan(0);
+    monthlyBreakdownStep(fresh);
+    monthlyBreakdownStep(due);
+    const freshRate = fresh.trains.filter((t) => t.breakdownTicksLeft > 0).length / TRIALS;
+    const dueRate = due.trains.filter((t) => t.breakdownTicksLeft > 0).length / TRIALS;
+    // ×0.5 fresh vs ×1.5 (+ a little for the kilometres run) at the interval: roughly three to one.
+    expect(freshRate).toBeLessThan(dueRate * (BREAKDOWN_SERVICE_MIN_MULT / 1.5 + 0.2));
+    expect(freshRate).toBeGreaterThan(0);
   });
 
   it("charges the era-scaled repair cost and pushes breakdown news on a full-population roll", () => {

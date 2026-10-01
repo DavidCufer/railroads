@@ -427,9 +427,20 @@ export const BREAKDOWN_BASE_CHANCE_BY_RELIABILITY: Record<number, number> = {
 };
 /** Chance multiplies by `(1 + age/20 years)`. */
 export const BREAKDOWN_AGE_DIVISOR_YEARS = 20;
-/** Chance ×0.5 if serviced at an Engine Shed within the last 60 days. */
-export const BREAKDOWN_ENGINE_SHED_WINDOW_DAYS = 60;
-export const BREAKDOWN_ENGINE_SHED_MULT = 0.5;
+/** Servicing by distance (Phase 30A, PLAYTEST-2 Top 10 #8). A locomotive is serviced (boiler washed out, valves and
+ * bearings checked, oil changed) at an Engine Shed; any stop at a station with a shed counts. Wear-out between
+ * services is by kilometres run, not by calendar days: the breakdown chance is ×`BREAKDOWN_SERVICE_MIN_MULT` fresh
+ * from the shed and rises by `BREAKDOWN_SERVICE_PER_INTERVAL` for every `SERVICE_INTERVAL_KM` run since, to a cap.
+ * A train that visits a shed once per interval averages ×1.0 (the old unserviced baseline); one that never does is
+ * worse, so sheds along a long line pay. */
+export const SERVICE_INTERVAL_KM = { steam: 8_000, diesel: 30_000, electric: 50_000 } as const;
+export const BREAKDOWN_SERVICE_MIN_MULT = 0.5;
+export const BREAKDOWN_SERVICE_PER_INTERVAL = 1.0;
+export const BREAKDOWN_SERVICE_MAX_MULT = 3.5;
+/** A service stop is skipped unless this share of the interval has been run since the last one. */
+export const SERVICE_MIN_INTERVAL_FRACTION = 0.1;
+/** Extra time (hours) a serviced train spends in the shed on top of the normal stop. */
+export const SERVICE_DELAY_TICKS = 8;
 export const BREAKDOWN_REPAIR_MIN_DAYS = 2;
 export const BREAKDOWN_REPAIR_MAX_DAYS = 5;
 

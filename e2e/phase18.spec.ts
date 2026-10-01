@@ -144,7 +144,7 @@ test.describe("Phase 18 — play-test 5", () => {
     await expect(page.locator(".industry-recipe")).toContainText("or");
     const rows = page.locator("button.industry-source");
     await expect(rows).toHaveCount(2);
-    await expect(rows.first()).toContainText("tile");
+    await expect(rows.first()).toContainText("km");
     await page.locator(".panel-body").evaluate((el) => (el.scrollTop = el.scrollHeight));
     await page.waitForTimeout(100);
     await page.screenshot({ path: "docs/screenshots/phase-18-industry-panel.png" });

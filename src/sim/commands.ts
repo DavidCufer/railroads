@@ -1256,6 +1256,7 @@ export function replaceLocomotive(
   train.purchasePrice = plan.newLocoCost + carsValue;
   train.purchaseTick = state.ticks;
   delete train.ageCreditYears;
+  train.serviceOdometerTiles = train.distanceTraveled;
   delete train.wornOutNoticed;
   train.breakdownTicksLeft = 0;
   delete train.inOverhaul;

@@ -203,6 +203,10 @@ export interface Train {
   /** `state.ticks` this train last stopped at a station with an Engine Shed, or undefined if never
    * — breakdown chance is halved within `BREAKDOWN_ENGINE_SHED_WINDOW_DAYS` of this (SPEC §6.2). */
   lastServicedTick?: number;
+  /** Phase 30A: `distanceTraveled` (tiles) at the last service — kilometres since service drive the breakdown chance. */
+  serviceOdometerTiles?: number;
+  /** Phase 30A: set on arrival at an Engine Shed that serviced the train; adds `SERVICE_DELAY_TICKS` to the stop. */
+  servicePending?: boolean;
   /** Tiles traveled (steam locomotives only) since the last stop at a station with a Water Tower —
    * SPEC §6.2: beyond `WATER_TOWER_RANGE_TILES` the train loses `WATER_TOWER_SPEED_PENALTY` speed
    * until its next refill. Diesel/electric never accumulate this (stays 0). */
