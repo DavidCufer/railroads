@@ -160,6 +160,8 @@ test.describe("Phase 30B", () => {
       const f = window.__game!.getStationFlow(id)!;
       f.lastMonth.mail = { revenue: 2000, units: 40, lostUnits: 10, lostRevenue: 500 };
       f.lastMonth.passengers = { revenue: 6000, units: 90, lostUnits: 0, lostRevenue: 0 };
+      // This test map has no town in range (Phase 31: Post Office / Hotel then show no estimate), so use freight too.
+      f.lastMonth.food = { revenue: 3000, units: 40, lostUnits: 0, lostRevenue: 0 };
       window.__game!.debugOpenStation(id);
     }, a);
     await page.locator('[data-tab="build"]').click();
