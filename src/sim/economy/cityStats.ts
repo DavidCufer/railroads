@@ -7,6 +7,7 @@ import {
   CITY_PASSENGER_SUPPLY_DIVISOR,
   type CityTier,
 } from "../../data/cities";
+import { inducedTrafficFactor } from "../../data/economy";
 import type { City } from "./types";
 
 export interface CitySupply {
@@ -15,9 +16,11 @@ export interface CitySupply {
 }
 
 /** Supply per month if fully covered by stations (SPEC §8.3, tuned — see cities.ts). */
-export function citySupply(city: City): CitySupply {
+export function citySupply(city: City, year = 1900): CitySupply {
   return {
-    passengers: Math.round(city.population / CITY_PASSENGER_SUPPLY_DIVISOR),
+    passengers: Math.round(
+      (city.population / CITY_PASSENGER_SUPPLY_DIVISOR) * inducedTrafficFactor(year),
+    ),
     mail: Math.round(city.population / CITY_MAIL_SUPPLY_DIVISOR),
   };
 }

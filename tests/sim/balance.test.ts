@@ -16,6 +16,7 @@ import {
   buyTrain,
   setOrders,
 } from "../../src/sim/commands";
+import { inducedTrafficFactor } from "../../src/data/economy";
 import { WORLD_SCALE } from "../../src/data/scale";
 import { DIFFICULTY, ledgerNetProfit } from "../../src/data/finance";
 import { INDUSTRIES } from "../../src/data/industries";
@@ -399,7 +400,8 @@ describe("Phase 7.1 balance acceptance", () => {
     const state = buildPassengerRoute(16 * WORLD_SCALE, 40_000, 4);
     const [, yr2] = yearlyProfits(state, 2);
     expect(yr2 as number).toBeGreaterThan(80_000);
-    expect(yr2 as number).toBeLessThan(260_000);
+    // Phase 30A: induced traffic (x1.7 passengers before 1860, data/economy.ts) lifts this best-case route
+    expect(yr2 as number).toBeLessThan(260_000 * inducedTrafficFactor(1848));
   });
 
   it("passenger/freight profit-per-train ratio for comparable routes is within 1x-2.5x", () => {
@@ -409,7 +411,8 @@ describe("Phase 7.1 balance acceptance", () => {
     const [, paxYr2] = yearlyProfits(pax, 2);
     const ratio = (paxYr2 as number) / (coalYr2 as number);
     expect(ratio).toBeGreaterThanOrEqual(1);
-    expect(ratio).toBeLessThanOrEqual(2.5);
+    // Phase 30A: induced traffic makes early passenger routes richer than freight, so the ceiling moves with it
+    expect(ratio).toBeLessThanOrEqual(2.5 * inducedTrafficFactor(1848));
   });
 
   it("a coal+ore -> steel -> factory -> goods chain out-earns a town passenger shuttle per train", () => {
@@ -500,13 +503,15 @@ describe("Phase 7.1 balance acceptance", () => {
     }
 
     // Not a money-printer: didn't earn back half the original starting cash in year one alone.
-    expect(cumulativeProfitByYear[0] as number).toBeLessThan(startingCash * 0.5);
+    // (Phase 30A: induced traffic on the passenger half of the network, hence the 0.6)
+    expect(cumulativeProfitByYear[0] as number).toBeLessThan(startingCash * 0.6);
     // But it is a going concern: by year 5, cumulative profit is roughly on the order of the
     // original starting cash (a rough "doubling"), landing within [0.5x, 2x] — not stalled, and
     // not printing money either.
     const yr5 = cumulativeProfitByYear[4] as number;
     expect(yr5).toBeGreaterThan(startingCash * 0.5);
-    expect(yr5).toBeLessThan(startingCash * 2);
+    // Phase 30A: induced traffic (x1.7 passengers in 1848) puts the passenger trains of this network higher
+    expect(yr5).toBeLessThan(startingCash * 3);
   });
 });
 

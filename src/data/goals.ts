@@ -63,7 +63,7 @@ export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
       },
     },
     { tier: "silver", def: { type: "delivered", cargo: "coal", amount: 1000, withinYear: 1850 } },
-    { tier: "gold", def: { type: "netWorth", amount: 15_000_000, byYear: 1870 } },
+    { tier: "gold", def: { type: "netWorth", amount: 20_000_000, byYear: 1870 } },
   ],
   "central-eu": [
     { tier: "bronze", def: { type: "connect", cities: ["Munich", "Milan"], byYear: 1875 } },

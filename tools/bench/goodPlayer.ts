@@ -74,6 +74,10 @@ function day(n: number): void {
 
 function ensureCash(needed: number): boolean {
   if (state.cash >= needed) return true;
+  const limitFn = optional("creditLimit") as ((s: GameState) => number) | undefined;
+  // do not borrow for a project the credit limit cannot cover anyway
+  if (limitFn && state.cash + Math.max(0, limitFn(state) - state.finance.loans) < needed)
+    return false;
   const take = optional("takeLoan") as ((s: GameState, n: number) => unknown) | undefined;
   if (!take) return false;
   let guard = 0;
@@ -93,22 +97,29 @@ function repayIfRich(): void {
 
 function bestLoco(): string {
   const y = year();
-  const cands = buyableLocomotivesIn(y).filter((l) => l.maxCars >= 6);
+  const all = buyableLocomotivesIn(y);
+  // engines of 6+ cars when the era has them, else the best that exists (1830s-40s engines pull 3-5)
+  const strong = all.filter((l) => l.maxCars >= 6);
+  const cands = strong.length > 0 ? strong : all;
   cands.sort((p, q) => q.maxSpeedKmh - p.maxSpeedKmh || p.cost - q.cost);
   return (cands[0] ?? buyableLocomotivesIn(y)[0]!).id;
 }
 
 function consist(loco: string): CargoType[] {
   const n = Math.min(locomotiveById(loco)!.maxCars, 6);
-  return Array.from({ length: n }, (_, i) => (i < n - 2 ? "passengers" : "mail"));
+  // mail is ~15 % of a passenger line's fares (PLAYTEST-2 Top 10 #9): one mail car on a train of 4+, otherwise passengers only
+  const mail = process.env.MAILCARS ? Number(process.env.MAILCARS) : n >= 4 ? 1 : 0;
+  return Array.from({ length: n }, (_, i) => (i < n - mail ? "passengers" : "mail"));
 }
 
 /** Tiles of a city ordered by closeness to `toward` (the stations stand on the side facing the partner). */
-function cityTilesToward(city: City, toward: number, type: "depot" | "station" | "terminal"): number[] {
-  // a good player takes the cheapest ground (edge of town, land is dear in the centre) among the 40 tiles facing the partner
-  const near = [...city.tiles].sort((p, q) => dist(p, toward) - dist(q, toward)).slice(0, 40);
-  const price = new Map(near.map((t) => [t, commands.computeStationBuildPlan(state, t, type).cost]));
-  return near.sort((p, q) => price.get(p)! - price.get(q)! || dist(p, toward) - dist(q, toward)).slice(0, 14);
+function cityTilesToward(city: City, toward: number): number[] {
+  // a station draws its passengers from the city tiles in its catchment, so a good player builds in the middle of town
+  // (the land there is dear, but a station on the outskirts covers a fraction of the people): the 12 tiles nearest the
+  // centre, those facing the partner first
+  const centre = cityCentre(city);
+  const near = [...city.tiles].sort((p, q) => dist(p, centre) - dist(q, centre)).slice(0, 12);
+  return near.sort((p, q) => dist(p, toward) - dist(q, toward));
 }
 
 function stationTypeFor(city: City): "depot" | "station" | "terminal" {
@@ -119,8 +130,8 @@ function stationTypeFor(city: City): "depot" | "station" | "terminal" {
 
 /** "built", "nocash" (try again later) or "failed" (no route; do not retry). */
 function tryConnect(newCity: City, hub: City): "built" | "nocash" | "failed" {
-  const sa = cityTilesToward(newCity, cityCentre(hub), stationTypeFor(newCity));
-  const sb = cityTilesToward(hub, cityCentre(newCity), stationTypeFor(hub));
+  const sa = cityTilesToward(newCity, cityCentre(hub));
+  const sb = cityTilesToward(hub, cityCentre(newCity));
   const stationTiles = new Set(state.stations.map((s) => s.tile));
   const taken = new Set(state.trackGraph.allNodes());
   for (const ta of sa.filter((t) => !taken.has(t)).slice(0, 4)) {
@@ -139,11 +150,26 @@ function tryConnect(newCity: City, hub: City): "built" | "nocash" | "failed" {
         commands.computeStationBuildPlan(state, ta, typeA).cost +
         commands.computeStationBuildPlan(state, tb, typeB).cost;
       const loco = locomotiveById(bestLoco())!;
-      const trainCost = commands.computeBuyTrainPlan(state, loco.id, consist(loco.id)).cost * (pairs.length === 0 ? 1 : 2);
-      const dbl = year() >= 1870 ? plan.cost * 0.7 : 0;
+      const trainCost =
+        commands.computeBuyTrainPlan(state, loco.id, consist(loco.id)).cost *
+        (pairs.length === 0 ? 1 : 2);
+      // double track only when the company is comfortably rich; a cash-short player lays single track first
+      const wantDouble = year() >= 1870 && state.cash > 2_500_000;
+      const dbl = wantDouble ? plan.cost * 0.7 : 0;
       const total = plan.cost + stationBudget + trainCost + dbl + 60_000;
-      if (!ensureCash(total + 150_000)) {
-        if (process.env.V) console.log("nocash", year(), newCity.name, hub.name, Math.round(total), Math.round(state.cash), Math.round(plan.cost), Math.round(stationBudget), Math.round(trainCost));
+      if (!ensureCash(total + 50_000)) {
+        if (process.env.V)
+          console.log(
+            "nocash",
+            year(),
+            newCity.name,
+            hub.name,
+            Math.round(total),
+            Math.round(state.cash),
+            Math.round(plan.cost),
+            Math.round(stationBudget),
+            Math.round(trainCost),
+          );
         return "nocash";
       }
       if (!ok(commands.buildTrack(state, path))) continue;
@@ -155,9 +181,22 @@ function tryConnect(newCity: City, hub: City): "built" | "nocash" | "failed" {
       }
       const a = state.stations.find((s) => s.tile === ta)!;
       const b = state.stations.find((s) => s.tile === tb)!;
-      if (year() >= 1870) commands.upgradeTrack(state, path);
+      if (wantDouble) commands.upgradeTrack(state, path);
       commands.buildEngineShed(state, a.id);
       const pair: Pair = { a, b, cityA: newCity, cityB: hub, trains: [], path };
+      if (process.env.V)
+        console.log(
+          "built",
+          year(),
+          newCity.name,
+          hub.name,
+          "track",
+          Math.round(plan.cost),
+          "stations",
+          Math.round(stationBudget),
+          "cash",
+          Math.round(state.cash),
+        );
       pairs.push(pair);
       connected.add(newCity.id);
       connected.add(hub.id);
@@ -226,7 +265,7 @@ function yearlyPlanning(): void {
     const r = tryConnect(cand.c, cand.hub);
     if (r === "built") built++;
     else if (r === "failed") failedCities.add(cand.c.id);
-    else break;
+    // too dear for now: try the next-best city, a cash-short player builds the cheaper line first
   }
 
   // 3. more trains on pairs, improvements in big cities
@@ -246,21 +285,21 @@ function yearlyPlanning(): void {
 }
 
 function bootstrap(): void {
-  // First line: the two biggest cities within reach of each other.
+  // First line: a good player picks a short line between two big cities (slow early engines make long lines poor
+  // earners): best population product per tile of line among the 10 biggest cities, 8 to 70 tiles apart.
   const cities = state.cities
     .filter((c) => c.tiles.length > 0)
-    .sort((p, q) => q.population - p.population);
-  for (const a of cities.slice(0, 4)) {
-    for (const b of cities.slice(0, 8)) {
-      if (
-        a.id === b.id ||
-        dist(cityCentre(a), cityCentre(b)) > 70 ||
-        dist(cityCentre(a), cityCentre(b)) < 8
-      )
-        continue;
-      if (tryConnect(a, b) === "built") return;
+    .sort((p, q) => q.population - p.population)
+    .slice(0, 10);
+  const options: Array<{ a: City; b: City; score: number }> = [];
+  for (const a of cities)
+    for (const b of cities) {
+      const d = dist(cityCentre(a), cityCentre(b));
+      if (a.id >= b.id || d > 70 || d < 8) continue;
+      options.push({ a, b, score: Math.sqrt(a.population * b.population) / (d + 10) });
     }
-  }
+  options.sort((p, q) => q.score - p.score);
+  for (const o of options) if (tryConnect(o.a, o.b) === "built") return;
   throw new Error("could not build a first line");
 }
 
@@ -301,5 +340,13 @@ void STATION_TYPE_DEFS;
 console.log(`# ${region} ${startYear} ${difficulty} seed ${seed}`);
 console.log(report.join("\n"));
 const ly = state.finance.lastYear as unknown as Record<string, number>;
-console.log("last year ledger:", Object.entries(ly).filter(([, v]) => typeof v === "number" && Math.abs(v) > 1000).map(([k, v]) => `${k} ${(v / 1e3).toFixed(0)}k`).join(", "));
-console.log(`land spent ${(((state.finance as { landSpent?: number }).landSpent ?? 0) / 1e6).toFixed(2)}M, capital ${(state.finance.capitalInvested / 1e6).toFixed(2)}M`);
+console.log(
+  "last year ledger:",
+  Object.entries(ly)
+    .filter(([, v]) => typeof v === "number" && Math.abs(v) > 1000)
+    .map(([k, v]) => `${k} ${(v / 1e3).toFixed(0)}k`)
+    .join(", "),
+);
+console.log(
+  `land spent ${(((state.finance as { landSpent?: number }).landSpent ?? 0) / 1e6).toFixed(2)}M, capital ${(state.finance.capitalInvested / 1e6).toFixed(2)}M`,
+);

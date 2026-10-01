@@ -45,10 +45,10 @@ function world(
 
 describe("land prices", () => {
   it("open country costs the base rate; a city centre costs many times more, falling away with distance", () => {
-    const s = world(100_000);
+    const s = world(100_000, { year: 1900 });
     const land = landPrices(s);
     const far = land.priceAt(tileAt(s.map, 0, 0));
-    expect(far).toBeCloseTo(LAND_BASE_PER_TILE, 0);
+    expect(far).toBeCloseTo(LAND_BASE_PER_TILE * landYearIndex(1900), 0);
     const centre = land.priceAt(tileAt(s.map, 20, 20));
     const edge = land.priceAt(tileAt(s.map, 20, 26));
     expect(centre).toBeGreaterThan(far * 8);
@@ -56,11 +56,23 @@ describe("land prices", () => {
     expect(edge).toBeGreaterThan(far);
   });
 
+  it("the city premium grows with the Victorian city: cheap in the 1830s, in full by 1900", () => {
+    const centre = (year: number): number => {
+      const s = world(100_000, { year });
+      const land = landPrices(s);
+      return land.priceAt(tileAt(s.map, 20, 20)) / land.priceAt(tileAt(s.map, 0, 0));
+    };
+    expect(centre(1830)).toBeLessThan(centre(1860));
+    expect(centre(1860)).toBeLessThan(centre(1900));
+    expect(centre(1830)).toBeLessThan(centre(1900) / 3);
+    expect(centre(1830)).toBeGreaterThan(1.5);
+  });
+
   it("a bigger city makes dearer land", () => {
     const small = landPrices(world(12_000)).priceAt(tileAt(makeTestMap(["p"]), 0, 0));
     expect(small).toBeGreaterThan(0);
     const t = (pop: number): number => {
-      const s = world(pop);
+      const s = world(pop, { year: 1900 });
       return landPrices(s).priceAt(tileAt(s.map, 20, 20));
     };
     expect(t(12_000)).toBeLessThan(t(40_000));
@@ -68,7 +80,7 @@ describe("land prices", () => {
   });
 
   it("land rises with the year faster than prices, and with difficulty", () => {
-    expect(landYearIndex(1900)).toBeGreaterThan(landYearIndex(1830) * 3);
+    expect(landYearIndex(1900)).toBeGreaterThan(landYearIndex(1830));
     const price = (year: number, d: GameState["difficulty"]): number => {
       const s = world(40_000, { year, difficulty: d });
       return landPrices(s).priceAt(tileAt(s.map, 20, 20));
@@ -79,7 +91,7 @@ describe("land prices", () => {
   });
 
   it("grows with the city: the cache follows its population", () => {
-    const s = world(20_000);
+    const s = world(20_000, { year: 1900 });
     const before = landPrices(s).priceAt(tileAt(s.map, 20, 20));
     s.cities[0]!.population = 200_000;
     expect(landPrices(s).priceAt(tileAt(s.map, 20, 20))).toBeGreaterThan(before * 2);
@@ -88,7 +100,7 @@ describe("land prices", () => {
 
 describe("land in build plans", () => {
   it("the build plan lists land separately and cost includes it", () => {
-    const s = world(100_000);
+    const s = world(100_000, { year: 1900 });
     const row = (y: number): number[] =>
       Array.from({ length: 11 }, (_, i) => tileAt(s.map, 15 + i, y));
     const country = computeBuildPlan(s, row(2));
@@ -108,7 +120,7 @@ describe("land in build plans", () => {
   });
 
   it("a station's land follows its size and where it stands", () => {
-    const s = world(100_000);
+    const s = world(100_000, { year: 1900 });
     buildTrack(
       s,
       Array.from({ length: 41 }, (_, i) => tileAt(s.map, i, 20)),

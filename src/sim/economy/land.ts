@@ -11,6 +11,8 @@ import {
   PASSING_LOOP_LAND_TILES,
   cityLandRadiusTiles,
   landYearIndex,
+  URBAN_LAND_PREMIUM_ANCHORS,
+  interpolateYear,
 } from "../../data/economy";
 import { DIFFICULTY } from "../../data/finance";
 import type { StationType } from "../../data/stations";
@@ -60,8 +62,12 @@ export function computeDensityField(map: GameMap, cities: readonly City[]): Floa
 }
 
 /** Land price multiplier (≥ 1) for a density. */
-export function landMultiplier(density: number): number {
-  return 1 + Math.pow(density / LAND_DENSITY_REF, LAND_DENSITY_EXPONENT);
+export function landMultiplier(density: number, year = 1900): number {
+  return (
+    1 +
+    interpolateYear(URBAN_LAND_PREMIUM_ANCHORS, year) *
+      Math.pow(density / LAND_DENSITY_REF, LAND_DENSITY_EXPONENT)
+  );
 }
 
 export interface LandPrices {
@@ -99,8 +105,8 @@ export function landPrices(state: GameState): LandPrices {
   const year = calendarFromTicks(state.startYear, state.ticks).year;
   const rate = LAND_BASE_PER_TILE * landYearIndex(year) * DIFFICULTY[state.difficulty].landMult;
   return {
-    priceAt: (tile) => rate * landMultiplier(density[tile] ?? 0),
-    multiplierAt: (tile) => landMultiplier(density[tile] ?? 0),
+    priceAt: (tile) => rate * landMultiplier(density[tile] ?? 0, year),
+    multiplierAt: (tile) => landMultiplier(density[tile] ?? 0, year),
   };
 }
 

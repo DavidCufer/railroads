@@ -11,6 +11,7 @@
  *   "overlapping supply is split evenly").
  */
 import { CARGO_TYPES, type CargoType } from "../../data/cargo";
+import { inducedTrafficFactor } from "../../data/economy";
 import { INDUSTRIES } from "../../data/industries";
 import {
   POST_OFFICE_MAIL_SUPPLY_MULT,
@@ -122,8 +123,10 @@ export function computeStationEconomies(
     }
   }
 
+  const induced = inducedTrafficFactor(currentYear);
   for (const city of cities) {
     const perTile = cityTileSupply(city);
+    if (perTile.passengers) perTile.passengers *= induced;
     for (const tile of city.tiles) {
       const covering = stationsAt.get(tile);
       if (!covering || covering.length === 0) continue;

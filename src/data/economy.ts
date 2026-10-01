@@ -302,6 +302,23 @@ export const ELECTRIC_WEAR_MULT = 0.8;
  * village of 1,000 passes 3,000 in about seven years of service. The boom ends when it has become a town. */
 export const FRONTIER_BOOM_STEP_SHARE = 0.25;
 
+// --- Induced traffic (Phase 30A, PLAYTEST-2 "1840/1830 starts must not get worse") --------------------------------
+
+/** A new railway created its own traffic: fares a fraction of the stagecoach's and journeys several times faster
+ * unlocked demand that had never been able to pay for travel (clerks, families, day-trippers, the first excursions
+ * and Sunday trains), so early lines carried a multiple of the traffic forecast for them. As the network matured
+ * and the first generation of travel habits settled, passengers per head converged on the long-run rate. Multiplies
+ * the passenger (not mail, not freight) supply of a city; 1 from 1900. This replaces the revenue that mail used to
+ * give the 1830s-60s, when mail is held to its realistic ~15 % share. */
+export const INDUCED_TRAFFIC_ANCHORS: Anchors = [
+  [1830, 1.7],
+  [1860, 1.7],
+  [1900, 1],
+];
+export function inducedTrafficFactor(year: number): number {
+  return interpolateYear(INDUCED_TRAFFIC_ANCHORS, year);
+}
+
 // --- Track condition (Phase 30A, PLAYTEST-2 Top 10 #4) -----------------------------------------------------------
 
 /** Share of the track-wear bill that is paid as routine maintenance every month (tamping, oiling, replacing a
@@ -363,19 +380,29 @@ export const LAND_BASE_PER_TILE = 250;
  * people per tile of the city's built-up area, spread out with a Gaussian of radius `cityLandRadiusTiles(pop)`. */
 export const LAND_DENSITY_REF = 300;
 export const LAND_DENSITY_EXPONENT = 1.2;
+/** How much of the city premium is in force in a year: ground rents in town centres exploded with the Victorian
+ * city (offices, shops, suburbs and the railway itself), so the first railways bought cheap and the great termini
+ * of 1900 paid dear (and kept rising faster than prices after). Multiplies the density term of the land multiplier. */
+export const URBAN_LAND_PREMIUM_ANCHORS: Anchors = [
+  [1830, 0.15],
+  [1860, 0.8],
+  [1900, 2.4],
+  [1960, 3.4],
+];
 /** Built-up radius (tiles; 1 tile = 5 km) of a city of `population`. */
 export function cityLandRadiusTiles(population: number): number {
   return 1.2 + 0.25 * Math.sqrt(population / 1000);
 }
-/** Land prices rise faster than the general price level as towns fill up: this much a year, on top of `priceIndex`. */
-export const LAND_REAL_GROWTH_PER_YEAR = 0.02;
 /** Land a station takes, in tiles (platforms, yard, buildings), by type. */
 export const STATION_LAND_TILES = { depot: 2, station: 6, terminal: 15 } as const;
 /** Land a passing loop takes, in tiles. */
 export const PASSING_LOOP_LAND_TILES = 1;
 
+/** Open-country land follows the general price level only: farmland held its real value at best (it fell in the
+ * Long Depression of 1873–96); what rose faster than prices was the ground under growing towns, which is
+ * `URBAN_LAND_PREMIUM_ANCHORS`. */
 export function landYearIndex(year: number): number {
-  return priceIndex(year) * (1 + LAND_REAL_GROWTH_PER_YEAR * Math.max(0, year - 1830));
+  return priceIndex(year);
 }
 
 // --- Goal rewards: land grants (Phase 30A, PLAYTEST-2 "goals celebrate but give nothing") ---------------------------

@@ -163,7 +163,7 @@ export function openCityPanel(
     const city = state.cities.find((c) => c.id === cityId);
     if (!city) return;
     const currentYear = calendarFromTicks(state.startYear, state.ticks).year;
-    const supply = citySupply(city);
+    const supply = citySupply(city, currentYear);
     const accepts = cityAcceptance(city, currentYear);
     const acceptEntries = Object.entries(accepts) as Array<[CargoType, number]>;
     const growth = state.cityGrowth.get(cityId);
