@@ -104,18 +104,23 @@ function consist(loco: string): CargoType[] {
 }
 
 /** Tiles of a city ordered by closeness to `toward` (the stations stand on the side facing the partner). */
-function cityTilesToward(city: City, toward: number): number[] {
-  return [...city.tiles].sort((p, q) => dist(p, toward) - dist(q, toward)).slice(0, 14);
+function cityTilesToward(city: City, toward: number, type: "depot" | "station" | "terminal"): number[] {
+  // a good player takes the cheapest ground (edge of town, land is dear in the centre) among the 40 tiles facing the partner
+  const near = [...city.tiles].sort((p, q) => dist(p, toward) - dist(q, toward)).slice(0, 40);
+  const price = new Map(near.map((t) => [t, commands.computeStationBuildPlan(state, t, type).cost]));
+  return near.sort((p, q) => price.get(p)! - price.get(q)! || dist(p, toward) - dist(q, toward)).slice(0, 14);
 }
 
 function stationTypeFor(city: City): "depot" | "station" | "terminal" {
-  if (year() >= 1870 && city.population >= 40_000) return "terminal";
+  // Terminals are dear (land): only when the company can comfortably afford them
+  if (year() >= 1870 && city.population >= 40_000 && state.cash > 2_500_000) return "terminal";
   return "station";
 }
 
-function tryConnect(newCity: City, hub: City): boolean {
-  const sa = cityTilesToward(newCity, cityCentre(hub));
-  const sb = cityTilesToward(hub, cityCentre(newCity));
+/** "built", "nocash" (try again later) or "failed" (no route; do not retry). */
+function tryConnect(newCity: City, hub: City): "built" | "nocash" | "failed" {
+  const sa = cityTilesToward(newCity, cityCentre(hub), stationTypeFor(newCity));
+  const sb = cityTilesToward(hub, cityCentre(newCity), stationTypeFor(hub));
   const stationTiles = new Set(state.stations.map((s) => s.tile));
   const taken = new Set(state.trackGraph.allNodes());
   for (const ta of sa.filter((t) => !taken.has(t)).slice(0, 4)) {
@@ -134,10 +139,13 @@ function tryConnect(newCity: City, hub: City): boolean {
         commands.computeStationBuildPlan(state, ta, typeA).cost +
         commands.computeStationBuildPlan(state, tb, typeB).cost;
       const loco = locomotiveById(bestLoco())!;
-      const trainCost = commands.computeBuyTrainPlan(state, loco.id, consist(loco.id)).cost * 2;
+      const trainCost = commands.computeBuyTrainPlan(state, loco.id, consist(loco.id)).cost * (pairs.length === 0 ? 1 : 2);
       const dbl = year() >= 1870 ? plan.cost * 0.7 : 0;
       const total = plan.cost + stationBudget + trainCost + dbl + 60_000;
-      if (!ensureCash(total + 150_000)) return false;
+      if (!ensureCash(total + 150_000)) {
+        if (process.env.V) console.log("nocash", year(), newCity.name, hub.name, Math.round(total), Math.round(state.cash), Math.round(plan.cost), Math.round(stationBudget), Math.round(trainCost));
+        return "nocash";
+      }
       if (!ok(commands.buildTrack(state, path))) continue;
       if (
         !ok(commands.buildStation(state, ta, typeA)) ||
@@ -155,10 +163,10 @@ function tryConnect(newCity: City, hub: City): boolean {
       connected.add(hub.id);
       addTrain(pair);
       addTrain(pair);
-      return true;
+      return "built";
     }
   }
-  return false;
+  return "failed";
 }
 
 function addTrain(pair: Pair): boolean {
@@ -215,8 +223,10 @@ function yearlyPlanning(): void {
   let built = 0;
   for (const cand of candidates) {
     if (built >= 2) break;
-    if (tryConnect(cand.c, cand.hub)) built++;
-    else failedCities.add(cand.c.id);
+    const r = tryConnect(cand.c, cand.hub);
+    if (r === "built") built++;
+    else if (r === "failed") failedCities.add(cand.c.id);
+    else break;
   }
 
   // 3. more trains on pairs, improvements in big cities
@@ -248,7 +258,7 @@ function bootstrap(): void {
         dist(cityCentre(a), cityCentre(b)) < 8
       )
         continue;
-      if (tryConnect(a, b)) return;
+      if (tryConnect(a, b) === "built") return;
     }
   }
   throw new Error("could not build a first line");
@@ -290,3 +300,6 @@ for (let y = 1; startYear + y <= endYear; y++) {
 void STATION_TYPE_DEFS;
 console.log(`# ${region} ${startYear} ${difficulty} seed ${seed}`);
 console.log(report.join("\n"));
+const ly = state.finance.lastYear as unknown as Record<string, number>;
+console.log("last year ledger:", Object.entries(ly).filter(([, v]) => typeof v === "number" && Math.abs(v) > 1000).map(([k, v]) => `${k} ${(v / 1e3).toFixed(0)}k`).join(", "));
+console.log(`land spent ${(((state.finance as { landSpent?: number }).landSpent ?? 0) / 1e6).toFixed(2)}M, capital ${(state.finance.capitalInvested / 1e6).toFixed(2)}M`);
