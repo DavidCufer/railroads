@@ -36,6 +36,7 @@ import {
   type LocomotiveDef,
 } from "../../data/trains";
 import { CARGO } from "../../data/cargo";
+import { ageRunningCostMult } from "../trains/ageing";
 import type { StationType } from "../../data/stations";
 import type { TrainCar } from "../trains/types";
 import type { TrackEdge } from "../track/types";
@@ -66,6 +67,7 @@ export function locoRunningCostPerYear(
     loco.maintenancePerYear *
     RUNNING_COST_SHARE *
     maintenanceMultiplier(loco, ageYears, year) *
+    ageRunningCostMult(ageYears) *
     priceIndex(year)
   );
 }

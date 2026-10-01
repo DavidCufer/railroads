@@ -15,7 +15,7 @@ export function stuckReason(train: Train): StuckReason | undefined {
     case "stuck":
       return "stuck";
     case "broken":
-      return "broken";
+      return train.inOverhaul ? undefined : "broken"; // an overhaul is planned, not a failure
     case "noRoute":
       return days >= NO_ROUTE_FLAG_DAYS ? "noRoute" : undefined;
     case "waitingForBlock":

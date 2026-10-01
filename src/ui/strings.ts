@@ -104,6 +104,7 @@ export const strings = {
       junctionsTooClose: "Junctions need 2 tiles between them — join further along the line",
       "cant-afford": "Not enough cash",
       "no-track-to-upgrade": "No single track to upgrade there",
+      "overhaul-not-needed": "This locomotive is too young to need an overhaul",
       "no-track-to-relay": "That track is not worn enough to need relaying",
       "not-era-available": "Not available yet",
       "already-improved": "Already built here",
@@ -695,6 +696,8 @@ export const strings = {
       newLocomotive: (locoName: string) => `New locomotive available: ${locoName}`,
       breakdown: (trainName: string) => `${trainName} has broken down and is being repaired`,
       washout: (nearName: string) => `A wooden bridge near ${nearName} has washed out`,
+      locoWornOut: (trainName: string) =>
+        `${trainName}'s locomotive is worn out — overhaul or replace it before it fails again`,
       slowOrders: (n: number, nearName: string) =>
         `Worn track: slow orders on ${n} ${n === 1 ? "section" : "sections"}, worst near ${nearName} — relay it`,
       trafficJam: (nearName: string) =>

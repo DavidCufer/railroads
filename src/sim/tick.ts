@@ -24,6 +24,7 @@ import { monthlyBreakdownStep } from "./trains/breakdown";
 import { yearlyWashoutStep } from "./track/washout";
 import { yearlyTrackConditionStep } from "./track/condition";
 import { stepTrains } from "./trains";
+import { yearlyAgeingStep } from "./trains/ageing";
 import { dailyUndeliverableStep } from "./trains/undeliverable";
 
 /** Locomotives newly available in `year` (SPEC §7.7: "when a new model becomes available: news
@@ -74,6 +75,7 @@ export function advanceOneHour(state: GameState): void {
     }
     yearlyWashoutStep(state);
     yearlyTrackConditionStep(state);
+    yearlyAgeingStep(state);
     yearlyStationFlowRollover(state);
     yearlyFinanceRollover(state);
     yearlyCargoDeliveredRollover(state);

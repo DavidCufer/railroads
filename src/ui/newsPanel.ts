@@ -70,6 +70,8 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
       return strings.news.kinds.breakdown(trainName(state, item.trainId));
     case "washout":
       return strings.news.kinds.washout(nearestStationName(state, item.tile));
+    case "locoWornOut":
+      return strings.news.kinds.locoWornOut(trainName(state, item.trainId));
     case "slowOrders":
       return strings.news.kinds.slowOrders(item.edges, nearestStationName(state, item.tile));
     case "trafficJam": {
@@ -150,6 +152,7 @@ const NEWS_ICONS: Record<NewsItem["kind"], { icon: IconName; tone: Tone }> = {
   breakdown: { icon: "wrench", tone: "signal" },
   washout: { icon: "water", tone: "signal" },
   slowOrders: { icon: "warning", tone: "signal" },
+  locoWornOut: { icon: "wrench", tone: "signal" },
   trafficJam: { icon: "warning", tone: "signal" },
   noRoute: { icon: "warning", tone: "signal" },
   undeliverable: { icon: "warning", tone: "signal" },

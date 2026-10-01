@@ -17,6 +17,7 @@ import {
   type LedgerPeriod,
 } from "../../data/finance";
 import { locomotiveById } from "../../data/trains";
+import { mechanicalAgeYears } from "../trains/ageing";
 import type { CargoType } from "../../data/cargo";
 import { calendarFromTicks, DAYS_PER_YEAR, HOURS_PER_DAY } from "../time";
 import type { GameState } from "../state";
@@ -106,7 +107,7 @@ export function monthlyFinanceStep(state: GameState): void {
   for (const train of state.trains) {
     const loco = locomotiveById(train.locoModelId);
     if (!loco) continue;
-    const ageYears = (state.ticks - train.purchaseTick) / (HOURS_PER_DAY * DAYS_PER_YEAR);
+    const ageYears = mechanicalAgeYears(state, train);
     const running = locoRunningCostPerYear(loco, ageYears, year) / 12;
     const wages = trainWagesPerYear(loco, train.cars.length, year) / 12;
     trainMaint += running;

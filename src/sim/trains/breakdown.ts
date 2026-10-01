@@ -37,6 +37,7 @@ import {
   type RepairCrew,
 } from "./repairCrew";
 import { recordTrainRepair } from "./profit";
+import { ageBreakdownMult, mechanicalAgeYears } from "./ageing";
 import { pushNews } from "../news";
 import { nextFloat, nextInt } from "../rng";
 import type { GameState } from "../state";
@@ -63,7 +64,7 @@ export function monthlyBreakdownChance(state: GameState, train: Train): number {
   const year = calendarFromTicks(state.startYear, state.ticks).year;
   const base =
     BREAKDOWN_BASE_CHANCE_BY_RELIABILITY[effectiveReliability(loco, year, state.startYear)] ?? 0.02;
-  const ageYears = (state.ticks - train.purchaseTick) / (HOURS_PER_DAY * DAYS_PER_YEAR);
+  const ageYears = mechanicalAgeYears(state, train);
   const kmRun = train.distanceTraveled * KM_PER_TILE;
   const servicedRecently =
     train.lastServicedTick !== undefined &&
@@ -71,6 +72,7 @@ export function monthlyBreakdownChance(state: GameState, train: Train): number {
   return (
     base *
     (1 + ageYears / BREAKDOWN_AGE_DIVISOR_YEARS) *
+    ageBreakdownMult(ageYears, loco) *
     (1 + kmRun / WEAR_KM_DOUBLING) *
     (modelYearsOnMarket(loco, year) > PROVEN_YEARS ? PROVEN_BREAKDOWN_MULT : 1) *
     (servicedRecently ? BREAKDOWN_ENGINE_SHED_MULT : 1) *
@@ -108,7 +110,7 @@ export function repairCallOutCost(
 ): CallOutCost {
   const loco = locomotiveById(train.locoModelId);
   const year = calendarFromTicks(state.startYear, state.ticks).year;
-  const ageYears = (state.ticks - train.purchaseTick) / (HOURS_PER_DAY * DAYS_PER_YEAR);
+  const ageYears = mechanicalAgeYears(state, train);
   const parts = loco ? repairPartsCost(loco, ageYears, year) : 0;
   if (!crew) return { crewDays: 0, wages: 0, vehicle: 0, parts, total: parts };
   const travelDays = crew.travelTicks / HOURS_PER_DAY;

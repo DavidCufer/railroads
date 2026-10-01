@@ -99,6 +99,8 @@ import {
   stationRemovalBlocker,
   takeLoan,
   relayTrack,
+  overhaulLocomotive,
+  computeOverhaulCommandPlan,
   upgradeTrack,
   type BuildPlan,
   type BulldozePlan,
@@ -1386,6 +1388,9 @@ function main(): void {
           getFinance: () => GameState["finance"];
           /** Phase 30A: relays worn track (along `path`, or everywhere it is worn). */
           relayTrack: (path?: number[]) => { ok: boolean; reason?: string; cost?: number };
+          /** Phase 30A: overhauls a worn locomotive (train must stand loading in an Engine Shed station). */
+          overhaulLocomotive: (trainId: number) => { ok: boolean; reason?: string; cost?: number };
+          getOverhaulPlan: (trainId: number) => { cost: number; ageAfter: number; valid: boolean };
           /** Phase 30A: worn edges (ratio of rail life used, relay cost), worst first. */
           getWornTrack: () => Array<{ a: number; b: number; ratio: number; cost: number }>;
           /** Phase 30A: revenue loaded here and passengers / mail turned away (units and est. fares) per period. */
@@ -1648,6 +1653,11 @@ function main(): void {
         const result = relayTrack(state, path);
         return result.ok ? { ok: true, cost: result.cost } : { ok: false, reason: result.reason };
       },
+      overhaulLocomotive: (trainId) => {
+        const result = overhaulLocomotive(state, trainId);
+        return result.ok ? { ok: true, cost: result.cost } : { ok: false, reason: result.reason };
+      },
+      getOverhaulPlan: (trainId) => computeOverhaulCommandPlan(state, trainId),
       getWornTrack: () =>
         wornEdges(state, 0).map((w) => ({
           a: w.edge.a,

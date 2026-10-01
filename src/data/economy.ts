@@ -328,3 +328,27 @@ export const SLOW_ORDER_FLOOR_RATIO = 1.2;
 export const SLOW_ORDER_MIN_SPEED_MULT = 0.4;
 /** Track at or above this ratio is offered for relaying and counted in the yearly slow-order news. */
 export const RELAY_OFFER_RATIO = 0.25;
+
+// --- Locomotive ageing (Phase 30A, PLAYTEST-2 Top 10 #4) ----------------------------------------------------------
+
+/** Years a locomotive of each kind runs before its frames, boiler (or traction motors) are worn out: a steam boiler
+ * is condemned after ~35 years of firing, diesels and electrics last longer. Beyond it the engine is unreliable and
+ * dear to keep, until it is overhauled or replaced. */
+export const LOCO_LIFE_YEARS = { steam: 35, diesel: 40, electric: 45 } as const;
+/** Years a locomotive runs at full health; ageing starts after this. */
+export const LOCO_PRIME_YEARS = 15;
+/** Running cost (fuel, oil, servicing) rises by this share of its base per year of age beyond `LOCO_PRIME_YEARS`
+ * (worn valves and cylinders burn more coal, more time in the shed). */
+export const LOCO_AGE_RUNNING_COST_PER_YEAR = 0.03;
+/** Breakdown chance multiplier at the end of the locomotive's life (grows with the square of the age past prime),
+ * then +`LOCO_OVERAGE_BREAKDOWN_PER_YEAR` for every year beyond it, up to `LOCO_BREAKDOWN_MULT_MAX`. */
+export const LOCO_END_OF_LIFE_BREAKDOWN_MULT = 4;
+export const LOCO_OVERAGE_BREAKDOWN_PER_YEAR = 0.6;
+export const LOCO_BREAKDOWN_MULT_MAX = 12;
+/** Overhaul (heavy general repair in the shed): costs this share of the locomotive's price, takes the engine out of
+ * service for `LOCO_OVERHAUL_DAYS`, and takes `LOCO_OVERHAUL_AGE_RESET` of its mechanical age off (new boiler or
+ * windings, the old frames stay). Possible once the engine is at least `LOCO_OVERHAUL_MIN_AGE` years old. */
+export const LOCO_OVERHAUL_COST_SHARE = 0.3;
+export const LOCO_OVERHAUL_DAYS = 25;
+export const LOCO_OVERHAUL_AGE_RESET = 0.6;
+export const LOCO_OVERHAUL_MIN_AGE = 10;

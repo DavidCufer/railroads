@@ -1058,6 +1058,7 @@ function stepTrainInner(state: GameState, train: Train, runtime: TrainRuntime): 
     train.speed = 0;
     if (train.breakdownTicksLeft === 0) {
       delete train.repairCrew;
+      delete train.inOverhaul;
       setStatus(train, train.route.length >= 2 ? "moving" : "loading");
     }
   } else {

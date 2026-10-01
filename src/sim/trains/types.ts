@@ -188,6 +188,12 @@ export interface Train {
    * depreciating rolling-stock value, and the age input for breakdown chance/obsolescence (§7.6). */
   purchasePrice: number;
   purchaseTick: number;
+  /** Phase 30A: years of mechanical age taken off by overhauls (see src/sim/trains/ageing.ts). Absent = 0. */
+  ageCreditYears?: number;
+  /** Phase 30A: the end-of-life news for this locomotive has been shown. */
+  wornOutNoticed?: boolean;
+  /** Phase 30A: set while `breakdownTicksLeft` counts down a general overhaul in the shed rather than a repair. */
+  inOverhaul?: boolean;
   /** Ticks left in the current breakdown (SPEC §7.6: "train stops for 2-5 days"), 0 = not broken
    * down. While > 0, `stepTrain` freezes the train in place (status `"broken"`) and skips its
    * normal loading/routing/movement for the tick. */

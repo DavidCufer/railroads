@@ -33,7 +33,8 @@ import type { City } from "./economy/types";
 import { clearNews, pushNews } from "./news";
 import { directionIndex } from "./track/graph";
 import { edgeWearRatio, relayCost, relayEdge, wornEdges } from "./track/condition";
-import { RELAY_OFFER_RATIO } from "../data/economy";
+import { LOCO_OVERHAUL_DAYS, RELAY_OFFER_RATIO } from "../data/economy";
+import { computeOverhaulPlan, mechanicalAgeYears } from "./trains/ageing";
 import { findLayoutViolations, type LayoutViolation } from "./track/layout";
 import { findSharpSteps } from "./track/turn";
 import {
@@ -63,7 +64,7 @@ import {
 } from "../data/trains";
 import { eraInflation } from "../data/finance";
 import { addExpense, computeCreditLimit } from "./finance/ledger";
-import { emptyTrainProfit } from "./trains/profit";
+import { emptyTrainProfit, recordTrainRepair } from "./trains/profit";
 import { DAYS_PER_YEAR, HOURS_PER_DAY } from "./time";
 import { dropCarCargo } from "./trains/loading";
 import { tileXY } from "./trains/geometry";
@@ -80,6 +81,7 @@ export type CommandReasonCode =
   | "cant-afford"
   | "no-track-to-upgrade"
   | "no-track-to-relay"
+  | "overhaul-not-needed"
   | "not-era-available"
   | "already-improved"
   | "nothing-to-bulldoze"
@@ -1184,6 +1186,55 @@ export function computeReplaceLocoPlan(
   return { netCost: newLocoCost - tradeInValue, newLocoCost, tradeInValue, valid: true };
 }
 
+export interface OverhaulCommandPlan {
+  cost: number;
+  ageAfter: number;
+  /** False when the engine is too young to need it, or is not standing at a station with an Engine Shed. */
+  valid: boolean;
+}
+
+/** Prices a general overhaul of `trainId`'s locomotive (Phase 30A) without mutating state. It happens in an Engine
+ * Shed, so the train must be standing (loading) at a station that has one. */
+export function computeOverhaulCommandPlan(state: GameState, trainId: number): OverhaulCommandPlan {
+  const train = state.trains.find((t) => t.id === trainId);
+  if (!train) return { cost: 0, ageAfter: 0, valid: false };
+  const plan = computeOverhaulPlan(state, train);
+  const tile = train.route[train.routeIndex];
+  const station = tile === undefined ? undefined : stationAtTile(state.stations, tile);
+  const inShed = !!station?.hasEngineShed && train.status === "loading" && !train.inYardOf;
+  return { cost: plan.cost, ageAfter: plan.ageAfter, valid: plan.valid && inShed };
+}
+
+/** Overhauls `trainId`'s locomotive in the shed it is standing in: pays `LOCO_OVERHAUL_COST_SHARE` of its price, takes
+ * `LOCO_OVERHAUL_DAYS` out of service, and takes `LOCO_OVERHAUL_AGE_RESET` off its mechanical age. */
+export function overhaulLocomotive(state: GameState, trainId: number): CommandResult {
+  const train = state.trains.find((t) => t.id === trainId);
+  if (!train) return { ok: false, reason: "invalid-train" };
+  const plan = computeOverhaulCommandPlan(state, trainId);
+  if (!plan.valid) {
+    const tile = train.route[train.routeIndex];
+    const station = tile === undefined ? undefined : stationAtTile(state.stations, tile);
+    return {
+      ok: false,
+      reason:
+        station?.hasEngineShed && train.status === "loading"
+          ? "overhaul-not-needed"
+          : "no-engine-shed",
+    };
+  }
+  if (plan.cost > state.cash) return { ok: false, reason: "cant-afford" };
+  train.ageCreditYears =
+    (train.ageCreditYears ?? 0) + (mechanicalAgeYears(state, train) - plan.ageAfter);
+  delete train.wornOutNoticed;
+  train.breakdownTicksLeft = LOCO_OVERHAUL_DAYS * HOURS_PER_DAY;
+  train.inOverhaul = true;
+  train.lastServicedTick = state.ticks;
+  state.cash -= plan.cost;
+  addExpense(state, "breakdownRepairs", plan.cost);
+  recordTrainRepair(train, plan.cost);
+  return { ok: true, cost: plan.cost };
+}
+
 /** Replaces `trainId`'s locomotive, paying the price difference after trade-in (SPEC §7.6). Resets
  * the train's age (purchase tick, service/water-tower/breakdown state) to the new locomotive's —
  * cars, their loads, and orders are untouched. */
@@ -1204,7 +1255,10 @@ export function replaceLocomotive(
   train.locoModelId = newLocoModelId;
   train.purchasePrice = plan.newLocoCost + carsValue;
   train.purchaseTick = state.ticks;
+  delete train.ageCreditYears;
+  delete train.wornOutNoticed;
   train.breakdownTicksLeft = 0;
+  delete train.inOverhaul;
   train.lastServicedTick = state.ticks;
   train.tilesSinceWaterTower = 0;
   state.cash -= plan.netCost;
