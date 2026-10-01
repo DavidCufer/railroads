@@ -262,7 +262,9 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
   let tab: TrainTab = "route";
   let armed = false;
   let picking = false;
-  let pickEnabled = true;
+  // Viewing a train must not edit it (Phase 31): map-tap adding is off until "Add stop" is tapped (the buy wizard's
+  // route step is the only place it starts on).
+  let pickEnabled = false;
 
   const render = (): void => {
     const train = state.trains.find((t) => t.id === trainId);
@@ -310,7 +312,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
       fillTab();
     };
 
-    /** Map-tap entry is on by default (PLAN Phase 29 C) while the route tab shows. */
+    /** Map-tap entry is explicit here: on while "Add stop" is toggled on and the route tab shows. */
     function syncPicking(t: Train): void {
       const want = pickHooks !== null && pickEnabled && tab === "route" && t.orders.length < 8;
       if (picking && !want) {
@@ -344,6 +346,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
         },
         icon("plus", "icon-sm"),
         h("span", null, picking ? strings.trains.tapAStation : p.addStop),
+        picking ? h("span", { className: "pick-done" }, p.doneAdding) : null,
       );
       return h(
         "div",

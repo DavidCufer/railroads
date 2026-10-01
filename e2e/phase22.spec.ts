@@ -152,8 +152,16 @@ test.describe("Phase 22 — train screens", () => {
     await shot(page, "train-stats");
     await page.locator(".tab", { hasText: "Route" }).click();
 
+    // Phase 31: just viewing the route tab never edits it — a station tap does nothing until "Add stop" is toggled on.
+    await page.evaluate((sid) => window.__game!.debugPickStation(sid), ids.a);
+    await expect(page.locator('[data-testid="tl-stop"]')).toHaveCount(2);
+    await page.locator(".train-pick-station-btn").click();
+    await expect(page.locator(".train-pick-station-btn")).toContainText("Done");
     // A third stop through the map-pick hook (as if the player tapped a station).
     await page.evaluate((sid) => window.__game!.debugPickStation(sid), ids.a);
+    await expect(page.locator('[data-testid="tl-stop"]')).toHaveCount(3);
+    await page.locator(".train-pick-station-btn").click(); // Done
+    await page.evaluate((sid) => window.__game!.debugPickStation(sid), ids.b);
     await expect(page.locator('[data-testid="tl-stop"]')).toHaveCount(3);
     await page.locator(".panel-body").evaluate((el) => {
       el.scrollTop = el.scrollHeight;

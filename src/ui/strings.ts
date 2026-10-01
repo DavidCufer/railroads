@@ -405,6 +405,7 @@ export const strings = {
       hereNow: "Here now",
       nextStop: "Next stop",
       addStop: "Add stop",
+      doneAdding: "Done",
       removeStop: "Remove stop",
       moveUp: "Move up",
       moveDown: "Move down",
