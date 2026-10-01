@@ -62,4 +62,15 @@ test.describe("Phase 30B", () => {
     await expect(hint).toContainText("Norris 4-2-0 arrives in 1838");
     await page.screenshot({ path: shot("hint-1830") });
   });
+
+  test("the new-engine card shows each engine's year after a fast-forward", async ({ page }) => {
+    await start(page, { startYear: 1860 });
+    await page.evaluate(() => window.__game!.runDays(365 * 10));
+    const card = page.locator(".new-engine-card");
+    await expect(card).toBeVisible();
+    const years = await card.locator(".year-chip").allTextContents();
+    expect(years.length).toBeGreaterThan(0);
+    for (const y of years) expect(y).toMatch(/18[6-9]\d|19\d\d/);
+    await page.screenshot({ path: shot("new-engines-years") });
+  });
 });

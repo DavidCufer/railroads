@@ -625,6 +625,11 @@ export const strings = {
       washout: (nearName: string) => `A wooden bridge near ${nearName} has washed out`,
       trafficJam: (nearName: string) =>
         `Traffic jam near ${nearName} — consider double track or more stations`,
+      /** A jam where the sim can count the trains involved (Phase 30B). */
+      trafficJamSingle: (n: number, nearName: string) =>
+        `${n} trains share a single line near ${nearName} — add a passing loop or double track`,
+      trafficJamBusy: (n: number, nearName: string) =>
+        `${n} trains queue near ${nearName} — add platforms, a second station or another line`,
       noRoute: (trainName: string, stationName: string) =>
         `${trainName} has no route to ${stationName}`,
       undeliverable: (trainName: string, cars: number, cargo: string) =>

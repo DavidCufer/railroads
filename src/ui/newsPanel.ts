@@ -20,6 +20,7 @@ import { h } from "./h";
 import { locoArt } from "./trainArt";
 import { icon, type IconName } from "./icons";
 import { closePanel, openPanel } from "./panel";
+import { diagnoseJam } from "./jamDiagnosis";
 import { strings } from "./strings";
 
 function trainName(state: GameState, trainId: number): string {
@@ -69,8 +70,14 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
       return strings.news.kinds.breakdown(trainName(state, item.trainId));
     case "washout":
       return strings.news.kinds.washout(nearestStationName(state, item.tile));
-    case "trafficJam":
-      return strings.news.kinds.trafficJam(nearestStationName(state, item.tile));
+    case "trafficJam": {
+      const near = nearestStationName(state, item.tile);
+      const jam = diagnoseJam(state, item.tile);
+      if (jam.trains < 2) return strings.news.kinds.trafficJam(near);
+      return jam.singleTrack
+        ? strings.news.kinds.trafficJamSingle(jam.trains, near)
+        : strings.news.kinds.trafficJamBusy(jam.trains, near);
+    }
     case "noRoute":
       return strings.news.kinds.noRoute(
         trainName(state, item.trainId),
