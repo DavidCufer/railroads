@@ -1112,3 +1112,60 @@ Player report (Trieste Food Plant, 1840–1843):
       demand) get a tiny badge with that industry's icon; tapping a demand shows "Accepted by: Trieste Port (export)"
       or "Accepted by: Trieste (city)". Help gets one line on ports.
 - [x] Train status "Waiting (station)" → specific text ("Waiting in the yard for a platform at Trieste (2 ahead)").
+
+## Phase 30 — Play-test 2 fixes (docs/PLAYTEST-2.md): real-world causes for the late game, visibility, single track
+Source: docs/PLAYTEST-2.md (bug and exploit numbers refer to it). Owner's rule still applies: every balance change
+comes from a modelled real-world cause, shown to the player and documented in SPEC §9; no blanket multipliers.
+Two parallel sessions: **30A** (sim/economy) and **30B** (UI/visibility + smaller fixes).
+
+### 30A — Sim & economy
+- [ ] **Bug 1 (HIGH)**: "Wait for full load" unloads cargo at the station it was loaded at. Never unload a car whose
+      `loadedTile` is this station (and only unload on the first pass of a stop). Regression test: pax stop with
+      fullLoad keeps its load; revenue on the PLAYTEST-2 setup matches Auto within 10 %.
+- [ ] **Waiting passengers & mail behave like people** (replaces the hard waiting-pile cap for pax/mail): waiting
+      passengers give up over time (go by road / stay home) with a per-cargo patience; the station tracks
+      **turned-away units and lost revenue per month**. Warehouses store **freight only** (no effect on pax/mail);
+      the Warehouse exploit (+100 %) must disappear — test it. Freight keeps a storage cap (Warehouse ×2).
+- [ ] **Mail as a contract-scale traffic**: lower mail supply per head to a realistic share (mail ≈ 10–20 % of a
+      city line's revenue, not 50 %), keep its high rate per bag; Post Office stays useful but not the best ROI.
+- [ ] **Land & way-leave cost**: track/station building cost includes land price per tile that rises with nearby
+      population density and with the year (land inside/near big cities is expensive; open country cheap). Shown in
+      the build preview as a separate "land" line.
+- [ ] **Interest rises with leverage**: loan interest = base rate + premium that grows with debt ÷ net worth; credit
+      limit from earnings, not only net worth. Hard: higher base rate and premium (not lower revenue).
+- [ ] **Track condition (wasting asset)**: each edge accumulates wear from tonnage × speed (reuse the 28A wear
+      model); when condition drops below thresholds the line gets **slow orders** (speed limit) until the player
+      **relays** it (a command + cost per tile, era-scaled), shown as track colour in the Track type overlay and a
+      warning in train panels ("Slow order: worn track near X"). Light early traffic barely wears; heavy fast
+      late traffic needs relaying every couple of decades.
+- [ ] **Locomotives wear out**: reliability drops and running cost rises with age; after ~30–40 years a loco must be
+      retired or overhauled (overhaul = cost, resets some age). News + train panel hint.
+- [ ] **Single track capacity**: buildable **passing loop** (a short double section/siding, cheap) that the
+      reservation system uses for meets; per-train or per-line **minimum days between departures** order option to
+      space trains; departures prefer to space trains instead of convoys. Test: 4 trains on single track with a loop
+      earn more than 2 trains (today they earn less).
+- [ ] **Engine Shed servicing by distance**: breakdown chance grows with km since last service; any stop at a station
+      with a shed services the train (short delay). Sheds along long lines matter again.
+- [ ] **Goals reward = land grants** (historical): reaching a goal grants a credit/discount on future land & track
+      costs (or a one-off grant), shown on the goal card.
+- [ ] **Bridges**: a washed-out bridge leaves a persistent marker; rebuild offers wood/stone/steel; trains reroute or
+      show "Line cut at bridge near X".
+- [ ] Rerun BALANCE.md and the PLAYTEST-2 benchmarks: 1900 good-player Normal net worth by 1916 should be roughly an
+      order of magnitude below $208M; Hard clearly harder (target ≥ 40 % lower NW than Normal by year 15); 1840/1830
+      starts must not get worse than PLAYTEST-2. Document the mechanism behind each change.
+
+### 30B — Visibility & UX
+- [ ] **Per-line and per-station P&L**: "Lines" view (a line = set of trains sharing the same stop set) with revenue,
+      costs, profit/yr, trains; station panel shows revenue generated at this station and turned-away pax/mail.
+- [ ] **Upgrade estimate**: each improvement/upgrade card shows "≈ +$X/yr at current traffic" (computed from the
+      station's actual flows; marked as estimate).
+- [ ] **Income tax accrued monthly** as its own line (provisional tax), no year-end surprise.
+- [ ] **Help**: add pages/lines on waiting passengers & frequency, single track vs double vs passing loops, Water
+      Tower range rule, track wear & relaying, loco ageing, land costs, loans & interest, bridges.
+- [ ] **Buy wizard affordability**: show cash vs price from step 1; unaffordable engines marked; "Borrow $X" shortcut
+      inline. Route list distances in km. Loading-rule chip opens a small picker (no tap-to-cycle).
+- [ ] New-engine card shows each engine's year; toasts never cover panel headers/tabs (Bug 4); diagnosis text instead
+      of "Traffic jam": "3 trains share a single line — add a passing loop or double track".
+- [ ] Hints: first-hour hints mention loans and keeping money for the locomotive on Hard; 1830 start shows "early
+      engines are weak — the Norris arrives 1838".
+- [ ] Screenshots of each, open and check.
