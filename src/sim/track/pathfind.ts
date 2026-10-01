@@ -13,7 +13,15 @@ import { terrainAt } from "../map/terrain";
 import type { GameMap } from "../map/types";
 import { directionIndex, directionSteps, type TrackGraph } from "./graph";
 import { legsConnect, outwardLegs } from "./turn";
-import { bridgeCost, cheapestBridgeType, isLand, normalEdgeCost, type CostContext } from "./cost";
+import {
+  bridgeCost,
+  cheapestBridgeType,
+  edgeLandCost,
+  isLand,
+  normalEdgeCost,
+  type CostContext,
+} from "./cost";
+import type { LandPrices } from "../economy/land";
 
 /** Extra cost per 45° of direction change, to bias the search toward straight runs. Comparable in
  * magnitude to the cheapest per-tile track cost so it meaningfully discourages zigzagging without
@@ -46,6 +54,8 @@ export interface PathfindOptions {
   respectTurns?: { graph: TrackGraph; stationTiles: ReadonlySet<number> };
   /** Extra tiles of margin around the start/goal bounding box the search may explore. */
   searchPadding?: number;
+  /** Land prices (Phase 30A): the search then avoids dear land (city centres) like it avoids mountains. */
+  land?: LandPrices;
 }
 
 interface Neighbor {
@@ -113,7 +123,10 @@ function candidateNeighbors(
     )
       continue;
     if (steps === 1) {
-      out.push({ tile: landing, cost: normalEdgeCost(map, tile, landing, ctx) });
+      out.push({
+        tile: landing,
+        cost: normalEdgeCost(map, tile, landing, ctx) + edgeLandCost(map, tile, landing, ctx),
+      });
       continue;
     }
 
@@ -245,7 +258,11 @@ export function findBuildPath(
   const minY = Math.max(0, Math.min(sy, gy) - padding);
   const maxY = Math.min(map.height - 1, Math.max(sy, gy) + padding);
 
-  const ctx: CostContext = { year, buildCostMult: 1 };
+  const ctx: CostContext = {
+    year,
+    buildCostMult: 1,
+    ...(options.land ? { land: options.land } : {}),
+  };
   const gScore = new Map<string, number>();
   const cameFrom = new Map<string, { tile: number; dir: number } | null>();
 

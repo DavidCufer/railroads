@@ -6,8 +6,12 @@ export interface DifficultyDef {
   startingCash: number;
   revenueMult: number;
   buildCostMult: number;
+  /** Land and way-leave price factor (Phase 30A): franchises in a hard game are scarce and landowners dig in. */
+  landMult: number;
   breakdownMult: number;
   interestRate: number;
+  /** Leverage premium (Phase 30A): the rate rises by `leveragePremium × (debt ÷ assets)²` — lenders price risk. */
+  leveragePremium: number;
   bankruptcy: boolean;
   /** Multiplies the property and corporate income tax schedule (Hard = a heavier schedule, not lower revenue). */
   taxMult: number;
@@ -20,8 +24,10 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     startingCash: 1_500_000,
     revenueMult: 1.25,
     buildCostMult: 0.8,
+    landMult: 0.7,
     breakdownMult: 0.5,
     interestRate: 0.04,
+    leveragePremium: 0.08,
     bankruptcy: false,
     taxMult: 0.6,
     taxYearShift: -10,
@@ -30,8 +36,10 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     startingCash: 1_000_000,
     revenueMult: 1.0,
     buildCostMult: 1.0,
+    landMult: 1.0,
     breakdownMult: 1.0,
     interestRate: 0.06,
+    leveragePremium: 0.12,
     bankruptcy: true,
     taxMult: 1.0,
     taxYearShift: 0,
@@ -40,8 +48,10 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     startingCash: 600_000,
     revenueMult: 1.0,
     buildCostMult: 1.2,
+    landMult: 1.5,
     breakdownMult: 1.5,
     interestRate: 0.08,
+    leveragePremium: 0.2,
     bankruptcy: true,
     taxMult: 1.6,
     taxYearShift: 10,
@@ -60,6 +70,10 @@ export function eraInflation(year: number): number {
 export const LOAN_INCREMENT = 100_000;
 export const CREDIT_LIMIT_FRACTION = 0.5;
 export const CREDIT_LIMIT_MIN = 500_000;
+/** Credit from earnings (Phase 30A): lenders lend against cash flow, not only against what the company owns. The
+ * limit is the lower of `CREDIT_LIMIT_FRACTION` of net worth and `CREDIT_LIMIT_EARNINGS_MULT` × the last twelve
+ * months' operating profit before interest (the interest cover a lender wants), but never below `CREDIT_LIMIT_MIN`. */
+export const CREDIT_LIMIT_EARNINGS_MULT = 5;
 
 // --- Bankruptcy (SPEC §9.4) ---------------------------------------------------------------------
 

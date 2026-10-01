@@ -14,6 +14,8 @@ export interface FinanceState {
    * (track + station + improvement build cost)") — added to on build/upgrade, subtracted from on
    * bulldoze, in src/sim/commands.ts. */
   capitalInvested: number;
+  /** Phase 30A: land and way-leave bought so far (part of `capitalInvested`). Absent in older saves = 0. */
+  landSpent?: number;
   thisMonth: LedgerPeriod;
   thisYear: LedgerPeriod;
   lastYear: LedgerPeriod;

@@ -138,8 +138,10 @@ describe("bulldoze", () => {
     const result = bulldoze(state, path);
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.cost).toBeCloseTo(-built.cost * BULLDOZE_REFUND_FRACTION, 6);
-    expect(state.cash).toBeCloseTo(cashAfterBuild + built.cost * BULLDOZE_REFUND_FRACTION, 6);
+    // land (Phase 30A) is not refunded: only the construction is
+    const construction = built.cost - state.finance.landSpent!;
+    expect(result.cost).toBeCloseTo(-construction * BULLDOZE_REFUND_FRACTION, 6);
+    expect(state.cash).toBeCloseTo(cashAfterBuild + construction * BULLDOZE_REFUND_FRACTION, 6);
     expect(state.trackGraph.edgeCount).toBe(0);
   });
 

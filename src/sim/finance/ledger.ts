@@ -5,8 +5,6 @@
  */
 import {
   BANKRUPTCY_MONTHS,
-  CREDIT_LIMIT_FRACTION,
-  CREDIT_LIMIT_MIN,
   DIFFICULTY,
   LOCO_DEPRECIATION_MIN_FRACTION,
   LOCO_DEPRECIATION_PER_YEAR,
@@ -35,6 +33,7 @@ import {
   wearCostPerUnit,
 } from "./costs";
 import { NET_WORTH_HISTORY_MAX_SAMPLES } from "./types";
+import { creditLimitFor, interestRate } from "./credit";
 import {
   PROPERTY_TAX_RATE,
   WEAR_ROUTINE_SHARE,
@@ -82,9 +81,9 @@ export function netWorth(state: GameState): number {
   );
 }
 
-/** Credit limit (SPEC §9.1): 50% of net worth, min $500k. */
+/** Credit limit (SPEC §9.1, Phase 30A): from earnings as well as net worth, see `creditLimitFor`. */
 export function computeCreditLimit(state: GameState): number {
-  return Math.max(CREDIT_LIMIT_MIN, netWorth(state) * CREDIT_LIMIT_FRACTION);
+  return creditLimitFor(state, netWorth(state));
 }
 
 /** Monthly maintenance, interest, bankruptcy check, and the chart's monthly sample (SPEC §9). */
@@ -131,7 +130,7 @@ export function monthlyFinanceStep(state: GameState): void {
   state.cash -= trackMaint + stationMaint + trainMaint + crewWages + trackWear + propertyTax;
 
   if (state.finance.loans > 0) {
-    const interest = state.finance.loans * (diff.interestRate / 12);
+    const interest = state.finance.loans * (interestRate(state, netWorth(state)) / 12);
     addExpense(state, "interest", interest);
     state.cash -= interest;
   }

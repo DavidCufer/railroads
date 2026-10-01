@@ -4,6 +4,7 @@
  * a not-yet-built edge) and `buildTrack`/`upgradeTrack` (which charge it).
  */
 import { eraInflation } from "../../data/finance";
+import type { LandPrices } from "../economy/land";
 import {
   BRIDGE_COSTS,
   DIAGONAL_FACTOR,
@@ -26,6 +27,8 @@ export interface CostContext {
   year: number;
   /** Difficulty build-cost multiplier (SPEC §9.6): Easy 0.8, Normal 1.0, Hard 1.2. */
   buildCostMult: number;
+  /** Land and way-leave prices (Phase 30A). Absent = no land charge (tests and tools that only want construction). */
+  land?: LandPrices;
 }
 
 export type ObstacleKind = "river" | "water";
@@ -62,6 +65,16 @@ export function normalEdgeCost(map: GameMap, a: number, b: number, ctx: CostCont
   const grade = GRADE_SURCHARGE_PER_ELEVATION * Math.abs(elevA - elevB);
   const base = TRACK_BASE_COST_PER_TILE * multiplier * diagonal + grade;
   return base * eraInflation(ctx.year) * ctx.buildCostMult;
+}
+
+/** Land bought for the edge between adjacent land tiles `a` and `b`: its length times the mean price of the two tiles. */
+export function edgeLandCost(map: GameMap, a: number, b: number, ctx: CostContext): number {
+  if (!ctx.land) return 0;
+  const length =
+    a % map.width !== b % map.width && Math.floor(a / map.width) !== Math.floor(b / map.width)
+      ? Math.SQRT2
+      : 1;
+  return (length * (ctx.land.priceAt(a) + ctx.land.priceAt(b))) / 2;
 }
 
 /** Cost of a bridge spanning `spanTiles` river/water tiles, for a given type. */
@@ -120,6 +133,8 @@ export interface PathStep {
   bridgeSpan: number[];
   /** True if a step is present but no legal bridge type exists for it (path is invalid). */
   blocked: boolean;
+  /** Land and way-leave bought for this step (Phase 30A), not included in `cost`. */
+  land: number;
 }
 
 /** Classifies and prices every step of a path of land-tile nodes (see track/pathfind.ts for how
@@ -147,6 +162,7 @@ export function evaluatePath(
         bridgeKind: null,
         bridgeSpan: [],
         blocked: false,
+        land: edgeLandCost(map, a, b, ctx),
       });
       continue;
     }
@@ -169,6 +185,8 @@ export function evaluatePath(
       bridgeKind: kind,
       bridgeSpan: span,
       blocked: type === null,
+      // a bridge needs land only at its two abutments
+      land: ctx.land ? (ctx.land.priceAt(a) + ctx.land.priceAt(b)) / 2 : 0,
     });
   }
   return steps;

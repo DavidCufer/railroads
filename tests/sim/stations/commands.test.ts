@@ -1,3 +1,4 @@
+import { LAND_BASE_PER_TILE, STATION_LAND_TILES } from "../../../src/data/economy";
 import { describe, expect, it } from "vitest";
 import { STATION_TYPE_DEFS } from "../../../src/data/stations";
 import {
@@ -20,11 +21,15 @@ describe("buildStation", () => {
     );
     const tile = tileAt(map, 1, 0);
     const cashBefore = state.cash;
+    const landBefore = state.finance.landSpent ?? 0;
 
     const result = buildStation(state, tile, "depot");
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.cost).toBeCloseTo(STATION_TYPE_DEFS.depot.cost, 6);
+    // plus the land it stands on (open country in 1830: base price × tiles, Phase 30A)
+    const land = LAND_BASE_PER_TILE * STATION_LAND_TILES.depot;
+    expect(result.cost).toBeCloseTo(STATION_TYPE_DEFS.depot.cost + land, 6);
+    expect(state.finance.landSpent! - landBefore).toBeCloseTo(land, 6);
     expect(state.cash).toBeCloseTo(cashBefore - result.cost, 6);
     expect(state.stations.length).toBe(1);
     expect(state.stations[0]?.tile).toBe(tile);
@@ -112,8 +117,9 @@ describe("upgradeStation", () => {
     const result = upgradeStation(state, stationId, "station");
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
+    const extraLand = LAND_BASE_PER_TILE * (STATION_LAND_TILES.station - STATION_LAND_TILES.depot);
     expect(result.cost).toBeCloseTo(
-      STATION_TYPE_DEFS.station.cost - STATION_TYPE_DEFS.depot.cost,
+      STATION_TYPE_DEFS.station.cost - STATION_TYPE_DEFS.depot.cost + extraLand,
       6,
     );
     expect(state.cash).toBeCloseTo(cashBefore - result.cost, 6);

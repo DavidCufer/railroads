@@ -110,6 +110,9 @@ import {
 import { INDUSTRIES, type IndustryType } from "./data/industries";
 import type { City } from "./sim/economy/types";
 import { findBuildPath } from "./sim/track/pathfind";
+import { landPrices } from "./sim/economy/land";
+import { creditTerms, type CreditTerms } from "./sim/finance/credit";
+import { netWorth } from "./sim/finance/ledger";
 import { directionIndex } from "./sim/track/graph";
 import { spanTilesBetween, validBridgeTypes } from "./sim/track/cost";
 import { findStationBends } from "./sim/track/layout";
@@ -821,6 +824,7 @@ function main(): void {
       if (dragState.mode === "double") {
         path = findBuildPath(state.map, start, goal, currentYear(), {
           existingTrackOnly: state.trackGraph,
+          land: landPrices(state),
         });
       } else if (dragState.mode === "electrify") {
         // SPEC §5.2: "drag along existing track (single or double)" — unlike Double mode, both
@@ -848,7 +852,8 @@ function main(): void {
               graph: state.trackGraph,
               stationTiles: new Set(state.stations.map((st) => st.tile)),
             },
-          }) ?? findBuildPath(state.map, start, goal, currentYear());
+            land: landPrices(state),
+          }) ?? findBuildPath(state.map, start, goal, currentYear(), { land: landPrices(state) });
       }
       if (path && path.length >= 2) {
         dragState.path = path;
@@ -1391,6 +1396,10 @@ function main(): void {
           /** Phase 30A: overhauls a worn locomotive (train must stand loading in an Engine Shed station). */
           overhaulLocomotive: (trainId: number) => { ok: boolean; reason?: string; cost?: number };
           getOverhaulPlan: (trainId: number) => { cost: number; ageAfter: number; valid: boolean };
+          /** Phase 30A: interest rate (base + leverage premium), credit limit and what is left to borrow. */
+          getCreditTerms: () => CreditTerms;
+          /** Phase 30A: land price of one tile now, and its multiplier from nearby population. */
+          getLandPrice: (tile: number) => { price: number; multiplier: number };
           /** Phase 30A: worn edges (ratio of rail life used, relay cost), worst first. */
           getWornTrack: () => Array<{ a: number; b: number; ratio: number; cost: number }>;
           /** Phase 30A: revenue loaded here and passengers / mail turned away (units and est. fares) per period. */
@@ -1658,6 +1667,11 @@ function main(): void {
         return result.ok ? { ok: true, cost: result.cost } : { ok: false, reason: result.reason };
       },
       getOverhaulPlan: (trainId) => computeOverhaulCommandPlan(state, trainId),
+      getCreditTerms: () => creditTerms(state, netWorth(state)),
+      getLandPrice: (tile) => {
+        const land = landPrices(state);
+        return { price: land.priceAt(tile), multiplier: land.multiplierAt(tile) };
+      },
       getWornTrack: () =>
         wornEdges(state, 0).map((w) => ({
           a: w.edge.a,

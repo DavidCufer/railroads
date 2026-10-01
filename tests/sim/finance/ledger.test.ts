@@ -11,6 +11,7 @@ import {
   monthlyFinanceStep,
   netWorth,
 } from "../../../src/sim/finance/ledger";
+import { interestRate } from "../../../src/sim/finance/credit";
 import { makeTestMap, makeTestState, tileAt } from "../track/helpers";
 
 describe("ledger revenue/expense buckets", () => {
@@ -60,11 +61,13 @@ describe("monthlyFinanceStep", () => {
     const state = makeTestState(map, { difficulty: "normal" });
     state.finance.loans = 1_200_000;
     const cashBefore = state.cash;
+    // Phase 30A: the rate is the base rate plus a premium for debt ÷ assets (here every dollar of assets is borrowed)
+    const rate = interestRate(state, netWorth(state));
+    expect(rate).toBeGreaterThan(DIFFICULTY.normal.interestRate);
 
     monthlyFinanceStep(state);
 
-    const expectedInterest = 1_200_000 * (DIFFICULTY.normal.interestRate / 12);
-    expect(cashBefore - state.cash).toBeCloseTo(expectedInterest, 5);
+    expect(cashBefore - state.cash).toBeCloseTo(1_200_000 * (rate / 12), 5);
   });
 
   it("takes a forced loan up to the credit limit when cash goes negative (Normal)", () => {

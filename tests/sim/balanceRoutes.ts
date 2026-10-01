@@ -87,6 +87,7 @@ export function buildRoute(spec: RouteSpec): { state: GameState; cars: number } 
     rng: createRng(spec.seed ?? 1),
     ...(spec.difficulty ? { difficulty: spec.difficulty } : {}),
   });
+  state.cash = 1e12; // land near a big city is dear (Phase 30A); the balance routes are about operation, not capital
   const trackY = 2;
   const ax = 1;
   const bx = width - 2;

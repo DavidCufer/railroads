@@ -47,6 +47,7 @@ import {
 } from "./track/cost";
 import type { TrackEdge } from "./track/types";
 import { canPlaceStationAt, stationAtTile, stationCatchmentTiles } from "./stations/placement";
+import { landPrices, passingLoopLandCost, stationLandCost } from "./economy/land";
 import { passingLoopCost, stationCost, stationUpgradeCost } from "./stations/cost";
 import { defaultStationName } from "./stations/naming";
 import { computeStationEconomies } from "./stations/economy";
@@ -109,7 +110,11 @@ export type CommandResult = { ok: true; cost: number } | { ok: false; reason: Co
 
 export function costContext(state: GameState): CostContext {
   const year = calendarFromTicks(state.startYear, state.ticks).year;
-  return { year, buildCostMult: DIFFICULTY[state.difficulty].buildCostMult };
+  return {
+    year,
+    buildCostMult: DIFFICULTY[state.difficulty].buildCostMult,
+    land: landPrices(state),
+  };
 }
 
 function edgeDirection(state: GameState, a: number, b: number): number {
@@ -125,7 +130,10 @@ export interface BuildPlan {
   steps: PathStep[];
   /** Steps not already built — these are what will actually be charged/added. */
   toBuild: PathStep[];
+  /** Everything the build costs: construction plus `land`. */
   cost: number;
+  /** Land and way-leave part of `cost` (Phase 30A), shown as its own line in the build preview. */
+  land: number;
   valid: boolean;
   /** New steps that would meet track at a turn sharper than 45° (PLAN Phase 18 A) — a subset of
    * `toBuild`; non-empty makes the plan invalid. */
@@ -143,7 +151,15 @@ export function computeBuildPlan(
   preferredBridgeType?: BridgeType,
 ): BuildPlan {
   if (path.length < 2)
-    return { steps: [], toBuild: [], cost: 0, valid: false, sharpSteps: [], layoutViolations: [] };
+    return {
+      steps: [],
+      toBuild: [],
+      cost: 0,
+      land: 0,
+      valid: false,
+      sharpSteps: [],
+      layoutViolations: [],
+    };
   const steps = evaluatePath(state.map, path, costContext(state), preferredBridgeType);
   const toBuild = steps.filter((s) => !state.trackGraph.hasEdge(s.a, s.b));
   const sharpSteps = findSharpSteps(
@@ -159,8 +175,9 @@ export function computeBuildPlan(
     toBuild,
   );
   const valid = pathIsValid(steps) && sharpSteps.length === 0 && layoutViolations.length === 0;
-  const cost = toBuild.reduce((sum, s) => sum + s.cost, 0);
-  return { steps, toBuild, cost, valid, sharpSteps, layoutViolations };
+  const land = toBuild.reduce((sum, s) => sum + s.land, 0);
+  const cost = toBuild.reduce((sum, s) => sum + s.cost, 0) + land;
+  return { steps, toBuild, cost, land, valid, sharpSteps, layoutViolations };
 }
 
 export interface UpgradePlan {
@@ -307,6 +324,7 @@ export function buildTrack(
   registerBuildRoutes(state.trackGraph, routeSnapshot, path);
   state.cash -= plan.cost;
   state.finance.capitalInvested += plan.cost;
+  state.finance.landSpent = (state.finance.landSpent ?? 0) + plan.land;
   addExpense(state, "construction", plan.cost);
   if (plan.toBuild.length > 0) state.trackVersion++;
   return { ok: true, cost: plan.cost };
@@ -539,7 +557,10 @@ export function refreshStationEconomy(state: GameState): void {
 }
 
 export interface StationBuildPlan {
+  /** Everything the station costs: building plus `land`. */
   cost: number;
+  /** Land part of `cost` (Phase 30A). */
+  land: number;
   /** False if the tile can't take a station at all (wrong track shape or already occupied) —
    * distinct from affordability, which the UI checks separately against `cost`. */
   valid: boolean;
@@ -553,7 +574,8 @@ export function computeStationBuildPlan(
 ): StationBuildPlan {
   const valid =
     canPlaceStationAt(state.map, state.trackGraph, tile) && !stationAtTile(state.stations, tile);
-  return { cost: stationCost(type, costContext(state)), valid };
+  const land = stationLandCost(landPrices(state), type, tile);
+  return { cost: stationCost(type, costContext(state)) + land, land, valid };
 }
 
 /** Builds a `type` station at `tile` (SPEC §6.1: on a straight/diagonal through-track tile or a
@@ -564,7 +586,8 @@ export function buildStation(state: GameState, tile: number, type: StationType):
   if (!canPlaceStationAt(state.map, state.trackGraph, tile)) {
     return { ok: false, reason: "station-no-track" };
   }
-  const cost = stationCost(type, costContext(state));
+  const land = stationLandCost(landPrices(state), type, tile);
+  const cost = stationCost(type, costContext(state)) + land;
   if (cost > state.cash) return { ok: false, reason: "cant-afford" };
 
   const existingNames = new Set(state.stations.map((s) => s.name));
@@ -589,6 +612,7 @@ export function buildStation(state: GameState, tile: number, type: StationType):
   state.stations.push(station);
   state.cash -= cost;
   state.finance.capitalInvested += cost;
+  state.finance.landSpent = (state.finance.landSpent ?? 0) + land;
   addExpense(state, "construction", cost);
   state.trackVersion++; // a station is a block boundary (SPEC §7.5) — splits whatever block it sits in
   refreshStationEconomy(state);
@@ -604,7 +628,8 @@ export function computePassingLoopPlan(state: GameState, tile: number): StationB
     canPlaceStationAt(state.map, state.trackGraph, tile) &&
     !stationAtTile(state.stations, tile);
   const plain = edges.every((e) => !e.double && !e.bridge);
-  return { cost: passingLoopCost(costContext(state)), valid: straight && plain };
+  const land = passingLoopLandCost(landPrices(state), tile);
+  return { cost: passingLoopCost(costContext(state)) + land, land, valid: straight && plain };
 }
 
 /** Builds a passing loop at `tile` (Phase 30A, PLAYTEST-2 Top 10 #6): the cheap way to let trains meet on a single
@@ -632,6 +657,7 @@ export function buildPassingLoop(state: GameState, tile: number): CommandResult 
   state.stations.push(station);
   state.cash -= plan.cost;
   state.finance.capitalInvested += plan.cost;
+  state.finance.landSpent = (state.finance.landSpent ?? 0) + plan.land;
   addExpense(state, "construction", plan.cost);
   state.trackVersion++;
   refreshStationEconomy(state);
@@ -644,7 +670,10 @@ function defaultLoopName(state: GameState): string {
 }
 
 export interface StationUpgradePlan {
+  /** Building difference plus `land` for the bigger footprint. */
   cost: number;
+  /** Extra land part of `cost` (Phase 30A). */
+  land: number;
   valid: boolean;
 }
 
@@ -656,12 +685,20 @@ export function computeStationUpgradePlan(
   type: StationType,
 ): StationUpgradePlan {
   const station = state.stations.find((s) => s.id === stationId);
-  if (!station) return { cost: 0, valid: false };
-  if (station.passingLoop) return { cost: 0, valid: false };
+  if (!station) return { cost: 0, land: 0, valid: false };
+  if (station.passingLoop) return { cost: 0, land: 0, valid: false };
   if (STATION_UPGRADE_ORDER.indexOf(type) <= STATION_UPGRADE_ORDER.indexOf(station.type)) {
-    return { cost: 0, valid: false };
+    return { cost: 0, land: 0, valid: false };
   }
-  return { cost: stationUpgradeCost(station.type, type, costContext(state)), valid: true };
+  const prices = landPrices(state);
+  const land =
+    stationLandCost(prices, type, station.tile) -
+    stationLandCost(prices, station.type, station.tile);
+  return {
+    cost: stationUpgradeCost(station.type, type, costContext(state)) + land,
+    land,
+    valid: true,
+  };
 }
 
 /** Upgrades `stationId` in place to `type`, paying the difference (SPEC §6.1). */
@@ -678,6 +715,7 @@ export function upgradeStation(
   station.type = type;
   state.cash -= plan.cost;
   state.finance.capitalInvested += plan.cost;
+  state.finance.landSpent = (state.finance.landSpent ?? 0) + plan.land;
   addExpense(state, "construction", plan.cost);
   refreshStationEconomy(state);
   return { ok: true, cost: plan.cost };

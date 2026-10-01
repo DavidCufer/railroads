@@ -352,3 +352,28 @@ export const LOCO_OVERHAUL_COST_SHARE = 0.3;
 export const LOCO_OVERHAUL_DAYS = 25;
 export const LOCO_OVERHAUL_AGE_RESET = 0.6;
 export const LOCO_OVERHAUL_MIN_AGE = 10;
+
+// --- Land and way-leave (Phase 30A, PLAYTEST-2 Top 10 #3) ---------------------------------------------------------
+
+/** What a tile of open country costs the railway (way-leave, purchase and compensation) at 1830 prices. A railway
+ * needed an Act of Parliament, and the bill for land grew with the town it ran through: a few percent of the track
+ * cost across farmland, many times it inside a great city. */
+export const LAND_BASE_PER_TILE = 250;
+/** Land value multiplier near a city: `1 + (density / LAND_DENSITY_REF) ^ LAND_DENSITY_EXPONENT`, where density is
+ * people per tile of the city's built-up area, spread out with a Gaussian of radius `cityLandRadiusTiles(pop)`. */
+export const LAND_DENSITY_REF = 300;
+export const LAND_DENSITY_EXPONENT = 1.2;
+/** Built-up radius (tiles; 1 tile = 5 km) of a city of `population`. */
+export function cityLandRadiusTiles(population: number): number {
+  return 1.2 + 0.25 * Math.sqrt(population / 1000);
+}
+/** Land prices rise faster than the general price level as towns fill up: this much a year, on top of `priceIndex`. */
+export const LAND_REAL_GROWTH_PER_YEAR = 0.02;
+/** Land a station takes, in tiles (platforms, yard, buildings), by type. */
+export const STATION_LAND_TILES = { depot: 2, station: 6, terminal: 15 } as const;
+/** Land a passing loop takes, in tiles. */
+export const PASSING_LOOP_LAND_TILES = 1;
+
+export function landYearIndex(year: number): number {
+  return priceIndex(year) * (1 + LAND_REAL_GROWTH_PER_YEAR * Math.max(0, year - 1830));
+}
