@@ -6,6 +6,7 @@ import { INDUSTRIES } from "../data/industries";
 import { STATION_TYPE_DEFS, type StationImprovementType, type StationType } from "../data/stations";
 import type { GameState } from "../sim/state";
 import type { Station } from "../sim/stations/types";
+import { cityInCatchment } from "../sim/stations/estimates";
 import { stationCatchmentTiles } from "../sim/stations/placement";
 import { strings } from "./strings";
 
@@ -51,8 +52,9 @@ export function improvementHint(
   switch (type) {
     case "postOffice":
     case "hotel": {
-      const hasCity = tiles.some((t) => (state.map.cityId[t] as number) >= 0);
-      return hasCity ? undefined : { text: strings.station.why.needsCity, helps: false };
+      return cityInCatchment(state, station)
+        ? undefined
+        : { text: strings.station.why.needsCity, helps: false };
     }
     case "livestockPens":
       return producesInRange(state, tiles, ["livestock"])

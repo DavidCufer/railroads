@@ -14,11 +14,27 @@ import {
   type StationType,
 } from "../../data/stations";
 import type { GameState } from "../state";
+import { STATION_TYPE_DEFS } from "../../data/stations";
 import { DAYS_PER_MONTH, calendarFromTicks } from "../time";
+import { stationCatchmentTiles } from "./placement";
 import { destinationCounts } from "./destinations";
 import { computeStationEconomies } from "./economy";
 import { emptyStationFlow } from "./flow";
 import type { Station } from "./types";
+
+/** Whether any town or city tile lies in `station`'s catchment — the one answer the upgrade card's "No town or city
+ * in range" hint and the Post Office / Hotel estimates both use (Phase 31), counting a city by its footprint list as
+ * well as by the map's tile owner so the two can never disagree. */
+export function cityInCatchment(state: GameState, station: Station): boolean {
+  const tiles = stationCatchmentTiles(
+    state.map,
+    station.tile,
+    STATION_TYPE_DEFS[station.type].catchmentRadius,
+  );
+  if (tiles.some((t) => (state.map.cityId[t] as number) >= 0)) return true;
+  const inRange = new Set(tiles);
+  return state.cities.some((c) => c.tiles.some((t) => inRange.has(t)));
+}
 
 /** Per-cargo annual revenue of cargo loaded at `station`: this year so far scaled to a year once two months are
  * in, else last year, else the last full month × 12. */
@@ -59,6 +75,9 @@ export function improvementEstimate(
   station: Station,
   type: StationImprovementType,
 ): number | undefined {
+  // Post Office and Hotel feed on a city's mail/passengers: with none in range there is nothing to gain.
+  if ((type === "postOffice" || type === "hotel") && !cityInCatchment(state, station))
+    return undefined;
   const rev = annualStationRevenue(state, station);
   let gain = 0;
   switch (type) {
