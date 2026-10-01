@@ -50,3 +50,25 @@ Same map as PT1 game 2 (Ashtown 86k, Woodfield 90k). Opening: Ashtown–Northfor
 - After 25 years the company is worth **$1.92M (192 % of the start)** vs PT1 $0.65M (65 %). So 1830 is now *viable*, but the first 10 years are still very slow:
   the two Grasshoppers earn $14k and $8k a year, and 3 more on the same line add only $11–21k a year in total (each earns $5–8k, costs $2–4k).
 - Only the Grasshopper exists until the Planet (1832) and the Norris (1838); the Norris is the first engine that makes the economy "work".
+
+## Game 3 — random medium map (seed 11), 1900, Hard, 1900–1920
+
+Opening: Wolfmerehaven (138k) – Wolflandridge (61k), 23 tiles: track $105k, 2 Stations $88k each, 1 Atlantic with 3 pax + 3 mail cars $240k (cash left $77k).
+
+| Jan of | Cash | Net worth | Revenue (prev. year) | Op. cost | Taxes | Trains | Stations |
+|---|---|---|---|---|---|---|---|
+| 1901 | $0.62M | $1.03M | $616k | $87k | $58k | 1 | 2 |
+| 1902 | $0.98M | $1.63M | $720k | $111k | $67k | 2 | 2 |
+| 1903 | $1.1M | $2.0M | $694k | $132k | $64k | 3 | 3 |
+| 1905 | $1.0M | $2.7M | $727k | $191k | $66k | 5 | 5 |
+| 1908 | $2.3M | $4.2M | $860k | $243k | $77k | 6 | 6 |
+| 1911 | $4.2M | $5.8M | $912k | $333k | $149k | 6 | 6 |
+| 1914 | $6.0M | $7.4M | $942k | $347k | $152k | 6 | 6 |
+| 1917 | $7.9M | $8.9M | $979k | $350k | $161k | 6 | 6 |
+| 1920 | $9.7M | $10.6M | $990k | $374k | $157k | 6 | 6 |
+
+- One Atlantic earned **$616k in year 1** (cost $240k). Income tax on Hard starts in 1900 (≈9 % of profit), 1911+ ≈ 19 %.
+- A second Atlantic on the same pair added only $74k (it shares the supply).
+- Idle cash: $9.7M in 1920 with nothing left to build (all 6 towns ≥ 5k served).
+- Same opening, 5 years, Easy / Normal / Hard: revenue identical on Normal and Hard ($616–650k a year); Hard pays $58–62k income tax a year (Normal 0 until 1910),
+  so cash after 5 years is $5.1M / $3.7M / $2.9M. **Hard is "Normal minus ~20 %", not a different game.**
