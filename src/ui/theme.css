@@ -984,6 +984,10 @@ button.chip {
   font-size: var(--fs-xs);
   color: var(--muted);
 }
+.goal-reward {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
 .goal-desc {
   font-size: var(--fs-s);
   font-weight: 600;

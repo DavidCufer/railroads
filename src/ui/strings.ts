@@ -767,6 +767,9 @@ export const strings = {
     },
     complete: "Complete",
     overdue: "Overdue",
+    /** Phase 30A: a goal pays in land (credit against land and way-leave bills). */
+    reward: (amount: string) => `Reward: ${amount} land grant`,
+    rewardReceived: "Land grant received",
     byYear: (year: number) => `By ${year}`,
     none: "This map has no goals.",
     doneCount: (done: number, total: number) => `${done} of ${total} reached`,

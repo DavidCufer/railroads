@@ -1119,40 +1119,44 @@ comes from a modelled real-world cause, shown to the player and documented in SP
 Two parallel sessions: **30A** (sim/economy) and **30B** (UI/visibility + smaller fixes).
 
 ### 30A — Sim & economy
-- [ ] **Bug 1 (HIGH)**: "Wait for full load" unloads cargo at the station it was loaded at. Never unload a car whose
+- [x] **Bug 1 (HIGH)**: "Wait for full load" unloads cargo at the station it was loaded at. Never unload a car whose
       `loadedTile` is this station (and only unload on the first pass of a stop). Regression test: pax stop with
       fullLoad keeps its load; revenue on the PLAYTEST-2 setup matches Auto within 10 %.
-- [ ] **Waiting passengers & mail behave like people** (replaces the hard waiting-pile cap for pax/mail): waiting
+- [x] **Waiting passengers & mail behave like people** (replaces the hard waiting-pile cap for pax/mail): waiting
       passengers give up over time (go by road / stay home) with a per-cargo patience; the station tracks
       **turned-away units and lost revenue per month**. Warehouses store **freight only** (no effect on pax/mail);
       the Warehouse exploit (+100 %) must disappear — test it. Freight keeps a storage cap (Warehouse ×2).
-- [ ] **Mail as a contract-scale traffic**: lower mail supply per head to a realistic share (mail ≈ 10–20 % of a
+- [x] **Mail as a contract-scale traffic**: lower mail supply per head to a realistic share (mail ≈ 10–20 % of a
       city line's revenue, not 50 %), keep its high rate per bag; Post Office stays useful but not the best ROI.
-- [ ] **Land & way-leave cost**: track/station building cost includes land price per tile that rises with nearby
+- [x] **Land & way-leave cost**: track/station building cost includes land price per tile that rises with nearby
       population density and with the year (land inside/near big cities is expensive; open country cheap). Shown in
       the build preview as a separate "land" line.
-- [ ] **Interest rises with leverage**: loan interest = base rate + premium that grows with debt ÷ net worth; credit
+- [x] **Interest rises with leverage**: loan interest = base rate + premium that grows with debt ÷ net worth; credit
       limit from earnings, not only net worth. Hard: higher base rate and premium (not lower revenue).
-- [ ] **Track condition (wasting asset)**: each edge accumulates wear from tonnage × speed (reuse the 28A wear
+- [x] **Track condition (wasting asset)**: each edge accumulates wear from tonnage × speed (reuse the 28A wear
       model); when condition drops below thresholds the line gets **slow orders** (speed limit) until the player
       **relays** it (a command + cost per tile, era-scaled), shown as track colour in the Track type overlay and a
       warning in train panels ("Slow order: worn track near X"). Light early traffic barely wears; heavy fast
       late traffic needs relaying every couple of decades.
-- [ ] **Locomotives wear out**: reliability drops and running cost rises with age; after ~30–40 years a loco must be
+- [x] **Locomotives wear out**: reliability drops and running cost rises with age; after ~30–40 years a loco must be
       retired or overhauled (overhaul = cost, resets some age). News + train panel hint.
-- [ ] **Single track capacity**: buildable **passing loop** (a short double section/siding, cheap) that the
+- [x] **Single track capacity**: buildable **passing loop** (a short double section/siding, cheap) that the
       reservation system uses for meets; per-train or per-line **minimum days between departures** order option to
       space trains; departures prefer to space trains instead of convoys. Test: 4 trains on single track with a loop
       earn more than 2 trains (today they earn less).
-- [ ] **Engine Shed servicing by distance**: breakdown chance grows with km since last service; any stop at a station
+- [x] **Engine Shed servicing by distance**: breakdown chance grows with km since last service; any stop at a station
       with a shed services the train (short delay). Sheds along long lines matter again.
-- [ ] **Goals reward = land grants** (historical): reaching a goal grants a credit/discount on future land & track
+- [x] **Goals reward = land grants** (historical): reaching a goal grants a credit/discount on future land & track
       costs (or a one-off grant), shown on the goal card.
-- [ ] **Bridges**: a washed-out bridge leaves a persistent marker; rebuild offers wood/stone/steel; trains reroute or
+- [x] **Bridges**: a washed-out bridge leaves a persistent marker; rebuild offers wood/stone/steel; trains reroute or
       show "Line cut at bridge near X".
-- [ ] Rerun BALANCE.md and the PLAYTEST-2 benchmarks: 1900 good-player Normal net worth by 1916 should be roughly an
+- [x] Rerun BALANCE.md and the PLAYTEST-2 benchmarks: 1900 good-player Normal net worth by 1916 should be roughly an
       order of magnitude below $208M; Hard clearly harder (target ≥ 40 % lower NW than Normal by year 15); 1840/1830
       starts must not get worse than PLAYTEST-2. Document the mechanism behind each change.
+- [x] (added) **Early-era balance**: with mail cut to its realistic share and land added, the 1840 starts stalled (bot: bankrupt) —
+      fixed by an urbanisation curve for city land, open-country land = price level, and *induced passenger traffic* ×1.7
+      before 1860 easing to ×1 by 1900 (SPEC §9.5c-11); goal thresholds re-set (gb gold $20M; random gold 60× / 4.5×).
+- [x] (added) Goal cards show the land-grant reward (`phase-30a-goal-reward.png`).
 
 ### 30B — Visibility & UX
 - [x] **Per-line and per-station P&L**: "Lines" view (a line = set of trains sharing the same stop set) with revenue,

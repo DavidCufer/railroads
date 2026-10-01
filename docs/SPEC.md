@@ -508,8 +508,10 @@ station on each delivery (color = cargo color), and add to the train's lifetime/
 ### 9.1 Starting conditions
 
 - Starting cash: $1,000,000 (Easy $1.5M, Hard $600k).
-- Loans: take in $100k increments up to a credit limit = 50% of company net worth (min $500k).
-  Interest 6%/year (Easy 4%, Hard 8%) charged monthly. Repay anytime in $100k increments.
+- Loans: take in $100k increments up to a credit limit = the lower of 50% of company net worth and 5× the last twelve
+  months' operating profit before interest (lenders lend against cash flow), never below $500k (Phase 30A, §9.5c).
+  Interest = base rate 6%/year (Easy 4%, Hard 8%) **plus a leverage premium** (§9.5c), charged monthly on the whole loan
+  book. Repay anytime in $100k increments.
 - No stock market, no shares, no competitors.
 
 ### 9.2 Ledger categories (tracked per month and per year)
@@ -582,6 +584,66 @@ shown to the player where it costs money (Finance cost lines with tooltips, trai
 
 Difficulty (§9.6) is now *tax, interest, build cost and breakdowns*, no longer a revenue multiplier.
 
+### 9.5c Phase 30A: real-world causes for the late game and the first decades (PLAYTEST-2)
+
+Rule unchanged (owner): every balance change comes from one modelled cause, lives in a `src/data/` table, is shown to the
+player, and there are no blanket multipliers. The 1900 "good player" reached $208M net worth by 1916 in PLAYTEST-2 (cities
+were the only limit and cash piled up unused); the causes below take that late-game surplus away, one real cost at a time,
+and the last one keeps the first decades playable. Measured results: docs/PROGRESS.md "Phase 30A".
+
+1. **Waiting people give up** (§6.2, §8.1). Passengers and mail have no storage cap and a Warehouse does nothing for them
+   (it stores *freight* only, ×2 cap). A pile nobody has collected from for `graceDays` (passengers 10, mail 15) loses 5 %
+   of itself per day (`WAITING_PATIENCE`): the pile settles near `supply ÷ 0.05` and a long gap between trains simply loses
+   people. Each station keeps per month and year the units turned away and the fares they would have paid
+   (`stationFlow`), shown on the station panel. Frequency (more trains, shorter gaps) is what saves them; a Warehouse is not.
+2. **Mail is a contract, not half the income.** Mail supply per head is ×0.213 of the Phase 26A figure
+   (`MAIL_VOLUME_FACTOR`), so mail is about 15 % of a city line's revenue (it was 48–58 %); the rate per bag (×1.3
+   a passenger) and the Post Office (+50 % supply, +25 % pay) are unchanged.
+3. **Land and way-leave.** Every tile of track and every station tile of a station also costs *land*: `LAND_BASE_PER_TILE`
+   ($250 at 1830 prices) × the general price level × difficulty (`landMult` Easy 0.7 / Normal 1 / Hard 1.5) × a city
+   premium `1 + urban(year) × (density ÷ 300)^1.2`, where density is the population per tile of the built-up area of nearby cities
+   (a Gaussian of radius `1.2 + 0.25 √(pop/1000)` tiles). `urban(year)` (`URBAN_LAND_PREMIUM_ANCHORS`: 0.15 in 1830, 0.8 in 1860,
+   2.4 in 1900, 3.4 in 1960) is the Victorian city: ground rents in town centres rose far faster than prices, so the first
+   railways bought cheap and the great termini of 1900 paid dear; open-country land follows the price level only (farmland did
+   not appreciate). A station takes 2 / 6 / 15 tiles (Depot / Station / Terminal), a passing loop 1. Land is a separate "land" line in
+   the build preview, is part of `capitalInvested` (and so of net worth at 50 %), and the build pathfinder routes round dear land.
+4. **Interest rises with leverage; credit follows earnings.** `rate = base + leveragePremium × l²` with
+   `l = debt ÷ (net worth + debt)` (0 to 1; premium Easy 0.08 / Normal 0.12 / Hard 0.20), so a company that has borrowed
+   its net worth away pays up to 18 % (Normal) or 28 % (Hard). Credit limit as in §9.1. Hard is harder through the base rate, the
+   premium and land, not through lower fares.
+5. **Track is a wasting asset.** Of the §9.5b-2 track-wear bill 30 % (`WEAR_ROUTINE_SHARE`) is still paid monthly as routine
+   maintenance; the other 70 % is the *renewal* of rail and sleepers, which accumulates as wear on each edge and is paid
+   in a lump when the player relays it (the same money, later). An edge
+   lasts `RAIL_LIFE_UNITS` wear units by the year it was laid (wrought iron 2,500; Bessemer steel from 1865 10,000; standard steel
+   from 1885 20,000; heavy welded rail from 1925 30,000). Above 60 % of its life a **slow order** deepens linearly to ×0.4 speed at
+   120 %; `relayTrack` (a command) renews the worn edges for the renewal cost accumulated, the Track-type overlay colours worn
+   track and train panels say "Slow order: worn track near X". Light early traffic barely wears; a busy fast line wants relaying
+   every ~20 years.
+6. **Locomotives wear out.** Prime for 15 years, then running cost +3 %/year of age and a breakdown multiplier rising with the
+   square of the age past prime to ×4 at end of life (steam 35, diesel 40, electric 45 years) and +0.6 per year beyond, max ×12.
+   A "worn out" news item appears once; `overhaulLocomotive` (30 % of the engine's price, 25 days in an Engine Shed, 60 % of the
+   mechanical age taken off; engines of 10+ years) or replacement fixes it.
+7. **Single track has capacity, and a way to add it.** A **passing loop** (`buildPassingLoop`, $12k at 1830 prices, a station-like
+   section splitter with no staff or catchment, only on plain straight single track) lets opposing trains meet mid-line (§7.5).
+   An order option **minimum days between departures** (`TrainOrder.minGapDays`, 0 / ½ / 1 / 2 / 3) spaces trains instead of
+   convoys; the train holds its departure with "Holding for departure slot".
+8. **Servicing by distance.** Breakdown chance is ×0.5 fresh from an Engine Shed and rises by +1.0 for every interval run since
+   (`SERVICE_INTERVAL_KM` steam 8,000 / diesel 30,000 / electric 50,000), capped at ×3.5; any stop at a station with a shed
+   services the train (8 hours, only once ≥ 10 % of the interval has run). Sheds along long lines matter.
+9. **Goals pay in land grants** (the 1850s–70s land grants, compulsory purchase powers): bronze $100k, silver $300k, gold $1M
+   at 1830 prices × the price level of the year, credited against future land bills (`landCredit`), shown on the goal card.
+10. **Bridges.** A wooden bridge washed out in a flood leaves a persistent record (`washouts`, drawn as a gap marker); trains
+    whose route crossed it report "Line cut at the bridge near X"; `rebuildBridge` rebuilds it in wood, stone or steel (as the
+    era allows, with double track and catenary as before).
+11. **Induced traffic (first decades).** A new railway created its own traffic: fares a fraction of the stagecoach's and
+    journeys several times faster unlocked demand that had never been able to pay to travel (clerks, families, day trippers, the
+    first excursion and Sunday trains), so early lines carried a multiple of the traffic forecast for them, converging on the
+    long-run rate as the network matured. City **passenger** supply is multiplied by `inducedTrafficFactor(year)`
+    (`INDUCED_TRAFFIC_ANCHORS`: ×1.7 from 1830 to 1860, easing to ×1.0 at 1900; mail and freight not). It replaces the early
+    revenue that mail (58 % of it) used to give when mail is held to its realistic share. Measured need: with 1.0 the same
+    good-player script that grew a 1840 start to $20M by 1870 before Phase 30A stalls at $1.3M (Hard goes bankrupt), 1.7
+    restores it (docs/PROGRESS.md). The city panel's passenger figure includes it.
+
 ### 9.6 Difficulty
 
 | | Easy | Normal | Hard |
@@ -591,7 +653,9 @@ Difficulty (§9.6) is now *tax, interest, build cost and breakdowns*, no longer 
 | Build cost mult | 0.8 | 1.0 | 1.2 |
 | Breakdowns | ×0.5 | ×1 | ×1.5 |
 | Tax schedule (property + income) | ×0.6, a decade late | ×1 | ×1.6, a decade early |
-| Interest | 4 % | 6 % | 8 % |
+| Interest (base rate) | 4 % | 6 % | 8 % |
+| Leverage premium (§9.5c) | 0.08 | 0.12 | 0.20 |
+| Land and way-leave price (§9.5c) | ×0.7 | ×1 | ×1.5 |
 
 ---
 
@@ -795,3 +859,5 @@ localization (English only, but keep strings in one `strings.ts` file for later)
 - [Phase 29 B] §6.1 a station can be demolished from its Build tab (two-tap, refund as for the Bulldoze tap, `demolishStation`): trains stopping there lose the stop from their orders instead of blocking it, cargo waiting there is lost, a news line reports it, and a train left with fewer than two stops is flagged in the stuck indicator. Only the last Engine Shed is refused. The Bulldoze tap still refuses while trains stop there.
 - [Phase 29 C] §7.1/§10 adding stops by tapping the map is on by default in the buy-train route step and in the train panel's Route tab (the button toggles it off); picking stays active after each tap, a tap on the same station twice in a row adds one stop, and a ring pulses on the map and the new row.
 - [Phase 29 D] §6.3 demand tiles in a station's Cargo tab show an industry badge (anchor for a Port) when only industries accept the cargo there, and tapping one says who accepts it ("Accepted by: Barbridge Port (export)" / "(city)"); a train queued for a platform says how many trains are ahead of it in the yard.
+- [Phase 30A] §9.5c (new): waiting passengers/mail give up instead of hitting a cap and a Warehouse stores freight only; mail supply ×0.213; land and way-leave in every build (city premium follows an urbanisation curve, open country follows prices); leverage-based interest and earnings-based credit; track wear renewal with slow orders and `relayTrack`; locomotive ageing and `overhaulLocomotive`; passing loops and departure spacing; servicing by kilometres; goal land grants; persistent bridge washouts with `rebuildBridge`; induced passenger traffic before 1900. §9.1 credit limit and interest text, §9.6 table rows (leverage premium, land) updated. §11: gb gold goal is $20M by 1870 (was $15M, the induced-traffic economy puts an able player higher); random-map gold goals are net worth 60× (was 40×) and annual revenue 4.5× (was 3×) the starting cash.
+- [Phase 30A] Deviation from the PLAN text: PLAN says the order option is "per-train or per-line"; it is per stop (`TrainOrder.minGapDays`), which covers both. PLAN says interest premium "grows with debt ÷ net worth": implemented as debt ÷ (net worth + debt) so it stays in 0–1 when net worth is small or negative.

@@ -147,7 +147,7 @@ describe.runIf(process.env.BALANCE_REPORT === "1")("balance report", () => {
       "- a Norris on a 10-tile (50 km) Town↔Town line returns ≥ 25 % of its price a year;",
       "- a Grasshopper on a short line at least breaks even;",
       "- repairs < 10 % of revenue in every era with an Engine Shed at each end;",
-      "- a rich route (250k ↔ 150k cities, 100 km) earns ≤ ~3.3× the train's price a year after tax and wear from 1900 on;",
+      "- a rich route (250k ↔ 150k cities, 100 km) earns ≤ ~4.5× the train's price a year after tax and wear from 1900 on (3.3× before Phase 30A: people now give up gradually instead of at a hard 80-unit cap, so a full train both ways is no longer an artefact);",
       "- Hard is clearly harder than Normal (heavier tax schedule, higher interest, dearer building, more breakdowns).",
       "",
       "Earlier versions of this file (before Phase 28A) are in git history and in the Phase 28A entry of PROGRESS.md.",

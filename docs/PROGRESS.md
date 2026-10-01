@@ -4550,16 +4550,88 @@ Hard ÷ Normal profit per train-year (City 40k ↔ 40k): 1900 90 %, 1920 91 %, 1
 - `registerBuildRoutes` also adds routes for a drag that turns 45° through an existing diamond (intentional: the player drew it).
 
 
-## 2026-10-01 — Phase 30A: sim & economy (play-test 2 fixes) — IN PROGRESS
-Owner's rule: every balance change comes from a modelled real-world cause, is visible to the player and is documented in SPEC §9; no blanket multipliers. Numbers (before/after) are filled in at the end of the phase. This section is also the **data contract for 30B** (UI): everything below is exposed in `GameState` and, where noted, through `?debug=1` hooks (`__game.getState()` returns the whole state).
+## 2026-10-01 — Phase 30A: sim & economy (play-test 2 fixes) — DONE
+Owner's rule: every balance change comes from a modelled real-world cause, is visible to the player and is documented in SPEC §9.5c; no blanket multipliers. Two sessions did 30A (the first was cut off by a usage limit after pushing the mechanisms; this one verified every item, benchmarked, and fixed what the benchmarks showed). The whole of 30A is documented in SPEC §9.5c; this entry has the evidence.
 
-### Data contract so far (new/changed fields)
+### Data contract (new/changed fields; 30B reads these)
 | Field | Meaning |
 |---|---|
 | `state.stationFlow: Map<stationId, StationFlow>` (`src/sim/stations/flow.ts`) | `month / lastMonth / year / lastYear: Partial<Record<CargoType, {revenue, units, lostUnits, lostRevenue}>>`. `revenue/units` = fares of cargo **loaded at** this station (credited on delivery); `lostUnits/lostRevenue` = passengers/mail that **gave up waiting** here (and the estimated fares, at the recent fare per unit from this station, else a nominal 60 km fare). `fare[cargo]` = smoothed fare per unit. Hook: `__game.getStationFlow(id)`. Helper `totalLostRevenue(period)`. Saved (optional field, old saves read as empty). |
 | `WAITING_PATIENCE` (`src/data/cargo.ts`), `givesUpWaiting(cargo)` | Passengers/mail have **no storage cap**; a pile nobody collected from for `graceDays` loses `giveUpPerDay` of itself per day. `stationStorageCap(station, cargo)` for pax/mail is only a nominal bar size (Warehouse no longer doubles it). A Warehouse stores **freight only** (cap ×2, no decay); `transferStorageCap` is the hub's transfer-stock room (any cargo). |
 | `Station.passingLoop?: true`, command `buildPassingLoop(state, tile)` / `computePassingLoopPlan` | A passing loop is a `Station` (type `depot`, name "Passing loop N") with `passingLoop: true`: it splits a single line into sections like a station (SPEC §7.5), has no catchment/supply/platform use/upkeep staff, cannot be in orders, cannot take improvements/sheds/towers. Valid only on plain single-track straight tiles. **30B: station lists / order pickers / station panel / renderer must treat `passingLoop` stations specially** (hide from pickers; draw as a short double section). Cost `PASSING_LOOP_COST` ($12k at 1830 prices). |
 | `TrainOrder.minGapDays?: number`, `Station.lastDepartureTick?`, `Train.headwayHold?` | Departure spacing: the train leaves this stop no sooner than N days after the last departure from this station. While holding: unloaded but not yet loaded, status stays `loading`, `train.headwayHold === true` (30B can show "Holding for departure slot"). `setOrders` accepts the field (UI: a small picker 0 / ½ / 1 / 2 / 3 days). A gap larger than the cycle time per train backfires (documented in Help text suggestion: "about the round-trip time ÷ number of trains"). |
+| `state.washouts: Washout[]`, `nextWashoutId`, `rebuildBridge(state, washoutId, type?)`, `computeRebuildBridgePlan` | A washed-out wooden bridge leaves a record `{id, a, b, span, year, double, electrified, kind}` (the gap in the line); trains whose route crossed it report `noRoute` ("line cut at the bridge"). `rebuildBridge` offers wood / stone / steel as the era allows (reasons `no-bridge-to-rebuild`, `not-era-available`, `cant-afford`). Saved (`washouts`, `nextWashoutId`, optional). Hook `__game.debugWashOut(a, b)`. |
+| `EdgeWear` on edges (`src/sim/track/condition.ts`): `wear`, `laidYear`; `edgeWearRatio`, `slowOrderMult`, `wornEdges`, `slowOrderEdges`, `relayTrack(state, path?)` / `computeRelayPlan` | Wear units per edge vs `RAIL_LIFE_UNITS` of the year it was laid; slow order from ratio 0.6 (×0.4 speed at 1.2); `relayTrack` renews worn edges for the accumulated renewal cost (reasons `no-track-to-relay`, `cant-afford`); yearly news counts slow-order edges. |
+| `Train.ageCreditYears`, `wornOutNoticed`, `inOverhaul`; `mechanicalAgeYears`, `isWornOut`, `computeOverhaulPlan`, command `overhaulLocomotive(state, trainId)` / `computeOverhaulCommandPlan` | Locomotive ageing (`src/sim/trains/ageing.ts`): running cost +3 %/yr past 15 years, breakdown multiplier up to ×4 at `LOCO_LIFE_YEARS` (steam 35, diesel 40, electric 45) then +0.6/yr to ×12; overhaul = 30 % of the price, 25 days in a shed, 60 % of the age off. |
+| `Train.serviceOdometerTiles`, `servicePending`; `SERVICE_INTERVAL_KM` | Servicing by distance: breakdown ×0.5 fresh from a shed, +1.0 per interval run, cap ×3.5; any stop at a station with a shed services (8 h delay). |
+| `creditTerms(state, netWorth)` / `creditLimit(state)` / `interestRate` (`src/sim/finance/credit.ts`) | `{rate, baseRate, premium, leverage, limit, available}`: `rate = base + leveragePremium × l²`, `l = debt ÷ (net worth + debt)`; limit = max($500k, min(½ net worth, 5 × 12-month operating profit before interest)). |
+| `landPrices(state)` (`src/sim/economy/land.ts`) → `{priceAt(tile), multiplierAt(tile)}`; `computeBuildPlan` / `computeStationBuildPlan` return `land` and `landGrant` | Land per tile = `LAND_BASE_PER_TILE × priceIndex(year) × difficulty.landMult × (1 + urban(year) × (density/300)^1.2)`; build previews list "land" separately; `state.finance.landSpent`, `landCredit` (goal grants not yet used), `landCreditGranted`. Hook for the overlay: main.ts `landAt`. |
+| `inducedTrafficFactor(year)` (`src/data/economy.ts`) | City passenger supply multiplier (×1.7 to 1860, ×1.0 at 1900); `citySupply(city, year)` includes it so the city panel is consistent. |
+| Goal cards | Show "Reward: $X land grant" (`goalLandGrant(tier, year)`) and "Land grant received" once complete. |
+
+### What each mechanism does and why (details: SPEC §9.5c)
+1. **Bug 1** (fullLoad unloaded cargo at its origin): a car whose `loadedTile` is this station is never unloaded there, and only the first pass of a stop unloads. Regression test `tests/sim/trains/loading.test.ts`. Pair test Berlin–Hamburg 3 Atlantics: Auto $849k/yr, fullLoad $982k/yr (it now earns *more* than Auto, because fuller trains lose fewer people; PLAN asked for "within 10 %" — the bug's symptom, income far *below* Auto, is gone).
+2. **Waiting passengers and mail give up** (`WAITING_PATIENCE`): no cap, a pile uncollected for 10 days (mail 15) loses 5 %/day; per-station turned-away units and lost fares per month/year. Real cause: people take the road coach or stay home when the train does not come.
+3. **Warehouses store freight only.** The PLAYTEST-2 exploit (Warehouse = +100 % on Stations) is gone: Berlin–Hamburg 3 Atlantics on Stations, Normal, Warehouse at both ends: $778k / $877k / $831k a year without, $777k / $876k / $830k with (the $110k is a pure loss), end-to-end via `tools/bench/pair.ts` (`WAREHOUSE=1`); unit test `cargoFlow.test.ts` ("a Warehouse does nothing for passengers and mail").
+4. **Mail ×0.213**: mail is 16 % of Berlin–Hamburg's revenue with 1 or 2 mail cars (it was 48–58 %); 1900 bot: 18 % (was 53 %).
+5. **Passing loops + departure spacing**: `tests/sim/trains/singleTrack.test.ts` — six convoy trains on one single line earn > 30 % more with a day's spacing; four spaced trains with loops earn more than two.
+6. **Track condition, loco ageing, servicing by km, bridges, goal land grants, leverage interest** as in the contract above; each has its own test file (`condition`, `ageing`, `servicing`, `washout`, `landGrant`, `credit`).
+7. **Land and way-leave**: the first version (flat +2 %/yr real growth and a city premium from day one) made the 1840 start 25–30 % dearer and stalled it; the final one follows history: open-country land = price level only, the *city* premium grows with the Victorian city (`URBAN_LAND_PREMIUM_ANCHORS` 0.15 → 0.8 → 2.4 in 1830/60/1900). 1900+ city prices are unchanged from the first version.
+8. **Induced traffic** (new this session, §9.5c-11): see "Early era" below.
+
+### Benchmarks (`tools/bench/goodPlayer.ts`, Central Europe, seed 1 unless noted; same script on both builds)
+The script is *not* the PLAYTEST-2 script (that one is not in the repo; the first 30A session re-implemented it). It borrows when a good project is short of cash and repays when rich, builds dedicated station pairs between the best unconnected city and the nearest connected one (Stations before it has $2.5M, then Terminals, double track from 1870 when rich), buys the fastest engine, 2 per pair up to 4, Post Office + Hotel in cities ≥ 40k, relays worn track, rebuilds bridges. The same script on the pre-30A build (e5c88d9) is the "before"; it reaches $103M (not PLAYTEST-2's $208M) because it is a simpler player, so the PLAN target "an order of magnitude below $208M" is judged both absolutely and as new ÷ old.
+
+**1900 start, net worth (cash − loans + assets), Jan of:**
+| | 1905 | 1910 | 1913 | 1916 | revenue 1916 | trains / stations |
+|---|---|---|---|---|---|---|
+| Before, Normal | $11.6M | $46.0M | $72.9M | **$103.5M** | $15.0M | 92 / 46 |
+| After, Normal (seeds 1 / 2 / 3, 1916) | $3.2M | $11.6M | $22.9M | **$33.3M / 33.6M / 33.6M** | $6.5M | 88 / 44 |
+| Before, Hard | $5.1M | $24.1M | $45.1M | **$67.9M** | $14.2M | 92 / 46 |
+| After, Hard (seeds 1 / 2 / 3, 1916) | $2.0M | $4.8M | $6.7M–8.6M | **$10.2M / 12.1M / 12.5M** | $4.6M–5.0M | 28–35 / 36–40 |
+
+- Normal after ÷ before = 0.32 (absolute: 6.3× below PLAYTEST-2's $208M, 3.1× below the same script before). PLAN target "roughly an order of magnitude below": **met in direction and approximately in size; not exactly 10×.** I did not push it further with a new cost because (a) the script saturates every city by 1913 (revenue $6.5M, flat) so NW keeps growing by ~$5M a year after, and (b) a stricter squeeze would have to come from an arbitrary number, not a cause. What bites, last year (Normal, 1916): mail revenue $1.1M instead of $8.0M, land $3.0M one-off (17 % of capital), income tax $0.3M, track renewal $0.34M, interest.
+- **Hard vs Normal, NW 1916: −69 % / −64 % / −63 % (seeds 1 / 2 / 3)**; before −34 %. PLAN target ≥ 40 % lower: **met.** Cause: Hard's higher base rate (8 %), leverage premium (0.2 → up to 28 %), land ×1.5 and ×1.2 build cost compound with a cash start of $600k that makes the first line a loan.
+- Last-year ledger, Normal 1916, after (before): passengers $5.4M ($7.1M), mail $1.1M ($8.0M), train maintenance $0.70M ($0.70M), crews $0.37M ($0.39M), track wear $0.34M ($1.06M, now routine + renewal), station upkeep $0.16M ($0.22M), income tax $0.28M ($0.74M), breakdowns $35k ($132k, sheds by distance).
+
+**1840 start (must not get worse than PLAYTEST-2), net worth Jan 1870:**
+| | 1850 | 1860 | 1870 |
+|---|---|---|---|
+| Before, Normal | $1.6M | $6.8M | **$20.3M** |
+| After, Normal (seeds 1 / 2 / 3) | $1.6M | $10.7M / 8.5M / 7.8M | **$22.5M / 20.4M / 18.9M** |
+| Before, Hard | $0.9M | $1.6M | **$4.2M** |
+| After, Hard (seeds 1 / 2 / 3) | $0.8M–1.0M | $2.7M–3.0M | **$9.7M / 11.1M / 10.6M** |
+
+Controlled pairs (`tools/bench/pair.ts`, unlimited cash, single track, 4 passenger cars; cash growth per year, years 1–6; old build in brackets):
+| Pair | Normal | Hard |
+|---|---|---|
+| 1840 Milan–Venice, 2 Norris | $88k–108k a year ($45k–50k) | $86k–107k |
+| 1840 Milan–Venice, 4 Norris | $103k–138k ($71k–91k) | |
+| 1830 Milan–Venice, 2 Grasshoppers | $12k–21k ($8k–19k) | |
+| 1900 Berlin–Hamburg, 3 Atlantics, double | $805k–873k ($576k–631k) | $723k–785k ($518k–568k) |
+
+The "single-track pair gets worse with more trains" PLAYTEST-2 claim is not reproduced (4 trains earn more than 2 even without loops: $138k vs $108k); with spaced departures and loops six trains earn more still (test above).
+The 1830 start is unplayable for the *script* on both builds (it buys the one engine that exists and goes bankrupt in 1837 before / 1845 after); controlled 1830 pairs are better than before.
+
+### Early era: what the benchmark found and the fix (mechanism, not multiplier)
+After the first-session mechanisms the same script went **bankrupt (Hard 1844–67, Normal 1858) or stalled at $1.3M** from a 1840 start, where it made $20M (Normal) before. Isolating each cause on the script (an earlier version of it; 1840 Normal, NW 1865 in brackets): mail ×0.213 alone ($3.2M), land alone ($2.8M), leverage premium alone (stalled at $0.4M), all three off ($13.5M ≈ before). Mail had been 58 % of early revenue; land added 25–30 % to the first line; the quadratic premium turned a thin first line into a debt spiral. Fixes, each with its own cause:
+- **Land**: city premium follows `urban(year)` (§9.5c-3), open-country land = price level. On Hard (land ×1.5) the first Vienna–Prague line cost track +24 % / stations +12 % over the pre-30A prices (was +28 % / +28 % with the flat first version); Normal pays about half of that.
+- **Induced traffic** (§9.5c-11): the railway created its own traffic; city passenger supply × `INDUCED_TRAFFIC_ANCHORS` (1.7 to 1860, 1.0 at 1900). Measured on the script (1840 Normal / Hard NW 1870): ×1.0 $1.3M / bankrupt, ×1.3 $12.4M / $1.9M, ×1.5 $15.2M / $3.0M, **×1.7 $22.5M / $9.7M** (before: $20.3M / $4.2M), ×2.0 $27.6M / $8.7M. 1.7 is the smallest value that is not worse than before in both difficulties. It has no effect from 1900 (the 1900 benchmark is the same with and without it).
+- Consequences re-calibrated, not skipped: `tests/sim/balance.test.ts` (1848 best-route profit ceiling × the factor, pax/freight ratio ceiling × the factor, 5-train network year-1 < 0.6 and year-5 < 3 × cash), `tests/sim/stations/economy.test.ts` (supply × factor), goal thresholds (`goalCalibration.test.ts` says an able player now reaches more by 1870): gb gold $15M → $20M, random gold net worth 40× → 60×, annual revenue 3× → 4.5×; e2e `regions.spec.ts` forces $21M.
+- Also found by the script and fixed in it (not the game): choose central station tiles (outskirts station = a fraction of the city's passengers), don't blacklist a city after a cash shortfall, don't borrow for a project the credit limit cannot cover, short first line by population ÷ distance, mixed consists.
+
+### Other changes this session
+- Goal cards show the land-grant reward (`src/ui/goalsPanel.ts`, `strings.goals.reward`); screenshot `docs/screenshots/phase-30a-goal-reward.png` (opened and checked: the reward line sits under the tier/year row on each card).
+- `tools/bench/goodPlayer.ts` (see above) and `tools/bench/pair.ts` (controlled pair; env `RULE=fullLoad`, `MAIL=n`, `WAREHOUSE=1`).
+- `docs/BALANCE.md` regenerated (`BALANCE_REPORT=1 npx vitest run tests/sim/balanceReport.test.ts`). Archetype routes, Normal, ROI on the train: 1840 Norris City 40k pair 84 % (was 51 %), 1860 American 300 % (203 %), 1900 Atlantic 110 % (unchanged), Town pairs 1840 106 % (61 %); rich 250k ↔ 150k route 1900 419 % (290 %), 1920 258 % (180 %), 1950 132 % (101 %), 1980 50 % (44 %) — a full train both ways is no longer capped by the pile, the early rows carry induced traffic; mail-heavy rows fall (mail ×0.213). The rich-route target in the file is now ≤ ~4.5× (as the test asserts since the first 30A session). 1980 is still the weakest era (profit/price 6 % on a 100 km City pair, −4 % on town pairs).
+- SPEC §9.1, §9.5c (new), §9.6, Deviations updated.
+
+### Deviations / known
+- "Within 10 % of Auto" for fullLoad: it is up to 17 % *above* Auto on a rich pair (no harm).
+- PLAN "per-train or per-line minimum days between departures": implemented per stop, which covers both.
+- The leverage premium uses debt ÷ (net worth + debt), not debt ÷ net worth, so it stays in 0–1.
+- The 1830 start is still unplayable for the benchmark script on both builds (one engine exists and the script goes bankrupt in 1837 before / 1845 after); only the controlled 1830 pairs were compared.
+- The benchmark is a script on one region; the order-of-magnitude target is checked against that script's old-build result, not against PLAYTEST-2's script.
 
 ## 2026-10-01 — Phase 30B: visibility & UX (play-test 2) — DONE
 Two sessions: the first shipped buy-wizard affordability + Borrow shortcut, km distances, loading-rule picker, Help pages, monthly provisional tax, jam diagnosis, toasts following the open panel, Hard/1830 hints; this one the rest.
