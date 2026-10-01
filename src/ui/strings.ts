@@ -717,6 +717,10 @@ export const strings = {
       "Buy a train at a station with an Engine Shed (the first station you build gets one free).",
       "Set orders — tap stations on the map — then watch the cash roll in as it delivers cargo.",
     ] as string[],
+    hardMoney:
+      "Hard: keep enough cash for the locomotive before you lay track. Short? Borrow in Finance (tap the cash).",
+    earlyEngines: (loco: { name: string; introYear: number }): string =>
+      `Early engines are weak and slow. The ${loco.name} arrives in ${loco.introYear}: until then keep lines short.`,
     next: "Got it",
     done: "Start playing",
     skip: "Skip tips",

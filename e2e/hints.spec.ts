@@ -26,6 +26,9 @@ test.describe("Phase 11 — first-game hints", () => {
     await expect(hint).toContainText("Engine Shed");
     await page.getByRole("button", { name: "Got it" }).click();
     await expect(hint).toContainText("Set orders");
+    // The default start is 1830: a fifth tip warns that early engines are weak (Phase 30B).
+    await page.getByRole("button", { name: "Got it" }).click();
+    await expect(hint).toContainText("Norris");
     await page.getByRole("button", { name: "Start playing" }).click();
     await expect(hint).toHaveCount(0);
 

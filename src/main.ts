@@ -315,7 +315,7 @@ function main(): void {
   function regenerate(options: NewGameOptions): void {
     currentOptions = options;
     applyState(createGameState(options));
-    if (!DEBUG) showFirstGameHints(ui);
+    if (!DEBUG) showFirstGameHints(ui, state);
   }
 
   /** A save loaded from the title screen/Load screen (SPEC §13) — unlike `regenerate`, the map
@@ -1367,6 +1367,8 @@ function main(): void {
           /** Test-only: opens a train's panel. */
           debugOpenTrain: (trainId: number) => void;
           debugOpenCity: (cityId: number) => void;
+          /** Test-only: shows a toast. */
+          debugToast: (message: string, kind?: "info" | "warn") => void;
           debugBreakdown: (trainId: number, days: number) => void;
           getStationTransfer: (stationId: number) => Array<{
             cargoType: string;
@@ -1603,6 +1605,7 @@ function main(): void {
       debugPickStation: (stationId) => deliverStationPick(stationId),
       debugOpenTrain: (trainId) => openTrainPanel(ui, state, trainId),
       debugOpenCity: (cityId) => openCityPanel(ui, state, cityId, openStationById),
+      debugToast: (message, kind) => showToast(ui, message, kind),
       debugBreakdown: (trainId, days) => {
         const t = state.trains.find((tr) => tr.id === trainId);
         if (t) startBreakdown(state, t, days);

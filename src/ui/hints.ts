@@ -5,6 +5,7 @@
  * small floating card, not an overlay over the canvas.
  */
 import { h } from "./h";
+import { locomotiveById } from "../data/trains";
 import { strings } from "./strings";
 
 const SEEN_KEY = "railroads.hintsSeen";
@@ -26,16 +27,25 @@ function markHintsSeen(): void {
 }
 
 /** Mounts the hint card into `container` if this is the player's first game; no-ops otherwise. */
-export function showFirstGameHints(container: HTMLElement): void {
+export function showFirstGameHints(
+  container: HTMLElement,
+  game: { difficulty: string; startYear: number },
+): void {
   if (hasSeenHints()) return;
   const s = strings.hints;
+  const steps = [...s.steps];
+  // Hard starts with little cash and a $190k+ locomotive: say so before the player spends it all on track.
+  if (game.difficulty === "hard") steps.push(s.hardMoney);
+  // 1830–1837: only the weak Grasshopper/Planet are for sale (Playtest 2: "nothing to do" for 8 years).
+  const norris = locomotiveById("norris-4-2-0");
+  if (norris && game.startYear < norris.introYear) steps.push(s.earlyEngines(norris));
   let step = 0;
   const card = h("div", { className: "hint-card" });
 
   function render(): void {
-    const isLast = step === s.steps.length - 1;
+    const isLast = step === steps.length - 1;
     card.replaceChildren(
-      h("div", { className: "hint-card-text" }, s.steps[step] as string),
+      h("div", { className: "hint-card-text" }, steps[step] as string),
       h(
         "div",
         { className: "hint-card-actions" },

@@ -21,6 +21,28 @@ function openPanelInset(): number {
   return panel ? Math.round(panel.getBoundingClientRect().width) : 0;
 }
 
+/** Lays the container out over the map area left of whatever panel is open *now*: a toast raised before a
+ * panel opened (or kept alive while one closes) must still never cover its header (Bug 4). */
+function syncInset(toastRoot: HTMLElement): void {
+  const inset = openPanelInset();
+  toastRoot.style.setProperty("--toast-right-inset", `${inset}px`);
+  // With a panel open the map area is narrow: also keep clear of the tool column on the left.
+  toastRoot.style.setProperty("--toast-left-inset", inset > 0 ? `${TOOL_COLUMN_PX}px` : "0px");
+}
+
+let insetTimer: number | null = null;
+
+function watchInset(toastRoot: HTMLElement): void {
+  if (insetTimer !== null) return;
+  insetTimer = window.setInterval(() => {
+    syncInset(toastRoot);
+    if (toastRoot.childElementCount === 0 || !toastRoot.isConnected) {
+      if (insetTimer !== null) window.clearInterval(insetTimer);
+      insetTimer = null;
+    }
+  }, 100);
+}
+
 /** `onTap` makes the toast a button (news that is about a place: tap to look at it). */
 export function showToast(
   container: HTMLElement,
@@ -29,10 +51,8 @@ export function showToast(
   onTap?: () => void,
 ): void {
   const toastRoot = ensureContainer(container);
-  const inset = openPanelInset();
-  toastRoot.style.setProperty("--toast-right-inset", `${inset}px`);
-  // With a panel open the map area is narrow: also keep clear of the tool column on the left.
-  toastRoot.style.setProperty("--toast-left-inset", inset > 0 ? `${TOOL_COLUMN_PX}px` : "0px");
+  syncInset(toastRoot);
+  watchInset(toastRoot);
   const el = h(
     "div",
     { className: `toast toast-${kind}${onTap ? " toast-tappable" : ""}` },
