@@ -1196,3 +1196,9 @@ Player report (Trieste – Venice – Ljubljana Crossing line, 1843):
    main + crossing + left branch).
 4. Carry-over: an upgrade card says "No town or city in range" while estimating "+$9k/yr" — make the range check and
    the estimate use the same catchment data and never contradict.
+
+**Phase 31 status**
+- [x] 1. Middle-stop unloading: root cause found and fixed (trains now call at ordered stations their route runs through); `tests/sim/trains/middleStop.test.ts` (player's 3-stop loop + property test over random 2–4 stop routes).
+- [x] 2. Train panel is view-only; "Add stop … Done" toggle (`e2e/phase31.spec.ts`).
+- [~] 3. Route-precise junction waits: not reproduced as a sim defect — see PROGRESS (tests added, no sim change).
+- [x] 4. Upgrade card hint and estimate share `cityInCatchment` (`tests/ui/upgradeHint.test.ts`).

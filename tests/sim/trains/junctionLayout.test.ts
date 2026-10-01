@@ -11,6 +11,7 @@ import {
 import { stepTrains } from "../../../src/sim/trains";
 import type { GameState } from "../../../src/sim/state";
 import { forceTrack, makeTestMap, makeTestState, tileAt } from "../track/helpers";
+import { bodyPoints } from "./crossingHelpers";
 import { vehicleOverlapsNow } from "./geometryHelpers";
 
 const N = 20;
@@ -77,5 +78,64 @@ describe("player's junction layout (Ljubljana)", () => {
       for (const o of vehicleOverlapsNow(state)) overlaps.push(`tick ${i}: ${o}`);
     }
     expect(overlaps.slice(0, 5)).toEqual([]);
+  });
+});
+
+describe("route-precise junction waits (Phase 31)", () => {
+  // d -> e train frozen (a breakdown) on the mid-tile crossing next to the branch junction at (5,5).
+  function waits(from: number, to: number): { waited: number; arrivedAt: number } {
+    const { state, stations } = playerWorld();
+    buyTrain(state, stations[3]!, "american-4-4-0", ["coal", "coal", "coal"]);
+    const blocker = state.trains[0]!;
+    setOrders(state, blocker.id, [
+      { stationId: stations[3]!, rule: "auto" },
+      { stationId: stations[4]!, rule: "auto" },
+    ]);
+    // Run until the blocker's loco is on the crossing point (the middle of the cell (7,7)-(8,8), i.e. (8, 8) in
+    // the helper's centre-based coordinates) and its head has passed it; then keep it broken down there.
+    let frozen = false;
+    const tile = (x: number, y: number): number => tileAt(state.map, x, y);
+    for (let i = 0; i < 4000 && !frozen; i++) {
+      stepTrains(state);
+      state.ticks++;
+      const head = bodyPoints(state, blocker)[0]!;
+      const passed =
+        blocker.route[blocker.routeIndex] === tile(7, 8) ||
+        (blocker.route[blocker.routeIndex] === tile(8, 7) &&
+          blocker.route[blocker.routeIndex + 1] === tile(7, 8) &&
+          blocker.edgeProgress > 0.6);
+      frozen = passed && Math.hypot(head[0] - 7.6, head[1] - 8.4) < 0.5;
+    }
+    expect(frozen).toBe(true);
+    buyTrain(state, stations[from]!, "american-4-4-0", ["coal", "coal"]);
+    const t = state.trains[1]!;
+    setOrders(state, t.id, [
+      { stationId: stations[from]!, rule: "auto" },
+      { stationId: stations[to]!, rule: "auto" },
+    ]);
+    let waited = 0;
+    let arrivedAt = -1;
+    for (let i = 0; i < 3000; i++) {
+      blocker.breakdownTicksLeft = 5000;
+      stepTrains(state);
+      state.ticks++;
+      if (t.crossingWait) waited++;
+      if (arrivedAt < 0 && t.status === "loading" && t.currentOrderIndex === 1) arrivedAt = i;
+    }
+    return { waited, arrivedAt };
+  }
+
+  it("a train that only turns off the main (a -> branch) is not held by a train stuck on the crossing", () => {
+    const turn = waits(0, 2);
+    expect(turn.waited).toBe(0);
+    expect(turn.arrivedAt).toBeGreaterThan(0);
+    const back = waits(2, 0);
+    expect(back.waited).toBe(0);
+    expect(back.arrivedAt).toBeGreaterThan(0);
+  });
+
+  it("a train that runs on over the crossing does wait for it", () => {
+    const straight = waits(0, 1);
+    expect(straight.arrivedAt).toBe(-1); // the frozen train never lets it through
   });
 });
