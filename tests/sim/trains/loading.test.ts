@@ -357,3 +357,35 @@ describe("stepLoading", () => {
     expect(ticks).toBeGreaterThan(24); // it did wait at least a day past the initial batch
   });
 });
+
+describe("Bug 1: 'fullLoad' keeps what it loaded", () => {
+  it("does not unload cargo at the station it was loaded at on extra wait days", () => {
+    const { state, a, b } = twoStationLine(10);
+    setAccepts(state, a.id, ["passengers"]);
+    setAccepts(state, b.id, ["passengers"]);
+    state.stationCargo.set(a.id, {
+      passengers: { amount: CARGO.passengers.capacity, waitingDays: 0 },
+    });
+    const bought = buyTrain(state, a.id, LOCO, ["passengers", "passengers", "passengers"]);
+    const train = state.trains[0];
+    if (!bought.ok || !train) throw new Error("setup failed");
+    setOrders(state, train.id, [
+      { stationId: a.id, rule: "fullLoad", maxWaitDays: 3 },
+      { stationId: b.id, rule: "auto" },
+    ]);
+    train.currentOrderIndex = 0;
+    let ticks = 0;
+    while (!stepLoading(state, train, a)) {
+      ticks++;
+      state.stationCargo.get(a.id)!.passengers = {
+        amount: CARGO.passengers.capacity,
+        waitingDays: 0,
+      };
+      if (ticks > 10_000) throw new Error("never departed");
+    }
+    // The cars hold what was loaded; nothing was "delivered" back to the origin.
+    const total = train.cars.reduce((n, c) => n + c.loadedUnits, 0);
+    expect(total).toBe(3 * CARGO.passengers.capacity);
+    expect(state.pendingDeliveries).toHaveLength(0);
+  });
+});

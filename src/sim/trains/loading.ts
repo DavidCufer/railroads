@@ -106,8 +106,12 @@ function planLoadUnload(
   const pile = state.stationCargo.get(station.id);
   const warehouse = hasImprovement(station, "warehouse");
 
+  // Bug 1 (PLAYTEST-2): "Wait for full load" re-plans on every extra wait day. Cars are only
+  // unloaded on the first pass of a stop, and never at the station they were loaded at.
+  const firstPass = train.loadExtraWaitDays === 0;
   train.cars.forEach((car, i) => {
-    if (car.loadedUnits <= 0) return;
+    if (car.loadedUnits <= 0 || !firstPass) return;
+    if (car.loadedTile === station.tile) return;
     const demanded = accepts(state, station.id, car.cargoType);
     // Warehouse hub (PLAN Phase 18 C): a car goes into transfer stock when the stop is set to
     // "transfer", or when nothing here demands the cargo and no later stop of this train does
