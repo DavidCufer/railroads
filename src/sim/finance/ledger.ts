@@ -126,6 +126,8 @@ export function monthlyFinanceStep(state: GameState): void {
     state.cash -= interest;
   }
 
+  accrueIncomeTax(state);
+
   if (diff.bankruptcy) {
     if (state.cash < 0) {
       const limit = computeCreditLimit(state);
@@ -163,23 +165,45 @@ export function monthlyFinanceStep(state: GameState): void {
   state.finance.thisMonth = emptyLedgerPeriod();
 }
 
-/** Corporate income tax on the year that has just ended (Economic model v2): the rate of that year on the
- * operating profit after interest, less losses carried forward. Booked into the closing year's ledger. */
-function chargeIncomeTax(state: GameState, taxYear: number): void {
-  const period = state.finance.thisYear;
-  const profit = ledgerOperatingProfit(period);
-  const carry = state.finance.taxLossCarry ?? 0;
-  if (profit <= 0) {
-    state.finance.taxLossCarry = carry - profit;
-    return;
-  }
-  const taxable = Math.max(0, profit - carry);
-  state.finance.taxLossCarry = Math.max(0, carry - profit);
+/** The year's income tax on `profit` so far: the rate of `taxYear` on the operating profit after interest, less the
+ * losses carried forward (Economic model v2). */
+function incomeTaxOn(state: GameState, taxYear: number, profit: number): number {
+  if (profit <= 0) return 0;
+  const taxable = Math.max(0, profit - (state.finance.taxLossCarry ?? 0));
   const diff = DIFFICULTY[state.difficulty];
-  const tax = taxable * incomeTaxRate(taxYear + diff.taxYearShift) * diff.taxMult;
-  if (tax <= 0) return;
-  addExpense(state, "incomeTax", tax);
-  state.cash -= tax;
+  return taxable * incomeTaxRate(taxYear + diff.taxYearShift) * diff.taxMult;
+}
+
+/** Provisional income tax (Phase 30B, Playtest 2: "no year-end surprise"): every month-end sets aside the tax due on
+ * the year's operating profit so far, less what was already paid this year, as its own ledger line. The year-end
+ * rollover trues it up, so a year's total is exactly what the old single year-end charge was. */
+function accrueIncomeTax(state: GameState): void {
+  const taxYear = calendarFromTicks(state.startYear, Math.max(0, state.ticks - 1)).year;
+  const target = incomeTaxOn(state, taxYear, ledgerOperatingProfit(state.finance.thisYear));
+  const due = target - (state.finance.taxPaidThisYear ?? 0);
+  if (due <= 0) return;
+  state.finance.taxPaidThisYear = (state.finance.taxPaidThisYear ?? 0) + due;
+  addExpense(state, "incomeTax", due);
+  state.cash -= due;
+}
+
+/** Settles income tax for the year that has just ended against what the months already set aside: the rest is
+ * charged, an overpayment (a bad second half) is refunded into the closing year's ledger line. */
+function chargeIncomeTax(state: GameState, taxYear: number): void {
+  const profit = ledgerOperatingProfit(state.finance.thisYear);
+  const carry = state.finance.taxLossCarry ?? 0;
+  const target = incomeTaxOn(state, taxYear, profit);
+  // Losses build up the carry; a profitable year uses it up.
+  state.finance.taxLossCarry = profit <= 0 ? carry - profit : Math.max(0, carry - profit);
+  const due = target - (state.finance.taxPaidThisYear ?? 0);
+  state.finance.taxPaidThisYear = 0;
+  if (due > 0) {
+    addExpense(state, "incomeTax", due);
+    state.cash -= due;
+  } else if (due < 0) {
+    state.finance.thisYear.incomeTax += due;
+    state.cash -= due;
+  }
 }
 
 /** Rolls `thisYear` into `lastYear` at the year boundary (SPEC §9.2's "per year"). */

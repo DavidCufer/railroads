@@ -8,6 +8,8 @@ import {
   type StationImprovementType,
   type StationType,
 } from "../data/stations";
+import { KM_PER_TILE } from "../data/scale";
+import { WATER_TOWER_RANGE_TILES } from "../data/trains";
 import { cardList, cardRow } from "./components/cardRow";
 import { section } from "./components/section";
 import { tabs } from "./components/tabs";
@@ -32,7 +34,7 @@ const IMPROVEMENT_ICONS: Record<StationImprovementType, IconName> = {
   livestockPens: "pens",
 };
 
-type HelpTab = "upgrades" | "money";
+type HelpTab = "upgrades" | "money" | "lines" | "upkeep";
 
 function upgradesBody(): Node[] {
   return [
@@ -92,6 +94,26 @@ function moneyBody(): Node[] {
   ];
 }
 
+function iconLines(
+  title: string,
+  lines: ReadonlyArray<{ icon: string; text: string | ((km: number) => string) }>,
+): Node[] {
+  const waterKm = Math.round(WATER_TOWER_RANGE_TILES * KM_PER_TILE);
+  return [
+    section(title, [
+      cardList(
+        ...lines.map((line) =>
+          cardRow({
+            className: "help-row help-money-row",
+            thumb: icon(line.icon as IconName, "icon-sm tone-brass"),
+            title: typeof line.text === "function" ? line.text(waterKm) : line.text,
+          }),
+        ),
+      ),
+    ]),
+  ];
+}
+
 export function openHelpPanel(container: HTMLElement, initial: HelpTab = "upgrades"): void {
   const render = (tab: HelpTab): void => {
     openPanel(container, {
@@ -101,11 +123,20 @@ export function openHelpPanel(container: HTMLElement, initial: HelpTab = "upgrad
         [
           { id: "upgrades" as const, label: strings.help.tabs.upgrades, icon: "station" },
           { id: "money" as const, label: strings.help.tabs.money, icon: "coin" },
+          { id: "lines" as const, label: strings.help.tabs.lines, icon: "trains" },
+          { id: "upkeep" as const, label: strings.help.tabs.upkeep, icon: "wrench" },
         ],
         tab,
         render,
       ),
-      body: tab === "upgrades" ? upgradesBody() : moneyBody(),
+      body:
+        tab === "upgrades"
+          ? upgradesBody()
+          : tab === "money"
+            ? moneyBody()
+            : tab === "lines"
+              ? iconLines(strings.helpMore.linesTitle, strings.helpMore.lines)
+              : iconLines(strings.helpMore.upkeepTitle, strings.helpMore.upkeep),
       key: `help:${tab}`,
     });
   };

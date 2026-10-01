@@ -1,4 +1,6 @@
 /** Info-mode panels: tap a city or industry to see its basic info (SPEC §10.2, PLAN Phase 3). */
+import { KM_PER_TILE } from "../data/scale";
+import { formatDistance, loadSettings } from "./settings";
 import { CARGO, type CargoType } from "../data/cargo";
 import { INDUSTRIES, producersOf } from "../data/industries";
 import { nearestOf } from "../sim/economy/chains";
@@ -346,7 +348,7 @@ function nearestSourceRows(
     const types = producersOf(cargo).filter((t) => INDUSTRIES[t].era <= ctx.startYear);
     const near = nearestOf(ctx.industries, types, industry);
     const meta = near
-      ? strings.industry.tilesAway(Math.round(near.distance))
+      ? formatDistance(near.distance * KM_PER_TILE, loadSettings().units)
       : strings.industry.noSourceNearby;
     const title = near ? INDUSTRIES[near.industry.type].name : CARGO[cargo].name;
     return cardRow({

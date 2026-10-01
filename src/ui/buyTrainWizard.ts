@@ -10,7 +10,9 @@ import {
   type LocomotiveDef,
   type LocomotiveType,
 } from "../data/trains";
-import { buyTrain, computeBuyTrainPlan, setOrders } from "../sim/commands";
+import { LOAN_INCREMENT } from "../data/finance";
+import { KM_PER_TILE } from "../data/scale";
+import { buyTrain, computeBuyTrainPlan, creditLimit, setOrders, takeLoan } from "../sim/commands";
 import type { GameState } from "../sim/state";
 import { calendarFromTicks } from "../sim/time";
 import type { TrainOrder } from "../sim/trains/types";
@@ -23,8 +25,10 @@ import { flashLast, h } from "./h";
 import { icon, type IconName } from "./icons";
 import { bestOf, engineStats } from "./locoStats";
 import { closePanel, openPanel } from "./panel";
-import { nextRule, RULE_ICONS } from "./routeTimeline";
+import { openRulePicker } from "./rulePicker";
+import { RULE_ICONS } from "./routeTimeline";
 import { openSheet, type SheetHandle } from "./sheet";
+import { formatDistance, loadSettings } from "./settings";
 import { playSound } from "./sound";
 import { strings } from "./strings";
 import { showToast } from "./toast";
@@ -78,6 +82,45 @@ export function openBuyTrainPanel(
     state.stations.find((s) => s.id === id)?.name ?? strings.fallback.station;
   const priceOf = (loco: LocomotiveDef): number => computeBuyTrainPlan(state, loco.id, []).cost;
   const isLocked = (loco: LocomotiveDef): boolean => loco.type === "electric" && !electrifiedHere;
+
+  /** Cash against the price, with the way out when short (Playtest 2, Bug 5): "Borrow $X" takes the smallest loan
+   * that covers it. Refreshed with `update(price)` as the selection changes. */
+  function cashStrip(onBorrowed: () => void): { el: HTMLElement; update: (price: number) => void } {
+    const el = h("div", { className: "cash-strip", "data-testid": "cash-strip" });
+    function update(price: number): void {
+      const short = price - state.cash;
+      el.classList.toggle("short", short > 0);
+      const parts: Node[] = [
+        icon("coin", "icon-sm"),
+        h("span", { className: "cash-strip-cash tabular" }, `${w.cash} ${formatMoney(state.cash)}`),
+      ];
+      if (short > 0) {
+        const need = Math.ceil(short / LOAN_INCREMENT) * LOAN_INCREMENT;
+        const room = creditLimit(state) - state.finance.loans;
+        parts.push(
+          h("span", { className: "cash-strip-short tabular" }, w.short(formatMoney(short))),
+          room >= need
+            ? h(
+                "button",
+                {
+                  className: "cash-strip-borrow",
+                  "data-testid": "borrow-shortcut",
+                  onClick: () => {
+                    const r = takeLoan(state, need);
+                    if (!r.ok) showToast(container, strings.build.reasons[r.reason], "warn");
+                    onBorrowed();
+                  },
+                },
+                icon("arrowUp", "icon-xs"),
+                w.borrow(formatMoney(need)),
+              )
+            : h("span", { className: "cash-strip-maxed" }, w.creditMaxed),
+        );
+      }
+      el.replaceChildren(...parts);
+    }
+    return { el, update };
+  }
 
   function stopPicking(): void {
     if (!picking) return;
@@ -165,6 +208,7 @@ export function openBuyTrainPanel(
     const heroEl = h("div", { className: "eng-hero" });
     const nextBtn = footerButton({ label: w.next, icon: "arrowRight", kind: "primary" });
     nextBtn.classList.add("wizard-next");
+    const cash = cashStrip(showEngineStep);
 
     const types = FILTER_ORDER.filter((ty) => available.some((l) => l.type === ty));
 
@@ -215,6 +259,9 @@ export function openBuyTrainPanel(
               glyph,
               isNew ? h("span", { className: "new-chip" }, t.newBadge) : null,
               locked ? icon("lock", "icon-xs tone-signal") : null,
+              priceOf(loco) > state.cash
+                ? h("span", { className: "cant-chip" }, w.cantAfford)
+                : null,
             ),
             trailing: formatMoney(priceOf(loco)),
             onClick: () => {
@@ -233,8 +280,10 @@ export function openBuyTrainPanel(
       if (!loco) {
         heroEl.replaceChildren(emptyState(w.chooseEngine, "trains"));
         nextBtn.disabled = true;
+        cash.update(0);
         return;
       }
+      cash.update(priceOf(loco));
       const glyph = wheelGlyphEl(loco);
       heroEl.replaceChildren(
         heroPlate(loco, 96),
@@ -296,6 +345,7 @@ export function openBuyTrainPanel(
       ],
       [
         footerButton({ label: strings.ui.close, kind: "secondary", onClick: () => sheet?.close() }),
+        cash.el,
         nextBtn,
       ],
     );
@@ -308,6 +358,7 @@ export function openBuyTrainPanel(
   function showCarsStep(): void {
     const nextBtn = footerButton({ label: w.next, icon: "arrowRight", kind: "primary" });
     nextBtn.classList.add("wizard-next");
+    const cash = cashStrip(showCarsStep);
     const builder = consistBuilder({
       getLoco: () => selected,
       year,
@@ -326,6 +377,7 @@ export function openBuyTrainPanel(
       const label = nextBtn.lastElementChild;
       if (label) label.textContent = `${w.next} · ${formatMoney(plan.cost)}`;
       nextBtn.disabled = !plan.valid;
+      cash.update(plan.cost);
     }
     nextBtn.addEventListener("click", showRouteStep);
     updateNext();
@@ -339,6 +391,7 @@ export function openBuyTrainPanel(
           kind: "secondary",
           onClick: showEngineStep,
         }),
+        cash.el,
         nextBtn,
       ],
     );
@@ -387,10 +440,15 @@ export function openBuyTrainPanel(
             title: t.ruleHint[o.rule],
             "aria-label": `${p.changeRule}: ${t.loadingRules[o.rule]}`,
             "data-testid": "rule-chip",
-            onClick: () => {
-              o.rule = nextRule(o.rule);
-              render();
-            },
+            onClick: () =>
+              openRulePicker(
+                o.rule,
+                (rule) => {
+                  o.rule = rule;
+                  render();
+                },
+                stationLabel(o.stationId),
+              ),
           },
           icon(RULE_ICONS[o.rule], "icon-xs"),
           h("span", null, t.loadingRules[o.rule]),
@@ -445,7 +503,11 @@ export function openBuyTrainPanel(
                     },
                   },
                   h("span", { className: "rs-name" }, s.name),
-                  h("span", { className: "rs-dist" }, w.tilesAway(d)),
+                  h(
+                    "span",
+                    { className: "rs-dist" },
+                    formatDistance(d * KM_PER_TILE, loadSettings().units),
+                  ),
                 ),
               )),
         );
@@ -463,6 +525,12 @@ export function openBuyTrainPanel(
       });
       fill();
       return [h("div", { className: "rs-search-row" }, backButton(), search), rowsHost];
+    }
+
+    function shortStrip(price: number): HTMLElement {
+      const strip = cashStrip(render);
+      strip.update(price);
+      return strip.el;
     }
 
     function mainBody(): Node[] {
@@ -524,6 +592,7 @@ export function openBuyTrainPanel(
             "div",
             { className: "rs-right" },
             h("div", { className: "rs-add-row" }, pickBtn, listBtn),
+            ...(plan.cost > state.cash ? [shortStrip(plan.cost)] : []),
             h("div", { className: "rs-buy-row" }, backButton(), buyBtn),
           ),
         ),

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import "./gameWindow";
+import { lineWithTrain } from "./p30bHelpers";
 
 /** Phase 30B: visibility & UX (play-test 2). */
 test.use({ deviceScaleFactor: 2 });
@@ -72,5 +73,55 @@ test.describe("Phase 30B", () => {
     expect(years.length).toBeGreaterThan(0);
     for (const y of years) expect(y).toMatch(/18[6-9]\d|19\d\d/);
     await page.screenshot({ path: shot("new-engines-years") });
+  });
+
+  test("buy wizard: cash vs price from step 1, Borrow shortcut, km distances, rule picker", async ({
+    page,
+  }) => {
+    const { a, b } = await lineWithTrain(page);
+    await page.evaluate(() => window.__game!.debugSetCash(90_000));
+    await page.evaluate((id) => window.__game!.debugOpenStation(id), a);
+    await page.locator(".station-buy-train-btn").click();
+    const strip = page.locator('[data-testid="cash-strip"]');
+    await expect(strip).toContainText("Cash $90");
+    await expect(strip).toContainText("Short");
+    await expect(page.locator(".cant-chip").first()).toBeVisible();
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: shot("wizard-step1-short") });
+    await page.locator('[data-testid="borrow-shortcut"]').click();
+    const cash = await page.evaluate(() => window.__game!.getCash());
+    expect(cash).toBeGreaterThanOrEqual(190_000);
+    await expect(strip).toContainText("Cash $190");
+    await page.evaluate(() => window.__game!.debugSetCash(50_000_000));
+    await page.locator(".wizard-next").click();
+    await page.locator(".train-car-add-btn", { hasText: "Passengers" }).click();
+    await page.locator(".wizard-next").click();
+    await page.locator(".rs-list-btn").click();
+    await expect(page.locator(".rs-dist").first()).toContainText("km");
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: shot("route-list-km") });
+    await page.locator('[data-testid="rs-station"]').first().click();
+    await page.locator('[data-testid="rule-chip"]').first().click();
+    await expect(page.locator(".rule-picker")).toBeVisible();
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: shot("rule-picker") });
+    await page.locator('[data-testid="rule-option-fullLoad"]').click();
+    await expect(page.locator('[data-testid="rule-chip"]').first()).toContainText("Full load");
+    void b;
+  });
+
+  test("Help has pages on running a line and on upkeep", async ({ page }) => {
+    await start(page);
+    await page.locator("[aria-label='Menu']").first().click();
+    await page.locator('[data-testid="menu-help"]').click();
+    await page.locator('[data-tab="lines"]').click();
+    await expect(page.getByText(/passing loop is a short double section/)).toBeVisible();
+    await expect(page.getByText(/Water Tower/)).toContainText("km");
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: shot("help-lines") });
+    await page.locator('[data-tab="upkeep"]').click();
+    await expect(page.getByText(/Track wears with tonnage/)).toBeVisible();
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: shot("help-upkeep") });
   });
 });

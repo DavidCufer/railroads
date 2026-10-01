@@ -1,11 +1,12 @@
 /**
  * Route timeline (STYLE §11.2): stops as dots on a vertical line, a small loco marker where the
- * train is (at a stop, or on the way to one), each stop with a loading-rule chip (tap to cycle),
+ * train is (at a stop, or on the way to one), each stop with a loading-rule chip (tap to pick),
  * and reorder / remove buttons. Used by the buy wizard's route step and the train panel.
  */
 import type { LoadingRule } from "../sim/trains/types";
 import { h } from "./h";
 import { icon, type IconName } from "./icons";
+import { openRulePicker } from "./rulePicker";
 import { strings } from "./strings";
 
 export const LOADING_RULES: readonly LoadingRule[] = [
@@ -24,6 +25,7 @@ export const RULE_ICONS: Record<LoadingRule, IconName> = {
   transfer: "warehouse",
 };
 
+/** The rule after `rule` in the fixed order (kept for callers that still want a quick toggle). */
 export function nextRule(rule: LoadingRule): LoadingRule {
   const idx = LOADING_RULES.indexOf(rule);
   return LOADING_RULES[(idx + 1) % LOADING_RULES.length] as LoadingRule;
@@ -62,7 +64,8 @@ function ruleChip(stop: TimelineStop, index: number, options: RouteTimelineOptio
           title,
           "aria-label": `${strings.trains.panel.changeRule}: ${label}`,
           "data-testid": "rule-chip",
-          onClick: () => options.onRule?.(index, nextRule(stop.rule)),
+          onClick: () =>
+            openRulePicker(stop.rule, (rule) => options.onRule?.(index, rule), stop.name),
         },
         ...inner,
       )

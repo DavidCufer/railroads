@@ -89,7 +89,6 @@ export const strings = {
     recipeMakes: (outputs: string, inputs: string) => `Makes ${outputs} from ${inputs}`,
     recipeNeeds: (inputs: string) => `Needs ${inputs}`,
     recipeProduces: (outputs: string) => `Produces ${outputs}`,
-    tilesAway: (n: number) => `${n} ${n === 1 ? "tile" : "tiles"}`,
     noSourceNearby: "None on the map yet",
     showOnMap: "Show on map",
   },
@@ -349,7 +348,11 @@ export const strings = {
       addFromListTitle: "Add a stop",
       searchStations: "Search stations",
       noStationsFound: "No station matches",
-      tilesAway: (n: number) => `${n} tiles`,
+      cash: "Cash",
+      short: (amount: string) => `Short ${amount}`,
+      borrow: (amount: string) => `Borrow ${amount}`,
+      creditMaxed: "Credit limit reached",
+      cantAfford: "Can't afford",
       longerRoutesHint:
         "Longer routes pay more per trip and load less often, so a fast engine earns more on them.",
       longerRoutesHintSlow:
@@ -405,6 +408,7 @@ export const strings = {
       reliability: "Reliability",
       stopsNeeded: "A train needs at least two stops",
     },
+    rulePickerTitle: "Loading at this stop",
     ruleHint: {
       auto: "Load what is waiting, then go",
       fullLoad: "Wait until every car is full",
@@ -508,7 +512,7 @@ export const strings = {
     trackWear: "Track wear",
     stationMaintenance: "Stations & staff",
     propertyTax: "Property tax",
-    incomeTax: "Income tax",
+    incomeTax: "Income tax (provisional)",
     breakdownRepairs: "Repairs",
     /** Economic model v2: what each cost line is (shown on hover / in Help). */
     costNotes: {
@@ -521,7 +525,7 @@ export const strings = {
       stationMaintenance: "Building upkeep plus the station staff's wages",
       propertyTax: "Local tax on the book value of your track, stations and improvements",
       incomeTax:
-        "Corporate tax on the year's operating profit (from the 1910s; losses carry forward)",
+        "Corporate tax on the year's operating profit (from the 1910s; losses carry forward). Set aside every month and settled at the year's end",
       breakdownRepairs:
         "Repair crews' wages for the distance driven from the nearest Engine Shed, plus parts",
     },
@@ -553,7 +557,7 @@ export const strings = {
   help: {
     menuEntry: "Help",
     title: "Help",
-    tabs: { upgrades: "Station upgrades", money: "How money works" },
+    tabs: { upgrades: "Stations", money: "Money", lines: "Lines", upkeep: "Upkeep" },
     upgrades: {
       typesTitle: "Station size",
       typesIntro: "Bigger stations reach further and handle more trains.",
@@ -601,6 +605,73 @@ export const strings = {
         },
       ],
     },
+  },
+  /** Help pages added in Phase 30B (Playtest 2: "the Help says nothing about waiting piles, single track, ...").
+   * Wording for the 30A mechanisms follows their PLAN/SPEC descriptions. */
+  helpMore: {
+    linesTitle: "Running a line",
+    upkeepTitle: "Upkeep and capital",
+    lines: [
+      {
+        icon: "town",
+        text: "Waiting passengers and mail are people: the longer they wait, the more give up and go by road or stay home. Frequent trains keep them. A station's panel shows how many it turned away and the fares lost.",
+      },
+      {
+        icon: "trains",
+        text: "Frequency pays: more trains on a busy pair mean shorter waits and more fares — until the line is full. Warehouses store freight only; they do not make passengers wait longer.",
+      },
+      {
+        icon: "track",
+        text: "On single track trains can only pass at stations. Several trains on one line end up waiting for each other, and income can fall as you add trains.",
+      },
+      {
+        icon: "swap",
+        text: "A passing loop is a short double section on single track where two trains can meet. It is cheap, and spaced departures let three or four trains share one line.",
+      },
+      {
+        icon: "doubleTrack",
+        text: "Double track lets trains run both ways at once: the fix for a busy line. Build it on the stretch where trains queue.",
+      },
+      {
+        icon: "waterTower",
+        text: (km: number): string =>
+          `A steam locomotive needs water. Run more than about ${km} km without a Water Tower and it loses 20% of its speed. Put a tower at a station on long lines.`,
+      },
+      {
+        icon: "cargo",
+        text: "“Wait for full load” holds a train until every car is full. It suits freight at a mine; on a passenger line it can leave the track idle.",
+      },
+      {
+        icon: "warning",
+        text: "Wooden bridges wash out now and then, and a heavy engine cannot cross one. A washed-out bridge cuts the line, with a marker on the map, until you rebuild it in wood, stone or steel.",
+      },
+    ],
+    upkeep: [
+      {
+        icon: "wrench",
+        text: "Track wears with tonnage and speed. Worn track gets slow orders until you relay it for a cost per tile. Light early traffic barely wears; heavy, fast late traffic needs relaying every couple of decades.",
+      },
+      {
+        icon: "clock",
+        text: "Locomotives age: reliability drops and running cost rises. After 30 to 40 years retire an engine or overhaul it.",
+      },
+      {
+        icon: "city",
+        text: "Land costs money: track and stations cost more near big cities than in open country, and land gets dearer with the years. The build preview shows land as its own line.",
+      },
+      {
+        icon: "finance",
+        text: "Loans come in $100k steps from Finance. The more you owe against what the company is worth, the higher the interest rate; your credit limit follows your earnings.",
+      },
+      {
+        icon: "coin",
+        text: "Income tax is set aside every month as provisional tax, so there is no surprise at year end. Finance shows it as its own line.",
+      },
+      {
+        icon: "trendUp",
+        text: "Upgrade cards show an estimated gain per year at your current traffic. It is an estimate: check the station's Lines profit afterwards.",
+      },
+    ],
   },
   /** Wording used when a name lookup fails (a sold train, a bulldozed station, an empty map): text never
    * shows a bare "?" (PLAN Phase 27 D). */

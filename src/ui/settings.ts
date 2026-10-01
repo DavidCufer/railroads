@@ -61,3 +61,9 @@ export function formatSpeed(kmh: number, units: Units): string {
   if (units === "mph") return `${Math.round(kmh * 0.621371)} mph`;
   return `${Math.round(kmh)} km/h`;
 }
+
+/** km -> the unit the player picked (distances in the UI are never in tiles). */
+export function formatDistance(km: number, units: Units): string {
+  if (units === "mph") return `${Math.round(km * 0.621371)} mi`;
+  return `${Math.round(km)} km`;
+}

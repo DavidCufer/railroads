@@ -139,9 +139,10 @@ test.describe("Phase 22 — train screens", () => {
     await noHorizontalOverflow(page, ".panel");
     await shot(page, "train-panel");
 
-    // Tap a stop's rule chip: it cycles Auto → Full load, keeping the train's progress.
+    // Tap a stop's rule chip and pick Full load from the picker (Phase 30B: no tap-to-cycle), keeping the train's progress.
     const before = await page.evaluate(() => window.__game!.getTrains()[0]!.status);
     await page.locator('[data-testid="rule-chip"]').first().click();
+    await page.locator('[data-testid="rule-option-fullLoad"]').click();
     await expect(page.locator('[data-testid="rule-chip"]').first()).toContainText("Full load");
     const after = await page.evaluate(() => window.__game!.getTrains()[0]!.status);
     expect(after).toBe(before);

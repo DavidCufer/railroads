@@ -25,6 +25,8 @@ export interface FinanceState {
   /** Operating losses from earlier years not yet set against profit for income tax (Economic model v2); absent
    * in older saves. */
   taxLossCarry?: number;
+  /** Provisional income tax already set aside this year (Phase 30B); absent in older saves (= 0). */
+  taxPaidThisYear?: number;
   /** Consecutive month-ends closed with cash < 0 and no credit left (SPEC §9.4). */
   negativeCashMonths: number;
   bankrupt: boolean;

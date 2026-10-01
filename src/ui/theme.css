@@ -4340,3 +4340,106 @@ select {
   width: 9px;
   height: 9px;
 }
+
+/* ---------- loading-rule picker (Phase 30B) ---------- */
+.rule-picker-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 14, 20, 0.5);
+}
+.rule-picker {
+  width: min(360px, calc(100vw - 32px));
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  background: var(--ink-800);
+  border: 1px solid var(--ink-600);
+  border-radius: var(--radius-l);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rule-picker-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 6px 4px;
+}
+.rule-picker-stop {
+  color: var(--muted);
+  font: var(--fs-xs) var(--font-ui);
+}
+.rule-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-m);
+  background: var(--ink-750);
+  color: var(--text);
+  text-align: left;
+}
+.rule-picker-row.active {
+  background: var(--brass-soft);
+  border-color: var(--brass);
+}
+.rule-picker-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.rule-picker-text b {
+  font: 600 var(--fs-s) var(--font-ui);
+}
+.rule-picker-text span {
+  color: var(--muted);
+  font: var(--fs-2xs) var(--font-ui);
+}
+
+/* ---------- buy wizard: cash vs price (Phase 30B) ---------- */
+.cash-strip {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  color: var(--paper-dim);
+  font: 600 var(--fs-s) var(--font-ui);
+}
+.cash-strip .icon-sm {
+  color: var(--brass);
+}
+.cash-strip.short .cash-strip-short,
+.cash-strip-maxed {
+  color: var(--signal);
+}
+.cash-strip-borrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--brass);
+  background: var(--brass-soft);
+  color: var(--text);
+  font: 600 var(--fs-xs) var(--font-ui);
+}
+.cant-chip {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--signal-soft);
+  color: var(--signal);
+  font: 600 var(--fs-2xs) var(--font-ui);
+}
+.eng-card .cant-chip + * {
+  margin-left: 0;
+}
