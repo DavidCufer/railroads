@@ -98,6 +98,7 @@ import {
   stationRefund,
   stationRemovalBlocker,
   takeLoan,
+  relayTrack,
   upgradeTrack,
   type BuildPlan,
   type BulldozePlan,
@@ -112,6 +113,7 @@ import { spanTilesBetween, validBridgeTypes } from "./sim/track/cost";
 import { findStationBends } from "./sim/track/layout";
 import { canPlaceStationAt, stationAtTile, stationCatchmentTiles } from "./sim/stations";
 import type { StationFlow } from "./sim/stations/flow";
+import { wornEdges } from "./sim/track/condition";
 import { terrainId } from "./sim/map/terrain";
 import { inBounds, tileIndex } from "./sim/map/grid";
 import { calendarFromTicks, isMonthBoundary, isYearBoundary } from "./sim/time";
@@ -1382,6 +1384,10 @@ function main(): void {
             stationId: number,
           ) => Partial<Record<string, { amount: number; waitingDays: number }>> | null;
           getFinance: () => GameState["finance"];
+          /** Phase 30A: relays worn track (along `path`, or everywhere it is worn). */
+          relayTrack: (path?: number[]) => { ok: boolean; reason?: string; cost?: number };
+          /** Phase 30A: worn edges (ratio of rail life used, relay cost), worst first. */
+          getWornTrack: () => Array<{ a: number; b: number; ratio: number; cost: number }>;
           /** Phase 30A: revenue loaded here and passengers / mail turned away (units and est. fares) per period. */
           getStationFlow: (stationId: number) => StationFlow | null;
           takeLoan: (amount: number) => { ok: boolean; reason?: string };
@@ -1638,6 +1644,17 @@ function main(): void {
       },
       getFinance: () => state.finance,
       getStationFlow: (stationId) => state.stationFlow.get(stationId) ?? null,
+      relayTrack: (path) => {
+        const result = relayTrack(state, path);
+        return result.ok ? { ok: true, cost: result.cost } : { ok: false, reason: result.reason };
+      },
+      getWornTrack: () =>
+        wornEdges(state, 0).map((w) => ({
+          a: w.edge.a,
+          b: w.edge.b,
+          ratio: w.ratio,
+          cost: w.cost,
+        })),
       takeLoan: (amount) => {
         const result = takeLoan(state, amount);
         return result.ok ? { ok: true } : { ok: false, reason: result.reason };

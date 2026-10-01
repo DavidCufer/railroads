@@ -50,6 +50,7 @@ import { blockIdForEdge, type Block, type BlockPartition } from "./blocks";
 import { trainBodyLength, updateCrossing } from "./crossing";
 import { applyPendingConsist, stepLoading } from "./loading";
 import { wearUnitsPerTile } from "../finance/costs";
+import { addEdgeWear, edgeWearRatio, slowOrderMult } from "../track/condition";
 import { findTrainRoute } from "./route";
 import type { HeldBlock, Train, TrainOrder, TrainStatus } from "./types";
 import type { TrackEdge } from "../track/types";
@@ -683,7 +684,10 @@ export function computeTargetSpeed(
     loco.type === "steam" && train.tilesSinceWaterTower > WATER_TOWER_RANGE_TILES
       ? 1 - WATER_TOWER_SPEED_PENALTY
       : 1;
-  return loco.maxSpeedKmh * speedFactor * curve * conditionFactor;
+  // Slow orders on worn track (Phase 30A).
+  const edge = state.trackGraph.getEdge(a, b);
+  const slowOrder = edge ? slowOrderMult(edgeWearRatio(state, edge)) : 1;
+  return loco.maxSpeedKmh * speedFactor * curve * conditionFactor * slowOrder;
 }
 
 /** Handles a train stalled at a boundary (`waitingForBlock`/`waitingForStation`): the
@@ -1029,9 +1033,15 @@ export function stepTrain(state: GameState, train: Train, runtime: TrainRuntime)
   const moved = train.distanceTraveled - odometer;
   if (moved > 0) {
     const loco = locomotiveById(train.locoModelId);
-    if (loco)
-      train.wearUnits =
-        (train.wearUnits ?? 0) + moved * wearUnitsPerTile(loco, train.cars, train.speed);
+    if (loco) {
+      const perTile = wearUnitsPerTile(loco, train.cars, train.speed);
+      train.wearUnits = (train.wearUnits ?? 0) + moved * perTile;
+      // Phase 30A: the edge under the head wears too (track condition, src/sim/track/condition.ts).
+      const a = train.route[train.routeIndex];
+      const b = train.route[train.routeIndex + 1];
+      const edge = a !== undefined && b !== undefined ? state.trackGraph.getEdge(a, b) : undefined;
+      if (edge) addEdgeWear(edge, moved, perTile);
+    }
   }
 }
 

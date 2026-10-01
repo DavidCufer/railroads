@@ -22,6 +22,7 @@ import type { GameState } from "./state";
 import { calendarFromTicks, isDayBoundary, isMonthBoundary, isYearBoundary } from "./time";
 import { monthlyBreakdownStep } from "./trains/breakdown";
 import { yearlyWashoutStep } from "./track/washout";
+import { yearlyTrackConditionStep } from "./track/condition";
 import { stepTrains } from "./trains";
 import { dailyUndeliverableStep } from "./trains/undeliverable";
 
@@ -72,6 +73,7 @@ export function advanceOneHour(state: GameState): void {
       if (COMPETITION_NEWS_YEARS[mode] === year) pushNews(state, { kind: "competition", mode });
     }
     yearlyWashoutStep(state);
+    yearlyTrackConditionStep(state);
     yearlyStationFlowRollover(state);
     yearlyFinanceRollover(state);
     yearlyCargoDeliveredRollover(state);

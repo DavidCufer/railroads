@@ -34,7 +34,12 @@ import {
   wearCostPerUnit,
 } from "./costs";
 import { NET_WORTH_HISTORY_MAX_SAMPLES } from "./types";
-import { PROPERTY_TAX_RATE, incomeTaxRate, priceIndex } from "../../data/economy";
+import {
+  PROPERTY_TAX_RATE,
+  WEAR_ROUTINE_SHARE,
+  incomeTaxRate,
+  priceIndex,
+} from "../../data/economy";
 import { PASSING_LOOP_UPKEEP_MONTHLY } from "../../data/stations";
 
 type ExpenseCategory = Exclude<keyof LedgerPeriod, "passengers" | "mail" | "freight">;
@@ -108,7 +113,8 @@ export function monthlyFinanceStep(state: GameState): void {
     crewWages += wages;
     recordTrainRunning(train, running);
     recordTrainWages(train, wages);
-    const wear = (train.wearUnits ?? 0) * wearCostPerUnit(year);
+    // Only the routine share is paid monthly; the renewal share accumulates on the edges until they are relaid.
+    const wear = (train.wearUnits ?? 0) * wearCostPerUnit(year) * WEAR_ROUTINE_SHARE;
     train.wearUnits = 0;
     trackWear += wear;
     recordTrainWear(train, wear);

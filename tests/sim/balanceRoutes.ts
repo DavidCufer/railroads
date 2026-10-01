@@ -18,6 +18,9 @@ import {
   type LedgerPeriod,
 } from "../../src/data/finance";
 import { createRng } from "../../src/sim/rng";
+import { WEAR_ROUTINE_SHARE } from "../../src/data/economy";
+import { wearCostPerUnit } from "../../src/sim/finance/costs";
+import { calendarFromTicks } from "../../src/sim/time";
 import { advanceOneHour } from "../../src/sim/tick";
 import { makeTestMap, makeTestState, tileAt } from "./track/helpers";
 import type { City, Industry } from "../../src/sim/economy/types";
@@ -57,6 +60,12 @@ export interface RouteResult {
   price: number;
   /** The last completed year's ledger. */
   ledger: LedgerPeriod;
+}
+
+export function totalEdgeWear(state: GameState): number {
+  let total = 0;
+  for (const edge of state.trackGraph.allEdges()) total += edge.wear ?? 0;
+  return total;
 }
 
 export function tickDays(state: GameState, days: number): void {
@@ -146,17 +155,27 @@ export function buildRoute(spec: RouteSpec): { state: GameState; cars: number } 
 /** Runs `years` full years and returns the last completed year's ledger figures. */
 export function measureRoute(spec: RouteSpec, years = 3): RouteResult {
   const { state, cars } = buildRoute(spec);
-  for (let y = 0; y < years; y++) tickDays(state, 360);
+  let wearBefore = 0;
+  for (let y = 0; y < years; y++) {
+    if (y === years - 1) wearBefore = totalEdgeWear(state);
+    tickDays(state, 360);
+  }
   const last = state.finance.lastYear;
+  // Phase 30A: the renewal share of track wear is paid when the track is relaid, not monthly. The measure charges the
+  // year's renewal liability (wear accrued × its price) so that profit is comparable over a rail's whole life.
+  const renewalAccrued =
+    (totalEdgeWear(state) - wearBefore) *
+    (1 - WEAR_ROUTINE_SHARE) *
+    wearCostPerUnit(calendarFromTicks(state.startYear, state.ticks - 1).year);
   const km = spec.km;
   const def = CARGO[spec.cargo];
   return {
     revenue: ledgerRevenue(last),
-    profit: ledgerNetProfit(last),
+    profit: ledgerNetProfit(last) - renewalAccrued,
     cars,
     fullTripRevenue: cars * def.baseRate * (km / 100),
     price: state.trains[0]!.purchasePrice,
-    ledger: last,
+    ledger: { ...last, trackWear: last.trackWear + renewalAccrued },
   };
 }
 

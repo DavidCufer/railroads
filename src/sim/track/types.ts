@@ -16,4 +16,8 @@ export interface TrackEdge {
   /** Cost paid to build this edge as it currently stands (single, pre-upgrade) — used for the
    * bulldoze refund and to compute the upgrade-to-double delta. */
   cost: number;
+  /** Phase 30A: wear units accumulated since the track was laid or last relaid (all lanes together). Absent = 0. */
+  wear?: number;
+  /** Phase 30A: year the rail was laid or last relaid (decides how long it lasts). Absent in older saves = game start. */
+  laid?: number;
 }

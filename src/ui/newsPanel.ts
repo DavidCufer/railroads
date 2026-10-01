@@ -70,6 +70,8 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
       return strings.news.kinds.breakdown(trainName(state, item.trainId));
     case "washout":
       return strings.news.kinds.washout(nearestStationName(state, item.tile));
+    case "slowOrders":
+      return strings.news.kinds.slowOrders(item.edges, nearestStationName(state, item.tile));
     case "trafficJam": {
       const near = nearestStationName(state, item.tile);
       const jam = diagnoseJam(state, item.tile);
@@ -135,6 +137,7 @@ export function newsFocusTile(state: GameState, item: NewsItem): { x: number; y:
       return city ? { x: city.anchorX, y: city.anchorY } : null;
     }
     case "washout":
+    case "slowOrders":
     case "trafficJam":
       return { x: item.tile % width, y: Math.floor(item.tile / width) };
     default:
@@ -146,6 +149,7 @@ const NEWS_ICONS: Record<NewsItem["kind"], { icon: IconName; tone: Tone }> = {
   newLocomotive: { icon: "steam", tone: "brass" },
   breakdown: { icon: "wrench", tone: "signal" },
   washout: { icon: "water", tone: "signal" },
+  slowOrders: { icon: "warning", tone: "signal" },
   trafficJam: { icon: "warning", tone: "signal" },
   noRoute: { icon: "warning", tone: "signal" },
   undeliverable: { icon: "warning", tone: "signal" },

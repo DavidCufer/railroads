@@ -18,6 +18,7 @@ export type NewsPayload =
   | { kind: "newLocomotive"; locoId: string }
   | { kind: "breakdown"; trainId: number }
   | { kind: "washout"; tile: number }
+  | { kind: "slowOrders"; tile: number; edges: number }
   | { kind: "trafficJam"; tile: number; toStationId?: number | undefined }
   | { kind: "noRoute"; trainId: number; stationId: number }
   | { kind: "undeliverable"; trainId: number; cargo: CargoType; cars: number }
@@ -60,6 +61,8 @@ function newsKey(state: GameState, p: NewsPayload): string | null {
     }
     case "washout":
       return `${p.kind}:${nearestStationId(state, p.tile)}`;
+    case "slowOrders":
+      return "slowOrders";
     case "breakdown":
       return `breakdown:${p.trainId}`;
     case "noRoute":

@@ -32,6 +32,8 @@ import { applyCivicInvestmentGrowth, getOrCreateCityGrowth } from "./economy/cit
 import type { City } from "./economy/types";
 import { clearNews, pushNews } from "./news";
 import { directionIndex } from "./track/graph";
+import { edgeWearRatio, relayCost, relayEdge, wornEdges } from "./track/condition";
+import { RELAY_OFFER_RATIO } from "../data/economy";
 import { findLayoutViolations, type LayoutViolation } from "./track/layout";
 import { findSharpSteps } from "./track/turn";
 import {
@@ -77,6 +79,7 @@ export type CommandReasonCode =
   | "junctionsTooClose"
   | "cant-afford"
   | "no-track-to-upgrade"
+  | "no-track-to-relay"
   | "not-era-available"
   | "already-improved"
   | "nothing-to-bulldoze"
@@ -295,6 +298,7 @@ export function buildTrack(
       bridge: step.bridge,
       bridgeSpan: step.bridgeSpan,
       cost: step.cost,
+      laid: costContext(state).year,
     };
     state.trackGraph.addEdge(edge);
   }
@@ -341,6 +345,41 @@ export function upgradeTrack(state: GameState, path: readonly number[]): Command
   state.finance.capitalInvested += plan.cost;
   addExpense(state, "construction", plan.cost);
   if (plan.edges.length > 0) state.trackVersion++;
+  return { ok: true, cost: plan.cost };
+}
+
+export interface RelayPlan {
+  edges: TrackEdge[];
+  cost: number;
+  valid: boolean;
+}
+
+/** Prices relaying the worn track along `path` (every edge of the path at or above the offer threshold); with no
+ * path, all worn track on the map. Without mutating state. */
+export function computeRelayPlan(state: GameState, path?: readonly number[]): RelayPlan {
+  const edges: TrackEdge[] = [];
+  if (path) {
+    for (let i = 0; i + 1 < path.length; i++) {
+      const edge = state.trackGraph.getEdge(path[i] as number, path[i + 1] as number);
+      if (edge && edgeWearRatio(state, edge) >= RELAY_OFFER_RATIO) edges.push(edge);
+    }
+  } else {
+    for (const w of wornEdges(state)) edges.push(w.edge);
+  }
+  const cost = edges.reduce((sum, e) => sum + relayCost(state, e), 0);
+  return { edges, cost, valid: edges.length > 0 };
+}
+
+/** Relays worn track (Phase 30A): new rail and sleepers of the current year's quality, at the renewal share of the
+ * wear they took. Along `path`, or everywhere that needs it. The cost is track wear in the ledger. */
+export function relayTrack(state: GameState, path?: readonly number[]): CommandResult {
+  const plan = computeRelayPlan(state, path);
+  if (!plan.valid) return { ok: false, reason: "no-track-to-relay" };
+  if (plan.cost > state.cash) return { ok: false, reason: "cant-afford" };
+  const year = costContext(state).year;
+  for (const edge of plan.edges) relayEdge(edge, year);
+  state.cash -= plan.cost;
+  addExpense(state, "trackWear", plan.cost);
   return { ok: true, cost: plan.cost };
 }
 

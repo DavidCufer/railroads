@@ -301,3 +301,30 @@ export const ELECTRIC_WEAR_MULT = 0.8;
  * this share of one growth step — 0.25 means a step (+5 %) every four served months, about 1.25 %/month, so a
  * village of 1,000 passes 3,000 in about seven years of service. The boom ends when it has become a town. */
 export const FRONTIER_BOOM_STEP_SHARE = 0.25;
+
+// --- Track condition (Phase 30A, PLAYTEST-2 Top 10 #4) -----------------------------------------------------------
+
+/** Share of the track-wear bill that is paid as routine maintenance every month (tamping, oiling, replacing a
+ * broken sleeper). The rest is the *renewal* of rail and sleepers: it accumulates as wear on each edge and is paid
+ * when the player relays the track (`relayTrack`), so the same money is spent as before — only later, in lumps. */
+export const WEAR_ROUTINE_SHARE = 0.3;
+
+/** How many wear units per tile (see `wearUnitsPerTile`) a track can take before its rail and sleepers are used up,
+ * by the year they were laid. Wrought-iron rail wore out in years under heavy traffic; Bessemer steel rail (from
+ * the 1860s) lasted several times longer; heavy-section, welded rail after the First World War longer again. A line
+ * of 2 trains in 1840 hardly wears; one of 8 fast trains in 1910 wants relaying about every twenty years. */
+export const RAIL_LIFE_UNITS: ReadonlyArray<{ fromYear: number; life: number }> = [
+  { fromYear: 1800, life: 2_500 }, // wrought-iron rail
+  { fromYear: 1865, life: 10_000 }, // Bessemer steel arriving
+  { fromYear: 1885, life: 20_000 }, // steel rail, standard section
+  { fromYear: 1925, life: 30_000 }, // heavy section, welded joints
+];
+
+/** Wear ratio (units ÷ life) below which a track has no speed restriction, and the ratio at which the speed limit
+ * reaches its floor. Between them the restriction ("slow order") deepens linearly. */
+export const SLOW_ORDER_START_RATIO = 0.6;
+export const SLOW_ORDER_FLOOR_RATIO = 1.2;
+/** Slowest a worn track lets a train go, as a share of the train's speed (a 40 % slow order). */
+export const SLOW_ORDER_MIN_SPEED_MULT = 0.4;
+/** Track at or above this ratio is offered for relaying and counted in the yearly slow-order news. */
+export const RELAY_OFFER_RATIO = 0.25;
