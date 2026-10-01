@@ -1173,3 +1173,26 @@ Two parallel sessions: **30A** (sim/economy) and **30B** (UI/visibility + smalle
 - [x] Hints: first-hour hints mention loans and keeping money for the locomotive on Hard; 1830 start shows "early
       engines are weak — the Norris arrives 1838".
 - [x] Screenshots of each, open and check.
+
+## Phase 31 — Play-test 11: passengers not unloading at a middle stop, accidental stop adding, junction waits
+Player report (Trieste – Venice – Ljubljana Crossing line, 1843):
+1. **Passengers are not unloaded at Venice.** The train arrives at Venice almost full, nobody gets off and almost
+   nobody gets on. Venice's station panel: Revenue $0 last month, 546 turned away, $18k lost fares, 508 waiting.
+   Passengers in this game have no individual destinations (any stop that accepts them takes them), so Auto must
+   unload them at Venice. This is a bug, probably from the Phase 30A unloading changes (the "first pass / not at the
+   origin" rule, `headwayHold`, the new give-up waiting model, or acceptance at a middle stop) — find the root cause.
+   Reproduce with the player's setup: 3-stop loop (Trieste → Venice → Ljubljana Crossing), Norris with 3 passenger
+   + 2 mail cars, all Auto, Central Europe 1840; assert passengers and mail unload and reload at *every* stop that
+   accepts them. Add a property test over random 2–4 stop routes: a full car never passes a stop that accepts its
+   cargo without unloading (unless the rule is passThrough/transfer).
+2. **Viewing a train must not edit it.** Phase 29 C made map-tap add stops by default in Edit orders as well; tapping
+   a station while just looking at a bought train's Route tab adds it. Map-tap add mode is on by default **only** in
+   the Buy-train route step; in an existing train's panel it needs an explicit "Edit stops"/"Add stop" toggle (with a
+   Done button).
+3. **Junction waits too broad**: a train waited at a junction although it only needed to turn left, because another
+   train was using the nearby crossing. Make conflict groups route-precise: two routes conflict only if their actual
+   swept paths (with lane offsets and train width) intersect or share a track segment; a turnout route that diverges
+   before the crossing must not be blocked by a train using the crossing. Test with the player's layout (diagonal
+   main + crossing + left branch).
+4. Carry-over: an upgrade card says "No town or city in range" while estimating "+$9k/yr" — make the range check and
+   the estimate use the same catchment data and never contradict.
