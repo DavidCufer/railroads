@@ -68,6 +68,8 @@ export function makeTestState(map: GameMap, overrides: Partial<GameState> = {}):
     stationCargo: new Map(),
     stationTransfer: new Map(),
     stationFlow: new Map(),
+    washouts: [],
+    nextWashoutId: 0,
     industryEconomy: new Map(),
     finance: createFinanceState(),
     pendingDeliveries: [],

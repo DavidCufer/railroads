@@ -1,0 +1,292 @@
+/**
+ * Benchmark: a scripted "good player" on a real-world region (docs/PLAYTEST-2.md "Benchmarks"). Not part of the test suite —
+ * run it with `npx tsx tools/bench/goodPlayer.ts [region] [startYear] [difficulty] [endYear] [seed]`.
+ *
+ * Policy (the same for every build of the game, so before/after numbers are comparable; commands that only exist in newer
+ * builds are used when present): connect the best unconnected city to the nearest connected one with a dedicated pair of
+ * stations (Terminals in cities >= 40k from 1870, Stations otherwise) and double track from 1870, 2 trains of the fastest
+ * engine per pair, add trains up to 4 per pair when cash allows, Post Office and Hotel in cities >= 40k, borrow when a good
+ * project is short of cash and repay when cash piles up, relay worn track, rebuild washed-out bridges.
+ */
+import * as commands from "../../src/sim/commands";
+import { createGameState } from "../../src/sim/state";
+import { advanceOneHour } from "../../src/sim/tick";
+import { findBuildPath } from "../../src/sim/track/pathfind";
+import { buyableLocomotivesIn, locomotiveById } from "../../src/data/trains";
+import { STATION_TYPE_DEFS } from "../../src/data/stations";
+import { netWorth } from "../../src/sim/finance/ledger";
+import { ledgerRevenue } from "../../src/data/finance";
+import type { GameState } from "../../src/sim/state";
+import type { City } from "../../src/sim/economy/types";
+import type { Station } from "../../src/sim/stations/types";
+import type { CargoType } from "../../src/data/cargo";
+
+// tolerate older builds: look commands up dynamically
+type AnyFn = (...args: never[]) => unknown;
+const optional = (name: string): AnyFn | undefined =>
+  (commands as unknown as Record<string, AnyFn>)[name];
+
+const region = (process.argv[2] ?? "central-eu") as "central-eu";
+const startYear = Number(process.argv[3] ?? 1900);
+const difficulty = (process.argv[4] ?? "normal") as "easy" | "normal" | "hard";
+const endYear = Number(process.argv[5] ?? startYear + 16);
+const seed = Number(process.argv[6] ?? 1);
+
+// land prices exist from Phase 30A on; older builds have no such module
+const landPricesFn: ((s: GameState) => unknown) | undefined =
+  await import("../../src/sim/economy/land").then(
+    (m) => m.landPrices as (s: GameState) => unknown,
+    () => undefined,
+  );
+
+const state = createGameState({ seed, region, startYear, difficulty });
+
+const DAY = 24;
+const year = (): number => startYear + Math.floor(state.ticks / (DAY * 360));
+const tileXY = (t: number): [number, number] => [
+  t % state.map.width,
+  Math.floor(t / state.map.width),
+];
+const dist = (a: number, b: number): number => {
+  const [ax, ay] = tileXY(a);
+  const [bx, by] = tileXY(b);
+  return Math.hypot(ax - bx, ay - by);
+};
+const cityCentre = (c: City): number => c.anchorY * state.map.width + c.anchorX;
+
+interface Pair {
+  a: Station;
+  b: Station;
+  cityA: City;
+  cityB: City;
+  trains: number[];
+  path: number[];
+}
+const pairs: Pair[] = [];
+const connected = new Set<number>();
+const failedCities = new Set<number>();
+
+const ok = (r: unknown): boolean => !!r && (r as { ok: boolean }).ok;
+
+function day(n: number): void {
+  for (let i = 0; i < n * DAY; i++) advanceOneHour(state);
+}
+
+function ensureCash(needed: number): boolean {
+  if (state.cash >= needed) return true;
+  const take = optional("takeLoan") as ((s: GameState, n: number) => unknown) | undefined;
+  if (!take) return false;
+  let guard = 0;
+  while (state.cash < needed && guard++ < 60) {
+    if (!ok(take(state, 100_000))) break;
+  }
+  return state.cash >= needed;
+}
+
+function repayIfRich(): void {
+  const repay = optional("repayLoan") as ((s: GameState, n: number) => unknown) | undefined;
+  if (!repay) return;
+  while (state.finance.loans >= 100_000 && state.cash > state.finance.loans + 1_500_000) {
+    if (!ok(repay(state, 100_000))) break;
+  }
+}
+
+function bestLoco(): string {
+  const y = year();
+  const cands = buyableLocomotivesIn(y).filter((l) => l.maxCars >= 6);
+  cands.sort((p, q) => q.maxSpeedKmh - p.maxSpeedKmh || p.cost - q.cost);
+  return (cands[0] ?? buyableLocomotivesIn(y)[0]!).id;
+}
+
+function consist(loco: string): CargoType[] {
+  const n = Math.min(locomotiveById(loco)!.maxCars, 6);
+  return Array.from({ length: n }, (_, i) => (i < n - 2 ? "passengers" : "mail"));
+}
+
+/** Tiles of a city ordered by closeness to `toward` (the stations stand on the side facing the partner). */
+function cityTilesToward(city: City, toward: number): number[] {
+  return [...city.tiles].sort((p, q) => dist(p, toward) - dist(q, toward)).slice(0, 14);
+}
+
+function stationTypeFor(city: City): "depot" | "station" | "terminal" {
+  if (year() >= 1870 && city.population >= 40_000) return "terminal";
+  return "station";
+}
+
+function tryConnect(newCity: City, hub: City): boolean {
+  const sa = cityTilesToward(newCity, cityCentre(hub));
+  const sb = cityTilesToward(hub, cityCentre(newCity));
+  const stationTiles = new Set(state.stations.map((s) => s.tile));
+  const taken = new Set(state.trackGraph.allNodes());
+  for (const ta of sa.filter((t) => !taken.has(t)).slice(0, 4)) {
+    for (const tb of sb.filter((t) => !taken.has(t)).slice(0, 4)) {
+      const path =
+        findBuildPath(state.map, ta, tb, year(), {
+          respectTurns: { graph: state.trackGraph, stationTiles },
+          ...(landPricesFn ? { land: landPricesFn(state) } : {}),
+        }) ?? null;
+      if (!path || path.length < 4) continue;
+      const plan = commands.computeBuildPlan(state, path);
+      if (!plan.valid) continue;
+      const typeA = stationTypeFor(newCity);
+      const typeB = stationTypeFor(hub);
+      const stationBudget =
+        commands.computeStationBuildPlan(state, ta, typeA).cost +
+        commands.computeStationBuildPlan(state, tb, typeB).cost;
+      const loco = locomotiveById(bestLoco())!;
+      const trainCost = commands.computeBuyTrainPlan(state, loco.id, consist(loco.id)).cost * 2;
+      const dbl = year() >= 1870 ? plan.cost * 0.7 : 0;
+      const total = plan.cost + stationBudget + trainCost + dbl + 60_000;
+      if (!ensureCash(total + 150_000)) return false;
+      if (!ok(commands.buildTrack(state, path))) continue;
+      if (
+        !ok(commands.buildStation(state, ta, typeA)) ||
+        !ok(commands.buildStation(state, tb, typeB))
+      ) {
+        continue;
+      }
+      const a = state.stations.find((s) => s.tile === ta)!;
+      const b = state.stations.find((s) => s.tile === tb)!;
+      if (year() >= 1870) commands.upgradeTrack(state, path);
+      commands.buildEngineShed(state, a.id);
+      const pair: Pair = { a, b, cityA: newCity, cityB: hub, trains: [], path };
+      pairs.push(pair);
+      connected.add(newCity.id);
+      connected.add(hub.id);
+      addTrain(pair);
+      addTrain(pair);
+      return true;
+    }
+  }
+  return false;
+}
+
+function addTrain(pair: Pair): boolean {
+  const loco = bestLoco();
+  const cars = consist(loco);
+  if (!ensureCash(commands.computeBuyTrainPlan(state, loco, cars).cost + 100_000)) return false;
+  const r = commands.buyTrain(state, pair.a.id, loco, cars);
+  if (!ok(r)) return false;
+  const train = state.trains[state.trains.length - 1]!;
+  const forward = pair.trains.length % 2 === 0;
+  commands.setOrders(
+    state,
+    train.id,
+    (forward ? [pair.a, pair.b] : [pair.b, pair.a]).map((s) => ({
+      stationId: s.id,
+      rule: "auto" as const,
+    })),
+  );
+  pair.trains.push(train.id);
+  return true;
+}
+
+function yearlyPlanning(): void {
+  const y = year();
+  // 1. housekeeping with newer commands
+  const relay = optional("relayTrack") as ((s: GameState) => unknown) | undefined;
+  const wornEdges = (state.trackGraph.allEdges() as Array<{ wear?: number }>).length;
+  if (relay && wornEdges > 0) relay(state);
+  const rebuild = optional("rebuildBridge") as
+    ((s: GameState, id: number, t?: string) => unknown) | undefined;
+  const washouts = (state as unknown as { washouts?: Array<{ id: number }> }).washouts ?? [];
+  if (rebuild) for (const w of [...washouts]) rebuild(state, w.id, y >= 1840 ? "stone" : undefined);
+
+  // 2. new connections: best city by population / distance to the nearest connected city
+  const candidates = state.cities
+    .filter(
+      (c) =>
+        c.tiles.length > 0 &&
+        c.population >= 8_000 &&
+        !connected.has(c.id) &&
+        !failedCities.has(c.id),
+    )
+    .map((c) => {
+      const hubs = state.cities.filter((h) => connected.has(h.id) && h.tiles.length > 0);
+      if (hubs.length === 0) return null;
+      const hub = hubs.reduce((best, h) =>
+        dist(cityCentre(h), cityCentre(c)) < dist(cityCentre(best), cityCentre(c)) ? h : best,
+      );
+      const d = dist(cityCentre(hub), cityCentre(c));
+      return { c, hub, d, score: (c.population + 0.5 * hub.population) / (d + 6) };
+    })
+    .filter((x): x is { c: City; hub: City; d: number; score: number } => x !== null && x.d <= 70)
+    .sort((p, q) => q.score - p.score);
+  let built = 0;
+  for (const cand of candidates) {
+    if (built >= 2) break;
+    if (tryConnect(cand.c, cand.hub)) built++;
+    else failedCities.add(cand.c.id);
+  }
+
+  // 3. more trains on pairs, improvements in big cities
+  for (const pair of pairs) {
+    while (pair.trains.length < 4 && state.cash > 1_500_000 + state.finance.loans) {
+      if (!addTrain(pair)) break;
+    }
+    for (const [st, city] of [
+      [pair.a, pair.cityA],
+      [pair.b, pair.cityB],
+    ] as const) {
+      if (city.population < 40_000 || state.cash < 1_000_000) continue;
+      commands.buildImprovement(state, st.id, "postOffice");
+      commands.buildImprovement(state, st.id, "hotel");
+    }
+  }
+}
+
+function bootstrap(): void {
+  // First line: the two biggest cities within reach of each other.
+  const cities = state.cities
+    .filter((c) => c.tiles.length > 0)
+    .sort((p, q) => q.population - p.population);
+  for (const a of cities.slice(0, 4)) {
+    for (const b of cities.slice(0, 8)) {
+      if (
+        a.id === b.id ||
+        dist(cityCentre(a), cityCentre(b)) > 70 ||
+        dist(cityCentre(a), cityCentre(b)) < 8
+      )
+        continue;
+      if (tryConnect(a, b)) return;
+    }
+  }
+  throw new Error("could not build a first line");
+}
+
+const report: string[] = [];
+function snapshot(label: string): void {
+  const last = state.finance.lastYear;
+  report.push(
+    [
+      label,
+      `cash ${(state.cash / 1e6).toFixed(2)}M`,
+      `NW ${(netWorth(state) / 1e6).toFixed(2)}M`,
+      `rev ${(ledgerRevenue(last) / 1e6).toFixed(2)}M`,
+      `loans ${(state.finance.loans / 1e6).toFixed(1)}M`,
+      `trains ${state.trains.length}`,
+      `stations ${state.stations.length}`,
+    ].join(" · "),
+  );
+}
+
+bootstrap();
+const wanted = new Set([1, 2, 3, 4, 5, 8, 10, 13, 16, 20, 25, 30]);
+for (let y = 1; startYear + y <= endYear; y++) {
+  // plan in January, then run the year in months with a monthly check for spare cash
+  yearlyPlanning();
+  for (let m = 0; m < 12; m++) {
+    day(30);
+    repayIfRich();
+    if (m === 5) yearlyPlanning();
+    if (state.finance.bankrupt) {
+      report.push(`BANKRUPT in ${year()}`);
+      break;
+    }
+  }
+  if (wanted.has(y)) snapshot(`Jan ${startYear + y}`);
+  if (state.finance.bankrupt) break;
+}
+void STATION_TYPE_DEFS;
+console.log(`# ${region} ${startYear} ${difficulty} seed ${seed}`);
+console.log(report.join("\n"));

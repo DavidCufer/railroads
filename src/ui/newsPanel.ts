@@ -10,6 +10,7 @@ import { clearAllNews } from "../sim/commands";
 import { markAllNewsRead, unreadNewsCount, type NewsItem } from "../sim/news";
 import type { GameState } from "../sim/state";
 import { describeGoal } from "./goalStrings";
+import { formatMoney } from "./format";
 import { calendarFromTicks } from "../sim/time";
 import { cardList, cardRow } from "./components/cardRow";
 import { emptyState } from "./components/emptyState";
@@ -119,7 +120,11 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
     case "goalCompleted": {
       const goal = state.goals.find((g) => g.id === item.goalId);
       const description = goal ? describeGoal(state, goal) : strings.fallback.goal;
-      return strings.news.kinds.goalCompleted(strings.goals.tierNames[item.tier], description);
+      return strings.news.kinds.goalCompleted(
+        strings.goals.tierNames[item.tier],
+        description,
+        item.grant ? formatMoney(item.grant) : undefined,
+      );
     }
   }
 }

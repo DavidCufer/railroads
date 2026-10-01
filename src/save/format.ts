@@ -19,6 +19,7 @@ import type { PendingCityFounding } from "../sim/regions";
 import type { TrackEdge } from "../sim/track/types";
 import type { DeliveryEvent, StationCargoPile, TransferLot } from "../sim/state";
 import type { StationFlow } from "../sim/stations/flow";
+import type { Washout } from "../sim/track/washout";
 
 /** v4 (Phase 23A): the world went from 10 km to 5 km per tile. The state *shape* is unchanged from v3
  * but every coordinate, distance and track edge in a v1–v3 save is on the old grid, so those saves
@@ -122,6 +123,9 @@ interface SerializedGameStateBase<TTrain> {
   stationTransfer?: Array<[number, TransferLot[]]>;
   /** Added in Phase 30A without a version bump: absent in older saves, read as empty. */
   stationFlow?: Array<[number, StationFlow]>;
+  /** Added in Phase 30A without a version bump: bridges washed out and not yet rebuilt. */
+  washouts?: Washout[];
+  nextWashoutId?: number;
   industryEconomy: Array<[number, IndustryEconomyState]>;
   finance: SerializedFinanceStateV1;
   pendingDeliveries: DeliveryEvent[];

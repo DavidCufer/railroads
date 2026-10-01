@@ -99,6 +99,9 @@ import {
   stationRemovalBlocker,
   takeLoan,
   relayTrack,
+  rebuildBridge,
+  computeRebuildBridgePlan,
+  type RebuildBridgePlan,
   overhaulLocomotive,
   computeOverhaulCommandPlan,
   upgradeTrack,
@@ -119,6 +122,7 @@ import { findStationBends } from "./sim/track/layout";
 import { canPlaceStationAt, stationAtTile, stationCatchmentTiles } from "./sim/stations";
 import type { StationFlow } from "./sim/stations/flow";
 import { wornEdges } from "./sim/track/condition";
+import { washOut, type Washout } from "./sim/track/washout";
 import { terrainId } from "./sim/map/terrain";
 import { inBounds, tileIndex } from "./sim/map/grid";
 import { calendarFromTicks, isMonthBoundary, isYearBoundary } from "./sim/time";
@@ -1400,6 +1404,17 @@ function main(): void {
           getCreditTerms: () => CreditTerms;
           /** Phase 30A: land price of one tile now, and its multiplier from nearby population. */
           getLandPrice: (tile: number) => { price: number; multiplier: number };
+          /** Phase 30A: washed-out bridges not yet rebuilt (the gaps the map marks). */
+          getWashouts: () => Washout[];
+          /** Phase 30A: materials and prices for rebuilding a washed-out bridge. */
+          getRebuildPlan: (washoutId: number) => RebuildBridgePlan;
+          /** Phase 30A: rebuilds a washed-out bridge (default: cheapest legal material). */
+          rebuildBridge: (
+            washoutId: number,
+            type?: "wood" | "stone" | "steel",
+          ) => { ok: boolean; reason?: string; cost?: number };
+          /** Test-only: washes out the bridge at the edge `a`-`b` as if the river took it. */
+          debugWashOut: (a: number, b: number) => number | null;
           /** Phase 30A: worn edges (ratio of rail life used, relay cost), worst first. */
           getWornTrack: () => Array<{ a: number; b: number; ratio: number; cost: number }>;
           /** Phase 30A: revenue loaded here and passengers / mail turned away (units and est. fares) per period. */
@@ -1671,6 +1686,16 @@ function main(): void {
       getLandPrice: (tile) => {
         const land = landPrices(state);
         return { price: land.priceAt(tile), multiplier: land.multiplierAt(tile) };
+      },
+      getWashouts: () => state.washouts,
+      getRebuildPlan: (washoutId) => computeRebuildBridgePlan(state, washoutId),
+      rebuildBridge: (washoutId, type) => {
+        const result = rebuildBridge(state, washoutId, type);
+        return result.ok ? { ok: true, cost: result.cost } : { ok: false, reason: result.reason };
+      },
+      debugWashOut: (a, b) => {
+        const edge = state.trackGraph.getEdge(a, b);
+        return edge && edge.bridge ? washOut(state, edge).id : null;
       },
       getWornTrack: () =>
         wornEdges(state, 0).map((w) => ({

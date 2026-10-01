@@ -16,6 +16,9 @@ export interface FinanceState {
   capitalInvested: number;
   /** Phase 30A: land and way-leave bought so far (part of `capitalInvested`). Absent in older saves = 0. */
   landSpent?: number;
+  /** Phase 30A: land credit from completed goals still to be used against land bills, and the total ever granted. */
+  landCredit?: number;
+  landCreditGranted?: number;
   thisMonth: LedgerPeriod;
   thisYear: LedgerPeriod;
   lastYear: LedgerPeriod;

@@ -11,6 +11,7 @@ import { TrackGraph } from "./track/graph";
 import type { Station } from "./stations/types";
 import type { StationEconomy } from "./stations/economy";
 import type { StationFlow } from "./stations/flow";
+import type { Washout } from "./track/washout";
 import type { Train } from "./trains/types";
 import { createFinanceState, type FinanceState } from "./finance/types";
 import type { NewsItem } from "./news";
@@ -95,6 +96,9 @@ export interface GameState {
   stationCargo: Map<number, Partial<Record<CargoType, StationCargoPile>>>;
   /** Per-station revenue and turned-away passengers / mail (Phase 30A) — see src/sim/stations/flow.ts. */
   stationFlow: Map<number, StationFlow>;
+  /** Bridges the river took and nobody has rebuilt yet (Phase 30A) — the persistent gaps in the line. */
+  washouts: Washout[];
+  nextWashoutId: number;
   /** Transfer stock per Warehouse station (PLAN Phase 18 C), oldest lot first. */
   stationTransfer: Map<number, TransferLot[]>;
   /** Per-industry processing state (SPEC §8.2), keyed by `Industry.id`. */
@@ -215,6 +219,8 @@ export function createGameState(options: NewGameOptions): GameState {
     stationCargo: new Map(),
     stationTransfer: new Map(),
     stationFlow: new Map(),
+    washouts: [],
+    nextWashoutId: 0,
     industryEconomy: initIndustryEconomy(industries),
     finance: createFinanceState(),
     pendingDeliveries: [],

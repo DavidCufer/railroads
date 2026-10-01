@@ -105,6 +105,7 @@ export const strings = {
       "cant-afford": "Not enough cash",
       "no-track-to-upgrade": "No single track to upgrade there",
       "overhaul-not-needed": "This locomotive is too young to need an overhaul",
+      "no-bridge-to-rebuild": "There is no washed-out bridge to rebuild",
       "no-track-to-relay": "That track is not worn enough to need relaying",
       "not-era-available": "Not available yet",
       "already-improved": "Already built here",
@@ -720,8 +721,8 @@ export const strings = {
       civicInvestment: (cityName: string) => `Civic Investment boosts growth in ${cityName}`,
       cityFounded: (cityName: string) => `${cityName} has been founded!`,
       discovery: (cargo: string, nearName: string) => `${cargo} discovered near ${nearName}`,
-      goalCompleted: (tierName: string, description: string) =>
-        `${tierName} goal reached: ${description}`,
+      goalCompleted: (tierName: string, description: string, grant?: string) =>
+        `${tierName} goal reached: ${description}${grant ? ` — ${grant} land grant` : ""}`,
       /** Economic model v2: other transport arrives (docs/SPEC.md §9). */
       competition: {
         road: "Motor buses now compete on short routes — short passenger and mail trips lose fares",

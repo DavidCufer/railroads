@@ -5,7 +5,9 @@
  * announced so a re-check doesn't re-fire the news/celebration for one that's already done.
  */
 import { evaluateGoals } from "../goals/evaluate";
+import { goalLandGrant } from "../../data/economy";
 import { pushNews } from "../news";
+import { calendarFromTicks } from "../time";
 import type { GameState } from "../state";
 
 export function dailyGoalsStep(state: GameState): void {
@@ -14,7 +16,16 @@ export function dailyGoalsStep(state: GameState): void {
     if (!status.complete || state.goalsCompleted.has(status.goal.id)) continue;
     state.goalsCompleted.add(status.goal.id);
     state.pendingGoalCelebrations.push(status.goal);
-    pushNews(state, { kind: "goalCompleted", goalId: status.goal.id, tier: status.goal.tier });
+    const year = calendarFromTicks(state.startYear, state.ticks).year;
+    const grant = goalLandGrant(status.goal.tier, year);
+    state.finance.landCredit = (state.finance.landCredit ?? 0) + grant;
+    state.finance.landCreditGranted = (state.finance.landCreditGranted ?? 0) + grant;
+    pushNews(state, {
+      kind: "goalCompleted",
+      goalId: status.goal.id,
+      tier: status.goal.tier,
+      grant,
+    });
   }
 }
 

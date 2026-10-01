@@ -377,3 +377,14 @@ export const PASSING_LOOP_LAND_TILES = 1;
 export function landYearIndex(year: number): number {
   return priceIndex(year) * (1 + LAND_REAL_GROWTH_PER_YEAR * Math.max(0, year - 1830));
 }
+
+// --- Goal rewards: land grants (Phase 30A, PLAYTEST-2 "goals celebrate but give nothing") ---------------------------
+
+/** Governments granted land to railways that opened strategic lines (the 1850s–70s American land grants, the
+ * railway Acts' compulsory purchase powers). Completing a goal grants land credit — dollars off the land bill of
+ * future track and stations — at 1830 prices, scaled by the general price level of the year it is earned. */
+export const GOAL_LAND_GRANT_1830 = { bronze: 100_000, silver: 300_000, gold: 1_000_000 } as const;
+
+export function goalLandGrant(tier: "bronze" | "silver" | "gold", year: number): number {
+  return Math.round(GOAL_LAND_GRANT_1830[tier] * priceIndex(year));
+}

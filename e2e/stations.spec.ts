@@ -129,7 +129,8 @@ test.describe("Phase 5 — stations", () => {
     // Switching the type picker updates the live preview/cost without re-opening the panel.
     await page.locator(".station-type-btn", { hasText: "Terminal" }).click();
     await expect(page.locator(".station-type-btn.active")).toContainText("Terminal");
-    await expect(page.locator(".panel-action-build")).toContainText("$100k");
+    // the Terminal's $100k plus the land under it (Phase 30A: way-leave by nearby population)
+    await expect(page.locator(".panel-action-build")).toContainText(/\$1[0-9]{2}k/);
 
     await page.locator(".panel-action-cancel").click();
     await expect(page.locator(".panel")).toHaveCount(0);
