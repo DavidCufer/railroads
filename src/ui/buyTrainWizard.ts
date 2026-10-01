@@ -479,7 +479,7 @@ export function openBuyTrainPanel(
       const fill = (): void => {
         const q = query.trim().toLowerCase();
         const rows = state.stations
-          .filter((s) => q === "" || s.name.toLowerCase().includes(q))
+          .filter((s) => !s.passingLoop && (q === "" || s.name.toLowerCase().includes(q)))
           .map((s) => {
             const [x, y] = tileXY(s.tile);
             return { s, d: Math.round(Math.hypot(x - fx, y - fy)) };

@@ -1155,17 +1155,17 @@ Two parallel sessions: **30A** (sim/economy) and **30B** (UI/visibility + smalle
       starts must not get worse than PLAYTEST-2. Document the mechanism behind each change.
 
 ### 30B — Visibility & UX
-- [ ] **Per-line and per-station P&L**: "Lines" view (a line = set of trains sharing the same stop set) with revenue,
+- [x] **Per-line and per-station P&L**: "Lines" view (a line = set of trains sharing the same stop set) with revenue,
       costs, profit/yr, trains; station panel shows revenue generated at this station and turned-away pax/mail.
-- [ ] **Upgrade estimate**: each improvement/upgrade card shows "≈ +$X/yr at current traffic" (computed from the
+- [x] **Upgrade estimate**: each improvement/upgrade card shows "≈ +$X/yr at current traffic" (computed from the
       station's actual flows; marked as estimate).
-- [ ] **Income tax accrued monthly** as its own line (provisional tax), no year-end surprise.
-- [ ] **Help**: add pages/lines on waiting passengers & frequency, single track vs double vs passing loops, Water
+- [x] **Income tax accrued monthly** as its own line (provisional tax), no year-end surprise.
+- [x] **Help**: add pages/lines on waiting passengers & frequency, single track vs double vs passing loops, Water
       Tower range rule, track wear & relaying, loco ageing, land costs, loans & interest, bridges.
-- [ ] **Buy wizard affordability**: show cash vs price from step 1; unaffordable engines marked; "Borrow $X" shortcut
+- [x] **Buy wizard affordability**: show cash vs price from step 1; unaffordable engines marked; "Borrow $X" shortcut
       inline. Route list distances in km. Loading-rule chip opens a small picker (no tap-to-cycle).
-- [ ] New-engine card shows each engine's year; toasts never cover panel headers/tabs (Bug 4); diagnosis text instead
+- [x] New-engine card shows each engine's year; toasts never cover panel headers/tabs (Bug 4); diagnosis text instead
       of "Traffic jam": "3 trains share a single line — add a passing loop or double track".
-- [ ] Hints: first-hour hints mention loans and keeping money for the locomotive on Hard; 1830 start shows "early
+- [x] Hints: first-hour hints mention loans and keeping money for the locomotive on Hard; 1830 start shows "early
       engines are weak — the Norris arrives 1838".
-- [ ] Screenshots of each, open and check.
+- [x] Screenshots of each, open and check.

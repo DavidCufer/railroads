@@ -404,6 +404,7 @@ function main(): void {
     const radius = stationTouchRadius(TILE_SIZE, camera.zoom);
     const hits: Array<{ station: Station; dist: number }> = [];
     for (const station of state.stations) {
+      if (station.passingLoop) continue; // loops cannot be in orders (Phase 30A)
       const sx = (station.tile % state.map.width) + 0.5;
       const sy = Math.floor(station.tile / state.map.width) + 0.5;
       const screen = camera.worldToScreen(sx * TILE_SIZE, sy * TILE_SIZE, viewportW, viewportH);

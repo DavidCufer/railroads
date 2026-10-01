@@ -4449,3 +4449,9 @@ select {
   white-space: normal;
   overflow: visible;
 }
+
+/* Help paragraphs are sentences, not titles: regular weight reads better than a wall of bold. */
+.help-money-row .card-title {
+  font-weight: 500;
+  line-height: 1.35;
+}
