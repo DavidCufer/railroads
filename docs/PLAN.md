@@ -1244,3 +1244,58 @@ Trieste (Auto everywhere), cars 2× iron ore, 2× coal, 1× steel.
    existing track tile and let the pathfinder pick the legal join point nearby.
 
 Status: **done** — [x] item 1 (reproduction test, processor books, no-acceptor warning), [x] item 2 (smallest legal connection).
+
+## Phase 34 — Play-test 14: live panels, quieter warnings, decluttering, train spacing, rich passenger pairs
+Player report (Central Europe, 1840s), with phone screenshots:
+1. **"No fares from this station yet" is wrong.** Trieste Steel Mill and Ljubljana Iron Mine stations show it in
+   "Results here" although trains load there every trip and deliver elsewhere. Find out what the results block counts
+   (probably revenue credited to the *unloading* station, or passengers only) and fix it: a station's results must
+   show cargo loaded here and the income it earned on delivery ("Sent from here: 120 t iron ore → $4.2k"), plus
+   what was delivered here. Freight-only stations must never say "fares". Unit test with a mine → mill route.
+2. **Live refresh.** Open panels show stale numbers: the Buy button in the new-train sheet stayed disabled after cash
+   rose above the price; waiting cargo counts on the station panel don't change. Every open panel/sheet re-renders
+   its dynamic parts (cash-dependent buttons, waiting cargo, train load/status, processor books, line figures) at
+   least once per game day — **without** losing scroll position, focus, open dropdowns or text being typed
+   (patch values in place, or re-render only when the rendered data changed). E2E: open buy sheet with too little
+   cash, add cash via debug, button enables without reopening.
+3. **Warnings only at confirm.** While building a route, cargo-gap warnings ("No stop on this route accepts …")
+   are not shown inline per stop. Show them once, in a compact confirm step when the player taps Buy / Save route
+   ("Steel has nowhere to go on this route — Buy anyway / Back"). Already-bought trains: one small collapsed line
+   in the train panel ("1 warning ▸"), not big red boxes.
+4. **Declutter panels**, especially the processor block ("Waiting to be processed"). Target: one heading line and
+   at most ~3 short lines: "Food plant · makes food from grain or livestock", "Last month: 40 t grain → 40 t food",
+   "Waiting: 12 t grain". Detail goes behind a "▸ details" toggle. Fix the wording slip: it says "made into goods"
+   for every processor — use the actual product (steel, food, …). Review station, train and line panels for
+   similar redundancy (repeated headings, zero rows, explanatory paragraphs that could be a one-line hint) and
+   trim. Look at every screenshot on a 800×360 viewport.
+5. **"Missing" only when truly missing.** For recipe "any" (food: grain *or* livestock) never list all inputs as
+   missing — say "Needs grain or livestock" only when no input arrived and none is on the way. For any recipe, an
+   input that a train ordered to unload here is carrying (or is scheduled to fetch) counts as *on the way*: show
+   nothing, or a neutral "grain on the way". The red "Missing" is only for inputs no train brings.
+6. **Turned away is passengers/mail only.** Freight-only stations (or the freight rows) never show "nobody turned
+   away"/lost fares lines. While here: relabel "turned away / lost fares" as neutral **"Unserved demand"** with
+   a one-line hint ("more cars or trains would carry them").
+7. **Save-name input styling.** The text input in the save dialog uses browser defaults; style it like the rest of
+   the game (theme colours, font, border, radius, padding, focus ring) — add a shared `.input` style in theme.css.
+8. **Lines view figures are inconsistent.** "Venice – Milan Crossing · 8 trains · Revenue $8k · Costs $0" next to
+   "+$446k/yr". Revenue/Costs and the per-year profit must use the same period and be labelled
+   ("This year: revenue $X, costs $Y" and "Rate: +$Z/yr" from a rolling 12 months, or similar). New trains must not
+   produce absurd extrapolations; costs must include the trains' running/upkeep costs. Unit test.
+9. **Even spacing of trains on a line.** Several trains on the same route bunch up and the last one gets almost
+   nothing. `TrainOrder.minGapDays` (Phase 30A) exists in the sim but has no UI. Expose it: in the train's route
+   tab per stop a "Min. days between departures" stepper (Off/1/2/3/5/7…), and on the Lines view a one-tap
+   **"Space trains evenly"** action that sets each stop's gap to (round-trip time ÷ number of trains on the
+   line) for all trains of the line, through a command. Explain in a one-line hint. Note: "wait for full load"
+   also spreads trains, but a train that waits for full at a busy stop blocks a platform — both options stay.
+10. **Rich passenger pairs (balance, real mechanism only).** Venice–Milan in 1847: 4 trains ≈ $183k/yr, 8 trains ×
+   5 passenger cars ≈ $446k/yr. Each added train keeps earning about the same, because every train loads from one
+   generic waiting pool (~587/month at Venice) whatever its destination. Investigate with a bench script: revenue per
+   train and ROI vs. `docs/BALANCE.md` targets, as trains are added to one pair. If the marginal train stays highly
+   profitable well beyond what two 1840s cities of this size could fill, model the real limit: **trip demand
+   between a pair of towns is finite**: a gravity-style generation (population of both ends, distance, era) gives
+   a monthly number of trips *to each destination*. A train only boards passengers bound for stops on its route.
+   Adding trains beyond that demand gives emptier trains. This must not wreck small early lines: check
+   `npm run bench` / goodPlayer and the Hard vs Normal gap, update BALANCE.md, and record the SPEC change
+   (§9.5b). No flat multipliers.
+
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7 [ ] 8 [ ] 9 [ ] 10
