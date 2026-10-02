@@ -180,9 +180,6 @@ export interface Train {
   /** Extra whole days waited beyond the initial load pass for a "Wait for full load" stop (SPEC
    * §7.2) — reset to 0 on arrival. */
   loadExtraWaitDays: number;
-  /** Index of the order the train is calling at on the way to `currentOrderIndex`'s stop: a station in its orders that
-   * the route runs through (Phase 31). Cleared on departure; `currentOrderIndex` is untouched. */
-  callingIndex?: number;
   /** Set while a train that has unloaded at this stop waits for its departure headway (`TrainOrder.minGapDays`). */
   headwayHold?: boolean;
   /** Ticks spent waiting for the headway at this stop (capped so a queue cannot wait for ever). */

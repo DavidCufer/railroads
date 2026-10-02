@@ -24,6 +24,7 @@ import {
 import type { GameState } from "../sim/state";
 import { calendarFromTicks, DAYS_PER_YEAR, HOURS_PER_DAY } from "../sim/time";
 import { getTrainRuntime, isElectrificationOnlyBlocker } from "../sim/trains";
+import { passedOrderStops } from "../sim/trains/passedStops";
 import { undeliverableCars } from "../sim/trains/undeliverable";
 import { monthlyBreakdownChance } from "../sim/trains/breakdown";
 import { mechanicalAgeYears } from "../sim/trains/ageing";
@@ -334,6 +335,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
     function routeTab(t: Train): Node {
       syncPicking(t);
       const canPick = pickHooks !== null && t.orders.length < 8;
+      const passedOrders = passedOrderStops(state, t);
       const pickBtn = h(
         "button",
         {
@@ -354,10 +356,31 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
         t.orders.length === 0
           ? emptyState(p.stopsNeeded, "mapPin")
           : routeTimeline({
-              stops: t.orders.map((o) => ({
-                name: stationName(state, o.stationId),
-                rule: o.rule,
-              })),
+              stops: t.orders.map((o, i) => {
+                const passed = passedOrders.find((x) => x.orderIndex === i);
+                return {
+                  name: stationName(state, o.stationId),
+                  rule: o.rule,
+                  ...(passed && t.orders.length < 8
+                    ? {
+                        note: {
+                          text: p.passedNote(
+                            stationName(state, t.orders[passed.fromIndex]!.stationId),
+                          ),
+                          actionLabel: p.addStopHere,
+                          onAction: () => {
+                            const next = t.orders.map((x) => ({ ...x }));
+                            next.splice(passed.fromIndex + 1, 0, {
+                              stationId: o.stationId,
+                              rule: "auto",
+                            });
+                            changeOrders(next);
+                          },
+                        },
+                      }
+                    : {}),
+                };
+              }),
               marker: timelineMarker(t),
               onRule: applyRule,
               onRemove: (i) =>

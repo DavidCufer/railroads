@@ -34,6 +34,8 @@ export function nextRule(rule: LoadingRule): LoadingRule {
 export interface TimelineStop {
   name: string;
   rule: LoadingRule;
+  /** A hint under the stop (e.g. "passed without stopping on the way from X") with a one-tap action. */
+  note?: { text: string; actionLabel: string; onAction: () => void };
 }
 
 export interface TimelineMarker {
@@ -135,6 +137,19 @@ export function routeTimeline(options: RouteTimelineOptions): HTMLElement {
         ruleChip(stop, i, options),
         controls.length > 0 ? h("div", { className: "tl-controls" }, ...controls) : null,
       ),
+      stop.note
+        ? h(
+            "div",
+            { className: "tl-note", "data-testid": "tl-note" },
+            h("span", { className: "tl-note-text" }, stop.note.text),
+            h(
+              "button",
+              { className: "tl-note-action", onClick: stop.note.onAction },
+              icon("plus", "icon-xs"),
+              stop.note.actionLabel,
+            ),
+          )
+        : null,
     );
   });
   return h("ol", { className: "route-timeline" }, ...rows);

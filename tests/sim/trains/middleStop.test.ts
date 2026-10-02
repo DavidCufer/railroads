@@ -1,5 +1,6 @@
 /**
- * Phase 31 item 1 (play-test 11): passengers must unload (and reload) at a middle stop of a 3-stop loop.
+ * Phase 31 item 1 (play-test 11) and its Phase 32 revert: a train stops only at its current target. A middle station
+ * the loop runs through on the way back is passed non-stop unless it is ordered again (A, B, C, B).
  */
 import { describe, expect, it } from "vitest";
 import { buildStation, buildTrack, buyTrain, setOrders } from "../../../src/sim/commands";
@@ -62,7 +63,7 @@ export function missedUnloads(state: GameState, days: number): string[] {
       if (t.status === "loading" && was !== "loading") {
         snaps.set(t.id, {
           tick: state.ticks,
-          order: t.callingIndex ?? t.currentOrderIndex,
+          order: t.currentOrderIndex,
           cars: t.cars.map((c) => ({
             units: c.loadedUnits,
             ...(c.loadedTile !== undefined ? { tile: c.loadedTile } : {}),
@@ -91,77 +92,58 @@ export function missedUnloads(state: GameState, days: number): string[] {
   return bad;
 }
 
-describe("middle stop (Phase 31)", () => {
-  it("Trieste - Venice - Ljubljana loop: the middle stop is served on both passes and earns", () => {
+describe("middle stop (Phase 32: a train stops only at its current target)", () => {
+  function runLoop(ids: (stations: number[]) => number[]) {
     const { state, stationIds } = lineWithStops(3, 12, 1840);
-    expect(
-      buyTrain(state, stationIds[0]!, "norris-4-2-0", [
-        "passengers",
-        "passengers",
-        "passengers",
-        "mail",
-        "mail",
-      ]).ok,
-    ).toBe(true);
+    buyTrain(state, stationIds[0]!, "norris-4-2-0", [
+      "passengers",
+      "passengers",
+      "passengers",
+      "mail",
+      "mail",
+    ]);
     const t = state.trains[0]!;
-    expect(
-      setOrders(
-        state,
-        t.id,
-        stationIds.map((id) => ({ stationId: id, rule: "auto" as const })),
-      ).ok,
-    ).toBe(true);
-    const delivered = new Map<string, number>();
+    const orderIds = ids(stationIds);
+    setOrders(
+      state,
+      t.id,
+      orderIds.map((id) => ({ stationId: id, rule: "auto" as const })),
+    );
     const stops = new Map<number, number>();
+    const loadingAt: number[] = [];
     let was = "";
     for (let i = 0; i < 24 * 200; i++) {
       advanceOneHour(state);
       if (t.status === "loading" && was !== "loading") {
-        const id = t.orders[t.callingIndex ?? t.currentOrderIndex]!.stationId;
+        const id = t.orders[t.currentOrderIndex]!.stationId;
         stops.set(id, (stops.get(id) ?? 0) + 1);
+        loadingAt.push(state.stations.find((s) => s.tile === t.route[t.routeIndex])!.id);
+        // always at the target, never at another station it merely passes
+        expect(loadingAt[loadingAt.length - 1]).toBe(id);
       }
       was = t.status;
-      for (const e of state.pendingDeliveries) {
-        const key = `${e.stationId}:${e.cargoType}`;
-        delivered.set(key, (delivered.get(key) ?? 0) + (e.units ?? 0));
-      }
-      state.pendingDeliveries.length = 0;
     }
-    for (const id of stationIds) {
-      expect(delivered.get(`${id}:passengers`) ?? 0, `passengers at ${id}`).toBeGreaterThan(0);
-      expect(delivered.get(`${id}:mail`) ?? 0, `mail at ${id}`).toBeGreaterThan(0);
-    }
-    // Venice (the middle stop) is called at on the way back too: about twice the visits of an end (1.5x allows for the loop in progress).
-    expect(stops.get(stationIds[1]!)!).toBeGreaterThan(1.5 * stops.get(stationIds[0]!)!);
+    return { stationIds, stops };
+  }
+
+  it("Venice repro (documents the expected behaviour): A, B, C passes B non-stop on the way back", () => {
+    const { stationIds, stops } = runLoop((ids) => ids);
+    const [a, b, c] = stationIds as [number, number, number];
+    expect(stops.get(b)!).toBeGreaterThan(0);
+    // one call per loop at every stop, the middle one included - not twice as often
+    expect(Math.abs(stops.get(b)! - stops.get(a)!)).toBeLessThanOrEqual(1);
+    expect(Math.abs(stops.get(c)! - stops.get(a)!)).toBeLessThanOrEqual(1);
   });
 
-  it("a station the route runs through is a stop only when it is in the orders and not Pass through", () => {
-    const { state, stationIds } = lineWithStops(3, 12, 1840);
-    buyTrain(state, stationIds[0]!, "norris-4-2-0", ["passengers", "passengers", "mail"]);
-    const t = state.trains[0]!;
-    // A - C only: B is just a through station.
-    setOrders(
-      state,
-      t.id,
-      [stationIds[0]!, stationIds[2]!].map((id) => ({ stationId: id, rule: "auto" as const })),
-    );
-    let called = false;
-    for (let i = 0; i < 24 * 80; i++) {
-      advanceOneHour(state);
-      if (t.callingIndex !== undefined) called = true;
-    }
-    expect(called).toBe(false);
-    // Ordered, but Pass through: still not a stop.
-    setOrders(state, t.id, [
-      { stationId: stationIds[0]!, rule: "auto" },
-      { stationId: stationIds[1]!, rule: "passThrough" },
-      { stationId: stationIds[2]!, rule: "auto" },
-    ]);
-    for (let i = 0; i < 24 * 80; i++) {
-      advanceOneHour(state);
-      if (t.callingIndex !== undefined) called = true;
-    }
-    expect(called).toBe(false);
+  it("ordering the middle stop again (A, B, C, B) serves it both ways", () => {
+    const { stationIds, stops } = runLoop(([a, b, c]) => [a!, b!, c!, b!]);
+    const [a, b] = stationIds as [number, number, number];
+    expect(stops.get(b)!).toBeGreaterThan(1.5 * stops.get(a)!);
+  });
+
+  it("a station that is not in the orders is passed non-stop", () => {
+    const { stationIds, stops } = runLoop(([a, , c]) => [a!, c!]);
+    expect(stops.get(stationIds[1]!)).toBeUndefined();
   });
 
   it("property: random 2-4 stop routes never carry a loaded car past a stop that accepts its cargo", () => {

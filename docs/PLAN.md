@@ -1220,3 +1220,5 @@ Mill → Trieste.
    at the purchase station? transfer/port pile? a calling point at Trieste because Trieste is order 4?) and fix: a new
    train starts empty and loads only at an order stop it actually serves under its rules. Regression test with the
    player's orders.
+
+Status: **done** — [x] item 2 (root cause + regression test), [x] item 1 (revert, Route-tab note + "Add stop here", tests, SPEC §7.2).

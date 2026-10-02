@@ -289,10 +289,11 @@ Monthly: $10 per edge single, $16 double, +$5 electrified. Bridges: +$50 wood, +
   that is supplied here and accepted at some later stop in the list), **Wait for full load** (with
   optional max wait days), **Unload only**, **Pass through** (non-stop).
 - Per stop "consist change" (optional, v1.1): skip in v1.
-- **Calling points (Phase 31):** a station that the train's route runs through and that is also one of its stops
-  (any rule but Pass through) is a stop there too, with that stop's rule. A line A–B–C that returns through B
-  therefore calls at B both ways; B in the orders once is enough. A station *not* in the orders is still passed
-  non-stop, and a Pass through order never stops.
+- A train stops only at its **current target** (Phase 32; the Phase 31 "calling points" idea was reverted). A station
+  the route merely runs through is passed non-stop, even if it is elsewhere in the orders — list it again where you
+  want the extra stop (A, B, C, B). The train panel's Route tab flags such a stop ("Passed without stopping on the way
+  from X") with an "Add stop here" action. A train bought at a station that is not its first target leaves empty and
+  loads only at its order stops.
 - Train priority: Normal / Express (express trains get block reservations first when waiting).
 
 ### 7.3 Movement & routing

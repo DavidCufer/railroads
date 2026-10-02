@@ -84,15 +84,10 @@ export function acceptedAtAnyStop(state: GameState, train: Train, cargo: CargoTy
   return acceptedOnRoute(state, train, cargo, 0);
 }
 
-/** The order the train is dealing with: the stop it is calling at on the way (Phase 31), else its target. */
-export function activeOrderIndex(train: Train): number {
-  return train.callingIndex ?? train.currentOrderIndex;
-}
-
 function acceptedOnRoute(state: GameState, train: Train, cargo: CargoType, from: number): boolean {
   const n = train.orders.length;
   for (let step = from; step < n; step++) {
-    const order = train.orders[(activeOrderIndex(train) + step) % n] as TrainOrder;
+    const order = train.orders[(train.currentOrderIndex + step) % n] as TrainOrder;
     if (accepts(state, order.stationId, cargo)) return true;
     // A "transfer" stop at a Warehouse takes any cargo (PLAN Phase 18 C): that is the whole point of
     // a feeder line, so the feeder must be willing to load what the hub itself doesn't demand.
@@ -464,7 +459,7 @@ function applyLoad(state: GameState, train: Train, station: Station, carIndex: n
 /** Advances one tick of a "loading" stop at `station`; returns true once the train is ready to
  * depart (its `currentOrderIndex` should then advance and it can resume moving). */
 export function stepLoading(state: GameState, train: Train, station: Station): boolean {
-  const order = train.orders[activeOrderIndex(train)];
+  const order = train.orders[train.currentOrderIndex];
   if (!order || order.rule === "passThrough") return true;
 
   if (train.loadTicksLeft < 0) {

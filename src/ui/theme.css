@@ -4459,3 +4459,26 @@ select {
   font-weight: 500;
   line-height: 1.35;
 }
+
+/* Route tab note: a stop the route runs through without stopping (Phase 32). */
+.tl-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 2px 0 6px;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+}
+.tl-note-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line, currentColor);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}

@@ -405,6 +405,9 @@ export const strings = {
       hereNow: "Here now",
       nextStop: "Next stop",
       addStop: "Add stop",
+      passedNote: (from: string) =>
+        `Passed without stopping on the way from ${from} — add it again after ${from} to stop both ways`,
+      addStopHere: "Add stop here",
       doneAdding: "Done",
       removeStop: "Remove stop",
       moveUp: "Move up",
