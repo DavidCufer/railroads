@@ -46,6 +46,14 @@ export interface IndustryEconomyState {
    * producers — clamped to [0.5, 3] by src/sim/economy/industryDynamics.ts. Undefined/absent means
    * 1 (never grown or shrunk yet). */
   growthMult?: number;
+  /** Units delivered since the last month boundary (Phase 33: the station panel's "Received last month"). */
+  receivedMonth?: Partial<Record<CargoType, number>>;
+  /** The books of the last monthly processing step: what was delivered in the month just ended and
+   * what the step made from the stock (Phase 33). Absent before the first month ends. */
+  lastReport?: {
+    received: Partial<Record<CargoType, number>>;
+    made: Partial<Record<CargoType, number>>;
+  };
 }
 
 /** Per-city growth accumulator (SPEC §8.3, Phase 9), keyed by `City.id` in

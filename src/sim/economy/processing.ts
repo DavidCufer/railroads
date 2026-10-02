@@ -91,6 +91,8 @@ export function monthlyIndustryStep(state: GameState): void {
       continue;
     }
     const { output, consumed } = processIndustryMonth(def, econ.inputStock);
+    econ.lastReport = { received: econ.receivedMonth ?? {}, made: output };
+    econ.receivedMonth = {};
     for (const cargo of CARGO_TYPES) {
       const used = consumed[cargo];
       if (!used) continue;
@@ -98,4 +100,32 @@ export function monthlyIndustryStep(state: GameState): void {
     }
     econ.monthlyOutput = output;
   }
+}
+
+/** A processor's books for the UI (Phase 33): what it got last month, what it made, what it holds and which
+ * input is holding it up. Pure. `missing` is judged on the live stock — "all" recipes (Steel Mill) need every
+ * input, so any empty one is missing; "any" recipes only miss inputs when none has arrived. */
+export interface ProcessorStatus {
+  receivedLast: Partial<Record<CargoType, number>>;
+  madeLast: Partial<Record<CargoType, number>>;
+  stock: Partial<Record<CargoType, number>>;
+  missing: CargoType[];
+}
+
+const STOCK_EPSILON = 0.05;
+
+export function processorStatus(state: GameState, industry: Industry): ProcessorStatus | undefined {
+  const def = INDUSTRIES[industry.type];
+  const inputs = Object.keys(def.consumes) as CargoType[];
+  if (inputs.length === 0) return undefined;
+  const econ = state.industryEconomy.get(industry.id);
+  const stock = econ?.inputStock ?? {};
+  const empty = inputs.filter((c) => (stock[c] ?? 0) < STOCK_EPSILON);
+  const missing = def.recipeMode === "all" || empty.length === inputs.length ? empty : [];
+  return {
+    receivedLast: econ?.lastReport?.received ?? {},
+    madeLast: econ?.lastReport?.made ?? {},
+    stock,
+    missing,
+  };
 }

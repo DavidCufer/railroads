@@ -25,6 +25,8 @@ import { flashLast, h } from "./h";
 import { icon, type IconName } from "./icons";
 import { bestOf, engineStats } from "./locoStats";
 import { closePanel, openPanel } from "./panel";
+import { cargoGaps } from "../sim/trains/cargoGaps";
+import { cargoGapNote } from "./cargoGapNote";
 import { openRulePicker } from "./rulePicker";
 import { RULE_ICONS } from "./routeTimeline";
 import { openSheet, type SheetHandle } from "./sheet";
@@ -587,6 +589,7 @@ export function openBuyTrainPanel(
               h("span", { className: "route-count tabular" }, w.stopCount(orders.length)),
             ),
             list,
+            ...cargoGaps(state, cars, orders).map((gap) => cargoGapNote(state, gap)),
           ),
           h(
             "div",

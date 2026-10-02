@@ -193,6 +193,17 @@ export const strings = {
     waitingCount: (amount: string) => `${amount} waiting`,
     supplies: "Supplies",
     perMonthNote: "per month",
+    /** PLAN Phase 33: a processor in the catchment (Steel Mill …) — what it got and made last month. */
+    processing: {
+      title: (industry: string) => industry,
+      note: "Last month's deliveries and output. Waiting stock is made at the month's end.",
+      received: (list: string) => `Received last month: ${list}`,
+      receivedNothing: "Received last month: nothing",
+      made: (list: string) => ` → made ${list}`,
+      madeNothing: " → made nothing",
+      missing: (list: string) => `Missing: ${list}`,
+      stock: (list: string) => `Waiting to be processed: ${list}`,
+    },
     tabs: { cargo: "Cargo", trains: "Trains", build: "Build" },
     noDemands: "Accepts nothing yet",
     noSupplies: "Nothing to ship yet",
@@ -320,6 +331,13 @@ export const strings = {
     transferred: "Transferred",
     /** Merged floating delivery label ("+$1.9k · 3 deliveries"). */
     deliveriesMerged: (n: number) => `${n} deliveries`,
+    /** PLAN Phase 33: a car whose cargo no stop of the route accepts never loads. */
+    cargoGap: {
+      text: (cargo: string, cars: number) =>
+        `No stop on this route accepts ${cargo} — the ${cars === 1 ? "car" : `${cars} cars`} will stay empty`,
+      nearest: (names: string[]) => `Nearest that accept it: ${names.join(", ")}`,
+      buildBeside: (name: string) => `${name} (build a station beside it)`,
+    },
     undeliverableChip: (cars: number, cargo: string) =>
       `${cars} ${cars === 1 ? "car" : "cars"} of ${cargo} can't be delivered on this route`,
     noRouteTo: (station: string) => `No route to ${station}`,

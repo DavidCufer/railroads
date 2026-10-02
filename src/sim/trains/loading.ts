@@ -75,19 +75,34 @@ function accepts(state: GameState, stationId: number, cargo: CargoType): boolean
 /** Whether `cargo` is accepted at some *other* stop in the train's order list — the "Auto"/"Wait
  * for full load" rule only loads cargo this train can actually deliver somewhere (SPEC §7.2). */
 function acceptedAtAnotherStop(state: GameState, train: Train, cargo: CargoType): boolean {
-  return acceptedOnRoute(state, train, cargo, 1);
+  return acceptedOnRoute(state, train.orders, train.currentOrderIndex, cargo, 1);
 }
 
 /** Whether some stop of the train's orders (all of them) takes `cargo`, or a transfer stop at a
  * Warehouse hub would keep it — false means a car carrying it can never be delivered. */
 export function acceptedAtAnyStop(state: GameState, train: Train, cargo: CargoType): boolean {
-  return acceptedOnRoute(state, train, cargo, 0);
+  return acceptedOnRoute(state, train.orders, train.currentOrderIndex, cargo, 0);
 }
 
-function acceptedOnRoute(state: GameState, train: Train, cargo: CargoType, from: number): boolean {
-  const n = train.orders.length;
+/** Same question for an order list that no train owns yet (the Buy Train route step, Phase 33). */
+export function acceptedByOrders(
+  state: GameState,
+  orders: readonly TrainOrder[],
+  cargo: CargoType,
+): boolean {
+  return acceptedOnRoute(state, orders, 0, cargo, 0);
+}
+
+function acceptedOnRoute(
+  state: GameState,
+  orders: readonly TrainOrder[],
+  current: number,
+  cargo: CargoType,
+  from: number,
+): boolean {
+  const n = orders.length;
   for (let step = from; step < n; step++) {
-    const order = train.orders[(train.currentOrderIndex + step) % n] as TrainOrder;
+    const order = orders[(current + step) % n] as TrainOrder;
     if (accepts(state, order.stationId, cargo)) return true;
     // A "transfer" stop at a Warehouse takes any cargo (PLAN Phase 18 C): that is the whole point of
     // a feeder line, so the feeder must be willing to load what the hub itself doesn't demand.
@@ -323,6 +338,8 @@ function settleUnload(state: GameState, train: Train, station: Station, car: Tra
   for (const industryId of industriesConsuming(state, station, cargo)) {
     const econ = getOrCreateIndustryEconomy(state, industryId);
     econ.inputStock[cargo] = (econ.inputStock[cargo] ?? 0) + unitsDelivered;
+    const month = (econ.receivedMonth ??= {});
+    month[cargo] = (month[cargo] ?? 0) + unitsDelivered;
   }
 }
 

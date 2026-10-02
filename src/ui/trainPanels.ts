@@ -26,6 +26,8 @@ import { calendarFromTicks, DAYS_PER_YEAR, HOURS_PER_DAY } from "../sim/time";
 import { getTrainRuntime, isElectrificationOnlyBlocker } from "../sim/trains";
 import { passedOrderStops } from "../sim/trains/passedStops";
 import { undeliverableCars } from "../sim/trains/undeliverable";
+import { cargoGaps } from "../sim/trains/cargoGaps";
+import { cargoGapNote } from "./cargoGapNote";
 import { monthlyBreakdownChance } from "../sim/trains/breakdown";
 import { mechanicalAgeYears } from "../sim/trains/ageing";
 import { locoRunningCostPerYear, trainCompetition, trainWagesPerYear } from "../sim/finance/costs";
@@ -281,6 +283,11 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
       heroHost.replaceChildren(
         heroStrip(state, t),
         statusLine(state, t, loco),
+        ...cargoGaps(
+          state,
+          t.cars.map((c) => c.cargoType),
+          t.orders,
+        ).map((gap) => cargoGapNote(state, gap)),
         ...stuck.map(([cargo, cars]) =>
           h(
             "div",

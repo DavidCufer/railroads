@@ -31,6 +31,8 @@ import {
   demolishStation,
   stationRefund,
 } from "../sim/commands";
+import { processorStatus } from "../sim/economy/processing";
+import { stationCatchmentTiles } from "../sim/stations/placement";
 import { previewStationEconomy, stationStorageCap, type StationEconomy } from "../sim/stations";
 import type { Station } from "../sim/stations/types";
 import type { GameState } from "../sim/state";
@@ -191,6 +193,62 @@ function economyBody(
         : emptyState(strings.station.noDemands, "cargo"),
     ]),
   ];
+}
+
+function cargoAmounts(amounts: Partial<Record<CargoType, number>>): string {
+  const parts: string[] = [];
+  for (const cargo of CARGO_TYPES) {
+    const n = amounts[cargo] ?? 0;
+    if (n < 0.5) continue;
+    const def = CARGO[cargo];
+    parts.push(`${Math.round(n)}${def.unit ? ` ${def.unit}` : ""} ${def.name.toLowerCase()}`);
+  }
+  return parts.join(", ");
+}
+
+/** "Received last month: 40 t coal, 40 t iron ore → made 40 t steel" / "Missing: iron ore" (PLAN Phase 33) for each
+ * processor (Steel Mill, Factory …) in the station's catchment. */
+function processingSection(state: GameState, station: Station): Node[] {
+  const t = strings.station.processing;
+  const seen = new Set<number>();
+  const out: Node[] = [];
+  const tiles = stationCatchmentTiles(
+    state.map,
+    station.tile,
+    STATION_TYPE_DEFS[station.type].catchmentRadius,
+  );
+  for (const tile of tiles) {
+    const id = state.map.industryId[tile] as number;
+    const industry = id >= 0 ? state.industries[id] : undefined;
+    if (!industry || seen.has(id)) continue;
+    seen.add(id);
+    const status = processorStatus(state, industry);
+    if (!status) continue;
+    const received = cargoAmounts(status.receivedLast);
+    const made = cargoAmounts(status.madeLast);
+    const stock = cargoAmounts(status.stock);
+    const rows: Node[] = [
+      h(
+        "div",
+        { className: "panel-row processing-row" },
+        (received ? t.received(received) : t.receivedNothing) +
+          (made ? t.made(made) : t.madeNothing),
+      ),
+    ];
+    if (stock) rows.push(h("div", { className: "panel-row processing-stock" }, t.stock(stock)));
+    if (status.missing.length > 0) {
+      rows.push(
+        h(
+          "div",
+          { className: "chip warn-chip processing-missing" },
+          icon("warning", "icon-xs"),
+          t.missing(status.missing.map((c) => CARGO[c].name.toLowerCase()).join(", ")),
+        ),
+      );
+    }
+    out.push(section(INDUSTRIES[industry.type].name, rows, t.note));
+  }
+  return out;
 }
 
 /** "Results here" (PLAN Phase 30B): revenue from cargo loaded at this station and the passengers/mail that gave
@@ -871,6 +929,7 @@ export function openStationPanel(
           ),
         );
       }
+      body.push(...processingSection(state, station));
       body.push(...transferSection(container, state, station));
       body.push(...resultsSection(state, station));
     } else if (tab === "trains") {
