@@ -1222,3 +1222,23 @@ Mill → Trieste.
    player's orders.
 
 Status: **done** — [x] item 2 (root cause + regression test), [x] item 1 (revert, Route-tab note + "Add stop here", tests, SPEC §7.2).
+
+## Phase 33 — Play-test 13: steel chain not producing/loading; easier connecting curves
+Player report (Trieste, 1841): Train 3 orders Ljubljana Iron Mine → Ljubljana Coal Mine → Trieste Steel Mill →
+Trieste (Auto everywhere), cars 2× iron ore, 2× coal, 1× steel.
+1. **Steel never loads.** Trieste Steel Mill station: Supplies steel "0 per month", "2–6 waiting"; the train's steel car
+   always empty; the player saw a message like "no train stops here that accepts steel" although Trieste is the
+   next stop. Investigate with this exact setup (Central Europe 1840): (a) does the mill actually receive the ore and
+   coal (recipe "all": needs both) and how much steel does a delivery of 40 t + 40 t make — is production too small
+   or delayed, or is the monthly supply figure wrong; (b) does Trieste's station accept steel (Port acceptance 8 points
+   vs threshold — is it partially in the catchment?), and if not, the UI must say so clearly *before* the player builds
+   the route ("Trieste doesn't accept steel — nearest stations that do: …"); (c) why the steel car doesn't load. Fix
+   real bugs; make the processing chain visible: station/industry panel shows "Received last month: 40 t coal, 40 t
+   iron ore → made 40 t steel" and "Missing: iron ore" when one input is absent. Regression test with the player's
+   chain: steel is produced and carried to a stop that accepts it.
+2. **Connecting curves**: the player built a crossing with a turnout on one side, but to turn the other way had to
+   build a separate track "far away". Explain/assist: a 90° change of direction needs two 45° bends with junction
+   spacing between them. When the player drags a connection that would be illegal (too sharp), the build preview
+   should automatically propose the **smallest legal connection** (shortest path of ≤45° bends respecting the junction
+   rules) drawn in green, which one tap builds — instead of only a red refusal. Also allow the drag to end on an
+   existing track tile and let the pathfinder pick the legal join point nearby.
