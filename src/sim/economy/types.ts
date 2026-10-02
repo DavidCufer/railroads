@@ -49,8 +49,11 @@ export interface IndustryEconomyState {
   /** Units delivered since the last month boundary (Phase 33: the station panel's "Received last month"). */
   receivedMonth?: Partial<Record<CargoType, number>>;
   /** The books of the last monthly processing step: what was delivered in the month just ended and
-   * what the step made from the stock (Phase 33). Absent before the first month ends. */
+   * what the step made from the stock (Phase 33). Only months with a delivery or output are kept, so a slow
+   * train's last visit stays visible. Absent before the first one. */
   lastReport?: {
+    /** `state.ticks` when the step ran. */
+    tick: number;
     received: Partial<Record<CargoType, number>>;
     made: Partial<Record<CargoType, number>>;
   };

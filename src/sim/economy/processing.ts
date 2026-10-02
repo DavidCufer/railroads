@@ -7,6 +7,7 @@
 import { CARGO, CARGO_TYPES, type CargoType } from "../../data/cargo";
 import { INDUSTRIES, type IndustryDef } from "../../data/industries";
 import type { GameState } from "../state";
+import { DAYS_PER_MONTH, HOURS_PER_DAY } from "../time";
 import type { Industry, IndustryEconomyState } from "./types";
 
 export function getOrCreateIndustryEconomy(
@@ -91,7 +92,10 @@ export function monthlyIndustryStep(state: GameState): void {
       continue;
     }
     const { output, consumed } = processIndustryMonth(def, econ.inputStock);
-    econ.lastReport = { received: econ.receivedMonth ?? {}, made: output };
+    const received = econ.receivedMonth ?? {};
+    if (Object.keys(received).length > 0 || Object.values(output).some((v) => (v ?? 0) > 0)) {
+      econ.lastReport = { tick: state.ticks, received, made: output };
+    }
     econ.receivedMonth = {};
     for (const cargo of CARGO_TYPES) {
       const used = consumed[cargo];
@@ -106,6 +110,8 @@ export function monthlyIndustryStep(state: GameState): void {
  * input is holding it up. Pure. `missing` is judged on the live stock — "all" recipes (Steel Mill) need every
  * input, so any empty one is missing; "any" recipes only miss inputs when none has arrived. */
 export interface ProcessorStatus {
+  /** Months since the books in `receivedLast`/`madeLast` closed (0 = the month just ended); undefined if none yet. */
+  monthsAgo?: number;
   receivedLast: Partial<Record<CargoType, number>>;
   madeLast: Partial<Record<CargoType, number>>;
   stock: Partial<Record<CargoType, number>>;
@@ -122,7 +128,11 @@ export function processorStatus(state: GameState, industry: Industry): Processor
   const stock = econ?.inputStock ?? {};
   const empty = inputs.filter((c) => (stock[c] ?? 0) < STOCK_EPSILON);
   const missing = def.recipeMode === "all" || empty.length === inputs.length ? empty : [];
+  const report = econ?.lastReport;
   return {
+    ...(report
+      ? { monthsAgo: Math.floor((state.ticks - report.tick) / (HOURS_PER_DAY * DAYS_PER_MONTH)) }
+      : {}),
     receivedLast: econ?.lastReport?.received ?? {},
     madeLast: econ?.lastReport?.made ?? {},
     stock,

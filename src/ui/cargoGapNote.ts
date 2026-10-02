@@ -24,13 +24,12 @@ export function nearestPlaceName(state: GameState, tile: number): string {
 }
 
 function placeName(state: GameState, place: AcceptingPlace): string {
-  const t = strings.trains.cargoGap;
   if (place.kind === "station") {
     return state.stations.find((s) => s.id === place.stationId)?.name ?? strings.fallback.place;
   }
   const industry = state.industries[place.industryId];
   const near = industry ? nearestPlaceName(state, industry.y * state.map.width + industry.x) : "";
-  return t.buildBeside(`${near ? `${near} ` : ""}${INDUSTRIES[place.type].name}`);
+  return `${near ? `${near} ` : ""}${INDUSTRIES[place.type].name}`;
 }
 
 export function cargoGapNote(state: GameState, gap: CargoGap): HTMLElement {
@@ -47,7 +46,9 @@ export function cargoGapNote(state: GameState, gap: CargoGap): HTMLElement {
         ? h(
             "span",
             { className: "cargo-gap-near" },
-            ` ${t.nearest(gap.nearest.map((p) => placeName(state, p)))}`,
+            `. ${t.nearest(gap.nearest.map((p) => placeName(state, p)))}${
+              gap.nearest[0]?.kind === "industry" ? ` — ${t.buildBeside}` : ""
+            }`,
           )
         : null,
     ),

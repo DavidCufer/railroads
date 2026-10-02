@@ -66,7 +66,7 @@ export function placesAccepting(
   state: GameState,
   cargo: CargoType,
   fromTile: number,
-  limit = 3,
+  limit = 2,
 ): AcceptingPlace[] {
   const w = state.map.width;
   const dist = (tile: number): number =>

@@ -110,6 +110,7 @@ import {
   type ElectrifyPlan,
   type UpgradePlan,
 } from "./sim/commands";
+import { suggestLegalConnection } from "./sim/trackSuggest";
 import { INDUSTRIES, type IndustryType } from "./data/industries";
 import type { City } from "./sim/economy/types";
 import { findBuildPath } from "./sim/track/pathfind";
@@ -187,6 +188,8 @@ interface DragState {
   plan: BuildPlan | UpgradePlan | ElectrifyPlan | BulldozePlan;
   cost: number;
   ok: boolean;
+  /** Set when the drag broke a build rule and the path is the proposed smallest legal connection (Phase 33). */
+  suggested?: boolean;
 }
 
 function main(): void {
@@ -704,6 +707,7 @@ function main(): void {
       mode,
       cost,
       ok,
+      ...(dragState.suggested ? { title: strings.build.suggestedTitle } : {}),
       ...(bridgeLabel !== undefined ? { bridgeLabel } : {}),
       onConfirm: () => {
         commit();
@@ -884,8 +888,29 @@ function main(): void {
       }
       if (dragState.mode === "track") {
         const reason = planRuleReason(dragState.plan as BuildPlan);
-        if (reason) showToast(ui, reason, "warn");
-        else warnStationBends(dragState.plan as BuildPlan);
+        if (reason) {
+          // Phase 33: instead of only refusing, propose the smallest legal connection, drawn green; one tap builds it.
+          const fix = suggestLegalConnection(
+            state,
+            dragState.path[0] as number,
+            dragState.path[dragState.path.length - 1] as number,
+            currentYear(),
+            dragState.bridgeOverride ?? undefined,
+          );
+          if (!fix) {
+            showToast(ui, reason, "warn");
+          } else {
+            showToast(ui, strings.build.suggestedToast(reason), "info");
+            dragState.path = fix.path;
+            dragState.plan = fix.plan;
+            dragState.cost = fix.plan.cost;
+            dragState.ok = true;
+            dragState.suggested = true;
+            ghost = { mode: "track", path: fix.path, ok: true };
+            showConfirm();
+            return;
+          }
+        } else warnStationBends(dragState.plan as BuildPlan);
       }
       if (quickBuild) {
         commit();

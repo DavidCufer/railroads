@@ -231,7 +231,7 @@ function processingSection(state: GameState, station: Station): Node[] {
       h(
         "div",
         { className: "panel-row processing-row" },
-        (received ? t.received(received) : t.receivedNothing) +
+        (received ? t.received(received, status.monthsAgo ?? 0) : t.receivedNothing) +
           (made ? t.made(made) : t.madeNothing),
       ),
     ];
@@ -921,6 +921,7 @@ export function openStationPanel(
     const body: Node[] = [];
 
     if (tab === "cargo") {
+      body.push(...processingSection(state, station));
       if (economy) {
         const pile = state.stationCargo.get(stationId);
         body.push(
@@ -929,7 +930,6 @@ export function openStationPanel(
           ),
         );
       }
-      body.push(...processingSection(state, station));
       body.push(...transferSection(container, state, station));
       body.push(...resultsSection(state, station));
     } else if (tab === "trains") {

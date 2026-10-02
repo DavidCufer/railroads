@@ -1242,3 +1242,5 @@ Trieste (Auto everywhere), cars 2× iron ore, 2× coal, 1× steel.
    should automatically propose the **smallest legal connection** (shortest path of ≤45° bends respecting the junction
    rules) drawn in green, which one tap builds — instead of only a red refusal. Also allow the drag to end on an
    existing track tile and let the pathfinder pick the legal join point nearby.
+
+Status: **done** — [x] item 1 (reproduction test, processor books, no-acceptor warning), [x] item 2 (smallest legal connection).

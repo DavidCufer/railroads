@@ -93,6 +93,10 @@ export const strings = {
     showOnMap: "Show on map",
   },
   build: {
+    /** PLAN Phase 33: the build preview proposes the smallest legal connection when a drag breaks a rule. */
+    suggestedTitle: "Smallest legal connection",
+    suggestedToast: (reason: string) =>
+      `${reason}. Here is the smallest legal connection — tap Build to lay it.`,
     reasons: {
       "no-path": "Drag to draw a path first",
       blocked: "No valid route or bridge there",
@@ -196,9 +200,10 @@ export const strings = {
     /** PLAN Phase 33: a processor in the catchment (Steel Mill …) — what it got and made last month. */
     processing: {
       title: (industry: string) => industry,
-      note: "Last month's deliveries and output. Waiting stock is made at the month's end.",
-      received: (list: string) => `Received last month: ${list}`,
-      receivedNothing: "Received last month: nothing",
+      note: "Deliveries are made into goods at the end of each month.",
+      received: (list: string, monthsAgo: number) =>
+        `Received ${monthsAgo === 0 ? "last month" : `${monthsAgo + 1} months ago`}: ${list}`,
+      receivedNothing: "Nothing delivered yet",
       made: (list: string) => ` → made ${list}`,
       madeNothing: " → made nothing",
       missing: (list: string) => `Missing: ${list}`,
@@ -335,8 +340,8 @@ export const strings = {
     cargoGap: {
       text: (cargo: string, cars: number) =>
         `No stop on this route accepts ${cargo} — the ${cars === 1 ? "car" : `${cars} cars`} will stay empty`,
-      nearest: (names: string[]) => `Nearest that accept it: ${names.join(", ")}`,
-      buildBeside: (name: string) => `${name} (build a station beside it)`,
+      nearest: (names: string[]) => `Accepted at: ${names.join(", ")}`,
+      buildBeside: "build a station beside one",
     },
     undeliverableChip: (cars: number, cargo: string) =>
       `${cars} ${cars === 1 ? "car" : "cars"} of ${cargo} can't be delivered on this route`,
