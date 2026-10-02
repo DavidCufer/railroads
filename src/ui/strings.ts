@@ -351,6 +351,11 @@ export const strings = {
         `No stop on this route accepts ${cargo} — the ${cars === 1 ? "car" : `${cars} cars`} will stay empty`,
       nearest: (names: string[]) => `Accepted at: ${names.join(", ")}`,
       buildBeside: "build a station beside one",
+      /** Confirm step when buying with gaps: "Steel has nowhere to go on this route". */
+      nowhere: (cargo: string) => `${cargo} has nowhere to go on this route`,
+      buyAnyway: "Buy anyway",
+      /** Collapsed line on the train panel. */
+      warnings: (n: number) => `${n} ${n === 1 ? "warning" : "warnings"}`,
     },
     undeliverableChip: (cars: number, cargo: string) =>
       `${cars} ${cars === 1 ? "car" : "cars"} of ${cargo} can't be delivered on this route`,

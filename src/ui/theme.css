@@ -4482,3 +4482,43 @@ select {
   color: inherit;
   font: inherit;
 }
+
+/* ---------- Phase 34: quiet warnings (collapsed on the train panel, one confirm step when buying) ---------- */
+.warn-fold {
+  margin: 4px 0;
+  font-size: var(--fs-xs);
+  color: var(--signal);
+}
+.warn-fold-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  background: none;
+  border: 0;
+  color: var(--signal);
+  font: inherit;
+  cursor: pointer;
+}
+.cargo-gap-line {
+  margin: 2px 0 0 14px;
+  color: var(--paper-dim);
+  font-size: var(--fs-xs);
+  line-height: 1.3;
+}
+.rs-gap-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.rs-gap-lines {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: var(--fs-sm);
+}
+.rs-gap-lines .cargo-gap-line {
+  margin: 0 0 2px;
+  color: var(--paper);
+}

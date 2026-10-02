@@ -133,3 +133,40 @@ test.describe("Phase 34 — live panels", () => {
       .toBe(true);
   });
 });
+
+test.describe("Phase 34 — warnings only at confirm", () => {
+  test("buying a train with a cargo gap asks once; the train panel keeps a collapsed warning line", async ({
+    page,
+  }) => {
+    const { a, b } = await lineWorld(page);
+    await page.evaluate((id) => window.__game!.debugOpenStation(id), a);
+    await page.locator(".station-buy-train-btn").click();
+    await page.locator(".wizard-next").click();
+    await page.locator(".train-car-add-btn", { hasText: "Coal" }).click();
+    await page.locator(".wizard-next").click();
+    await page.evaluate((sid) => window.__game!.debugPickStation(sid), a);
+    await page.evaluate((sid) => window.__game!.debugPickStation(sid), b);
+    await expect(page.locator('[data-testid="tl-stop"]')).toHaveCount(2);
+    // No inline warning while building the route.
+    await expect(page.locator(".cargo-gap-line")).toHaveCount(0);
+    await page.locator(".panel-action-build").click();
+    await expect(page.locator('[data-testid="gap-confirm"]')).toContainText(
+      "Coal has nowhere to go",
+    );
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: shot("gap-confirm") });
+    await page.locator(".gap-back").click();
+    await expect(page.locator('[data-testid="gap-confirm"]')).toHaveCount(0);
+    await page.locator(".panel-action-build").click();
+    await page.locator(".gap-buy-anyway").click();
+    const trains = await page.evaluate(() => window.__game!.getTrains());
+    expect(trains).toHaveLength(1);
+    await page.evaluate((id) => window.__game!.debugOpenTrain(id), trains[0]!.id);
+    await expect(page.locator('[data-testid="warn-fold"]')).toContainText("1 warning");
+    await expect(page.locator(".cargo-gap-line")).toHaveCount(0);
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: shot("train-warning-collapsed") });
+    await page.locator(".warn-fold-toggle").click();
+    await expect(page.locator(".cargo-gap-line")).toHaveCount(1);
+  });
+});

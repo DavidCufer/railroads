@@ -26,7 +26,7 @@ import { icon, type IconName } from "./icons";
 import { bestOf, engineStats } from "./locoStats";
 import { closePanel, openPanel } from "./panel";
 import { cargoGaps } from "../sim/trains/cargoGaps";
-import { cargoGapNote } from "./cargoGapNote";
+import { cargoGapLine } from "./cargoGapNote";
 import { openRulePicker } from "./rulePicker";
 import { RULE_ICONS } from "./routeTimeline";
 import { startLive } from "./live";
@@ -425,6 +425,7 @@ export function openBuyTrainPanel(
     const myStep = ++routeStepToken;
     closeChrome();
     let listMode = false;
+    let confirmGaps = false;
     let query = "";
 
     const planNow = (): { cost: number; valid: boolean } =>
@@ -435,6 +436,7 @@ export function openBuyTrainPanel(
     ];
 
     function addStop(id: number): void {
+      confirmGaps = false;
       if (orders.length < 8) orders.push({ stationId: id, rule: "auto" });
     }
 
@@ -480,6 +482,7 @@ export function openBuyTrainPanel(
         mini("arrowDown", p.moveDown, i === orders.length - 1, () => swap(i, i + 1)),
         mini("close", p.removeStop, false, () => {
           orders.splice(i, 1);
+          confirmGaps = false;
           render();
         }),
       );
@@ -556,15 +559,61 @@ export function openBuyTrainPanel(
       return strip.el;
     }
 
+    /** Compact confirm step (PLAN Phase 34 item 3): gaps are said once, when the player taps Buy. */
+    function gapConfirmBody(gaps: ReturnType<typeof cargoGaps>): Node[] {
+      const t3 = strings.trains.cargoGap;
+      return [
+        h(
+          "div",
+          { className: "rs-gap-confirm", "data-testid": "gap-confirm" },
+          h(
+            "div",
+            { className: "rs-gap-lines" },
+            icon("warning", "icon-sm tone-signal"),
+            h("div", null, ...gaps.map((g) => cargoGapLine(state, g))),
+          ),
+          h(
+            "div",
+            { className: "rs-buy-row" },
+            footerButton({
+              icon: "arrowLeft",
+              ariaLabel: w.back,
+              kind: "secondary",
+              className: "panel-action-cancel gap-back",
+              onClick: () => {
+                confirmGaps = false;
+                render();
+              },
+            }),
+            h(
+              "button",
+              { className: "panel-action-build gap-buy-anyway", onClick: buy },
+              t3.buyAnyway,
+            ),
+          ),
+        ),
+      ];
+    }
+
     function mainBody(): Node[] {
       const plan = planNow();
+      if (confirmGaps) {
+        const gaps = cargoGaps(state, cars, orders);
+        if (gaps.length > 0) return gapConfirmBody(gaps);
+        confirmGaps = false;
+      }
       const ordersOk = orders.length >= 2 && orders.length <= 8;
       const buyBtn = h(
         "button",
         {
           className: "panel-action-build",
           disabled: !plan.valid || plan.cost > state.cash || !ordersOk,
-          onClick: buy,
+          onClick: () => {
+            if (cargoGaps(state, cars, orders).length > 0) {
+              confirmGaps = true;
+              render();
+            } else buy();
+          },
         },
         `${t.buy} · ${formatMoney(plan.cost)}`,
       );
@@ -610,7 +659,6 @@ export function openBuyTrainPanel(
               h("span", { className: "route-count tabular" }, w.stopCount(orders.length)),
             ),
             list,
-            ...cargoGaps(state, cars, orders).map((gap) => cargoGapNote(state, gap)),
           ),
           h(
             "div",
@@ -710,7 +758,7 @@ export function openBuyTrainPanel(
       () => myStep === routeStepToken && document.querySelector(".route-sheet") !== null,
       () => {
         const sig = buySig();
-        if (sig === lastBuySig || listMode) return;
+        if (sig === lastBuySig || listMode || confirmGaps) return;
         lastBuySig = sig;
         render();
       },

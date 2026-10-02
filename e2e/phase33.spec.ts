@@ -134,7 +134,8 @@ test.describe("Phase 33", () => {
 
     await page.evaluate((id) => window.__game!.debugOpenTrain(id), bought.trainId!);
     await page.waitForTimeout(400);
-    await expect(page.locator(".cargo-gap-chip")).toContainText("steel");
+    await page.locator(".warn-fold-toggle").click();
+    await expect(page.locator(".cargo-gap-line").first()).toContainText("Steel");
     await page.screenshot({ path: shot("steel-no-acceptor") });
   });
 

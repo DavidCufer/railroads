@@ -27,7 +27,7 @@ import { getTrainRuntime, isElectrificationOnlyBlocker } from "../sim/trains";
 import { passedOrderStops } from "../sim/trains/passedStops";
 import { undeliverableCars } from "../sim/trains/undeliverable";
 import { cargoGaps } from "../sim/trains/cargoGaps";
-import { cargoGapNote } from "./cargoGapNote";
+import { cargoGapLine } from "./cargoGapNote";
 import { monthlyBreakdownChance } from "../sim/trains/breakdown";
 import { mechanicalAgeYears } from "../sim/trains/ageing";
 import { locoRunningCostPerYear, trainCompetition, trainWagesPerYear } from "../sim/finance/costs";
@@ -187,6 +187,30 @@ function stationName(state: GameState, id: number): string {
 }
 
 /** Status line under the hero: icon + text (+ the electrification reason when that is why). */
+/** "1 warning ▸" — collapsed by default; the notes show when opened. Nothing when there are none. */
+function warningsLine(
+  notes: HTMLElement[],
+  open: boolean,
+  setOpen: (open: boolean) => void,
+): HTMLElement | null {
+  if (notes.length === 0) return null;
+  return h(
+    "div",
+    { className: "warn-fold", "data-testid": "warn-fold" },
+    h(
+      "button",
+      {
+        className: "warn-fold-toggle",
+        "aria-expanded": String(open),
+        onClick: () => setOpen(!open),
+      },
+      icon("warning", "icon-xs"),
+      `${strings.trains.cargoGap.warnings(notes.length)} ${open ? "▾" : "▸"}`,
+    ),
+    ...(open ? notes : []),
+  );
+}
+
 function statusLine(state: GameState, train: Train, loco: LocomotiveDef | undefined): HTMLElement {
   const st = STATUS_ICON[train.status];
   const kids: Array<Node | string> = [
@@ -268,6 +292,8 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
   // Viewing a train must not edit it (Phase 31): map-tap adding is off until "Add stop" is tapped (the buy wizard's
   // route step is the only place it starts on).
   let pickEnabled = false;
+  // The warnings line stays collapsed (Phase 34): one small "N warnings ▸" row, details on tap.
+  let warningsOpen = false;
 
   const render = (): void => {
     const train = state.trains.find((t) => t.id === trainId);
@@ -283,19 +309,29 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
       heroHost.replaceChildren(
         heroStrip(state, t),
         statusLine(state, t, loco),
-        ...cargoGaps(
-          state,
-          t.cars.map((c) => c.cargoType),
-          t.orders,
-        ).map((gap) => cargoGapNote(state, gap)),
-        ...stuck.map(([cargo, cars]) =>
-          h(
-            "div",
-            { className: "chip warn-chip undeliverable-chip" },
-            icon("warning", "icon-xs"),
-            strings.trains.undeliverableChip(cars, CARGO[cargo].name.toLowerCase()),
+        ...[
+          warningsLine(
+            [
+              ...cargoGaps(
+                state,
+                t.cars.map((c) => c.cargoType),
+                t.orders,
+              ).map((gap) => cargoGapLine(state, gap)),
+              ...stuck.map(([cargo, cars]) =>
+                h(
+                  "div",
+                  { className: "cargo-gap-line undeliverable-chip" },
+                  strings.trains.undeliverableChip(cars, CARGO[cargo].name.toLowerCase()),
+                ),
+              ),
+            ],
+            warningsOpen,
+            (open) => {
+              warningsOpen = open;
+              fillLive();
+            },
           ),
-        ),
+        ].filter((n): n is HTMLElement => n !== null),
       );
     };
     fillLive();

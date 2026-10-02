@@ -32,6 +32,23 @@ function placeName(state: GameState, place: AcceptingPlace): string {
   return `${near ? `${near} ` : ""}${INDUSTRIES[place.type].name}`;
 }
 
+/** One compact line for a gap: "Steel has nowhere to go on this route. Accepted at: …". */
+export function cargoGapLine(state: GameState, gap: CargoGap): HTMLElement {
+  const t = strings.trains.cargoGap;
+  const name = CARGO[gap.cargo].name;
+  return h(
+    "div",
+    { className: "cargo-gap-line" },
+    `${t.nowhere(name)}${
+      gap.nearest.length > 0
+        ? `. ${t.nearest(gap.nearest.map((p) => placeName(state, p)))}${
+            gap.nearest[0]?.kind === "industry" ? ` — ${t.buildBeside}` : ""
+          }`
+        : ""
+    }`,
+  );
+}
+
 export function cargoGapNote(state: GameState, gap: CargoGap): HTMLElement {
   const t = strings.trains.cargoGap;
   return h(
