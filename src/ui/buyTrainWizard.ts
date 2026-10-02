@@ -29,6 +29,7 @@ import { cargoGaps } from "../sim/trains/cargoGaps";
 import { cargoGapNote } from "./cargoGapNote";
 import { openRulePicker } from "./rulePicker";
 import { RULE_ICONS } from "./routeTimeline";
+import { startLive } from "./live";
 import { openSheet, type SheetHandle } from "./sheet";
 import { formatDistance, loadSettings } from "./settings";
 import { playSound } from "./sound";
@@ -139,6 +140,7 @@ export function openBuyTrainPanel(
   }
 
   function endWizard(): void {
+    routeStepToken++;
     stopPicking();
     unpanForSheet();
   }
@@ -353,6 +355,22 @@ export function openBuyTrainPanel(
     );
     // Bring the selected card into view in the (independently scrolling) list.
     listEl.querySelector(".eng-card.active")?.scrollIntoView({ block: "nearest" });
+    // Live: cash changes (income, a loan) re-enable the Next button and the "can't afford" chips in place.
+    const affordSig = (): string =>
+      `${Math.floor(state.cash)}|${listOrder.map((l) => (priceOf(l) > state.cash ? 1 : 0)).join("")}`;
+    let lastSig = affordSig();
+    startLive(
+      () => heroEl.isConnected,
+      () => {
+        const sig = affordSig();
+        if (sig === lastSig) return;
+        lastSig = sig;
+        const listScroll = listEl.scrollTop;
+        renderList();
+        listEl.scrollTop = listScroll;
+        renderHero();
+      },
+    );
   }
 
   // ---- step 2: cars -------------------------------------------------------------------------
@@ -383,6 +401,7 @@ export function openBuyTrainPanel(
     }
     nextBtn.addEventListener("click", showRouteStep);
     updateNext();
+    startLive(() => nextBtn.isConnected, updateNext);
     openWizardSheet(
       2,
       [builder.el],
@@ -401,7 +420,9 @@ export function openBuyTrainPanel(
 
   // ---- step 3: route (bottom sheet; the map stays visible and tappable above it) ----------------
 
+  let routeStepToken = 0;
   function showRouteStep(): void {
+    const myStep = ++routeStepToken;
     closeChrome();
     let listMode = false;
     let query = "";
@@ -682,6 +703,18 @@ export function openBuyTrainPanel(
     }
 
     render();
+    // Live: the Buy button and the cash strip follow the player's cash without re-opening the sheet.
+    const buySig = (): string => `${planNow().cost > state.cash}|${Math.floor(state.cash)}`;
+    let lastBuySig = buySig();
+    startLive(
+      () => myStep === routeStepToken && document.querySelector(".route-sheet") !== null,
+      () => {
+        const sig = buySig();
+        if (sig === lastBuySig || listMode) return;
+        lastBuySig = sig;
+        render();
+      },
+    );
   }
 
   showEngineStep();

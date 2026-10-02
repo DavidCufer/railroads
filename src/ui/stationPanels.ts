@@ -503,6 +503,11 @@ export function openStationPlacementPanel(
     body: [h("div", { className: "station-type-picker" }, ...typeButtons), statsEl, economyEl],
     footer: [buildBtn, cancelBtn],
     onClose: () => callbacks.onClose(),
+    live: () => {
+      buildBtn.disabled =
+        !computeStationBuildPlan(state, tile, selectedType).valid ||
+        computeStationBuildPlan(state, tile, selectedType).cost > state.cash;
+    },
   });
 
   update();
@@ -986,6 +991,7 @@ export function openStationPanel(
       body,
       footer,
       key: `station:${stationId}:${tab}`,
+      live: render,
     });
     if (editingName) {
       const input = container.querySelector<HTMLInputElement>(".station-name-input");

@@ -237,6 +237,7 @@ export function openFinancePanel(container: HTMLElement, state: GameState): void
       body,
       footer,
       key: `finance:${tab}`,
+      live: render,
     });
     if (canvas)
       drawSparkline(

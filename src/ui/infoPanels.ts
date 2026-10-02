@@ -297,6 +297,7 @@ export function openCityPanel(
       thumb: icon(TIER_ICONS[city.tier] ?? "town"),
       body,
       key: `city:${cityId}`,
+      live: render,
     });
   };
 
@@ -428,5 +429,6 @@ export function openIndustryPanel(
     thumb: firstOutput ? cargoIcon(firstOutput) : icon("factory"),
     body,
     key: `industry:${industry.id}`,
+    live: () => openIndustryPanel(container, industry, ctx),
   });
 }

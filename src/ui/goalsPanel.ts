@@ -70,6 +70,7 @@ export function openGoalsPanel(container: HTMLElement, state: GameState): void {
     thumb: icon("goals"),
     body,
     key: "goals",
+    live: () => openGoalsPanel(container, state),
   });
 }
 

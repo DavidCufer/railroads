@@ -758,6 +758,7 @@ function openReplaceLocoPanel(container: HTMLElement, state: GameState, trainId:
       }),
     ],
     key: `train-replace:${trainId}`,
+    live: () => openReplaceLocoPanel(container, state, trainId),
   });
 }
 
@@ -901,5 +902,6 @@ export function openTrainListPanel(
     thumb: icon("trains"),
     body,
     key: `trainlist:${sortBy}`,
+    live: () => openTrainListPanel(container, state, onFocus, sortBy),
   });
 }

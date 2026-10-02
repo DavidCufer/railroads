@@ -12,7 +12,38 @@ let currentPanel: {
   key: string | undefined;
   unregisterBack: () => void;
   onClose: (() => void) | undefined;
+  /** Serialised content, to tell whether a live re-render changed anything. */
+  sig: string;
+  live: (() => void) | undefined;
 } | null = null;
+
+/** True while a panel's `live` callback runs: `openPanel` then keeps the current DOM when nothing changed. */
+let softRender = false;
+let liveTimer: number | undefined;
+const LIVE_REFRESH_MS = 900;
+
+/** Typing, dropdowns and focused buttons are never interrupted by a live refresh. */
+function isInteracting(root: HTMLElement): boolean {
+  const el = document.activeElement;
+  if (!el || !root.contains(el)) return false;
+  return (
+    el instanceof HTMLInputElement ||
+    el instanceof HTMLSelectElement ||
+    el instanceof HTMLTextAreaElement
+  );
+}
+
+function liveTick(): void {
+  const panel = currentPanel;
+  if (!panel?.live) return;
+  if (isInteracting(panel.root)) return;
+  softRender = true;
+  try {
+    panel.live();
+  } finally {
+    softRender = false;
+  }
+}
 
 export interface PanelOptions {
   title: string | Node;
@@ -38,17 +69,23 @@ export interface PanelOptions {
    * side panel; `className` adds modifier classes (e.g. the taller station-list mode). */
   placement?: "side" | "bottom" | undefined;
   className?: string | undefined;
+  /** Re-renders the panel's dynamic parts (cash-dependent buttons, waiting cargo, …) about once per game day
+   * while it is open: typically `() => render()` of the same panel. A refresh whose content is identical to what is
+   * shown is dropped, so scroll position, hover and focus are untouched; one that changed keeps the scroll offset
+   * (same `key`). Skipped while an input or dropdown inside the panel has focus. */
+  live?: (() => void) | undefined;
 }
 
 /** Opens a panel, replacing any panel currently open. A replacement swaps in place (no slide-in
  * replay), so tab switches and re-renders after an action don't flash. */
 export function openPanel(container: HTMLElement, options: PanelOptions): void {
   const previous = currentPanel;
+  if (softRender && !(previous && options.key !== undefined && previous.key === options.key))
+    return;
   const previousScroll =
     previous && options.key !== undefined && previous.key === options.key
       ? (previous.root.querySelector<HTMLElement>(".panel-body")?.scrollTop ?? 0)
       : 0;
-  closePanel(true);
 
   const close = (): void => closePanel();
   const children: Node[] = [
@@ -71,6 +108,9 @@ export function openPanel(container: HTMLElement, options: PanelOptions): void {
     },
     ...children,
   );
+  const sig = root.innerHTML;
+  if (softRender && previous && previous.sig === sig) return;
+  closePanel(true);
   container.appendChild(root);
   if (previous) {
     root.classList.add("panel-instant", "panel-open");
@@ -83,7 +123,17 @@ export function openPanel(container: HTMLElement, options: PanelOptions): void {
   }
 
   const unregisterBack = pushBackHandler(close);
-  currentPanel = { root, key: options.key, unregisterBack, onClose: options.onClose };
+  currentPanel = {
+    root,
+    key: options.key,
+    unregisterBack,
+    onClose: options.onClose,
+    sig,
+    live: options.live,
+  };
+  if (options.live && liveTimer === undefined) {
+    liveTimer = window.setInterval(liveTick, LIVE_REFRESH_MS);
+  }
 }
 
 /** Closes the open panel; `replacing` removes it immediately (no slide-out) for `openPanel`. */
