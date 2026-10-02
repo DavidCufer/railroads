@@ -269,6 +269,9 @@ test.describe("Phase 6 — Trains", () => {
     await page.screenshot({ path: "docs/screenshots/phase-6-buy-train-dialog.png" });
 
     await page.locator(".panel-action-build").click();
+    // These routes carry cargo no stop accepts: the buy step asks once (Phase 34).
+    if (await page.locator(".gap-buy-anyway").isVisible())
+      await page.locator(".gap-buy-anyway").click();
     await page.waitForTimeout(100);
 
     const trains = await page.evaluate(() => window.__game!.getTrains());

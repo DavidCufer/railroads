@@ -4,6 +4,7 @@
  * and reorder / remove buttons. Used by the buy wizard's route step and the train panel.
  */
 import type { LoadingRule } from "../sim/trains/types";
+import { GAP_STEPS } from "../sim/trains/headway";
 import { h } from "./h";
 import { icon, type IconName } from "./icons";
 import { openRulePicker } from "./rulePicker";
@@ -34,6 +35,8 @@ export function nextRule(rule: LoadingRule): LoadingRule {
 export interface TimelineStop {
   name: string;
   rule: LoadingRule;
+  /** Minimum days between departures at this stop (undefined = Off). */
+  gapDays?: number | undefined;
   /** A hint under the stop (e.g. "passed without stopping on the way from X") with a one-tap action. */
   note?: { text: string; actionLabel: string; onAction: () => void };
 }
@@ -50,6 +53,8 @@ export interface RouteTimelineOptions {
   onRule?: ((index: number, rule: LoadingRule) => void) | undefined;
   onRemove?: ((index: number) => void) | undefined;
   onMove?: ((index: number, dir: -1 | 1) => void) | undefined;
+  /** Departure spacing stepper under each stop (Phase 34); omitted in the buy wizard. */
+  onGap?: ((index: number, days: number | undefined) => void) | undefined;
   /** Removing is refused below this many stops (a train needs two). */
   minStops?: number;
 }
@@ -84,6 +89,32 @@ function miniBtn(
     "button",
     { className: "tl-btn", "aria-label": label, disabled, onClick },
     icon(name, "icon-xs"),
+  );
+}
+
+/** "Min. days between departures  [−] Off [+]": steps through `GAP_STEPS` (Off, 1, 2, 3, 5, 7 …). */
+function gapStepper(
+  stop: TimelineStop,
+  index: number,
+  onGap: (index: number, days: number | undefined) => void,
+): HTMLElement {
+  const g = strings.trains.panel.gap;
+  const at = Math.max(0, GAP_STEPS.indexOf(stop.gapDays));
+  const step = (dir: -1 | 1): void => {
+    const next = GAP_STEPS[Math.min(GAP_STEPS.length - 1, Math.max(0, at + dir))];
+    onGap(index, next);
+  };
+  return h(
+    "div",
+    { className: "tl-gap", "data-testid": "tl-gap", title: g.hint },
+    h("span", { className: "tl-gap-label" }, g.label),
+    miniBtn("minus", g.less, at === 0, () => step(-1)),
+    h(
+      "span",
+      { className: "tl-gap-value tabular", "data-testid": "tl-gap-value" },
+      stop.gapDays === undefined ? g.off : g.days(stop.gapDays),
+    ),
+    miniBtn("plus", g.more, at === GAP_STEPS.length - 1, () => step(1)),
   );
 }
 
@@ -137,6 +168,7 @@ export function routeTimeline(options: RouteTimelineOptions): HTMLElement {
         ruleChip(stop, i, options),
         controls.length > 0 ? h("div", { className: "tl-controls" }, ...controls) : null,
       ),
+      options.onGap && stop.rule !== "passThrough" ? gapStepper(stop, i, options.onGap) : null,
       stop.note
         ? h(
             "div",

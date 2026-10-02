@@ -8,6 +8,7 @@
  * The `compute*Plan` functions are the pure, non-mutating halves of each command — the UI reuses
  * them to price the live drag preview (SPEC §5.2's floating cost label) without side effects.
  */
+import { estimateRoundTripDays, evenGapDays } from "./trains/headway";
 import { addRoute, registerBuildRoutes, removeRoute, snapshotLegs } from "./track/routes";
 import { DIFFICULTY, LOAN_INCREMENT } from "../data/finance";
 import { BULLDOZE_REFUND_FRACTION, ELECTRIFICATION_ERA, type BridgeType } from "../data/track";
@@ -1141,6 +1142,44 @@ export function setOrderRule(
   if (!order) return { ok: false, reason: "invalid-orders" };
   order.rule = rule;
   return { ok: true, cost: 0 };
+}
+
+/** Sets (or, with `undefined`, clears) the minimum days between departures at one stop of `trainId`'s orders
+ * (Phase 30A `minGapDays`), keeping the train's progress. Train panel: the stop's "Min. days between departures". */
+export function setOrderGap(
+  state: GameState,
+  trainId: number,
+  orderIndex: number,
+  days: number | undefined,
+): CommandResult {
+  const train = state.trains.find((t) => t.id === trainId);
+  if (!train) return { ok: false, reason: "invalid-train" };
+  const order = train.orders[orderIndex];
+  if (!order) return { ok: false, reason: "invalid-orders" };
+  if (days !== undefined && (!Number.isFinite(days) || days < 1 || days > 60))
+    return { ok: false, reason: "invalid-orders" };
+  if (days === undefined) delete order.minGapDays;
+  else order.minGapDays = Math.round(days);
+  return { ok: true, cost: 0 };
+}
+
+/** Lines view "Space trains evenly": gives every stop (but pass-through ones) of every train in `trainIds` a minimum
+ * gap of (round-trip time ÷ number of trains), so the trains of one line run spread out instead of bunched. */
+export function spaceTrainsEvenly(
+  state: GameState,
+  trainIds: readonly number[],
+): CommandResult & { gapDays?: number } {
+  const trains = trainIds.map((id) => state.trains.find((t) => t.id === id));
+  if (trains.length < 2 || trains.some((t) => !t)) return { ok: false, reason: "invalid-train" };
+  const members = trains as Train[];
+  const round = Math.max(...members.map((t) => estimateRoundTripDays(state, t)));
+  const gapDays = evenGapDays(round, members.length);
+  for (const t of members)
+    for (const o of t.orders) {
+      if (o.rule === "passThrough") delete o.minGapDays;
+      else o.minGapDays = gapDays;
+    }
+  return { ok: true, cost: 0, gapDays };
 }
 
 /** Matches a new car list against the train's current cars by cargo type, in order, so cars that

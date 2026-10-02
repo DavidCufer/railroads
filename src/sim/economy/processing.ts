@@ -115,19 +115,45 @@ export interface ProcessorStatus {
   receivedLast: Partial<Record<CargoType, number>>;
   madeLast: Partial<Record<CargoType, number>>;
   stock: Partial<Record<CargoType, number>>;
+  /** Inputs no train brings and none is in stock (for an "any" recipe: every input, and only when none arrived). */
   missing: CargoType[];
+  /** Empty inputs a train that calls at one of the asked-about stations carries or will fetch (Phase 34). */
+  onTheWay: CargoType[];
+  /** True for an "any" recipe with nothing in stock and nothing on the way ("Needs grain or livestock"). */
+  needsAny: boolean;
 }
 
 const STOCK_EPSILON = 0.05;
 
-export function processorStatus(state: GameState, industry: Industry): ProcessorStatus | undefined {
+/** Cargo types the trains calling at any of `stationIds` carry or will fetch: a car of that type in a consist whose
+ * orders include the station. */
+function cargoTrainsBring(state: GameState, stationIds: readonly number[]): Set<CargoType> {
+  const out = new Set<CargoType>();
+  for (const train of state.trains) {
+    if (!train.orders.some((o) => stationIds.includes(o.stationId))) continue;
+    for (const car of train.cars) out.add(car.cargoType);
+  }
+  return out;
+}
+
+export function processorStatus(
+  state: GameState,
+  industry: Industry,
+  /** The station(s) the player is looking at: trains ordered to unload there count as "on the way". */
+  stationIds: readonly number[] = [],
+): ProcessorStatus | undefined {
   const def = INDUSTRIES[industry.type];
   const inputs = Object.keys(def.consumes) as CargoType[];
   if (inputs.length === 0) return undefined;
   const econ = state.industryEconomy.get(industry.id);
   const stock = econ?.inputStock ?? {};
   const empty = inputs.filter((c) => (stock[c] ?? 0) < STOCK_EPSILON);
-  const missing = def.recipeMode === "all" || empty.length === inputs.length ? empty : [];
+  const bringing = cargoTrainsBring(state, stationIds);
+  const onTheWay = empty.filter((c) => bringing.has(c));
+  const needsAny =
+    def.recipeMode === "any" && empty.length === inputs.length && onTheWay.length === 0;
+  const missing =
+    def.recipeMode === "all" ? empty.filter((c) => !bringing.has(c)) : needsAny ? empty : [];
   const report = econ?.lastReport;
   return {
     ...(report
@@ -137,5 +163,7 @@ export function processorStatus(state: GameState, industry: Industry): Processor
     madeLast: econ?.lastReport?.made ?? {},
     stock,
     missing,
+    onTheWay,
+    needsAny,
   };
 }

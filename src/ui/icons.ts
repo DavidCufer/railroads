@@ -81,6 +81,7 @@ export type IconName =
   | "gauge"
   | "power"
   | "plus"
+  | "minus"
   | "calendar"
   | "reliability"
   | "clock"
@@ -157,6 +158,7 @@ const ICONS: Record<IconName, string> = {
   lock: `<svg viewBox="0 0 24 24" ${STROKE}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`,
   gauge: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M4 17a8 8 0 1 1 16 0"/><line x1="12" y1="17" x2="16.5" y2="10.5"/><circle cx="12" cy="17" r="1.2" fill="currentColor" stroke="none"/></svg>`,
   power: `<svg viewBox="0 0 24 24" ${STROKE}><polygon points="13,2 5,14 11,14 9,22 19,10 12,10"/></svg>`,
+  minus: `<svg viewBox="0 0 24 24" ${STROKE}><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
   plus: `<svg viewBox="0 0 24 24" ${STROKE}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
   calendar: `<svg viewBox="0 0 24 24" ${STROKE}><rect x="4" y="5" width="16" height="15" rx="2"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="9" y1="3" x2="9" y2="7"/><line x1="15" y1="3" x2="15" y2="7"/></svg>`,
   reliability: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6l7-3z"/><polyline points="9 12 11.5 14.5 15.5 9.5"/></svg>`,

@@ -6,7 +6,8 @@ import { createGameState, type GameState } from "../../../src/sim/state";
 import { advanceOneHour } from "../../../src/sim/tick";
 import type { Station } from "../../../src/sim/stations/types";
 import type { CargoType } from "../../../src/data/cargo";
-import { processorStatus } from "../../../src/sim/economy/processing";
+import { getOrCreateIndustryEconomy, processorStatus } from "../../../src/sim/economy/processing";
+import { INDUSTRIES } from "../../../src/data/industries";
 import type { Industry, IndustryEconomyState } from "../../../src/sim/economy/types";
 import { cargoGaps } from "../../../src/sim/trains/cargoGaps";
 import type { Train } from "../../../src/sim/trains/types";
@@ -117,6 +118,44 @@ describe("Trieste steel chain, Central Europe 1840 (PLAN Phase 33)", () => {
     const first = gaps[0]?.nearest[0];
     expect(first?.kind).toBe("industry");
     if (first?.kind === "industry") expect(first.type).toBe("port");
+  });
+
+  it("an input a train bound for the station carries is on the way, not missing (PLAN Phase 34 item 5)", () => {
+    const { state, st } = chainGame(163);
+    const mill = state.industries[MILL_ID] as Industry;
+    const millStation = st["mill"] as Station;
+    expect(processorStatus(state, mill, [millStation.id])?.missing.slice().sort()).toEqual([
+      "coal",
+      "ironOre",
+    ]);
+    expect(
+      buyTrain(state, (st["iron"] as Station).id, "norris-4-2-0", ["ironOre", "ironOre"]).ok,
+    ).toBe(true);
+    const orders = ["iron", "mill"].map((k) => ({
+      stationId: (st[k] as Station).id,
+      rule: "auto" as const,
+    }));
+    expect(setOrders(state, 0, orders).ok).toBe(true);
+    const status = processorStatus(state, mill, [millStation.id]);
+    expect(status?.onTheWay).toEqual(["ironOre"]);
+    expect(status?.missing).toEqual(["coal"]);
+  });
+
+  it("an 'any' recipe says it needs one of its inputs only when none arrived or is coming", () => {
+    const { state } = chainGame(163);
+    const plant = state.industries.find(
+      (i) =>
+        INDUSTRIES[i.type].recipeMode === "any" &&
+        Object.keys(INDUSTRIES[i.type].consumes).length > 1,
+    ) as Industry;
+    expect(plant).toBeDefined();
+    const status = processorStatus(state, plant, []);
+    expect(status?.needsAny).toBe(true);
+    const econ = getOrCreateIndustryEconomy(state, plant.id);
+    econ.inputStock = { [Object.keys(INDUSTRIES[plant.type].consumes)[0] as CargoType]: 10 };
+    const after = processorStatus(state, plant, []);
+    expect(after?.needsAny).toBe(false);
+    expect(after?.missing).toEqual([]);
   });
 
   it("names the missing input when one half of the recipe never arrives", () => {

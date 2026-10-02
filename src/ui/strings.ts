@@ -5,6 +5,7 @@ export const strings = {
   },
   ui: {
     close: "Close",
+    cancel: "Cancel",
     back: "Back",
     actions: "Actions",
     stats: "Stats",
@@ -199,15 +200,18 @@ export const strings = {
     perMonthNote: "per month",
     /** PLAN Phase 33: a processor in the catchment (Steel Mill …) — what it got and made last month. */
     processing: {
-      title: (industry: string) => industry,
-      note: "Deliveries are made into goods at the end of each month.",
-      received: (list: string, monthsAgo: number) =>
-        `Received ${monthsAgo === 0 ? "last month" : `${monthsAgo + 1} months ago`}: ${list}`,
-      receivedNothing: "Nothing delivered yet",
-      made: (list: string) => ` → made ${list}`,
-      madeNothing: " → made nothing",
+      /** "Food plant · makes food from grain or livestock" */
+      heading: (name: string, products: string, inputs: string) =>
+        `${name} · makes ${products} from ${inputs}`,
+      last: (received: string, made: string, monthsAgo: number) =>
+        `${monthsAgo === 0 ? "Last month" : `${monthsAgo + 1} months ago`}: ${received}${made ? ` → ${made}` : " → nothing made"}`,
+      nothingYet: "Nothing delivered yet",
+      waiting: (list: string) => `Waiting: ${list}`,
+      needsAny: (list: string) => `Needs ${list}`,
       missing: (list: string) => `Missing: ${list}`,
-      stock: (list: string) => `Waiting to be processed: ${list}`,
+      onTheWay: (list: string) => `On the way: ${list}`,
+      details: "details",
+      note: (product: string) => `Deliveries are made into ${product} at the end of each month.`,
     },
     tabs: { cargo: "Cargo", trains: "Trains", build: "Build" },
     noDemands: "Accepts nothing yet",
@@ -420,8 +424,16 @@ export const strings = {
       losing: "Losing money",
       noLines: "No lines yet — a line is trains that share the same stops.",
       lineTrains: (n: number) => (n === 1 ? "1 train" : `${n} trains`),
-      lineRevenue: "Revenue",
-      lineCosts: "Costs",
+      lineThisYear: (revenue: string, costs: string) =>
+        `This year: revenue ${revenue}, costs ${costs}`,
+      spaceEvenly: "Space trains evenly",
+      spaceHint:
+        'Sets each stop\'s minimum gap to the round-trip time ÷ number of trains. "Wait for full load" also spreads trains, but a train waiting for a full load holds a platform.',
+      spaced: (days: number) => `Departures at least ${days} ${days === 1 ? "day" : "days"} apart`,
+      rate: "Rate",
+      rateNew: "Rate: too new",
+      rateHint:
+        "Profit per year over the last 12 months (or since bought), for trains owned 3+ months. Costs are running costs and wages.",
     },
     stats: {
       speed: "Top speed",
@@ -450,6 +462,14 @@ export const strings = {
       moveUp: "Move up",
       moveDown: "Move down",
       changeRule: "Change loading rule",
+      gap: {
+        label: "Min. days between departures",
+        off: "Off",
+        days: (n: number) => `${n} ${n === 1 ? "day" : "days"}`,
+        less: "Shorter gap",
+        more: "Longer gap",
+        hint: "The train waits at this stop until this many days have passed since the last train left, so trains on one line don't bunch up.",
+      },
       earned: "Earned",
       profitThisYear: "Profit this year",
       profitLastYear: "Last year",

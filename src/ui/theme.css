@@ -4010,6 +4010,8 @@ button.rule-chip:active {
 .station-water-tower-btn .card-meta,
 .station-engine-shed-row .card-meta,
 .help-row .card-meta,
+.line-row .card-meta,
+.flow-row .card-meta,
 .help-money-row .card-title {
   white-space: normal;
   overflow: visible;
@@ -4516,9 +4518,105 @@ select {
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-s);
 }
 .rs-gap-lines .cargo-gap-line {
   margin: 0 0 2px;
   color: var(--paper);
+}
+
+/* Phase 34: processor books */
+.processing-details summary {
+  cursor: pointer;
+  color: var(--paper-dim);
+  font-size: var(--fs-xs);
+  padding: 2px 0;
+}
+.processing-details .hint {
+  color: var(--paper-dim);
+  font-size: var(--fs-xs);
+}
+.processing-onway {
+  color: var(--paper-dim);
+  font-size: var(--fs-s);
+}
+
+/* ---------- Phase 34: shared text input + the in-game text prompt ---------- */
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--ink-700);
+  border: 1px solid var(--ink-600);
+  color: var(--text);
+  border-radius: var(--radius-s);
+  padding: var(--gap-2) var(--gap-3);
+  font: var(--fs-m) var(--font-ui);
+  outline: none;
+}
+.input::placeholder {
+  color: var(--muted);
+}
+.input:focus {
+  border-color: var(--brass);
+  box-shadow: 0 0 0 2px var(--brass-soft);
+}
+.text-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-3);
+  width: min(360px, 88%);
+  padding: var(--gap-4);
+  background: var(--ink-800);
+  border: 1px solid var(--ink-600);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow);
+}
+.text-prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--gap-2);
+}
+
+/* ---------- Phase 34: departure spacing ---------- */
+.tl-gap {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  margin: 2px 0 2px 34px;
+  font-size: var(--fs-xs);
+  color: var(--paper-dim);
+}
+.tl-gap-label {
+  flex: 1;
+}
+.tl-gap-value {
+  min-width: 52px;
+  text-align: center;
+  color: var(--text);
+}
+.line-block {
+  margin-bottom: var(--gap-2);
+}
+.line-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-3);
+  padding: 4px var(--gap-2);
+}
+.line-space-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  min-height: 32px;
+  background: var(--ink-700);
+  color: var(--text);
+  border: 1px solid var(--ink-600);
+  border-radius: var(--radius-s);
+  font-size: var(--fs-s);
+}
+.line-gap-note,
+.line-hint {
+  color: var(--paper-dim);
+  font-size: var(--fs-xs);
 }

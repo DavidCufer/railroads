@@ -4,6 +4,7 @@
  * a save in it; Save (in-game ☰ menu only) lists the 5 manual slots to save into. Autosave slots
  * are never a save *target* (SPEC: "Manual save to 5 named slots" — autosaving is automatic only).
  */
+import { askText } from "./textPrompt";
 import {
   AUTO_SLOT_IDS,
   EMERGENCY_SLOT_ID,
@@ -172,7 +173,11 @@ export function renderSaveLoadScreen(handlers: SaveLoadScreenHandlers): HTMLElem
   async function doSave(slotId: ManualSlotId, existing: SaveMeta | undefined): Promise<void> {
     const state = handlers.state;
     if (!state) return;
-    const name = window.prompt(s.namePrompt, existing?.name ?? s.nameDefault);
+    const name = await askText(root, {
+      title: s.namePrompt,
+      value: existing?.name ?? s.nameDefault,
+      confirmLabel: s.save,
+    });
     if (name === null) return;
     await saveToSlot(state, slotId, name.trim() || s.nameDefault);
     await refresh();

@@ -22,10 +22,12 @@ test.describe("Phase 11 — save/load", () => {
 
     // Save Game via the in-game ☰ menu.
     await page.getByRole("button", { name: "Menu" }).click();
-    page.once("dialog", (dialog) => void dialog.accept("My Save"));
     await page.getByRole("button", { name: "Save Game" }).click();
     await expect(page.locator(".save-load-screen")).toBeVisible();
     await page.getByRole("button", { name: "Save", exact: true }).first().click();
+    await page.getByTestId("text-prompt-input").fill("My Save");
+    await page.screenshot({ path: "docs/screenshots/phase-34-save-name.png" });
+    await page.getByRole("dialog").getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByText("My Save")).toBeVisible();
     await page.getByRole("button", { name: "Back" }).click();
 

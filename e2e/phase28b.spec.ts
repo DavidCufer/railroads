@@ -265,6 +265,9 @@ test.describe("Phase 28B — buy-train route sheet", () => {
     const after = await page.evaluate(() => window.__game!.camera.getCenter());
     expect(Math.abs(after.x - before.x)).toBeGreaterThan(20);
     await page.locator(".panel-action-build").click();
+    // These routes carry cargo no stop accepts: the buy step asks once (Phase 34).
+    if (await page.locator(".gap-buy-anyway").isVisible())
+      await page.locator(".gap-buy-anyway").click();
     const trains = await page.evaluate(() => window.__game!.getTrains());
     expect(trains).toHaveLength(2);
     expect(trains[1]!.orders).toHaveLength(3);

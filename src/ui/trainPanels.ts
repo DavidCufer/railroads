@@ -18,7 +18,9 @@ import {
   editConsist,
   replaceLocomotive,
   sellTrain,
+  setOrderGap,
   setOrderRule,
+  spaceTrainsEvenly,
   setOrders,
 } from "../sim/commands";
 import type { GameState } from "../sim/state";
@@ -404,6 +406,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
                 return {
                   name: stationName(state, o.stationId),
                   rule: o.rule,
+                  gapDays: o.minGapDays,
                   ...(passed && t.orders.length < 8
                     ? {
                         note: {
@@ -426,6 +429,11 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
               }),
               marker: timelineMarker(t),
               onRule: applyRule,
+              onGap: (i, days) => {
+                const result = setOrderGap(state, trainId, i, days);
+                if (!result.ok) showToast(container, strings.build.reasons[result.reason], "warn");
+                fillTab();
+              },
               onRemove: (i) =>
                 changeOrders(t.orders.filter((_, j) => j !== i).map((o) => ({ ...o }))),
               onMove: (i, dir) => {
@@ -817,37 +825,74 @@ function linesList(
   container: HTMLElement,
   state: GameState,
   onFocus: (trainId: number) => void,
+  refresh: () => void,
 ): HTMLElement {
   const L = strings.trains.list;
   const lines = lineSummaries(state);
   if (lines.length === 0) return emptyState(L.noLines, "trains");
   const nameOf = (id: number): string =>
     state.stations.find((s) => s.id === id)?.name ?? strings.fallback.station;
-  return cardList(
-    ...lines.map((line) => {
-      const costs = line.thisYear.revenue - booksProfit(line.thisYear);
-      const profit = line.profitPerYear;
-      return cardRow({
-        className: "line-row",
-        testId: "line-row",
-        thumb: icon("trains", "icon-sm tone-brass"),
-        title: line.stationIds.map(nameOf).join(" – "),
-        meta: `${L.lineTrains(line.trainIds.length)} · ${L.lineRevenue} ${formatMoney(line.thisYear.revenue)} · ${L.lineCosts} ${formatMoney(costs)}`,
-        trailing: h(
-          "span",
-          { className: `train-profit-col profit-${profit >= 0 ? "good" : "bad"}` },
-          h("i", { className: "profit-dot" }),
-          `${signedMoney(profit)}${L.perYear}`,
-        ),
-        chevron: true,
-        onClick: () => {
-          const first = line.trainIds[0];
-          if (first === undefined) return;
-          onFocus(first);
-          openTrainPanel(container, state, first);
+  const rows = lines.map((line) => {
+    const rate = line.ratePerYear;
+    const row = cardRow({
+      className: "line-row",
+      testId: "line-row",
+      thumb: icon("trains", "icon-sm tone-brass"),
+      title: line.stationIds.map(nameOf).join(" – "),
+      meta: `${L.lineTrains(line.trainIds.length)} · ${L.lineThisYear(formatMoney(line.revenueThisYear), formatMoney(line.costsThisYear))}`,
+      trailing: h(
+        "span",
+        {
+          className: `train-profit-col profit-${rate === undefined ? "new" : rate >= 0 ? "good" : "bad"}`,
+          title: L.rateHint,
         },
-      });
-    }),
+        h("i", { className: "profit-dot" }),
+        rate === undefined ? L.rateNew : `${L.rate} ${signedMoney(rate)}${L.perYear}`,
+      ),
+      chevron: true,
+      onClick: () => {
+        const first = line.trainIds[0];
+        if (first === undefined) return;
+        onFocus(first);
+        openTrainPanel(container, state, first);
+      },
+    });
+    if (line.trainIds.length < 2) return cardList(row);
+    const gap = state.trains
+      .find((t) => t.id === line.trainIds[0])
+      ?.orders.find((o) => o.minGapDays !== undefined)?.minGapDays;
+    return h(
+      "div",
+      { className: "line-block" },
+      cardList(row),
+      h(
+        "div",
+        { className: "line-actions" },
+        h(
+          "button",
+          {
+            className: "line-space-btn",
+            "data-testid": "space-evenly",
+            title: L.spaceHint,
+            onClick: () => {
+              const result = spaceTrainsEvenly(state, line.trainIds);
+              if (!result.ok) showToast(container, strings.build.reasons[result.reason], "warn");
+              else showToast(container, L.spaced(result.gapDays ?? 1), "info");
+              refresh();
+            },
+          },
+          icon("clock", "icon-xs"),
+          L.spaceEvenly,
+        ),
+        gap !== undefined ? h("span", { className: "line-gap-note" }, L.spaced(gap)) : null,
+      ),
+    );
+  });
+  return h(
+    "div",
+    { className: "lines-list" },
+    ...rows,
+    h("div", { className: "hint line-hint" }, L.spaceHint),
   );
 }
 
@@ -893,7 +938,12 @@ export function openTrainListPanel(
     state.trains.length === 0
       ? [emptyState(strings.trains.none, "trains")]
       : sortBy === "lines"
-        ? [sortRow(), linesList(container, state, onFocus)]
+        ? [
+            sortRow(),
+            linesList(container, state, onFocus, () =>
+              openTrainListPanel(container, state, onFocus, sortBy),
+            ),
+          ]
         : [
             sortRow(),
             cardList(

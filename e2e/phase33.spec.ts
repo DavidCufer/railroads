@@ -128,9 +128,10 @@ test.describe("Phase 33", () => {
     await page.evaluate((id) => window.__game!.debugOpenStation(id), ids[2]!);
     await page.waitForTimeout(400);
     await expect(page.locator(".processing-row").first()).toContainText(
-      /Received .*(last month|months ago)/,
+      /(Last month|months ago): /,
     );
     await page.screenshot({ path: shot("processing-books") });
+    await page.screenshot({ path: "docs/screenshots/phase-34-processor-books.png" });
 
     await page.evaluate((id) => window.__game!.debugOpenTrain(id), bought.trainId!);
     await page.waitForTimeout(400);

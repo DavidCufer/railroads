@@ -170,3 +170,58 @@ test.describe("Phase 34 — warnings only at confirm", () => {
     await expect(page.locator(".cargo-gap-line")).toHaveCount(1);
   });
 });
+
+async function gaps(page: Page): Promise<Array<Array<number | undefined>>> {
+  return page.evaluate(() =>
+    (
+      window.__game!.getState() as unknown as {
+        trains: Array<{ orders: Array<{ minGapDays?: number }> }>;
+      }
+    ).trains.map((t) => t.orders.map((o) => o.minGapDays)),
+  );
+}
+
+test.describe("Phase 34 — train spacing and the Lines view", () => {
+  test("a stop's gap stepper and 'Space trains evenly' set minGapDays through commands", async ({
+    page,
+  }) => {
+    const { a, b } = await lineWorld(page);
+    await page.evaluate(
+      ({ a, b }) => {
+        for (let i = 0; i < 3; i++) {
+          const r = window.__game!.buyTrain(a, "atlantic-4-4-2", ["passengers", "mail"]);
+          if (!r.ok) throw new Error(String(r.reason));
+          window.__game!.setOrders(r.trainId!, [
+            { stationId: a, rule: "auto" },
+            { stationId: b, rule: "auto" },
+          ]);
+        }
+      },
+      { a, b },
+    );
+    const trains = await page.evaluate(() => window.__game!.getTrains());
+    await page.evaluate((id) => window.__game!.debugOpenTrain(id), trains[0]!.id);
+    await expect(page.locator('[data-testid="tl-gap"]').first()).toBeVisible();
+    await page.locator('[data-testid="tl-gap"]').first().getByRole("button").nth(1).click();
+    await expect(page.locator('[data-testid="tl-gap-value"]').first()).toHaveText("1 day");
+    await page.locator('[data-testid="tl-gap"]').first().getByRole("button").nth(1).click();
+    await expect(page.locator('[data-testid="tl-gap-value"]').first()).toHaveText("2 days");
+    expect((await gaps(page))[0]![0]).toBe(2);
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: shot("route-gap-stepper") });
+
+    await page.locator(".panel").getByRole("button", { name: "Close" }).first().click();
+    await page.waitForTimeout(400);
+    await page.locator(".train-list-button").click();
+    await page.locator('[data-testid="list-sort-lines"]').click();
+    await expect(page.locator('[data-testid="line-row"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid="line-row"]')).toContainText("This year: revenue");
+    await page.locator('[data-testid="space-evenly"]').click();
+    const g = await gaps(page);
+    const first = g[0]![0];
+    expect(first).toBeGreaterThanOrEqual(1);
+    for (const t of g) expect(t).toEqual([first, first]);
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: shot("lines-space-evenly") });
+  });
+});

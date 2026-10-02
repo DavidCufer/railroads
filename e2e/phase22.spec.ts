@@ -122,6 +122,9 @@ test.describe("Phase 22 — train screens", () => {
     await expect(page.locator(".panel-action-build")).toBeEnabled();
     await shot(page, "buy-route");
     await page.locator(".panel-action-build").click();
+    // These routes carry cargo no stop accepts: the buy step asks once (Phase 34).
+    if (await page.locator(".gap-buy-anyway").isVisible())
+      await page.locator(".gap-buy-anyway").click();
     const trains = await page.evaluate(() => window.__game!.getTrains());
     expect(trains).toHaveLength(1);
     expect(trains[0]!.cars.length).toBe(2);

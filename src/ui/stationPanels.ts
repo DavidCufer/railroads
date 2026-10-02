@@ -207,8 +207,17 @@ function cargoAmounts(amounts: Partial<Record<CargoType, number>>): string {
   return parts.join(", ");
 }
 
-/** "Received last month: 40 t coal, 40 t iron ore → made 40 t steel" / "Missing: iron ore" (PLAN Phase 33) for each
- * processor (Steel Mill, Factory …) in the station's catchment. */
+/** Processor books whose "details" are open (kept across live re-renders). */
+const openProcessorDetails = new Set<number>();
+
+/** Names joined as "grain or livestock" / "iron ore and coal". */
+function cargoNames(cargos: readonly CargoType[], mode: "all" | "any"): string {
+  return cargos.map((c) => CARGO[c].name.toLowerCase()).join(mode === "any" ? " or " : " and ");
+}
+
+/** One block per processor (Steel Mill, Factory …) in the station's catchment, kept to a heading and ~3 short
+ * lines (PLAN Phase 34): "Food plant · makes food from grain or livestock", "Last month: 40 t grain → 40 t food",
+ * "Waiting: 12 t grain". "Missing" only for an input no train brings; the explanation sits behind "details". */
 function processingSection(state: GameState, station: Station): Node[] {
   const t = strings.station.processing;
   const seen = new Set<number>();
@@ -223,31 +232,70 @@ function processingSection(state: GameState, station: Station): Node[] {
     const industry = id >= 0 ? state.industries[id] : undefined;
     if (!industry || seen.has(id)) continue;
     seen.add(id);
-    const status = processorStatus(state, industry);
+    const status = processorStatus(state, industry, [station.id]);
     if (!status) continue;
+    const def = INDUSTRIES[industry.type];
+    const inputs = Object.keys(def.consumes) as CargoType[];
+    const products = Object.keys(def.produces) as CargoType[];
+    const productNames = cargoNames(products, "all");
     const received = cargoAmounts(status.receivedLast);
     const made = cargoAmounts(status.madeLast);
     const stock = cargoAmounts(status.stock);
-    const rows: Node[] = [
+    const lines: Node[] = [
       h(
         "div",
         { className: "panel-row processing-row" },
-        (received ? t.received(received, status.monthsAgo ?? 0) : t.receivedNothing) +
-          (made ? t.made(made) : t.madeNothing),
+        received ? t.last(received, made, status.monthsAgo ?? 0) : t.nothingYet,
       ),
     ];
-    if (stock) rows.push(h("div", { className: "panel-row processing-stock" }, t.stock(stock)));
-    if (status.missing.length > 0) {
-      rows.push(
+    if (stock) lines.push(h("div", { className: "panel-row processing-stock" }, t.waiting(stock)));
+    if (status.needsAny) {
+      lines.push(
         h(
           "div",
           { className: "chip warn-chip processing-missing" },
           icon("warning", "icon-xs"),
-          t.missing(status.missing.map((c) => CARGO[c].name.toLowerCase()).join(", ")),
+          t.needsAny(cargoNames(inputs, "any")),
+        ),
+      );
+    } else if (status.missing.length > 0) {
+      lines.push(
+        h(
+          "div",
+          { className: "chip warn-chip processing-missing" },
+          icon("warning", "icon-xs"),
+          t.missing(cargoNames(status.missing, "all")),
         ),
       );
     }
-    out.push(section(INDUSTRIES[industry.type].name, rows, t.note));
+    if (status.onTheWay.length > 0) {
+      lines.push(
+        h(
+          "div",
+          { className: "panel-row processing-onway" },
+          t.onTheWay(cargoNames(status.onTheWay, "all")),
+        ),
+      );
+    }
+    const details = h(
+      "details",
+      {
+        className: "processing-details",
+        ...(openProcessorDetails.has(id) ? { open: true } : {}),
+        onToggle: (e: Event) => {
+          if ((e.currentTarget as HTMLDetailsElement).open) openProcessorDetails.add(id);
+          else openProcessorDetails.delete(id);
+        },
+      },
+      h("summary", null, t.details),
+      h("div", { className: "panel-row hint" }, t.note(productNames)),
+    );
+    out.push(
+      section(t.heading(def.name, productNames, cargoNames(inputs, def.recipeMode)), [
+        ...lines,
+        details,
+      ]),
+    );
   }
   return out;
 }
