@@ -154,6 +154,26 @@ describe.runIf(process.env.BALANCE_REPORT === "1")("balance report", () => {
     );
     out.push("");
     out.push(...keyTables());
+    out.push(
+      "## Pair scaling: trains added to ONE pair (Phase 34 item 10, `npx tsx tools/bench/pairScaling.ts`)",
+      "",
+      "Venice–Milan, Central Europe 1847 (290 km crow-flies), Norris × 5 passenger cars, Stations, double track, year-3 figures, cash growth after upkeep. Marginal = per train added since the previous row; ROI = marginal profit ÷ the train's price.",
+      "Pair demand (SPEC §9.5d): passengers are bound for a destination, trips ∝ size of both ends ÷ distance beyond 200 km. Before = every train loaded from one generic pool.",
+      "",
+      "| trains | revenue before | revenue after | marginal ROI before | marginal ROI after | cash growth before → after |",
+      "|---|---|---|---|---|---|",
+      "| 1 | 63k | 63k | 71% | 71% | 46k → 46k |",
+      "| 2 | 115k | 73k | 76% | 11% | 96k → 53k |",
+      "| 3 | 123k | 80k | 7% | 5% | 100k → 57k |",
+      "| 4 | 133k | 87k | 10% | 6% | 106k → 60k |",
+      "| 6 | 209k | 115k | 75% | 23% | 175k → 80k |",
+      "| 8 | 209k | 133k | −8% | 7% | 165k → 89k |",
+      "| 12 | 279k | 140k | 21% | −5% | 226k → 87k |",
+      "",
+      "The pair's ceiling halves (supply 1014 → 684 people a month for both ends: the far partner weighs 0.68); a short line is untouched (≤ 200 km pairs keep their full supply: the tables above did not move).",
+      "goodPlayer (`tools/bench/goodPlayer.ts`, Central Europe, net worth Jan of the year): 1900 Normal 1916 $33.7M → $15.3M, 1900 Hard $7.7M → $8.1M; 1840 Normal 1856 $3.9M → $3.1M, 1870 $17.8M → $15.3M; 1840 Hard 1870 $9.1M → $10.9M. Hard is still 47 % below Normal in 1900 (target ≥ 40 %).",
+      "",
+    );
     if (process.env.BALANCE_KEY_ONLY === "1") {
       writeFileSync(process.env.BALANCE_OUT ?? "docs/BALANCE.md", out.join("\n"));
       return;

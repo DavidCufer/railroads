@@ -26,6 +26,10 @@ export interface StationCargoPile {
    * clock proxy for "cargo older than N days" (there's no per-unit FIFO aging; resets to 0 the
    * moment a train loads any amount, in src/sim/trains/loading.ts). */
   waitingDays: number;
+  /** Passengers only (Phase 34 item 10): how many of `amount` are bound for each destination station. A train boards
+   * only those bound for stops on its route; `amount` minus the sum of these (people from before the station had a
+   * service, or whose destination lost its service) board any train. Absent = everyone boards any train. */
+  bound?: Record<number, number>;
 }
 
 /** A delivery just paid out (SPEC §8.1's floating `+$` label) — pushed by

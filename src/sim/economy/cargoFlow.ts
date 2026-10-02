@@ -18,6 +18,15 @@ import type { GameState, StationCargoPile } from "../state";
 
 const DECAY_FLOOR = 0.05;
 
+/** Every destination's share of a passenger pile shrinks by the same factor when people give up. */
+function scaleBound(entry: StationCargoPile, factor: number): void {
+  if (!entry.bound) return;
+  for (const id of Object.keys(entry.bound)) {
+    const key = Number(id);
+    entry.bound[key] = (entry.bound[key] ?? 0) * factor;
+  }
+}
+
 export function accrueDailyCargo(state: GameState): void {
   for (const station of state.stations) {
     const economy = state.stationEconomy.get(station.id);
@@ -39,16 +48,26 @@ export function accrueDailyCargo(state: GameState): void {
         // People and post (Phase 30A): no storage cap. Once nobody has collected for `graceDays`, a share
         // `giveUpPerDay` of the pile gives up each day; that is what the station panel counts as "turned away".
         entry.amount += daily;
+        // Passengers are generated bound for a destination (Phase 34 item 10): the day's people are split by the
+        // station's gravity shares, and only people bound for a stop on a train's route will board it.
+        const shares = cargo === "passengers" ? economy.passengerBound : undefined;
+        if (shares && daily > 0) {
+          const bound = (entry.bound ??= {});
+          for (const { stationId, share } of shares)
+            bound[stationId] = (bound[stationId] ?? 0) + daily * share;
+        }
         if (entry.amount > DECAY_FLOOR) {
           entry.waitingDays++;
           if (entry.waitingDays > patience.graceDays) {
             const leaving = entry.amount * patience.giveUpPerDay;
+            scaleBound(entry, 1 - patience.giveUpPerDay);
             entry.amount -= leaving;
             recordTurnedAway(state, station.id, cargo, leaving);
           }
         } else {
           entry.amount = 0;
           entry.waitingDays = 0;
+          delete entry.bound;
         }
         pile[cargo] = entry;
         continue;

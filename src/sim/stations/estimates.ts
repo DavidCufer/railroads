@@ -17,7 +17,7 @@ import type { GameState } from "../state";
 import { STATION_TYPE_DEFS } from "../../data/stations";
 import { DAYS_PER_MONTH, calendarFromTicks } from "../time";
 import { stationCatchmentTiles } from "./placement";
-import { destinationCounts } from "./destinations";
+import { destinationSets } from "./destinations";
 import { computeStationEconomies } from "./economy";
 import { emptyStationFlow } from "./flow";
 import type { Station } from "./types";
@@ -119,7 +119,7 @@ export function typeUpgradeEstimate(
     stations,
     year,
     state.industryEconomy,
-    destinationCounts(state.trains),
+    destinationSets(state.trains),
   ).get(station.id);
   const before = state.stationEconomy.get(station.id);
   if (!after || !before) return undefined;

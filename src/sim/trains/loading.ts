@@ -31,6 +31,7 @@ import {
   TICKS_PER_CAR_HANDLED,
 } from "../../data/trains";
 import { addRevenue } from "../finance/ledger";
+import { boardable, takeBoarders } from "../stations/boarding";
 import { recordDelivered, recordLoadedRevenue, recordSent } from "../stations/flow";
 import { recordTrainRevenue } from "./profit";
 import { accrueCityGrowthScore } from "../economy/cityGrowth";
@@ -157,8 +158,9 @@ function planLoadUnload(
       // Livestock Pens (SPEC §6.2): required to *load* livestock at this station (unaffected for
       // unloading/delivering it elsewhere).
       if (car.cargoType === "livestock" && !hasImprovement(station, "livestockPens")) return;
+      const waiting = pile?.[car.cargoType];
       const available =
-        (pile?.[car.cargoType]?.amount ?? 0) +
+        (waiting ? boardable(waiting, train, station.id) : 0) +
         loadableTransfer(state, train, station, car.cargoType);
       // PLAN Phase 16 ("partial loading"): Auto loads whatever is waiting, not just a full carload
       // — a small town's trickle of supply used to never reach a full car and always left empty
@@ -468,8 +470,9 @@ function applyLoad(state: GameState, train: Train, station: Station, carIndex: n
   const entry: StationCargoPile | undefined = pile?.[car.cargoType];
   if (!entry || entry.amount <= 0) return;
 
-  const amount = Math.min(entry.amount, room);
-  entry.amount -= amount;
+  const amount = Math.min(boardable(entry, train, station.id), room);
+  if (amount <= 0) return;
+  takeBoarders(entry, train, station.id, amount);
   entry.waitingDays = 0;
   if (car.loadedUnits === 0) {
     car.loadedTile = station.tile;

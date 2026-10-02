@@ -1298,4 +1298,4 @@ Player report (Central Europe, 1840s), with phone screenshots:
    `npm run bench` / goodPlayer and the Hard vs Normal gap, update BALANCE.md, and record the SPEC change
    (§9.5b). No flat multipliers.
 
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7 [ ] 8 [ ] 9 [ ] 10
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6 [x] 7 [x] 8 [x] 9 [x] 10

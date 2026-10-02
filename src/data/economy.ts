@@ -415,3 +415,28 @@ export const GOAL_LAND_GRANT_1830 = { bronze: 100_000, silver: 300_000, gold: 1_
 export function goalLandGrant(tier: "bronze" | "silver" | "gold", year: number): number {
   return Math.round(GOAL_LAND_GRANT_1830[tier] * priceIndex(year));
 }
+
+// --- Pair demand (Phase 34 item 10): trip demand between two places is finite ----------------------------------------
+
+/** People do not simply "travel": a town's travellers choose a destination, and the number of trips between two
+ * places follows a gravity law — it grows with the size of *both* ends and falls with distance. A station's
+ * passenger supply (the §6.3 figure, "people who would travel somewhere") is therefore split by destination, and only
+ * the share bound for stops on a train's route boards it (`StationCargoPile.bound`).
+ *
+ * Trips per month from S to D = supply_S × (supply_D / supply_S)^`sizeExponent` × (`refDistanceTiles` /
+ * distance)^`distanceExponent`, with the size ratio kept within `sizeRatioLimit` of 1 either way (a village next to a
+ * metropolis does not become a metropolis), and never more than the station's own supply per destination (a near
+ * neighbour does not make people travel more than they would). Two equal stations `refDistanceTiles` apart exchange exactly their supply, so a line
+ * of up to 200 km between ordinary towns is unchanged; a long line between two big cities has fewer trips than the
+ * people available (few took a 300 km journey in the 1840s), and the marginal train on one pair earns less and less. A
+ * station that serves several destinations draws on all of them: the sum is saturating, from 1 (one destination of
+ * reference size) towards 1 + `extraDestinationMax` (the Phase 26A destination bonus, now earned by real places). */
+export const PAIR_DEMAND = {
+  /** 200 km at 5 km per tile. */
+  refDistanceTiles: 40,
+  distanceExponent: 1,
+  /** Exponent of the destination-to-origin size ratio (0.5 = geometric mean of both ends). */
+  sizeExponent: 0.25,
+  sizeRatioLimit: 4,
+  extraDestinationMax: 0.5,
+};

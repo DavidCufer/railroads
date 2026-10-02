@@ -649,6 +649,30 @@ and the last one keeps the first decades playable. Measured results: docs/PROGRE
     good-player script that grew a 1840 start to $20M by 1870 before Phase 30A stalls at $1.3M (Hard goes bankrupt), 1.7
     restores it (docs/PROGRESS.md). The city panel's passenger figure includes it.
 
+### 9.5d Phase 34: trip demand between two places is finite (pair demand)
+
+Rule unchanged: a real mechanism, a table in `src/data/economy.ts` (`PAIR_DEMAND`), no flat multiplier. Problem (play-test 14):
+every train on a pair loaded from one generic waiting pool, whatever its destination, so a pair of cities kept absorbing
+trains (Venice–Milan 1847, 290 km: 4 trains ≈ $183k/yr, 8 trains ≈ $446k/yr) and long lines paid as much per person as
+short ones, although far fewer people take a long journey.
+
+1. **Passengers have a destination.** A station's passenger supply (§6.3, incl. induced traffic) is the number of people who
+   would travel *somewhere*. Once passenger trains serve the station, that supply is split among the other stations on those
+   trains' orders (`StationEconomy.passengerBound`, shares summing to 1) and each day's new arrivals are added to
+   `StationCargoPile.bound[destination]`. **A train boards only people bound for another stop of its orders** (plus people with
+   no destination yet: pile minus the bound sum, e.g. from before the station had a service); a pile for a destination nobody
+   serves simply waits and gives up (§9.5c-1). Mail, freight and unserved stations keep the single pile.
+2. **Gravity.** Weight of destination D for station S = `min(1, (supply_D/supply_S)^0.25 × (40 tiles / distance)^1)` with the size
+   ratio held within ×4 either way: demand grows with the size of both ends, falls inversely with distance (crow-flies, 40 tiles =
+   200 km at 5 km/tile) and never exceeds the station's own supply per destination. Two stations of equal size ≤ 200 km apart
+   exchange their full supply, i.e. the §6.3 figure for an ordinary short line is unchanged; revenue of a pair beyond 200 km is
+   roughly flat in distance (people ∝ 1/d, fare ∝ d) instead of growing with it.
+3. **Several destinations.** The weights add: total supply = base × `w` for Σw ≤ 1, and `1 + 0.5 × (1 − 1/Σw)` above 1 (a hub
+   draws more but never beyond +50 %). This replaces the Phase 26A "+10 % per extra stop" bonus for passengers (kept for mail).
+4. **Result.** Adding trains to one pair beyond its demand gives emptier trains: Venice–Milan 1847, Norris × 5 passenger cars, double
+   track: ceiling $140k/yr (was $280k+), marginal train ROI mostly ≤ ~12 % beyond the first train (was −8 to 76 %, back above 20 % at 6 and 12 trains). Measured in
+   docs/BALANCE.md ("Pair scaling") and docs/PROGRESS.md "Phase 34".
+
 ### 9.6 Difficulty
 
 | | Easy | Normal | Hard |

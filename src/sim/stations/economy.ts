@@ -21,7 +21,8 @@ import {
 import { cityTileAcceptance, cityTileSupply } from "../economy/cityStats";
 import type { City, Industry, IndustryEconomyState } from "../economy/types";
 import type { GameMap } from "../map/types";
-import { destinationSupplyMult } from "./destinations";
+import { destinationSupplyMult, pairAffinity, pairDemandMultiplier } from "./destinations";
+import { octileTileDistance } from "../trains/geometry";
 import { hasImprovement } from "./improvements";
 import { stationCatchmentTiles } from "./placement";
 import type { Station } from "./types";
@@ -34,6 +35,9 @@ export interface StationEconomy {
   acceptPoints: Partial<Record<CargoType, number>>;
   /** Cargo types whose acceptPoints meet STATION_ACCEPTANCE_THRESHOLD. */
   accepts: CargoType[];
+  /** Where this station's waiting passengers want to go (Phase 34 item 10): shares of the supply per destination
+   * station, summing to 1. Absent while no passenger train serves the station (everyone is unassigned). */
+  passengerBound?: Array<{ stationId: number; share: number }>;
 }
 
 function addTo(target: Partial<Record<CargoType, number>>, cargo: CargoType, amount: number): void {
@@ -47,7 +51,7 @@ export function computeStationEconomies(
   stations: readonly Station[],
   currentYear: number,
   industryEconomy?: ReadonlyMap<number, IndustryEconomyState>,
-  destinations?: ReadonlyMap<number, number>,
+  destinations?: ReadonlyMap<number, ReadonlySet<number>>,
 ): Map<number, StationEconomy> {
   const all = stations;
   stations = stations.filter((s) => !s.passingLoop); // a passing loop draws and accepts nothing (Phase 30A)
@@ -146,14 +150,37 @@ export function computeStationEconomies(
     if (economy.supply.mail) economy.supply.mail *= POST_OFFICE_MAIL_SUPPLY_MULT;
   }
 
-  // Destination bonus (Phase 26A): more distinct places reached => more passengers and mail.
   if (destinations) {
+    // Passengers (Phase 34 item 10): the station's supply is split by destination with a gravity law, and the total
+    // follows the destinations the trains reach. Computed from the base supply of every station first, so the
+    // result does not depend on the order the stations are visited in.
+    const baseSupply = new Map<number, number>();
+    for (const station of stations)
+      baseSupply.set(station.id, (result.get(station.id) as StationEconomy).supply.passengers ?? 0);
+    const tileOf = new Map(stations.map((s) => [s.id, s.tile]));
     for (const station of stations) {
-      const mult = destinationSupplyMult(destinations.get(station.id) ?? 0);
-      if (mult === 1) continue;
       const economy = result.get(station.id) as StationEconomy;
-      if (economy.supply.passengers) economy.supply.passengers *= mult;
-      if (economy.supply.mail) economy.supply.mail *= mult;
+      const from = baseSupply.get(station.id) ?? 0;
+      const reachable = [...(destinations.get(station.id) ?? [])].filter((d) => tileOf.has(d));
+      if (from > 0 && reachable.length > 0) {
+        const weights = reachable.map((d) => ({
+          stationId: d,
+          weight: pairAffinity(
+            from,
+            baseSupply.get(d) ?? 0,
+            octileTileDistance(station.tile, tileOf.get(d) as number, map.width),
+          ),
+        }));
+        const total = weights.reduce((sum, w) => sum + w.weight, 0);
+        economy.supply.passengers = from * pairDemandMultiplier(total);
+        if (total > 0)
+          economy.passengerBound = weights
+            .filter((w) => w.weight > 0)
+            .map((w) => ({ stationId: w.stationId, share: w.weight / total }));
+      }
+      // Mail keeps the Phase 26A destination bonus: more distinct places reached => more post.
+      const mult = destinationSupplyMult(destinations.get(station.id)?.size ?? 0);
+      if (mult !== 1 && economy.supply.mail) economy.supply.mail *= mult;
     }
   }
 

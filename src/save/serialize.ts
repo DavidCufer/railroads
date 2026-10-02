@@ -8,7 +8,7 @@ import type { GameState } from "../sim/state";
 import type { GameMap } from "../sim/map/types";
 import { TrackGraph } from "../sim/track/graph";
 import { computeStationEconomies } from "../sim/stations/economy";
-import { destinationCounts } from "../sim/stations/destinations";
+import { destinationSets } from "../sim/stations/destinations";
 import { emptyLedgerPeriod, type LedgerPeriod } from "../data/finance";
 import type {
   SerializedFinanceStateV1,
@@ -184,7 +184,7 @@ export function deserializeGameState(data: SerializedGameStateV3): GameState {
     state.stations,
     currentYear,
     state.industryEconomy,
-    destinationCounts(state.trains),
+    destinationSets(state.trains),
   );
   return state;
 }

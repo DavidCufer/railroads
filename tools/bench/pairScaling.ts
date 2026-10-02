@@ -3,6 +3,18 @@
  * Prints, per train count: steady-state (last year) passenger revenue, people carried, load factor, revenue per
  * train, marginal revenue of the last train added, and its return on cost (marginal profit ÷ train price). */
 import * as commands from "../../src/sim/commands";
+import { PAIR_DEMAND } from "../../src/data/economy";
+
+// PAIR="refTiles,distanceExponent,sizeExponent,sizeRatioLimit" overrides the pair-demand table for tuning runs.
+if (process.env["PAIR"]) {
+  const [ref, dist, size, limit] = process.env["PAIR"].split(",").map(Number);
+  Object.assign(PAIR_DEMAND, {
+    refDistanceTiles: ref ?? PAIR_DEMAND.refDistanceTiles,
+    distanceExponent: dist ?? PAIR_DEMAND.distanceExponent,
+    sizeExponent: size ?? PAIR_DEMAND.sizeExponent,
+    sizeRatioLimit: limit ?? PAIR_DEMAND.sizeRatioLimit,
+  });
+}
 import { createGameState } from "../../src/sim/state";
 import { advanceOneHour } from "../../src/sim/tick";
 import { findBuildPath } from "../../src/sim/track/pathfind";
@@ -10,8 +22,18 @@ import { locomotiveById } from "../../src/data/trains";
 import { CARGO } from "../../src/data/cargo";
 import { getStationFlow } from "../../src/sim/stations/flow";
 
-const [, , y0 = "1847", nameA = "Venice", nameB = "Milan", loco = "norris-4-2-0", carsArg = "5", maxArg = "8", yrsArg = "3", stype = "station"] =
-  process.argv;
+const [
+  ,
+  ,
+  y0 = "1847",
+  nameA = "Venice",
+  nameB = "Milan",
+  loco = "norris-4-2-0",
+  carsArg = "5",
+  maxArg = "8",
+  yrsArg = "3",
+  stype = "station",
+] = process.argv;
 const startYear = Number(y0);
 const years = Number(yrsArg);
 const L = locomotiveById(loco)!;
@@ -38,7 +60,10 @@ function run(n: number): Row {
   const ok = (r: unknown) => (r as { ok: boolean }).ok;
   if (!ok(commands.buildTrack(state, path))) throw new Error("track");
   if (process.env["DOUBLE"]) commands.upgradeTrack(state, path);
-  if (!ok(commands.buildStation(state, ctr(A), stype)) || !ok(commands.buildStation(state, ctr(B), stype)))
+  if (
+    !ok(commands.buildStation(state, ctr(A), stype)) ||
+    !ok(commands.buildStation(state, ctr(B), stype))
+  )
     throw new Error("station");
   const sa = state.stations[0]!;
   const sb = state.stations[1]!;
@@ -52,7 +77,11 @@ function run(n: number): Row {
     price = before - state.cash;
     const t = state.trains[state.trains.length - 1]!;
     const o = i % 2 === 0 ? [sa, sb] : [sb, sa];
-    commands.setOrders(state, t.id, o.map((s) => ({ stationId: s.id, rule: "auto" as const })));
+    commands.setOrders(
+      state,
+      t.id,
+      o.map((s) => ({ stationId: s.id, rule: "auto" as const })),
+    );
   }
   let prevCash = state.cash;
   let profit = 0;
@@ -67,14 +96,21 @@ function run(n: number): Row {
     (sum, s) => sum + (getStationFlow(state, s.id).lastYear.passengers?.sent ?? 0),
     0,
   );
-  const supply = [sa, sb].reduce((s, st) => s + (state.stationEconomy.get(st.id)?.supply.passengers ?? 0), 0);
+  const supply = [sa, sb].reduce(
+    (s, st) => s + (state.stationEconomy.get(st.id)?.supply.passengers ?? 0),
+    0,
+  );
   const capacity = n * nCars * CARGO.passengers.capacity;
   void capacity;
   return { n, revenue: ly.passengers, carried, load: 0, profit, price, supply };
 }
 
-console.log(`${startYear} ${nameA}-${nameB} ${loco} x${nCars} passenger cars, ${stype}s, year ${years} figures`);
-console.log("trains | revenue | carried | supply/mo (both) | rev/train | marginal rev | marginal profit ÷ train price | cash growth");
+console.log(
+  `${startYear} ${nameA}-${nameB} ${loco} x${nCars} passenger cars, ${stype}s, year ${years} figures`,
+);
+console.log(
+  "trains | revenue | carried | supply/mo (both) | rev/train | marginal rev | marginal profit ÷ train price | cash growth",
+);
 let prev: Row | undefined;
 for (const n of [1, 2, 3, 4, 5, 6, 8, 10, 12].filter((x) => x <= Number(maxArg))) {
   const r = run(n);
