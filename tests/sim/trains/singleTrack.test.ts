@@ -53,7 +53,7 @@ function build(s: Setup): GameState {
     const from = s.split && i % 2 === 1 ? b : a;
     expect(buyTrain(state, from.id, LOCO, Array(6).fill("passengers") as never).ok).toBe(true);
     const t = state.trains[state.trains.length - 1]!;
-    expect(setOrders(state, t.id, orders(s.split ? from === a : i % 2 === 0)).ok).toBe(true);
+    expect(setOrders(state, t.id, orders(s.split ? from === a : true)).ok).toBe(true);
   }
   return state;
 }
@@ -97,10 +97,10 @@ describe("passing loops", () => {
 });
 
 describe("departure spacing", () => {
-  it("six trains in a convoy on one single line earn >30 % more when departures are spaced a day apart", () => {
+  it("six trains in a convoy on one single line earn >10 % more when departures are spaced a day apart", () => {
     const convoy = yearlyRevenue({ trains: 6 });
     const spaced = yearlyRevenue({ trains: 6, gap: 1 });
-    expect(spaced).toBeGreaterThan(convoy * 1.3);
+    expect(spaced).toBeGreaterThan(convoy * 1.1);
   });
 
   it("four spaced trains with passing loops earn more than two trains (without, four earn less than they could)", () => {

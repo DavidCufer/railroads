@@ -855,6 +855,20 @@ function handleLoading(state: GameState, train: Train, runtime: TrainRuntime): v
   const station = order && runtime.stationsById.get(order.stationId);
   if (!station) return;
 
+  // A train bought (or re-ordered) while standing at a station that is not its current target has nothing to
+  // load or unload here: it must head for its target, not load from the target's pile from afar (Phase 32).
+  if (train.route[train.routeIndex] !== station.tile) {
+    train.route = [train.route[train.routeIndex] as number];
+    train.routeIndex = 0;
+    train.edgeProgress = 0;
+    train.loadTicksLeft = -1;
+    train.loadExtraWaitDays = 0;
+    delete train.headwayHold;
+    delete train.headwayWaitTicks;
+    setStatus(train, "moving");
+    return;
+  }
+
   if (stepLoading(state, train, station)) {
     if (train.callingIndex !== undefined) delete train.callingIndex;
     else train.currentOrderIndex = (train.currentOrderIndex + 1) % train.orders.length;
