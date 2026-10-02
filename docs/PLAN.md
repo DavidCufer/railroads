@@ -1202,3 +1202,21 @@ Player report (Trieste – Venice – Ljubljana Crossing line, 1843):
 - [x] 2. Train panel is view-only; "Add stop … Done" toggle (`e2e/phase31.spec.ts`).
 - [~] 3. Route-precise junction waits: not reproduced as a sim defect — see PROGRESS (tests added, no sim change).
 - [x] 4. Upgrade card hint and estimate share `cityInCatchment` (`tests/ui/upgradeHint.test.ts`).
+
+## Phase 32 — Play-test 12: revert calling points; train spawning with cargo
+Player report (Trieste, 1840): a freight train with orders Ljubljana Iron Mine → Ljubljana Coal Mine → Trieste Steel
+Mill → Trieste.
+1. **Revert Phase 31's "calling points"** (stopping at every ordered station the route passes through). Because the
+   train passes Trieste on its way to the mines, it now stops there and unloads the iron ore and coal (Trieste's port
+   accepts them) instead of taking them to the steel mill — the player's chain is broken. Owner decision: a train
+   stops only at its current target (as before Phase 31). Remove `callingIndex`/`activeOrderIndex` behaviour and the
+   SPEC §7.2 "calling points" addition; keep the property test but assert the old rule; keep the Venice repro as a
+   documentation test of the expected (old) behaviour.
+   Instead, make the Venice case understandable: when a train's path runs through one of its own ordered stations
+   without stopping there, the Route tab shows a small note on that stop ("Passed without stopping on the way from
+   Ljubljana — add it again after Ljubljana to stop both ways") with a one-tap "Add stop here" action.
+2. **Train spawned with full iron-ore cars** at Trieste (where it was bought, at the Engine Shed) before it had ever
+   visited the iron mine (second screenshot, Dec 3 1840: two ore cars full). Find out where the ore came from (loading
+   at the purchase station? transfer/port pile? a calling point at Trieste because Trieste is order 4?) and fix: a new
+   train starts empty and loads only at an order stop it actually serves under its rules. Regression test with the
+   player's orders.
