@@ -41,6 +41,7 @@ import { STATION_STAFF } from "../data/economy";
 import { stationMonthlyCost } from "../sim/finance/costs";
 import { cargoChip, cargoDemandTile } from "./infoPanels";
 import { h } from "./h";
+import type { FlowPeriod } from "../sim/stations/flow";
 import { acceptorsOf } from "../sim/stations/acceptors";
 import { INDUSTRIES } from "../data/industries";
 import { locoArt } from "./trainArt";
@@ -251,64 +252,75 @@ function processingSection(state: GameState, station: Station): Node[] {
   return out;
 }
 
-/** "Results here" (PLAN Phase 30B): revenue from cargo loaded at this station and the passengers/mail that gave
- * up waiting, per month (last full month, else the month so far). Reads `state.stationFlow`. */
+/** "Results here" (PLAN Phase 30B, 34): what was sent from this station (counted when loaded, with the fares
+ * earned once delivered), what was delivered here, and — passengers/mail only — the unserved demand. Reads
+ * `state.stationFlow`; shows the last full month, else this month, else this/last year (long loops). */
 function resultsSection(state: GameState, station: Station): Node[] {
   const t = strings.station.results;
   const flow = state.stationFlow.get(station.id);
-  if (!flow) return [section(t.title, [emptyState(t.none, "coin")])];
-  const last = Object.keys(flow.lastMonth).length > 0;
-  const period = last ? flow.lastMonth : flow.month;
+  const empty = [section(t.title, [emptyState(t.none, "coin")])];
+  if (!flow) return empty;
+  const candidates: Array<[FlowPeriod, string]> = [
+    [flow.lastMonth, t.lastMonthNote],
+    [flow.month, t.thisMonthNote],
+    [flow.year, t.thisYearNote],
+    [flow.lastYear, t.lastYearNote],
+  ];
+  const [period, note] = candidates.find(([p]) => Object.keys(p).length > 0) ?? [];
+  if (!period || !note) return empty;
   let revenue = 0;
   let lostUnits = 0;
-  let lostFares = 0;
   const lines: Node[] = [];
   for (const cargo of CARGO_TYPES) {
     const b = period[cargo];
     if (!b) continue;
     revenue += b.revenue;
-    if (cargo === "passengers" || cargo === "mail") {
+    const unit = CARGO[cargo].unit;
+    const sent = b.sent ?? 0;
+    const delivered = b.delivered ?? 0;
+    const people = cargo === "passengers" || cargo === "mail";
+    if (people) {
       lostUnits += b.lostUnits;
-      lostFares += b.lostRevenue;
     }
-    if (b.revenue < 1 && b.lostUnits < 0.5) continue;
+    const parts: string[] = [];
+    if (sent >= 0.5)
+      parts.push(
+        t.sent(Math.round(sent), unit, b.revenue >= 1 ? formatMoney(b.revenue) : undefined),
+      );
+    if (delivered >= 0.5)
+      parts.push(
+        t.deliveredHere(Math.round(delivered), unit, formatMoney(b.deliveredRevenue ?? 0)),
+      );
+    if (people && b.lostUnits >= 0.5)
+      parts.push(t.unserved(Math.round(b.lostUnits), formatMoney(b.lostRevenue)));
+    if (parts.length === 0) continue;
     lines.push(
       cardRow({
         className: "flow-row",
         thumb: cargoIcon(cargo, "cargo-icon-lg"),
         title: CARGO[cargo].name,
-        meta:
-          b.lostUnits >= 0.5
-            ? t.turnedAway(Math.round(b.lostUnits), formatMoney(b.lostRevenue))
-            : t.noneLost,
-        trailing: formatMoney(b.revenue),
+        meta: parts.join(" · "),
+        trailing: b.revenue >= 1 ? formatMoney(b.revenue) : "",
       }),
     );
   }
-  if (lines.length === 0) return [section(t.title, [emptyState(t.none, "coin")])];
+  if (lines.length === 0) return empty;
+  const tiles = [
+    statTile({ icon: "coin", value: formatMoney(revenue), caption: t.revenue, tone: "go" }),
+  ];
+  if (lostUnits >= 0.5) {
+    tiles.push(
+      statTile({
+        icon: "town",
+        value: String(Math.round(lostUnits)),
+        caption: t.unservedCaption,
+        tone: "signal",
+      }),
+    );
+  }
   return [
-    section(
-      t.title,
-      [
-        statRow(
-          statTile({ icon: "coin", value: formatMoney(revenue), caption: t.revenue, tone: "go" }),
-          statTile({
-            icon: "town",
-            value: String(Math.round(lostUnits)),
-            caption: t.turnedAwayCaption,
-            ...(lostUnits >= 0.5 ? { tone: "signal" as const } : {}),
-          }),
-          statTile({
-            icon: "arrowDown",
-            value: formatMoney(lostFares),
-            caption: t.lostFares,
-            ...(lostFares >= 1 ? { tone: "signal" as const } : {}),
-          }),
-        ),
-        cardList(...(lines as HTMLElement[])),
-      ],
-      last ? t.lastMonthNote : t.thisMonthNote,
-    ),
+    section(t.title, [statRow(...tiles), cardList(...(lines as HTMLElement[]))], note),
+    ...(lostUnits >= 0.5 ? [h("div", { className: "hint" }, t.unservedHint)] : []),
   ];
 }
 

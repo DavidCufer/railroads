@@ -18,6 +18,12 @@ export interface CargoFlow {
   lostUnits: number;
   /** Estimated fares those people would have paid (`lostUnits` × the recent fare per unit here). */
   lostRevenue: number;
+  /** Units loaded onto trains here (counted at loading, so a long trip still shows before it is paid). */
+  sent?: number;
+  /** Units of this cargo delivered (unloaded for pay) at this station. */
+  delivered?: number;
+  /** Fares paid for the cargo delivered here. */
+  deliveredRevenue?: number;
 }
 
 export type FlowPeriod = Partial<Record<CargoType, CargoFlow>>;
@@ -70,6 +76,36 @@ export function recordLoadedRevenue(
   const perUnit = revenue / units;
   const prev = flow.fare[cargo];
   flow.fare[cargo] = prev === undefined ? perUnit : prev * 0.7 + perUnit * 0.3;
+}
+
+export function recordSent(
+  state: GameState,
+  stationId: number,
+  cargo: CargoType,
+  units: number,
+): void {
+  if (units <= 0) return;
+  const flow = getStationFlow(state, stationId);
+  for (const period of [flow.month, flow.year]) {
+    const b = bucket(period, cargo);
+    b.sent = (b.sent ?? 0) + units;
+  }
+}
+
+export function recordDelivered(
+  state: GameState,
+  stationId: number,
+  cargo: CargoType,
+  units: number,
+  revenue: number,
+): void {
+  if (units <= 0) return;
+  const flow = getStationFlow(state, stationId);
+  for (const period of [flow.month, flow.year]) {
+    const b = bucket(period, cargo);
+    b.delivered = (b.delivered ?? 0) + units;
+    b.deliveredRevenue = (b.deliveredRevenue ?? 0) + revenue;
+  }
 }
 
 export function recordTurnedAway(

@@ -31,7 +31,7 @@ import {
   TICKS_PER_CAR_HANDLED,
 } from "../../data/trains";
 import { addRevenue } from "../finance/ledger";
-import { recordLoadedRevenue } from "../stations/flow";
+import { recordDelivered, recordLoadedRevenue, recordSent } from "../stations/flow";
 import { recordTrainRevenue } from "./profit";
 import { accrueCityGrowthScore } from "../economy/cityGrowth";
 import { getOrCreateIndustryEconomy } from "../economy/processing";
@@ -280,6 +280,7 @@ function settleUnload(state: GameState, train: Train, station: Station, car: Tra
   const distanceTiles =
     car.loadedTile !== undefined ? tileDistance(state.map.width, car.loadedTile, station.tile) : 0;
 
+  let deliveredRevenue = 0;
   if (distanceTiles >= MIN_REVENUE_DISTANCE_TILES && unitsDelivered > 0) {
     const days = (state.ticks - (car.loadedTick ?? state.ticks)) / HOURS_PER_DAY;
     // `computeRevenue` is still "per full carload" (SPEC §8.1's `base` rate) — PLAN Phase 16 pays
@@ -314,6 +315,7 @@ function settleUnload(state: GameState, train: Train, station: Station, car: Tra
       revenue *= HOTEL_PASSENGER_REVENUE_MULT;
     }
 
+    deliveredRevenue = revenue;
     state.cash += revenue;
     addRevenue(state, cargo, revenue);
     if (loadedStation) recordLoadedRevenue(state, loadedStation.id, cargo, unitsDelivered, revenue);
@@ -330,6 +332,9 @@ function settleUnload(state: GameState, train: Train, station: Station, car: Tra
     // the same moment it earns revenue — a delivery too short to pay out doesn't count either.
     state.cargoDeliveredThisYear[cargo] = (state.cargoDeliveredThisYear[cargo] ?? 0) + carloads;
   }
+
+  if (unitsDelivered > 0)
+    recordDelivered(state, station.id, cargo, unitsDelivered, deliveredRevenue);
 
   car.loadedUnits = 0;
   delete car.loadedTile;
@@ -471,6 +476,7 @@ function applyLoad(state: GameState, train: Train, station: Station, carIndex: n
     car.loadedTick = state.ticks;
   }
   car.loadedUnits += amount;
+  recordSent(state, station.id, car.cargoType, amount);
 }
 
 /** Advances one tick of a "loading" stop at `station`; returns true once the train is ready to

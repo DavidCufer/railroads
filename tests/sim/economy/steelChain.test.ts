@@ -87,6 +87,19 @@ describe("Trieste steel chain, Central Europe 1840 (PLAN Phase 33)", () => {
     expect(state.cargoDeliveredThisYear.steel ?? 0).toBeGreaterThan(0);
   });
 
+  it("station results count cargo sent from a mine and delivered at the mill (PLAN Phase 34 item 1)", () => {
+    const { state, st } = runChain(163, 9);
+    const mine = state.stationFlow.get((st["iron"] as Station).id);
+    const mill = state.stationFlow.get((st["mill"] as Station).id);
+    const sent = (mine?.year.ironOre?.sent ?? 0) + (mine?.lastYear.ironOre?.sent ?? 0);
+    expect(sent).toBeGreaterThan(0);
+    const delivered =
+      (mill?.year.ironOre?.delivered ?? 0) + (mill?.lastYear.ironOre?.delivered ?? 0);
+    expect(delivered).toBeGreaterThan(0);
+    const earned = (mine?.year.ironOre?.revenue ?? 0) + (mine?.lastYear.ironOre?.revenue ?? 0);
+    expect(earned).toBeGreaterThan(0);
+  });
+
   it("a Trieste stop without the Port does not accept steel, so the steel car stays empty — and the planner says so", () => {
     const { state, st, orders } = runChain(166, 9);
     const trieste = st["trieste"] as Station;

@@ -242,14 +242,23 @@ export const strings = {
     },
     results: {
       title: "Results here",
-      none: "No fares from this station yet — run a train that loads here.",
-      revenue: "Revenue",
-      turnedAwayCaption: "Turned away",
-      lostFares: "Lost fares",
-      turnedAway: (n: number, fares: string) => `${n} gave up waiting · ${fares} lost`,
-      noneLost: "Nobody turned away",
-      lastMonthNote: "Last month. Fares of cargo loaded here, paid when it is delivered.",
-      thisMonthNote: "This month so far. Fares of cargo loaded here, paid when it is delivered.",
+      none: "Nothing sent from or delivered to this station yet — run a train that loads here.",
+      revenue: "Fares earned",
+      unservedCaption: "Unserved demand",
+      unservedHint: "Unserved demand: more cars or trains would carry them.",
+      sent: (n: number, unit: string, fares?: string) =>
+        `Sent ${n} ${unit}${fares ? ` → ${fares}` : ""}`,
+      deliveredHere: (n: number, unit: string, fares: string) =>
+        `Delivered here ${n} ${unit}${fares === "$0" ? "" : ` → ${fares}`}`,
+      unserved: (n: number, fares: string) => `${n} unserved · ${fares} in fares`,
+      lastMonthNote:
+        "Last month. Fares are credited to where cargo was loaded, when it is delivered.",
+      thisMonthNote:
+        "This month so far. Fares are credited to where cargo was loaded, when it is delivered.",
+      thisYearNote:
+        "This year so far. Fares are credited to where cargo was loaded, when it is delivered.",
+      lastYearNote:
+        "Last year. Fares are credited to where cargo was loaded, when it is delivered.",
     },
     estimate: (money: string) => `≈ +${money}/yr at current traffic`,
     waterTowerBenefit: "Steam engines refill water here",
