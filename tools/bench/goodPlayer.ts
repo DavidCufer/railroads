@@ -9,17 +9,21 @@
  * project is short of cash and repay when cash piles up, relay worn track, rebuild washed-out bridges.
  */
 import * as commands from "../../src/sim/commands";
-import { PAIR_DEMAND } from "../../src/data/economy";
+import { PAIR_DEMAND, TRAVEL_RANGE_ANCHORS } from "../../src/data/economy";
 
-// PAIR="refTiles,distanceExponent,sizeExponent,sizeRatioLimit" overrides the pair-demand table for tuning runs.
+// PAIR="refTiles,distanceExponent,sizeExponent" overrides the passenger-destination table for tuning runs;
+// RANGE=<factor> scales the travel range.
 if (process.env["PAIR"]) {
-  const [ref, dist, size, limit] = process.env["PAIR"].split(",").map(Number);
+  const [ref, dist, size] = process.env["PAIR"].split(",").map(Number);
   Object.assign(PAIR_DEMAND, {
     refDistanceTiles: ref ?? PAIR_DEMAND.refDistanceTiles,
     distanceExponent: dist ?? PAIR_DEMAND.distanceExponent,
     sizeExponent: size ?? PAIR_DEMAND.sizeExponent,
-    sizeRatioLimit: limit ?? PAIR_DEMAND.sizeRatioLimit,
   });
+}
+if (process.env["RANGE"]) {
+  const f = Number(process.env["RANGE"]);
+  for (const anchor of TRAVEL_RANGE_ANCHORS as unknown as Array<[number, number]>) anchor[1] *= f;
 }
 import { createGameState } from "../../src/sim/state";
 import { advanceOneHour } from "../../src/sim/tick";

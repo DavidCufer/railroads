@@ -55,7 +55,7 @@ import { landPrices, passingLoopLandCost, stationLandCost } from "./economy/land
 import { passingLoopCost, stationCost, stationUpgradeCost } from "./stations/cost";
 import { defaultStationName } from "./stations/naming";
 import { computeStationEconomies } from "./stations/economy";
-import { destinationSets } from "./stations/destinations";
+import { destinationSets, passengerLinks } from "./stations/destinations";
 import type { Station } from "./stations/types";
 import { CARGO, type CargoType } from "../data/cargo";
 import {
@@ -649,6 +649,7 @@ export function refreshStationEconomy(state: GameState): void {
     year,
     state.industryEconomy,
     destinationSets(state.trains),
+    passengerLinks(state.trains),
   );
 }
 
@@ -1124,7 +1125,8 @@ export function setOrders(
 
   train.orders = orders.map((o) => ({ ...o }));
   train.currentOrderIndex = 0;
-  // (the destination bonus follows the orders at the next monthly economy refresh)
+  // Which destinations are reachable follows the orders (Phase 35 item 2).
+  refreshStationEconomy(state);
   return { ok: true, cost: 0 };
 }
 
@@ -1320,6 +1322,7 @@ export function sellTrain(state: GameState, trainId: number): CommandResult {
   state.trains.splice(index, 1);
   state.cash += plan.refund;
   addExpense(state, "rollingStock", -plan.refund);
+  refreshStationEconomy(state);
   return { ok: true, cost: -plan.refund };
 }
 

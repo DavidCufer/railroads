@@ -1,7 +1,6 @@
 /** Destination bonus (Phase 26A): how many distinct other stations a station's passenger/mail
  * trains reach. Pure; recomputed with the station economy. */
 import { DESTINATION_BONUS_MAX, DESTINATION_BONUS_PER_STOP } from "../../data/cities";
-import { PAIR_DEMAND } from "../../data/economy";
 import type { Train } from "../trains/types";
 
 function carriesPeople(train: Train): boolean {
@@ -32,23 +31,31 @@ export function destinationCounts(trains: readonly Train[]): Map<number, number>
   return counts;
 }
 
-/** One destination's weight for a station: the gravity ratio of PAIR_DEMAND (1 = the station's own supply goes there). */
-export function pairAffinity(supplyFrom: number, supplyTo: number, distanceTiles: number): number {
-  if (supplyFrom <= 0 || supplyTo <= 0) return 0;
-  const limit = PAIR_DEMAND.sizeRatioLimit;
-  const ratio = Math.min(limit, Math.max(1 / limit, supplyTo / supplyFrom));
-  const distance = Math.max(PAIR_DEMAND.refDistanceTiles / 4, distanceTiles);
-  const gravity =
-    Math.pow(ratio, PAIR_DEMAND.sizeExponent) *
-    Math.pow(PAIR_DEMAND.refDistanceTiles / distance, PAIR_DEMAND.distanceExponent);
-  return Math.min(1, gravity);
-}
-
-/** Total demand multiplier from a station's destination weights: the weights themselves while their sum is at most
- * one, then saturating towards 1 + `extraDestinationMax` (a hub draws more, but never without limit). */
-export function pairDemandMultiplier(totalAffinity: number): number {
-  if (totalAffinity <= 1) return totalAffinity;
-  return 1 + PAIR_DEMAND.extraDestinationMax * (1 - 1 / totalAffinity);
+/** station id -> the stations it is linked to by a passenger/mail train: consecutive stops of the orders' cycle, in
+ * both directions (Phase 35 item 2). The graph that decides which destinations are reachable. */
+export function passengerLinks(trains: readonly Train[]): Map<number, Set<number>> {
+  const links = new Map<number, Set<number>>();
+  const link = (a: number, b: number): void => {
+    if (a === b) return;
+    for (const [x, y] of [
+      [a, b],
+      [b, a],
+    ] as const) {
+      let set = links.get(x);
+      if (!set) links.set(x, (set = new Set()));
+      set.add(y);
+    }
+  };
+  for (const train of trains) {
+    if (!train.cars.some((c) => c.cargoType === "passengers")) continue;
+    const n = train.orders.length;
+    for (let i = 0; i < n; i++)
+      link(
+        (train.orders[i] as { stationId: number }).stationId,
+        (train.orders[(i + 1) % n] as { stationId: number }).stationId,
+      );
+  }
+  return links;
 }
 
 /** Supply multiplier for a station with `destinations` distinct destinations: 1 for none or one. */

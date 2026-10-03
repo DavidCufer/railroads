@@ -649,29 +649,41 @@ and the last one keeps the first decades playable. Measured results: docs/PROGRE
     good-player script that grew a 1840 start to $20M by 1870 before Phase 30A stalls at $1.3M (Hard goes bankrupt), 1.7
     restores it (docs/PROGRESS.md). The city panel's passenger figure includes it.
 
-### 9.5d Phase 34: trip demand between two places is finite (pair demand)
+### 9.5d Phase 35: where passengers go (gravity split, reachable destinations, first-leg buckets)
 
-Rule unchanged: a real mechanism, a table in `src/data/economy.ts` (`PAIR_DEMAND`), no flat multiplier. Problem (play-test 14):
-every train on a pair loaded from one generic waiting pool, whatever its destination, so a pair of cities kept absorbing
-trains (Venice–Milan 1847, 290 km: 4 trains ≈ $183k/yr, 8 trains ≈ $446k/yr) and long lines paid as much per person as
-short ones, although far fewer people take a long journey.
+Replaces Phase 34's boarding rule, which generated passengers for every stop of a train's orders and let a train board only
+people bound for its own stops: a big town showed "672 waiting" while its trains, set to "Full load", left half empty. The
+number on the platform must be a number the trains calling there can take. Rule unchanged: a real mechanism, tables in
+`src/data/economy.ts` (`PAIR_DEMAND`, `TRAVEL_RANGE_ANCHORS`), no flat multiplier.
 
-1. **Passengers have a destination.** A station's passenger supply (§6.3, incl. induced traffic) is the number of people who
-   would travel *somewhere*. Once passenger trains serve the station, that supply is split among the other stations on those
-   trains' orders (`StationEconomy.passengerBound`, shares summing to 1) and each day's new arrivals are added to
-   `StationCargoPile.bound[destination]`. **A train boards only people bound for another stop of its orders** (plus people with
-   no destination yet: pile minus the bound sum, e.g. from before the station had a service); a pile for a destination nobody
-   serves simply waits and gives up (§9.5c-1). Mail, freight and unserved stations keep the single pile.
-2. **Gravity.** Weight of destination D for station S = `min(1, (supply_D/supply_S)^0.25 × (40 tiles / distance)^1)` with the size
-   ratio held within ×4 either way: demand grows with the size of both ends, falls inversely with distance (crow-flies, 40 tiles =
-   200 km at 5 km/tile) and never exceeds the station's own supply per destination. Two stations of equal size ≤ 200 km apart
-   exchange their full supply, i.e. the §6.3 figure for an ordinary short line is unchanged; revenue of a pair beyond 200 km is
-   roughly flat in distance (people ∝ 1/d, fare ∝ d) instead of growing with it.
-3. **Several destinations.** The weights add: total supply = base × `w` for Σw ≤ 1, and `1 + 0.5 × (1 − 1/Σw)` above 1 (a hub
-   draws more but never beyond +50 %). This replaces the Phase 26A "+10 % per extra stop" bonus for passengers (kept for mail).
-4. **Result.** Adding trains to one pair beyond its demand gives emptier trains: Venice–Milan 1847, Norris × 5 passenger cars, double
-   track: ceiling $140k/yr (was $280k+), marginal train ROI mostly ≤ ~12 % beyond the first train (was −8 to 76 %, back above 20 % at 6 and 12 trains). Measured in
-   docs/BALANCE.md ("Pair scaling") and docs/PROGRESS.md "Phase 34".
+1. **The town total is the cap.** A station's passenger supply (§6.3, incl. induced traffic §9.5c-11) is the number of people
+   who would travel *somewhere* this month. It is split over destination **towns** within the era's travel range
+   (`travelRangeTiles(year)`: 20 tiles in 1830, 30 in 1870, 40 in 1900, 70 in 1930, 140 in 1960; 5 km a tile) by a gravity
+   share: weight = the destination town's passenger supply × (60 tiles / distance), distance clamped to at least 15 tiles.
+   Nearer and bigger towns take most; a tiny town across the map weighs ~nothing. Shares are normalised by the total weight
+   of the in-range towns (plus any reachable town beyond the range) or, if larger, the weight of a town of the station's own
+   size 300 km away, so one first line still captures a fair share of its end while a lone partner beyond 300 km draws
+   proportionally fewer people (people ∝ 1/distance, as in Phase 34).
+2. **Only reachable destinations wait.** A destination counts only if a chain of trains reaches it: stations are linked by
+   consecutive stops of any passenger train's orders (cycle, both directions); any number of changes. A share for an
+   unreachable town is not generated at all. Where a town has several reachable stations the nearest by route is used.
+   A station no passenger train calls at yet keeps one generic pile (everyone boards any train) so a new station still
+   shows what it would draw. `computeStationEconomies` recomputes this with the orders (`setOrders`, `sellTrain`, removing a
+   station, and monthly).
+3. **First leg only.** Each reachable destination's people are stored by **first leg**: the next station on the shortest
+   (crow-flies distance) route to it, ties to the lower station id (`StationCargoPile.bound`, keyed by first-leg station).
+   Any train whose orders include that station boards them (`sim/stations/boarding.ts`). They leave the game there, paid for
+   that leg only; no transfers are tracked. Through passengers on a train A–B–C stay on as before. A train therefore never
+   refuses people the station shows as waiting. People bound for a station whose service ends give up as usual (§9.5c-1);
+   "Unserved demand" is only reachable demand that found no seat.
+4. **Mail** keeps its model: no destinations, the Phase 26A destination bonus (+10 % per extra stop, max +50 %).
+5. **"Where passengers go"** (station panel: tap the passenger tile): per month, bars **by first train stop** (each includes
+   people travelling further), each row expandable (▸) to final destinations ("Ljubljana 30 · Zagreb 15"), then **Not
+   connected**: the top in-range towns with no train link ("Padua ~20 · Verona ~12 · 4 more").
+6. **Fares at the station that loaded them.** Fares are paid on arrival and credited to where the cargo was loaded, so on a
+   long line a month can show people sent and no fares yet; the panel says "paid on arrival", not "$0".
+7. **Saves.** Phase 34 piles stored by destination are re-bucketed by first leg on load (`rebucketPassengerPiles`).
+8. **Result.** Numbers in docs/BALANCE.md ("Pair scaling") and docs/PROGRESS.md "Phase 35".
 
 ### 9.6 Difficulty
 

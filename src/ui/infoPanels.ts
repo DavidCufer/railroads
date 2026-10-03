@@ -79,6 +79,7 @@ export function cargoChip(
   suffix = "",
   dimmed = false,
   large = false,
+  onTap?: () => void,
 ): HTMLElement {
   const def = CARGO[cargo];
   // Whole units only ("17.2" reads as noise); a tiny non-zero rate still shows as 1.
@@ -88,7 +89,7 @@ export function cargoChip(
     {
       className: `chip${large ? " chip-lg" : ""}${dimmed ? " chip-dim" : ""}`,
       "aria-label": def.name,
-      onClick: () => showToast(container, `${def.name}: ${amount}${suffix}`, "info"),
+      onClick: onTap ?? (() => showToast(container, `${def.name}: ${amount}${suffix}`, "info")),
     },
     cargoIcon(cargo, large ? "cargo-icon-lg" : "cargo-icon-sm"),
     String(amount),

@@ -1,7 +1,12 @@
 /** PLAN Phase 18 C: a Warehouse station is a transfer hub — feeder trains drop cargo there without
  * being paid, other trains pick it up, and the final delivery pays for the whole trip. */
 import { describe, expect, it } from "vitest";
-import { buildStation, buildTrack, buyTrain, setOrders } from "../../../src/sim/commands";
+import {
+  buildStation,
+  buildTrack,
+  buyTrain,
+  setOrders as setOrdersCommand,
+} from "../../../src/sim/commands";
 import { CARGO } from "../../../src/data/cargo";
 import { accrueDailyCargo } from "../../../src/sim/economy/cargoFlow";
 import { transferStorageCap } from "../../../src/sim/stations/improvements";
@@ -10,6 +15,14 @@ import type { GameState } from "../../../src/sim/state";
 import type { Station } from "../../../src/sim/stations/types";
 import type { LoadingRule, Train } from "../../../src/sim/trains/types";
 import { makeTestMap, makeTestState, tileAt } from "../track/helpers";
+
+/** `setOrders` refreshes the station economy (Phase 35); these tests hand-edit `accepts`, so keep their map. */
+const setOrders: typeof setOrdersCommand = (state, trainId, orders) => {
+  const economy = state.stationEconomy;
+  const result = setOrdersCommand(state, trainId, orders);
+  state.stationEconomy = economy;
+  return result;
+};
 
 const LOCO = "american-4-4-0";
 const LENGTH = 21; // A at x=0, hub at x=10, B at x=20

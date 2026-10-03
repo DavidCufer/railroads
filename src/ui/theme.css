@@ -4620,3 +4620,78 @@ select {
   color: var(--paper-dim);
   font-size: var(--fs-xs);
 }
+
+/* ---------- "Where passengers go" sheet (Phase 35) ---------- */
+
+.dest-link {
+  font-size: var(--fs-xs);
+  color: var(--brass);
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  min-height: 0;
+  text-align: left;
+}
+.dest-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 12px;
+}
+.dest-row-head {
+  display: grid;
+  grid-template-columns: 16px minmax(70px, 1.2fr) 2fr 40px;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  background: none;
+  border: 0;
+  color: var(--text);
+  text-align: left;
+  padding: 0 4px;
+}
+.dest-caret {
+  color: var(--brass);
+}
+.dest-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dest-bar-track {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--ink-700);
+  overflow: hidden;
+}
+.dest-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--brass);
+}
+.dest-count {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.dest-final {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  padding: 0 4px 6px 28px;
+  line-height: 1.4;
+}
+.dest-unconnected {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+  padding: 8px 4px 0;
+  border-top: 1px solid var(--ink-600);
+  font-size: var(--fs-sm, 13px);
+}
+.dest-unconnected-label {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}

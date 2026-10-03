@@ -1337,4 +1337,4 @@ Agreed design with the player (SPEC §9.5d to be rewritten accordingly):
    `phase-35-destinations.png`. Bench numbers before/after in PROGRESS and BALANCE.md; Hard vs Normal gap reported
    (target ≥ 40 % lower on Hard; note if not met and why).
 
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7 [ ] 8
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6 [x] 7 [x] 8

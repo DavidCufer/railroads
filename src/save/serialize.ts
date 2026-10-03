@@ -7,8 +7,9 @@ import type { TrainProfit } from "../sim/trains/types";
 import type { GameState } from "../sim/state";
 import type { GameMap } from "../sim/map/types";
 import { TrackGraph } from "../sim/track/graph";
+import { rebucketPassengerPiles } from "../sim/stations/boarding";
 import { computeStationEconomies } from "../sim/stations/economy";
-import { destinationSets } from "../sim/stations/destinations";
+import { destinationSets, passengerLinks } from "../sim/stations/destinations";
 import { emptyLedgerPeriod, type LedgerPeriod } from "../data/finance";
 import type {
   SerializedFinanceStateV1,
@@ -177,6 +178,7 @@ export function deserializeGameState(data: SerializedGameStateV3): GameState {
   };
 
   const currentYear = calendarFromTicks(state.startYear, state.ticks).year;
+  const links = passengerLinks(state.trains);
   state.stationEconomy = computeStationEconomies(
     state.map,
     state.cities,
@@ -185,6 +187,8 @@ export function deserializeGameState(data: SerializedGameStateV3): GameState {
     currentYear,
     state.industryEconomy,
     destinationSets(state.trains),
+    links,
   );
+  rebucketPassengerPiles(state, links); // Phase 34 saves stored waiting passengers by destination
   return state;
 }

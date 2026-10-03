@@ -198,6 +198,21 @@ export const strings = {
     waitingCount: (amount: string) => `${amount} waiting`,
     supplies: "Supplies",
     perMonthNote: "per month",
+    /** PLAN Phase 35: the "Where passengers go" detail sheet (tap the passenger supply tile). */
+    destinations: {
+      title: "Where passengers go",
+      subtitle: (station: string) => `${station} · people per month`,
+      tapHint: "Where they go ▸",
+      total: (n: string) => `About ${n} people a month want to travel from here by train.`,
+      /** "Ljubljana 30 · Zagreb 15" */
+      row: (name: string, count: string) => `${name} ${count}`,
+      expand: "Show final destinations",
+      collapse: "Hide final destinations",
+      notConnected: "Not connected",
+      notConnectedHint: "Towns nearby that no train links to yet. Build there to send them people.",
+      more: (n: number) => `${n} more`,
+      none: "No train runs from here yet. Passengers appear once a train calls.",
+    },
     /** PLAN Phase 33: a processor in the catchment (Steel Mill …) — what it got and made last month. */
     processing: {
       /** "Food plant · makes food from grain or livestock" */
@@ -248,8 +263,11 @@ export const strings = {
       title: "Results here",
       none: "Nothing sent from or delivered to this station yet — run a train that loads here.",
       revenue: "Fares earned",
+      /** Shown instead of "$0" when cargo was sent but the trip has not been paid yet (fares are paid on arrival). */
+      pending: "paid on arrival",
       unservedCaption: "Unserved demand",
-      unservedHint: "Unserved demand: more cars or trains would carry them.",
+      unservedHint:
+        "Unserved demand: people who could have travelled on a train from here but found none to board and gave up. More trains or cars would carry them.",
       sent: (n: number, unit: string, fares?: string) =>
         `Sent ${n} ${unit}${fares ? ` → ${fares}` : ""}`,
       deliveredHere: (n: number, unit: string, fares: string) =>

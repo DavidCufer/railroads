@@ -54,6 +54,7 @@ import { statRow, statTile } from "./components/statTile";
 import { tabs } from "./components/tabs";
 import type { Tone } from "./components/tone";
 import { closePanel, openPanel } from "./panel";
+import { openDestinationsSheet } from "./passengerDestinations";
 import { strings } from "./strings";
 import { formatMoney } from "./format";
 import { showToast } from "./toast";
@@ -98,9 +99,18 @@ function supplyChipStack(
   cargo: CargoType,
   ratePerMonth: number,
   waiting?: { amount: number; cap: number },
+  onTap?: () => void,
 ): HTMLElement {
   const children: Node[] = [
-    cargoChip(container, cargo, ratePerMonth, strings.station.supplyRate(CARGO[cargo].unit)),
+    cargoChip(
+      container,
+      cargo,
+      ratePerMonth,
+      strings.station.supplyRate(CARGO[cargo].unit),
+      false,
+      false,
+      onTap,
+    ),
   ];
   if (waiting && waiting.cap > 0) {
     const pct = Math.max(0, Math.min(100, (waiting.amount / waiting.cap) * 100));
@@ -124,6 +134,10 @@ function supplyChipStack(
       );
     }
   }
+  if (onTap)
+    children.push(
+      h("button", { className: "dest-link", onClick: onTap }, strings.station.destinations.tapHint),
+    );
   return h("div", { className: "supply-chip-stack" }, ...children);
 }
 
@@ -138,7 +152,13 @@ function economyBody(
   waitingPile?: Partial<Record<CargoType, { amount: number }>>,
   station?: Station,
   acceptedBy?: (cargo: CargoType) => { text: string; badge?: IconName } | undefined,
+  state?: GameState,
 ): Node[] {
+  // Passengers (Phase 35): tapping the tile opens "Where passengers go".
+  const passengerTap =
+    state && station && (economy.passengerRoutes || economy.passengerUnconnected)
+      ? () => openDestinationsSheet(container, state, station, economy)
+      : undefined;
   const supplyEntries = (Object.entries(economy.supply) as Array<[CargoType, number]>).filter(
     ([, v]) => v > 0.05,
   );
@@ -169,6 +189,7 @@ function economyBody(
                         cap: stationStorageCap(station, cargo),
                       }
                     : undefined,
+                  cargo === "passengers" ? passengerTap : undefined,
                 ),
               ),
               ...extraWaiting.map((cargo) =>
@@ -317,6 +338,7 @@ function resultsSection(state: GameState, station: Station): Node[] {
   const [period, note] = candidates.find(([p]) => Object.keys(p).length > 0) ?? [];
   if (!period || !note) return empty;
   let revenue = 0;
+  let sentTotal = 0;
   let lostUnits = 0;
   const lines: Node[] = [];
   for (const cargo of CARGO_TYPES) {
@@ -325,6 +347,7 @@ function resultsSection(state: GameState, station: Station): Node[] {
     revenue += b.revenue;
     const unit = CARGO[cargo].unit;
     const sent = b.sent ?? 0;
+    sentTotal += sent;
     const delivered = b.delivered ?? 0;
     const people = cargo === "passengers" || cargo === "mail";
     if (people) {
@@ -333,7 +356,7 @@ function resultsSection(state: GameState, station: Station): Node[] {
     const parts: string[] = [];
     if (sent >= 0.5)
       parts.push(
-        t.sent(Math.round(sent), unit, b.revenue >= 1 ? formatMoney(b.revenue) : undefined),
+        t.sent(Math.round(sent), unit, b.revenue >= 1 ? formatMoney(b.revenue) : t.pending),
       );
     if (delivered >= 0.5)
       parts.push(
@@ -354,7 +377,11 @@ function resultsSection(state: GameState, station: Station): Node[] {
   }
   if (lines.length === 0) return empty;
   const tiles = [
-    statTile({ icon: "coin", value: formatMoney(revenue), caption: t.revenue, tone: "go" }),
+    // A journey can take longer than a month, and fares are paid on arrival: loaded-but-not-yet-paid is "pending",
+    // not "$0 earned" (Phase 35 item 6).
+    revenue < 1 && sentTotal >= 0.5
+      ? statTile({ icon: "coin", value: t.pending, caption: t.revenue, tone: "go" })
+      : statTile({ icon: "coin", value: formatMoney(revenue), caption: t.revenue, tone: "go" }),
   ];
   if (lostUnits >= 0.5) {
     tiles.push(
@@ -990,8 +1017,13 @@ export function openStationPanel(
       if (economy) {
         const pile = state.stationCargo.get(stationId);
         body.push(
-          ...economyBody(container, economy, pile, station, (cargo) =>
-            acceptedBySource(state, station, cargo),
+          ...economyBody(
+            container,
+            economy,
+            pile,
+            station,
+            (cargo) => acceptedBySource(state, station, cargo),
+            state,
           ),
         );
       }

@@ -416,27 +416,31 @@ export function goalLandGrant(tier: "bronze" | "silver" | "gold", year: number):
   return Math.round(GOAL_LAND_GRANT_1830[tier] * priceIndex(year));
 }
 
-// --- Pair demand (Phase 34 item 10): trip demand between two places is finite ----------------------------------------
+// --- Passenger destinations (Phase 35, replaces Phase 34 item 10's boarding rule) ----------------------------------
 
-/** People do not simply "travel": a town's travellers choose a destination, and the number of trips between two
- * places follows a gravity law — it grows with the size of *both* ends and falls with distance. A station's
- * passenger supply (the §6.3 figure, "people who would travel somewhere") is therefore split by destination, and only
- * the share bound for stops on a train's route boards it (`StationCargoPile.bound`).
- *
- * Trips per month from S to D = supply_S × (supply_D / supply_S)^`sizeExponent` × (`refDistanceTiles` /
- * distance)^`distanceExponent`, with the size ratio kept within `sizeRatioLimit` of 1 either way (a village next to a
- * metropolis does not become a metropolis), and never more than the station's own supply per destination (a near
- * neighbour does not make people travel more than they would). Two equal stations `refDistanceTiles` apart exchange exactly their supply, so a line
- * of up to 200 km between ordinary towns is unchanged; a long line between two big cities has fewer trips than the
- * people available (few took a 300 km journey in the 1840s), and the marginal train on one pair earns less and less. A
- * station that serves several destinations draws on all of them: the sum is saturating, from 1 (one destination of
- * reference size) towards 1 + `extraDestinationMax` (the Phase 26A destination bonus, now earned by real places). */
+/** A station's passenger supply (the §6.3 figure, incl. induced traffic) is the town's monthly total of people who
+ * would travel *somewhere*, and it is the hard cap. It is split over the towns within `travelRangeTiles(year)` by a
+ * gravity share: weight = size of the destination town × (`refDistanceTiles` / distance)^`distanceExponent`, the
+ * distance clamped to at least a quarter of the reference (a next-door town does not count for infinitely more).
+ * The shares are normalised by the total weight or, if larger, the weight of a town of the station's own size at the
+ * reference distance (200 km): a lone partner further away than that draws a fraction of the people.
+ * Only shares of destinations reachable through the player's train network are generated at all. */
 export const PAIR_DEMAND = {
-  /** 200 km at 5 km per tile. */
-  refDistanceTiles: 40,
+  refDistanceTiles: 60,
   distanceExponent: 1,
-  /** Exponent of the destination-to-origin size ratio (0.5 = geometric mean of both ends). */
-  sizeExponent: 0.25,
-  sizeRatioLimit: 4,
-  extraDestinationMax: 0.5,
+  /** Exponent of the destination's size in its weight (1 = proportional to population). */
+  sizeExponent: 1,
 };
+
+/** How far people travel for a ride, in tiles (5 km each), by year: the destinations a town's passengers choose
+ * among. Grows with faster trains and cheaper fares; a single first line still captures a fair share of its end. */
+export const TRAVEL_RANGE_ANCHORS: Anchors = [
+  [1830, 20],
+  [1870, 30],
+  [1900, 40],
+  [1930, 70],
+  [1960, 140],
+];
+export function travelRangeTiles(year: number): number {
+  return interpolateYear(TRAVEL_RANGE_ANCHORS, year);
+}

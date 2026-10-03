@@ -3,18 +3,7 @@
  * Prints, per train count: steady-state (last year) passenger revenue, people carried, load factor, revenue per
  * train, marginal revenue of the last train added, and its return on cost (marginal profit ÷ train price). */
 import * as commands from "../../src/sim/commands";
-import { PAIR_DEMAND } from "../../src/data/economy";
 
-// PAIR="refTiles,distanceExponent,sizeExponent,sizeRatioLimit" overrides the pair-demand table for tuning runs.
-if (process.env["PAIR"]) {
-  const [ref, dist, size, limit] = process.env["PAIR"].split(",").map(Number);
-  Object.assign(PAIR_DEMAND, {
-    refDistanceTiles: ref ?? PAIR_DEMAND.refDistanceTiles,
-    distanceExponent: dist ?? PAIR_DEMAND.distanceExponent,
-    sizeExponent: size ?? PAIR_DEMAND.sizeExponent,
-    sizeRatioLimit: limit ?? PAIR_DEMAND.sizeRatioLimit,
-  });
-}
 import { createGameState } from "../../src/sim/state";
 import { advanceOneHour } from "../../src/sim/tick";
 import { findBuildPath } from "../../src/sim/track/pathfind";

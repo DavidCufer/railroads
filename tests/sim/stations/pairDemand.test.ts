@@ -1,9 +1,12 @@
-/** PLAN Phase 34 item 10: trip demand between a pair of places is finite and passengers are bound for a destination. */
+/** PLAN Phase 35: passengers are split over reachable destinations by gravity and stored by first leg. */
 import { describe, expect, it } from "vitest";
-import { PAIR_DEMAND } from "../../../src/data/economy";
 import { accrueDailyCargo } from "../../../src/sim/economy/cargoFlow";
-import { boardable, takeBoarders } from "../../../src/sim/stations/boarding";
-import { pairAffinity, pairDemandMultiplier } from "../../../src/sim/stations/destinations";
+import {
+  boardable,
+  rebucketPassengerPiles,
+  takeBoarders,
+} from "../../../src/sim/stations/boarding";
+import { passengerLinks } from "../../../src/sim/stations/destinations";
 import { computeStationEconomies } from "../../../src/sim/stations/economy";
 import type { Station } from "../../../src/sim/stations/types";
 import type { StationCargoPile } from "../../../src/sim/state";
@@ -16,27 +19,6 @@ const train = (...stationIds: number[]): Train =>
     cars: [{ cargoType: "passengers", loadedUnits: 0 }],
     orders: stationIds.map((stationId) => ({ stationId, rule: "auto" })),
   }) as unknown as Train;
-
-describe("gravity weights", () => {
-  const ref = PAIR_DEMAND.refDistanceTiles;
-  it("two equal stations at the reference distance exchange exactly their supply; nearer is capped at that", () => {
-    expect(pairAffinity(100, 100, ref)).toBeCloseTo(1);
-    expect(pairAffinity(100, 100, ref / 2)).toBe(1);
-    expect(pairAffinity(100, 4000, ref)).toBe(1);
-  });
-  it("falls with distance and with a smaller partner, and never for an empty station", () => {
-    expect(pairAffinity(100, 100, ref * 2)).toBeCloseTo(0.5, 1);
-    expect(pairAffinity(100, 100, ref * 2)).toBeLessThan(pairAffinity(100, 100, ref * 1.2));
-    expect(pairAffinity(400, 100, ref)).toBeLessThan(1);
-    expect(pairAffinity(100, 0, ref)).toBe(0);
-  });
-  it("a hub draws more with more destinations, saturating below 1 + extraDestinationMax", () => {
-    expect(pairDemandMultiplier(0.4)).toBeCloseTo(0.4);
-    expect(pairDemandMultiplier(1)).toBeCloseTo(1);
-    expect(pairDemandMultiplier(2)).toBeGreaterThan(1);
-    expect(pairDemandMultiplier(50)).toBeLessThan(1 + PAIR_DEMAND.extraDestinationMax);
-  });
-});
 
 describe("boarding", () => {
   const pile = (bound?: Record<number, number>): StationCargoPile => ({
@@ -63,21 +45,21 @@ describe("boarding", () => {
   });
 });
 
-describe("station economy with destinations", () => {
-  function world() {
-    // Three stations in a row of plain tiles, each beside its own town (city tiles supply passengers).
-    const map = makeTestMap(["pppppppppppppppppppppppppppppppppppppppppppppp"]);
+describe("station economy with reachability", () => {
+  /** Towns in a row, each beside its own station; `xs` are the tile columns, `pops` the populations. */
+  function world(xs: number[], pops: number[] = xs.map(() => 12000)) {
+    const map = makeTestMap(["p".repeat(Math.max(...xs) + 4)]);
     const state = makeTestState(map, { startYear: 1860 });
     const cities: City[] = [];
     const stations: Station[] = [];
-    [3, 25, 45].forEach((x, i) => {
+    xs.forEach((x, i) => {
       const tile = tileAt(map, x, 0);
       map.cityId[tile] = i;
       cities.push({
         id: i,
         name: `C${i}`,
         tier: "town",
-        population: 12000,
+        population: pops[i],
         anchorX: x,
         anchorY: 0,
         coastal: false,
@@ -93,39 +75,82 @@ describe("station economy with destinations", () => {
         improvements: [],
       } as unknown as Station);
     });
-    return { state, cities, stations };
+    const economies = (trains: Train[]) =>
+      computeStationEconomies(
+        map,
+        cities,
+        [],
+        stations,
+        1860,
+        undefined,
+        undefined,
+        passengerLinks(trains),
+      );
+    return { state, cities, stations, economies };
   }
+  const pax = (...ids: number[]): Train => train(...ids);
 
-  it("without service nothing is bound; with service the shares sum to 1 and a far destination weighs less", () => {
-    const { state, cities, stations } = world();
-    const plain = computeStationEconomies(state.map, cities, [], stations, 1860);
-    expect(plain.get(0)?.passengerBound).toBeUndefined();
-    const base = plain.get(0)?.supply.passengers ?? 0;
-    expect(base).toBeGreaterThan(0);
-
-    const served = computeStationEconomies(
-      state.map,
-      cities,
-      [],
-      stations,
-      1860,
-      undefined,
-      new Map([[0, new Set([1, 2])]]),
-    );
-    const bound = served.get(0)?.passengerBound ?? [];
-    expect(bound.map((b) => b.stationId).sort()).toEqual([1, 2]);
-    expect(bound.reduce((s, b) => s + b.share, 0)).toBeCloseTo(1);
-    const near = bound.find((b) => b.stationId === 1)?.share ?? 0;
-    const far = bound.find((b) => b.stationId === 2)?.share ?? 0;
-    expect(near).toBeGreaterThan(far);
-    // Two destinations: more than the one-destination supply, never past the cap.
-    const supply = served.get(0)?.supply.passengers ?? 0;
-    expect(supply).toBeGreaterThan(0);
-    expect(supply).toBeLessThanOrEqual(base * (1 + PAIR_DEMAND.extraDestinationMax) + 0.2);
+  it("without service nothing is bound and the supply is the plain town total", () => {
+    const { economies } = world([3, 12, 21]);
+    const e = economies([]).get(0);
+    expect(e?.passengerBound).toBeUndefined();
+    expect(e?.supply.passengers).toBeGreaterThan(0);
+    expect((e?.passengerUnconnected ?? []).length).toBe(2);
   });
 
-  it("a daily accrual splits new passengers by destination and giving up shrinks every share alike", () => {
-    const { state, cities, stations } = world();
+  it("the split never exceeds the town total, and unreachable destinations generate nothing", () => {
+    const { economies } = world([3, 12, 21]);
+    const none = economies([]).get(0)?.supply.passengers ?? 0;
+    const one = economies([pax(0, 1)]).get(0);
+    const both = economies([pax(0, 1), pax(1, 2)]).get(0);
+    expect(one?.supply.passengers ?? 0).toBeGreaterThan(0);
+    expect(one?.supply.passengers ?? 0).toBeLessThan(none);
+    expect(both?.supply.passengers ?? 0).toBeGreaterThan(one?.supply.passengers ?? 0);
+    expect(both?.supply.passengers ?? 0).toBeLessThanOrEqual(none + 1e-9);
+    // Town 2 is not connected to station 0 by one train 0-1: not a route, listed as a hint.
+    expect(one?.passengerRoutes?.map((r) => r.cityId)).toEqual([1]);
+    expect(one?.passengerUnconnected?.map((u) => u.cityId)).toEqual([2]);
+  });
+
+  it("shares of all towns in range sum to the town total (everything connected)", () => {
+    const { economies } = world([3, 12, 21]);
+    const e = economies([pax(0, 1), pax(1, 2)]).get(0);
+    const base = economies([]).get(0)?.supply.passengers ?? 0;
+    const sum = (e?.passengerRoutes ?? []).reduce((s, r) => s + r.perMonth, 0);
+    expect(sum).toBeCloseTo(base, 6);
+    expect(e?.passengerUnconnected).toBeUndefined();
+    expect(e?.supply.passengers).toBeCloseTo(base, 6);
+  });
+
+  it("two changes away: Belgrade-bound people wait in the Ljubljana bucket", () => {
+    // 0 Venice, 1 Ljubljana, 2 Zagreb, 3 Belgrade; trains 0-1, 1-2, 2-3.
+    const { economies } = world([3, 20, 38, 55]);
+    const e = economies([pax(0, 1), pax(1, 2), pax(2, 3)]).get(0);
+    const routes = e?.passengerRoutes ?? [];
+    expect(routes.map((r) => r.destination).sort()).toEqual([1, 2, 3]);
+    expect(routes.every((r) => r.firstLeg === 1)).toBe(true);
+    expect(e?.passengerBound?.map((b) => b.stationId)).toEqual([1]);
+    expect(e?.passengerBound?.[0]?.share).toBeCloseTo(1, 9);
+  });
+
+  it("the nearest route decides the first leg, and a tie goes to the lower station id", () => {
+    // 0 at x=3; 1 at x=20; 2 at x=20; 3 at x=40. Both 1 and 2 are on a train to 3 and the same distance from 0.
+    const { economies } = world([3, 20, 20, 40]);
+    const e = economies([pax(0, 1), pax(0, 2), pax(1, 3), pax(2, 3)]).get(0);
+    const toThree = (e?.passengerRoutes ?? []).find((r) => r.destination === 3);
+    expect(toThree?.firstLeg).toBe(1);
+  });
+
+  it("a nearer, bigger town takes the larger share", () => {
+    const { economies } = world([3, 12, 60], [12000, 12000, 12000]);
+    const e = economies([pax(0, 1), pax(1, 2)]).get(0);
+    const near = e?.passengerRoutes?.find((r) => r.cityId === 1)?.perMonth ?? 0;
+    const far = e?.passengerRoutes?.find((r) => r.cityId === 2)?.perMonth ?? 0;
+    expect(near).toBeGreaterThan(far);
+  });
+
+  it("a daily accrual stores people by first leg and giving up shrinks every bucket alike", () => {
+    const { state, cities, stations } = world([3, 12, 21]);
     state.stations.push(...stations);
     state.cities.push(...cities);
     state.stationEconomy = computeStationEconomies(
@@ -135,18 +160,53 @@ describe("station economy with destinations", () => {
       state.stations,
       1860,
       undefined,
-      new Map([[0, new Set([1, 2])]]),
+      undefined,
+      passengerLinks([pax(0, 1), pax(0, 2)]),
     );
     accrueDailyCargo(state);
     const pile = state.stationCargo.get(0)?.passengers;
     expect(pile?.bound).toBeDefined();
     const sum = Object.values(pile?.bound ?? {}).reduce((s, v) => s + v, 0);
     expect(sum).toBeCloseTo(pile?.amount ?? 0, 5);
-    const ratio = (pile?.bound?.[1] ?? 0) / (pile?.bound?.[2] ?? 1);
     for (let day = 0; day < 40; day++) accrueDailyCargo(state);
     const later = state.stationCargo.get(0)?.passengers;
     const sumLater = Object.values(later?.bound ?? {}).reduce((s, v) => s + v, 0);
     expect(sumLater).toBeCloseTo(later?.amount ?? 0, 3);
-    expect((later?.bound?.[1] ?? 0) / (later?.bound?.[2] ?? 1)).toBeCloseTo(ratio, 3);
+  });
+
+  it("a train boards everyone waiting for its stops and is deterministic", () => {
+    const { economies } = world([3, 12, 21]);
+    const run = () => economies([pax(0, 1), pax(1, 2)]).get(0)?.passengerRoutes;
+    expect(run()).toEqual(run());
+    const p: StationCargoPile = { amount: 100, waitingDays: 0, bound: { 1: 100 } };
+    expect(boardable(p, pax(0, 1), 0)).toBeCloseTo(100);
+    expect(boardable(p, pax(0, 2), 0)).toBeCloseTo(0);
+    expect(boardable(p, pax(0, 2, 1), 0)).toBeCloseTo(100);
+  });
+});
+
+describe("migration from Phase 34 destination piles", () => {
+  it("re-buckets people bound for a far destination into the first-leg bucket and drops unreachable ones", () => {
+    const map = makeTestMap(["p".repeat(80)]);
+    const stations = [3, 20, 38, 70].map(
+      (x, i) => ({ id: i, tile: tileAt(map, x, 0) }) as unknown as Station,
+    );
+    const stationCargo = new Map([
+      [0, { passengers: { amount: 100, waitingDays: 0, bound: { 1: 10, 2: 30, 3: 40 } } }],
+    ]);
+    // Trains 0-1 and 1-2; station 3 is not linked to anything.
+    rebucketPassengerPiles(
+      { map, stations, stationCargo } as never,
+      passengerLinks([train(0, 1), train(1, 2)]),
+    );
+    const pile = stationCargo.get(0)?.passengers;
+    expect(pile?.bound).toEqual({ 1: 40 });
+    expect(pile?.amount).toBe(100); // the 60 others are unassigned and board any train
+    // Idempotent.
+    rebucketPassengerPiles(
+      { map, stations, stationCargo } as never,
+      passengerLinks([train(0, 1), train(1, 2)]),
+    );
+    expect(stationCargo.get(0)?.passengers?.bound).toEqual({ 1: 40 });
   });
 });

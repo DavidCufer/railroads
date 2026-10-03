@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildStation, buildTrack, buyTrain, setOrders } from "../../../src/sim/commands";
+import {
+  buildStation,
+  buildTrack,
+  buyTrain,
+  setOrders as setOrdersCommand,
+} from "../../../src/sim/commands";
 import { computeRevenue, stepLoading } from "../../../src/sim/trains/loading";
 import { CARGO } from "../../../src/data/cargo";
 import { KM_PER_TILE, WORLD_SCALE } from "../../../src/data/scale";
@@ -8,6 +13,14 @@ import { competitionLoss, fareIndex } from "../../../src/data/economy";
 import { makeTestMap, makeTestState, tileAt } from "../track/helpers";
 import type { GameState } from "../../../src/sim/state";
 import type { Station } from "../../../src/sim/stations/types";
+
+/** `setOrders` refreshes the station economy (Phase 35); these tests hand-edit `accepts`, so keep their map. */
+const setOrders: typeof setOrdersCommand = (state, trainId, orders) => {
+  const economy = state.stationEconomy;
+  const result = setOrdersCommand(state, trainId, orders);
+  state.stationEconomy = economy;
+  return result;
+};
 
 /** The 1830 fare level (Economic model v2: rail is a premium novelty, freight competes with the wagon). */
 const F = (cargo: keyof typeof CARGO): number => fareIndex(1830, cargo);

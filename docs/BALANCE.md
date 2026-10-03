@@ -89,23 +89,23 @@ Normal difficulty, year-3 ledger, mean of 3 seeds. `ROI` = net profit ÷ price o
 | 1950 | 247k | 4% | 4% | 3% | 9% | 5% | 0% | 1% | 21% |
 | 1980 | 260k | 8% | 5% | 4% | 30% | 6% | 0% | 1% | 21% |
 
-## Pair scaling: trains added to ONE pair (Phase 34 item 10, `npx tsx tools/bench/pairScaling.ts`)
+## Pair scaling: trains added to ONE pair (Phases 34–35, `npx tsx tools/bench/pairScaling.ts`)
 
-Venice–Milan, Central Europe 1847 (290 km crow-flies), Norris × 5 passenger cars, Stations, double track, year-3 figures, cash growth after upkeep. Marginal = per train added since the previous row; ROI = marginal profit ÷ the train's price.
-Pair demand (SPEC §9.5d): passengers are bound for a destination, trips ∝ size of both ends ÷ distance beyond 200 km. Before = every train loaded from one generic pool.
+Venice–Milan, Central Europe 1847 (290 km crow-flies), Norris × 5 passenger cars, Stations, double track (`DOUBLE=1`), year-3 figures, cash growth after upkeep. Marginal = per train added since the previous row; ROI = marginal profit ÷ the train's price.
+Phase 35 (SPEC §9.5d): the town's supply is split over towns in range by gravity and only the reachable shares are generated, stored by first leg; a lone partner further than 300 km draws a fraction of the people. "Pre-34" = every train loaded from one generic pool; "34" = the Phase 34 boarding rule.
 
-| trains | revenue before | revenue after | marginal ROI before | marginal ROI after | cash growth before → after |
+| trains | revenue pre-34 | revenue 34 | revenue 35 | marginal ROI pre-34 / 34 / 35 | cash growth pre-34 → 34 → 35 |
 |---|---|---|---|---|---|
-| 1 | 63k | 63k | 71% | 71% | 46k → 46k |
-| 2 | 115k | 73k | 76% | 11% | 96k → 53k |
-| 3 | 123k | 80k | 7% | 5% | 100k → 57k |
-| 4 | 133k | 87k | 10% | 6% | 106k → 60k |
-| 6 | 209k | 115k | 75% | 23% | 175k → 80k |
-| 8 | 209k | 133k | −8% | 7% | 165k → 89k |
-| 12 | 279k | 140k | 21% | −5% | 226k → 87k |
+| 1 | 63k | 63k | 63k | 71% / 71% / 71% | 46k → 46k → 46k |
+| 2 | 115k | 73k | 101k | 76% / 11% / 53% | 96k → 53k → 81k |
+| 3 | 123k | 80k | 108k | 7% / 5% / 6% | 100k → 57k → 85k |
+| 4 | 133k | 87k | 118k | 10% / 6% / 11% | 106k → 60k → 92k |
+| 6 | 209k | 115k | 167k | 75% / 23% / 48% | 175k → 80k → 132k |
+| 8 | 209k | 133k | 187k | −8% / 7% / 8% | 165k → 89k → 143k |
+| 12 | 279k | 140k | 244k | 21% / −5% / 8% | 226k → 87k → 191k |
 
-The pair's ceiling halves (supply 1014 → 684 people a month for both ends: the far partner weighs 0.68); a short line is untouched (≤ 200 km pairs keep their full supply: the tables above did not move).
-goodPlayer (`tools/bench/goodPlayer.ts`, Central Europe, net worth Jan of the year): 1900 Normal 1916 $33.7M → $15.3M, 1900 Hard $7.7M → $8.1M; 1840 Normal 1856 $3.9M → $3.1M, 1870 $17.8M → $15.3M; 1840 Hard 1870 $9.1M → $10.9M. Hard is still 47 % below Normal in 1900 (target ≥ 40 %).
+Supply for both ends: 1014 people a month (pre-34), 684 (34), 905 (35: Milan, 290 km away, draws 0.89 of its supply). A short line is untouched (≤ 300 km pairs of equal size keep their full supply; the tables above did not move). Beyond the second train the marginal ROI is about 6–14 % (one convoy step at 6 trains).
+goodPlayer (`tools/bench/goodPlayer.ts`, Central Europe, net worth Jan of the year; pre-34 / 34 / 35): 1840 Normal 1856 $3.9M / $3.1M / $2.8M, 1870 $17.8M / $15.3M / $13.5M; 1840 Hard 1870 $9.1M / $10.9M / $5.7M (Hard 58 % below Normal); 1900 Normal 1916 $33.7M / $15.3M / $4.0M, 1900 Hard 1916 $7.7M / $8.1M / $2.3M (Hard 44 % below Normal). The bench builds isolated pairs, which is the worst case for Phase 35 (each end sends only to its one partner; a connected network draws the whole town total), see docs/PROGRESS.md "Phase 35".
 
 ## City supply (per month, fully covered)
 
