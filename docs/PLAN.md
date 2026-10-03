@@ -1338,3 +1338,31 @@ Agreed design with the player (SPEC §9.5d to be rewritten accordingly):
    (target ≥ 40 % lower on Hard; note if not met and why).
 
 Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6 [x] 7 [x] 8
+
+## Phase 35B — Fix: the first connection captures the whole town total; "Not connected" is empty
+Player report: Ljubljana–Trieste line: "About 118 people a month", all to Trieste. After adding a Trieste–Venice line
+it is still 118, now split "Venice 78 · Trieste 40". The "Not connected" hint shows nothing.
+Root cause (passengerFlows.ts): the candidate towns are only those within `travelRangeTiles` (≈ 22 tiles = 110 km in
+1840) plus reachable ones, and the denominator is max(Σ candidate weights, own-size floor). In 1840 almost no town is
+in range, so the candidate set is just the reachable towns and the first nearby connection already gets share ≈ 1:
+the whole base supply. Every later connection only re-splits the same 118. Same reason the unconnected list is empty.
+Fix (keep the agreed design: town total is the cap, gravity split, only reachable shares appear):
+1. **Candidate set = all towns within a wider "known destinations" radius** (data table, e.g. 1840 ≈ 60 tiles /
+   300 km, growing with the era) — not only reachable ones. Shares are normalised over that whole set, so one
+   connection captures only its gravity share (a typical first line ≈ 30–50 %), and each new connected town adds its
+   own share. Towns beyond the radius but reachable still count (added to the set). Drop or rework the own-size floor
+   so it cannot make a single line take ~100 %.
+2. **Recalibrate the town total** (the cap) so a typical first line carries about what it carries today: the base
+   passenger generation rises by the inverse of the typical first-line share, defined in `src/data/` and justified
+   (it is the town's total travel demand, of which a line serves a share). Verify with the bench: 1840 Normal net
+   worth 1856 back within ~10–15 % of pre-Phase-34 ($3.9M); 1900 Normal 1916 should recover substantially from
+   $4.0M (report it); Hard ≥ 40 % below Normal; Venice–Milan pair scaling keeps diminishing returns (marginal ROI of
+   extra trains on one pair stays low). A connected network must clearly earn more passengers per station than an
+   isolated pair.
+3. **Not connected** lists the top towns of that radius with their monthly numbers (up to 3 + "N more"), largest
+   first; never empty when towns exist in the radius. Add a short hint line: "Connect them to win these travellers".
+4. Tests: Ljubljana-like fixture — connecting a second destination **increases** the station's total; a single
+   connection takes < 100 % when other towns are in the radius; unconnected list non-empty; sum of reachable +
+   unconnected = total. Update the e2e screenshot `phase-35-destinations.png` and SPEC §9.5d.
+
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
