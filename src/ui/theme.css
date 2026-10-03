@@ -4689,6 +4689,10 @@ select {
   border-top: 1px solid var(--ink-600);
   font-size: var(--fs-sm, 13px);
 }
+.dest-unconnected-hint {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
 .dest-unconnected-label {
   color: var(--muted);
   font-size: var(--fs-xs);

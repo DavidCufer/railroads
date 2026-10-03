@@ -100,7 +100,10 @@ describe("station economy with reachability", () => {
 
   it("the split never exceeds the town total, and unreachable destinations generate nothing", () => {
     const { economies } = world([3, 12, 21]);
-    const none = economies([]).get(0)?.supply.passengers ?? 0;
+    const none = (economies([]).get(0)?.passengerUnconnected ?? []).reduce(
+      (s, u) => s + u.perMonth,
+      0,
+    );
     const one = economies([pax(0, 1)]).get(0);
     const both = economies([pax(0, 1), pax(1, 2)]).get(0);
     expect(one?.supply.passengers ?? 0).toBeGreaterThan(0);
@@ -112,14 +115,68 @@ describe("station economy with reachability", () => {
     expect(one?.passengerUnconnected?.map((u) => u.cityId)).toEqual([2]);
   });
 
-  it("shares of all towns in range sum to the town total (everything connected)", () => {
+  it("shares of all towns in range sum to the town's total demand (everything connected)", () => {
     const { economies } = world([3, 12, 21]);
     const e = economies([pax(0, 1), pax(1, 2)]).get(0);
-    const base = economies([]).get(0)?.supply.passengers ?? 0;
+    // Every share of the towns in the radius (the rest of the world is not a town and is never generated).
+    const base = (economies([]).get(0)?.passengerUnconnected ?? []).reduce(
+      (s, u) => s + u.perMonth,
+      0,
+    );
     const sum = (e?.passengerRoutes ?? []).reduce((s, r) => s + r.perMonth, 0);
     expect(sum).toBeCloseTo(base, 6);
     expect(e?.passengerUnconnected).toBeUndefined();
     expect(e?.supply.passengers).toBeCloseTo(base, 6);
+  });
+
+  describe("Ljubljana-like fixture (PLAN Phase 35B): the first line must not take the whole town", () => {
+    // 0 Ljubljana (x=5), 1 Trieste (x=25), 2 Venice (x=45), 3 Zagreb (x=30, the other way), 4 Graz (x=20).
+    const fixture = () => world([5, 25, 45, 30, 20], [12000, 12000, 12000, 12000, 12000]);
+
+    it("one connection takes less than the whole total while other towns are in the radius", () => {
+      const { economies } = fixture();
+      const total = (economies([]).get(0)?.passengerUnconnected ?? []).reduce(
+        (sum, u) => sum + u.perMonth,
+        0,
+      );
+      const one = economies([pax(0, 1)]).get(0);
+      expect(one?.supply.passengers ?? 0).toBeGreaterThan(0);
+      expect(one?.supply.passengers ?? 0).toBeLessThan(0.9 * total);
+    });
+
+    it("connecting a second destination increases the station total", () => {
+      const { economies } = fixture();
+      const one = economies([pax(0, 1)]).get(0)?.supply.passengers ?? 0;
+      const two = economies([pax(0, 1), pax(1, 2)]).get(0)?.supply.passengers ?? 0;
+      const three = economies([pax(0, 1), pax(1, 2), pax(0, 4)]).get(0)?.supply.passengers ?? 0;
+      expect(two).toBeGreaterThan(one);
+      expect(three).toBeGreaterThan(two);
+    });
+
+    it("the unconnected list is populated, and reachable + unconnected = the total", () => {
+      const { economies } = fixture();
+      const total = (economies([]).get(0)?.passengerUnconnected ?? []).reduce(
+        (sum, u) => sum + u.perMonth,
+        0,
+      );
+      const e = economies([pax(0, 1), pax(1, 2)]).get(0);
+      expect((e?.passengerUnconnected ?? []).length).toBe(2);
+      const unconnected = (e?.passengerUnconnected ?? []).reduce((sum, u) => sum + u.perMonth, 0);
+      const reachable = (e?.passengerRoutes ?? []).reduce((sum, r) => sum + r.perMonth, 0);
+      expect(reachable + unconnected).toBeCloseTo(total, 6);
+      const sorted = (e?.passengerUnconnected ?? []).map((u) => u.perMonth);
+      expect(sorted).toEqual([...sorted].sort((a, b) => b - a));
+    });
+
+    it("the total demand exceeds what a single typical first line carries", () => {
+      const { economies } = fixture();
+      const total = (economies([]).get(0)?.passengerUnconnected ?? []).reduce(
+        (sum, u) => sum + u.perMonth,
+        0,
+      );
+      const plain = economies([]).get(0)?.supply.passengers ?? 0;
+      expect(total).toBeGreaterThan(plain);
+    });
   });
 
   it("two changes away: Belgrade-bound people wait in the Ljubljana bucket", () => {
@@ -141,8 +198,8 @@ describe("station economy with reachability", () => {
     expect(toThree?.firstLeg).toBe(1);
   });
 
-  it("a nearer, bigger town takes the larger share", () => {
-    const { economies } = world([3, 12, 60], [12000, 12000, 12000]);
+  it("beyond the reference distance a nearer town takes the larger share", () => {
+    const { economies } = world([3, 12, 120], [12000, 12000, 12000]);
     const e = economies([pax(0, 1), pax(1, 2)]).get(0);
     const near = e?.passengerRoutes?.find((r) => r.cityId === 1)?.perMonth ?? 0;
     const far = e?.passengerRoutes?.find((r) => r.cityId === 2)?.perMonth ?? 0;

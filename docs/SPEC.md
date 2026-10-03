@@ -656,14 +656,16 @@ people bound for its own stops: a big town showed "672 waiting" while its trains
 number on the platform must be a number the trains calling there can take. Rule unchanged: a real mechanism, tables in
 `src/data/economy.ts` (`PAIR_DEMAND`, `TRAVEL_RANGE_ANCHORS`), no flat multiplier.
 
-1. **The town total is the cap.** A station's passenger supply (§6.3, incl. induced traffic §9.5c-11) is the number of people
-   who would travel *somewhere* this month. It is split over destination **towns** within the era's travel range
-   (`travelRangeTiles(year)`: 20 tiles in 1830, 30 in 1870, 40 in 1900, 70 in 1930, 140 in 1960; 5 km a tile) by a gravity
-   share: weight = the destination town's passenger supply × (60 tiles / distance), distance clamped to at least 15 tiles.
-   Nearer and bigger towns take most; a tiny town across the map weighs ~nothing. Shares are normalised by the total weight
-   of the in-range towns (plus any reachable town beyond the range) or, if larger, the weight of a town of the station's own
-   size 300 km away, so one first line still captures a fair share of its end while a lone partner beyond 300 km draws
-   proportionally fewer people (people ∝ 1/distance, as in Phase 34).
+1. **The town total is the town's total travel demand.** A station's passenger supply (§6.3, incl. induced traffic §9.5c-11)
+   is what one line to a typical partner carries; the town's total travel demand (people a month who would ride a train
+   *somewhere* if every town were on the network) is `PAIR_DEMAND.totalDemandMult` (10) times that, i.e. a town can feed
+   about ten such lines. The total is split over **every town within the era's known-destination radius**
+   (`travelRangeTiles(year)`: 60 tiles = 300 km in 1830, 70 in 1870, 90 in 1900, 120 in 1930, 200 in 1960; 5 km a tile) by a
+   gravity share: weight = the destination town's passenger supply × (60 tiles / distance), distance clamped to at least
+   60 tiles (inside 300 km people choose by size, beyond by distance). Shares are normalised by the total weight of those
+   towns (plus any reachable town beyond the radius) or, if larger, 10 towns of the station's own size at 60 tiles, so a
+   lone same-size partner carries exactly the §6.3 supply (never ~100 % of the total), a line captures only its
+   destination's share, and each further connected town adds its own; only a crowd of competing towns dilutes shares.
 2. **Only reachable destinations wait.** A destination counts only if a chain of trains reaches it: stations are linked by
    consecutive stops of any passenger train's orders (cycle, both directions); any number of changes. A share for an
    unreachable town is not generated at all. Where a town has several reachable stations the nearest by route is used.
@@ -679,7 +681,8 @@ number on the platform must be a number the trains calling there can take. Rule 
 4. **Mail** keeps its model: no destinations, the Phase 26A destination bonus (+10 % per extra stop, max +50 %).
 5. **"Where passengers go"** (station panel: tap the passenger tile): per month, bars **by first train stop** (each includes
    people travelling further), each row expandable (▸) to final destinations ("Ljubljana 30 · Zagreb 15"), then **Not
-   connected**: the top in-range towns with no train link ("Padua ~20 · Verona ~12 · 4 more").
+   connected**: the top towns of the radius with no train link, largest first ("Padua ~20 · Verona ~12 · 4 more"), then
+   the hint "Connect them to win these travellers". Never empty while towns are in the radius.
 6. **Fares at the station that loaded them.** Fares are paid on arrival and credited to where the cargo was loaded, so on a
    long line a month can show people sent and no fares yet; the panel says "paid on arrival", not "$0".
 7. **Saves.** Phase 34 piles stored by destination are re-bucketed by first leg on load (`rebucketPassengerPiles`).

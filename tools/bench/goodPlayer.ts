@@ -11,14 +11,17 @@
 import * as commands from "../../src/sim/commands";
 import { PAIR_DEMAND, TRAVEL_RANGE_ANCHORS } from "../../src/data/economy";
 
-// PAIR="refTiles,distanceExponent,sizeExponent" overrides the passenger-destination table for tuning runs;
+// PAIR="refTiles,distanceExponent,sizeExponent,totalDemandMult" overrides the passenger-destination table for tuning runs;
 // RANGE=<factor> scales the travel range.
 if (process.env["PAIR"]) {
-  const [ref, dist, size] = process.env["PAIR"].split(",").map(Number);
+  const [ref, dist, size, mult] = process.env["PAIR"]
+    .split(",")
+    .map((v) => (v.trim() === "" ? undefined : Number(v)));
   Object.assign(PAIR_DEMAND, {
     refDistanceTiles: ref ?? PAIR_DEMAND.refDistanceTiles,
     distanceExponent: dist ?? PAIR_DEMAND.distanceExponent,
     sizeExponent: size ?? PAIR_DEMAND.sizeExponent,
+    totalDemandMult: mult ?? PAIR_DEMAND.totalDemandMult,
   });
 }
 if (process.env["RANGE"]) {

@@ -1365,4 +1365,4 @@ Fix (keep the agreed design: town total is the cap, gravity split, only reachabl
    connection takes < 100 % when other towns are in the radius; unconnected list non-empty; sum of reachable +
    unconnected = total. Update the e2e screenshot `phase-35-destinations.png` and SPEC §9.5d.
 
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+Status: [x] 1 [x] 2 [x] 3 [x] 4

@@ -418,28 +418,35 @@ export function goalLandGrant(tier: "bronze" | "silver" | "gold", year: number):
 
 // --- Passenger destinations (Phase 35, replaces Phase 34 item 10's boarding rule) ----------------------------------
 
-/** A station's passenger supply (the §6.3 figure, incl. induced traffic) is the town's monthly total of people who
- * would travel *somewhere*, and it is the hard cap. It is split over the towns within `travelRangeTiles(year)` by a
- * gravity share: weight = size of the destination town × (`refDistanceTiles` / distance)^`distanceExponent`, the
- * distance clamped to at least a quarter of the reference (a next-door town does not count for infinitely more).
- * The shares are normalised by the total weight or, if larger, the weight of a town of the station's own size at the
- * reference distance (200 km): a lone partner further away than that draws a fraction of the people.
- * Only shares of destinations reachable through the player's train network are generated at all. */
+/** A station's passenger supply (the §6.3 figure, incl. induced traffic) is what *one* line to a typical partner carries.
+ * The town's *total travel demand* — the people a month who would ride a train somewhere if every town were on the
+ * network — is `totalDemandMult` times that: a town can feed that many such lines. The total is split over every town
+ * within `travelRangeTiles(year)` (the destinations people know of) by a gravity share: weight = size of the
+ * destination town × (`refDistanceTiles` / distance)^`distanceExponent`, the distance clamped to at least
+ * `minDistanceTiles` (within a day's journey people choose by size, beyond it by distance). Shares are normalised by
+ * the total weight or, if larger, `totalDemandMult` towns of the station's own size at the clamp distance, so a lone
+ * same-size partner carries exactly the §6.3 supply, and the cap only dilutes a line's share when many towns compete.
+ * A line captures only the shares of the towns it reaches, so every further connected town adds its own. Towns beyond
+ * the radius that the network reaches still join the split. The multiplier is calibrated with `tools/bench`: the
+ * isolated pairs of the good-player bench must again earn within ~10-15 % of their pre-Phase-34 net worth. */
 export const PAIR_DEMAND = {
   refDistanceTiles: 60,
   distanceExponent: 1,
   /** Exponent of the destination's size in its weight (1 = proportional to population). */
   sizeExponent: 1,
+  totalDemandMult: 10,
+  /** Towns nearer than this weigh the same: the distance in the gravity weight is clamped to at least this. */
+  minDistanceTiles: 60,
 };
 
-/** How far people travel for a ride, in tiles (5 km each), by year: the destinations a town's passengers choose
- * among. Grows with faster trains and cheaper fares; a single first line still captures a fair share of its end. */
+/** The radius of the destinations a town's people know of, in tiles (5 km each), by year: 300 km in 1830, growing
+ * with faster trains, cheaper fares, newspapers and timetables. */
 export const TRAVEL_RANGE_ANCHORS: Anchors = [
-  [1830, 20],
-  [1870, 30],
-  [1900, 40],
-  [1930, 70],
-  [1960, 140],
+  [1830, 60],
+  [1870, 70],
+  [1900, 90],
+  [1930, 120],
+  [1960, 200],
 ];
 export function travelRangeTiles(year: number): number {
   return interpolateYear(TRAVEL_RANGE_ANCHORS, year);

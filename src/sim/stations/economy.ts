@@ -11,7 +11,7 @@
  *   "overlapping supply is split evenly").
  */
 import { CARGO_TYPES, type CargoType } from "../../data/cargo";
-import { inducedTrafficFactor } from "../../data/economy";
+import { inducedTrafficFactor, PAIR_DEMAND } from "../../data/economy";
 import { INDUSTRIES } from "../../data/industries";
 import {
   POST_OFFICE_MAIL_SUPPLY_MULT,
@@ -185,7 +185,8 @@ export function computeStationEconomies(
     baseSupply.set(station.id, (result.get(station.id) as StationEconomy).supply.passengers ?? 0);
   for (const point of points) {
     const economy = result.get(point.id) as StationEconomy;
-    const base = baseSupply.get(point.id) ?? 0;
+    // The §6.3 figure is what a typical first line carries; the town's total travel demand is `totalDemandMult` times it.
+    const base = (baseSupply.get(point.id) ?? 0) * PAIR_DEMAND.totalDemandMult;
     const flows = computePassengerFlows(map, cities, currentYear, point, base, points, network);
     if (!flows) continue;
     if (flows.unconnected.length > 0) economy.passengerUnconnected = flows.unconnected;

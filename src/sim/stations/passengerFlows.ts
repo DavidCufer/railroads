@@ -24,10 +24,10 @@ export interface PassengerRoute {
 }
 
 export interface PassengerFlows {
-  /** Fraction of the station's base supply that is bound for a reachable destination (the rest is never generated). */
+  /** Fraction of the station's total demand that is bound for a reachable destination (the rest is never generated). */
   fraction: number;
   routes: PassengerRoute[];
-  /** Towns in range with no train connection, largest share first: people they would send (a hint to expand). */
+  /** Towns in the radius with no train connection, largest share first: people they would send (a hint to expand). */
   unconnected: Array<{ cityId: number; perMonth: number }>;
 }
 
@@ -106,7 +106,7 @@ export function computePassengerFlows(
     );
     return (
       Math.pow(citySupply(city, year).passengers, PAIR_DEMAND.sizeExponent) *
-      Math.pow(ref / Math.max(ref / 4, dist), PAIR_DEMAND.distanceExponent)
+      Math.pow(ref / Math.max(PAIR_DEMAND.minDistanceTiles, dist), PAIR_DEMAND.distanceExponent)
     );
   };
   const distToCity = (city: City): number =>
@@ -128,20 +128,24 @@ export function computePassengerFlows(
   let total = 0;
   for (const w of weight.values()) total += w;
   if (total <= 0) return undefined;
-  // A lone partner is not the whole world: the denominator is at least the weight of a town of the station's own size
-  // at the reference distance, so a long line to the only town in reach draws a fraction of the people (people ∝ 1/d^e).
+  // The town total is `totalDemandMult` towns of the station's own size at the clamp distance: the denominator is at
+  // least that, so a lone same-size partner carries exactly the base (§6.3) supply (total × w / floor = base) and only
+  // a crowd of competing towns (Σ weights above the floor) dilutes a line's share. No line can take 100 %.
   const ownCity = cities.find((c) => c.id === source.cityId);
   const own = Math.pow(
-    ownCity ? citySupply(ownCity, year).passengers : baseSupply,
+    ownCity ? citySupply(ownCity, year).passengers : baseSupply / PAIR_DEMAND.totalDemandMult,
     PAIR_DEMAND.sizeExponent,
   );
-  total = Math.max(total, own);
-
+  const floor =
+    own *
+    Math.pow(ref / PAIR_DEMAND.minDistanceTiles, PAIR_DEMAND.distanceExponent) *
+    PAIR_DEMAND.totalDemandMult;
+  const denominator = Math.max(total, floor);
   const routes: PassengerRoute[] = [];
   const unconnected: PassengerFlows["unconnected"] = [];
   let reachable = 0;
   for (const [cityId, w] of [...weight].sort((a, b) => a[0] - b[0])) {
-    const share = w / total;
+    const share = w / denominator;
     const t = target.get(cityId);
     if (t) {
       reachable += share;

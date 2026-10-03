@@ -91,6 +91,7 @@ export function openDestinationsSheet(
           { className: "dest-unconnected" },
           h("span", { className: "dest-unconnected-label" }, t.notConnected),
           h("span", {}, shown.join(" · ")),
+          h("span", { className: "dest-unconnected-hint" }, t.notConnectedHint),
         ),
       );
     }

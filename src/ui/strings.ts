@@ -209,7 +209,7 @@ export const strings = {
       expand: "Show final destinations",
       collapse: "Hide final destinations",
       notConnected: "Not connected",
-      notConnectedHint: "Towns nearby that no train links to yet. Build there to send them people.",
+      notConnectedHint: "Connect them to win these travellers",
       more: (n: number) => `${n} more`,
       none: "No train runs from here yet. Passengers appear once a train calls.",
     },
