@@ -1299,3 +1299,42 @@ Player report (Central Europe, 1840s), with phone screenshots:
    (§9.5b). No flat multipliers.
 
 Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6 [x] 7 [x] 8 [x] 9 [x] 10
+
+## Phase 35 — Play-test 15: passenger destinations the player can see (replaces Phase 34 item 10's boarding rule)
+Player report: after Phase 34, Venice always shows hundreds waiting (e.g. "672 waiting") but trains on "Full load"
+leave half empty, because waiting passengers are bound for places no train from here serves. Not transparent.
+Agreed design with the player (SPEC §9.5d to be rewritten accordingly):
+1. **Town total is the cap.** Each town/station generates its monthly passenger total as before (population-based;
+   this is the hard cap). That total is **split over destinations** by a gravity share: weight = destination size ×
+   distance decay (closer and bigger takes most; a tiny town across the map gets ~1). Normalise over the towns within
+   an era travel range (grows with year, data table in `src/data/economy.ts`), not the whole map, so a single first
+   line still captures a fair share. Tune with the bench: the 1840 Normal goodPlayer start must not lose more than
+   ~20 % vs. pre-Phase-34 at 1856, and the Venice–Milan pair scaling (Phase 34 bench `pairScaling.ts`) must still
+   show diminishing returns for extra trains.
+2. **Only reachable destinations wait.** A destination's share appears on the platform only if it is **reachable**
+   from this station through the player's train network: a graph search over stations linked by any train's orders
+   (consecutive stops in either direction of a train's cycle), any number of changes. Unreachable shares are not
+   generated at all (they never appear as "waiting"). Cache reachability; recompute when orders/trains change.
+3. **First leg only.** A passenger is stored by **first leg** = the next station on the shortest (distance) route to
+   their final destination; ties broken deterministically. Any train whose orders include that first-leg station
+   (as a later stop) boards them. They leave the game at that station (paid for that leg only) — no transfers are
+   tracked. Through passengers on a direct A–B–C train stay on as now. Consequence: the waiting number always equals
+   what the trains calling here can take; a train never refuses people that are shown as waiting.
+4. **Mail** keeps its current model (no destinations) unless trivially consistent; document what you chose.
+5. **Station panel** stays as today (one waiting number). Tapping the passenger supply/waiting tile opens a small
+   "Where passengers go" detail sheet (per month): a list of bars **by first train stop** (each bar includes people
+   travelling further), each row expandable (▸, closed by default) to final destinations ("Ljubljana 30 · Zagreb 15 ·
+   Belgrade 5"), then one line **Not connected**: "Padua ~20 · Verona ~12 · 4 more" (top shares of unreachable
+   towns, a hint for expansion). Must be readable at 800×360 with 10+ destinations. Strings in strings.ts.
+6. **"$0 fares earned" at Venice** (Mar 1842, 4 passenger trains running, panel says "Last month … $0 fares
+   earned", "320 unserved demand"): check whether it is only because trains were new that month or a crediting bug;
+   fix if a bug. Also check the "Unserved demand" figure is consistent with the new model (only reachable demand
+   that could not board).
+7. Migration: old saves with Phase 34 `bound` piles convert cleanly (re-split or drop to first-leg buckets).
+8. Tests: unit — gravity split sums to the town total; unreachable destinations generate nothing; reachability with
+   2 changes (Venice→Ljubljana→Zagreb→Belgrade) puts Belgrade-bound people in the Ljubljana bucket; a train boards
+   everyone waiting for its stops; determinism. E2E — detail sheet opens, expands a row, screenshot
+   `phase-35-destinations.png`. Bench numbers before/after in PROGRESS and BALANCE.md; Hard vs Normal gap reported
+   (target ≥ 40 % lower on Hard; note if not met and why).
+
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7 [ ] 8
