@@ -1366,3 +1366,35 @@ Fix (keep the agreed design: town total is the cap, gravity split, only reachabl
    unconnected = total. Update the e2e screenshot `phase-35-destinations.png` and SPEC §9.5d.
 
 Status: [x] 1 [x] 2 [x] 3 [x] 4
+
+## Phase 35C — Fix: passenger numbers far too high after 35B (town panel 118/month, station 830/month)
+Player report (1840–41, central-eu): Ljubljana (town, 15k) town panel "Supplies 118/month" but Ljubljana Crossing
+station "830/month, 742 waiting"; Trieste (25k) town panel 196/month, station 900/month of which "Venice 792". Too
+many people waiting, and the two panels disagree.
+Root cause: Phase 35B's `PAIR_DEMAND.totalDemandMult = 10` makes a town's total 10× the §6.3 supply, and with size-only
+weights inside 300 km a small town linked to a big city sends (city size ÷ own size) × its old supply — a line to a
+city 4× bigger carries 4× what any line carried before. Distance has no effect inside 300 km, contrary to the agreed
+design ("closest large town takes most").
+Fix — make the total a real, explainable number and keep everything consistent:
+1. **Town travel demand from population**: T = population × trips per person per month (data table by era, short
+   comment on the historical basis — e.g. railway journeys per head per year rising from ~1 in the 1840s). Remove
+   `totalDemandMult` and the own-size floor. Calibrate the table so a 15k town in 1840 has a total of roughly 2–3×
+   today's §6.3 town supply (≈ 250–350/month), not 10×.
+2. **Gravity with real distance decay**: weight = destination population ÷ max(distance, ~15 tiles)^e (e ≈ 1), over all
+   towns in the known-destination radius (keep 35B's radius table). Shares sum to 1 over the candidates; the station
+   generates T × Σ reachable shares. Nearer and bigger takes most; a far small town gets little. Make the share of
+   any single destination ≤ ~50 % of T unless it is the only town in the radius.
+3. **One number everywhere**: the town panel's passenger figure = the town's total travel demand T, with a line
+   "connected: N/month (X %)"; the station supply = the reachable part for that station; the destinations sheet
+   header = the same station figure. Mail unchanged.
+4. **Waiting is realistic**: people do not wait a month on a platform. Passengers' patience (`WAITING_PATIENCE`)
+   → grace ~3 days, then giving up ~15 %/day, so the waiting pile stays around a week of supply. Document it.
+5. **Bench / balance** (report before → after, don't over-tune): 1840 Normal 1856 and 1870, 1900 Normal 1916, Hard gaps,
+   Venice–Milan pair scaling, and the Trieste–Venice case from the report (station supply should be a few hundred a
+   month, not ~800). If early Normal drops a lot (> 25 % vs pre-34 $3.9M at 1856), say so and suggest which real
+   lever (trips per head table) would restore it — do not reintroduce a flat multiplier.
+6. Tests: town total = population × rate; panels agree; single-destination share cap; nearer town of equal size takes
+   more; waiting pile bounded by ~patience × daily supply; adding a connection increases the station total.
+   Regenerate `phase-35-destinations.png` (+ a town panel screenshot `phase-35c-town.png`), SPEC §9.5d updated.
+
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
