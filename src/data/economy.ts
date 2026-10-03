@@ -416,27 +416,38 @@ export function goalLandGrant(tier: "bronze" | "silver" | "gold", year: number):
   return Math.round(GOAL_LAND_GRANT_1830[tier] * priceIndex(year));
 }
 
-// --- Passenger destinations (Phase 35, replaces Phase 34 item 10's boarding rule) ----------------------------------
+// --- Passenger demand and destinations (Phase 35 / 35C) ------------------------------------------------------------
 
-/** A station's passenger supply (the §6.3 figure, incl. induced traffic) is what *one* line to a typical partner carries.
- * The town's *total travel demand* — the people a month who would ride a train somewhere if every town were on the
- * network — is `totalDemandMult` times that: a town can feed that many such lines. The total is split over every town
- * within `travelRangeTiles(year)` (the destinations people know of) by a gravity share: weight = size of the
- * destination town × (`refDistanceTiles` / distance)^`distanceExponent`, the distance clamped to at least
- * `minDistanceTiles` (within a day's journey people choose by size, beyond it by distance). Shares are normalised by
- * the total weight or, if larger, `totalDemandMult` towns of the station's own size at the clamp distance, so a lone
- * same-size partner carries exactly the §6.3 supply, and the cap only dilutes a line's share when many towns compete.
- * A line captures only the shares of the towns it reaches, so every further connected town adds its own. Towns beyond
- * the radius that the network reaches still join the split. The multiplier is calibrated with `tools/bench`: the
- * isolated pairs of the good-player bench must again earn within ~10-15 % of their pre-Phase-34 net worth. */
+/** Journeys by rail a person makes per month, by year (Phase 35C). A town's total travel demand is population x this
+ * rate: the people a month who would ride a train *somewhere* if every town were on the network. Basis: in the 1840s a
+ * railway journey was still a rare event (a third-class fare was days of wages; Britain counted ~1.5 journeys per head
+ * a year by 1845, the continent far fewer) but each new line created traffic that had never travelled (§9.5c-11: excursions,
+ * Sunday trains, clerks and families), ~0.02 a month = 0.24 a year here; as the novelty became ordinary the per-head
+ * rate settled at ~0.012 a month (the game's long-run rate of §6.3, 650 people per carload-month) with fares falling
+ * and the network, not the rate, growing. Calibrated so a 15k town in 1840 has a total of ~2.5x its §6.3 supply
+ * (~300 a month, was 118): the rest comes from the gravity split, never a multiplier. */
+export const TRIPS_PER_HEAD_ANCHORS: Anchors = [
+  [1830, 0.02],
+  [1860, 0.02],
+  [1900, 0.0116],
+];
+export function tripsPerHeadPerMonth(year: number): number {
+  return interpolateYear(TRIPS_PER_HEAD_ANCHORS, year);
+}
+
+/** The total is split over every town within `travelRangeTiles(year)` (the destinations people know of) by a gravity
+ * share: weight = destination population / max(distance, `minDistanceTiles`)^`distanceExponent`. Shares sum to 1 over
+ * the candidates, no single destination takes more than `maxShare` of the total unless it is the only town in range,
+ * and a station generates the total x the shares of the towns the network *reaches*. Nearer and bigger takes most; a
+ * far small town gets little. */
 export const PAIR_DEMAND = {
-  refDistanceTiles: 60,
   distanceExponent: 1,
-  /** Exponent of the destination's size in its weight (1 = proportional to population). */
+  /** Exponent of the destination's population in its weight (1 = proportional). */
   sizeExponent: 1,
-  totalDemandMult: 10,
-  /** Towns nearer than this weigh the same: the distance in the gravity weight is clamped to at least this. */
-  minDistanceTiles: 60,
+  /** Towns nearer than this weigh as if at this distance (tiles of 5 km): stops a next-door village dominating. */
+  minDistanceTiles: 15,
+  /** Largest share of the town total one destination can take (unless it is the only candidate). */
+  maxShare: 0.5,
 };
 
 /** The radius of the destinations a town's people know of, in tiles (5 km each), by year: 300 km in 1830, growing

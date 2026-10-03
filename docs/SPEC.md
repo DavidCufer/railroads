@@ -656,16 +656,19 @@ people bound for its own stops: a big town showed "672 waiting" while its trains
 number on the platform must be a number the trains calling there can take. Rule unchanged: a real mechanism, tables in
 `src/data/economy.ts` (`PAIR_DEMAND`, `TRAVEL_RANGE_ANCHORS`), no flat multiplier.
 
-1. **The town total is the town's total travel demand.** A station's passenger supply (§6.3, incl. induced traffic §9.5c-11)
-   is what one line to a typical partner carries; the town's total travel demand (people a month who would ride a train
-   *somewhere* if every town were on the network) is `PAIR_DEMAND.totalDemandMult` (10) times that, i.e. a town can feed
-   about ten such lines. The total is split over **every town within the era's known-destination radius**
-   (`travelRangeTiles(year)`: 60 tiles = 300 km in 1830, 70 in 1870, 90 in 1900, 120 in 1930, 200 in 1960; 5 km a tile) by a
-   gravity share: weight = the destination town's passenger supply × (60 tiles / distance), distance clamped to at least
-   60 tiles (inside 300 km people choose by size, beyond by distance). Shares are normalised by the total weight of those
-   towns (plus any reachable town beyond the radius) or, if larger, 10 towns of the station's own size at 60 tiles, so a
-   lone same-size partner carries exactly the §6.3 supply (never ~100 % of the total), a line captures only its
-   destination's share, and each further connected town adds its own; only a crowd of competing towns dilutes shares.
+1. **The town total is population x trips per head (Phase 35C).** A town's total travel demand T (people a month who would
+   ride a train *somewhere* if every town were on the network) = population x `tripsPerHeadPerMonth(year)`
+   (`TRIPS_PER_HEAD_ANCHORS`: 0.02 a month in 1830-60, 0.0116 by 1900; a 15k town in 1840 has T = 300, about 2.5x the old §6.3
+   figure of 118, which was what one line to one typical partner carried). T is the single passenger number everywhere: the
+   town panel shows T with a line "Connected: N / month (X %)" (the part trains reach); the station draws its catchment's
+   part of T (towns with several stations split it by covered tiles, §8.3) and generates only the reachable part; the
+   "Where passengers go" header is that same station figure. T is split over **every town within the era's known-destination
+   radius** (`travelRangeTiles(year)`: 60 tiles = 300 km in 1830, 70 in 1870, 90 in 1900, 120 in 1930, 200 in 1960; 5 km a
+   tile) by gravity: weight = destination population / max(distance, 15 tiles). Shares sum to 1 over the candidates (plus
+   any reachable town beyond the radius) and no destination takes more than `PAIR_DEMAND.maxShare` (50 %) unless it is the
+   only candidate. Nearer and bigger takes most, a far small town gets little; a line captures only the shares of the towns
+   it reaches, so each further connected town adds its own. There is no flat multiplier: a lone partner with no other town
+   in range is the whole of T, a partner among many towns a fraction.
 2. **Only reachable destinations wait.** A destination counts only if a chain of trains reaches it: stations are linked by
    consecutive stops of any passenger train's orders (cycle, both directions); any number of changes. A share for an
    unreachable town is not generated at all. Where a town has several reachable stations the nearest by route is used.
@@ -677,7 +680,8 @@ number on the platform must be a number the trains calling there can take. Rule 
    Any train whose orders include that station boards them (`sim/stations/boarding.ts`). They leave the game there, paid for
    that leg only; no transfers are tracked. Through passengers on a train A–B–C stay on as before. A train therefore never
    refuses people the station shows as waiting. People bound for a station whose service ends give up as usual (§9.5c-1);
-   "Unserved demand" is only reachable demand that found no seat.
+   "Unserved demand" is only reachable demand that found no seat. Passengers' patience (Phase 35C, `WAITING_PATIENCE`): a
+   pile nobody collects from for 3 days starts to lose 15 % a day, so the waiting pile settles at about a week of supply.
 4. **Mail** keeps its model: no destinations, the Phase 26A destination bonus (+10 % per extra stop, max +50 %).
 5. **"Where passengers go"** (station panel: tap the passenger tile): per month, bars **by first train stop** (each includes
    people travelling further), each row expandable (▸) to final destinations ("Ljubljana 30 · Zagreb 15"), then **Not

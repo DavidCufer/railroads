@@ -37,7 +37,13 @@ export function openDestinationsSheet(
   const body = h("div", { className: "dest-sheet" });
   const render = (): void => {
     const nodes: Node[] = [];
-    nodes.push(h("p", { className: "hint" }, rows.length > 0 ? t.total(round(total)) : t.none));
+    nodes.push(
+      h(
+        "p",
+        { className: "hint" },
+        rows.length > 0 ? t.total(round(economy.supply.passengers ?? total)) : t.none,
+      ),
+    );
     for (const row of rows) {
       const expanded = open.has(row.firstLeg);
       nodes.push(

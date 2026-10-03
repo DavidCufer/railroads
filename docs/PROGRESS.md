@@ -4764,3 +4764,21 @@ Two sessions: the first shipped buy-wizard affordability + Borrow shortcut, km d
 - Hard 1870 is 38 % below Normal (target 40 %); the bench is a single compounding trajectory (Phase 35 notes), 1900 Hard is 67 % below.
 - Within 60 tiles (300 km) towns weigh by size only (the old 15-tile clamp is gone); distance only matters beyond that, so a "nearer" town of equal size takes the same share inside 300 km.
 
+
+## 2026-10-03 — Phase 35C: passenger totals from population x trips per head, distance decay, one number, shorter patience
+### What changed (SPEC §9.5d item 1 and 3 rewritten)
+- **Town total T = population x trips per head** (`TRIPS_PER_HEAD_ANCHORS` / `tripsPerHeadPerMonth`, `src/data/economy.ts`): 0.02 a month 1830-60 easing to 0.0116 by 1900 (= 2.5x the old per-head §6.3 supply, which includes induced traffic). A 15k town in 1840: T = 300 (was 118 on the town panel, 830 on the station). `PAIR_DEMAND.totalDemandMult`, the own-size floor and the 60-tile reference distance are gone.
+- **Gravity with real decay**: weight = destination population / max(distance, 15 tiles); shares sum to 1 over every town in the radius (35B table kept) plus reachable towns beyond; no destination above 50 % (`PAIR_DEMAND.maxShare`, `capShares`) unless it is the only candidate. The station generates its catchment's part of T x the reachable shares.
+- **One number**: city panel shows T and "Connected: N / month (X %)" (sum of the town's stations' routes); the station supply and the "Where passengers go" header are the same reachable figure (`StationEconomy.passengerTownId/passengerDemand`). Check: Venice 40k, 1900: panel 464, connected 269 (58 %), station sheet 269 (`phase-35c-town.png`, `phase-35-destinations.png`). Mail unchanged.
+- **Patience**: passengers `graceDays` 10 -> 3, `giveUpPerDay` 0.05 -> 0.15; a pile nobody collects settles at ~a week of supply (test).
+- Tests: `pairDemand.test.ts` (T = pop x rate, panels agree, 50 % cap and lone partner, nearer equal town takes more, patience bound, more connections raise the total); updated `cargoFlow.test.ts` (new settle level), `economy.test.ts` (tile split of T). `singleTrack.test.ts` convoy fixture city 400k -> 250k (the larger demand otherwise filled every convoy train and hid the spacing effect). `goodPlayer.ts`: `PAIR="dist,size,minDist,maxShare"`, `TRIPS=<factor>`.
+### Bench (central-eu, net worth in January; Phase 35B -> 35C)
+- 1840 Normal: 1856 $3.64M -> **$0.77M**, 1870 $18.1M -> **$0.55M** (pre-34 1856: $3.9M). **Far more than the 25 % allowed.**
+- 1840 Hard: 1870 $11.2M -> **bankrupt in 1860** (4 trains, 4 stations).
+- 1900 Normal 1916: $24.3M -> **$2.78M**; 1900 Hard 1916: $7.9M -> **$1.93M**.
+- Why: the good-player builds isolated pairs in a dense map. Under 35B a pair carried its full §6.3 supply; now a partner takes its gravity share of T (a few towns in 300 km: roughly 15-30 %), so a first line carries ~0.4-0.8x of what it did, and early fares are thin.
+- Lever (not applied, per plan: no flat multiplier, don't over-tune): the trips-per-head table. 1840 Normal 1856/1870 with the table x2: $2.07M / $13.4M; x3: $5.42M / $27.6M; x4: $8.15M / $41.8M. About x2.5 (0.05 a month in 1840, a 15k town T ~ 750) would restore the pre-34 curve ($3.9M at 1856) but contradicts the plan's 250-350 calibration for the 15k town, i.e. the reported "too many passengers"; the choice is the owner's. Hard and 1900 not re-run for the sweep.
+- Venice-Milan pair scaling and the Trieste case were not re-run; Trieste-Venice: station supply is now T x reachable share (a few hundred at most), not ~800.
+### Deviations
+- With exactly two candidate towns the 50 % cap forces a 50/50 split (distance has no effect between two towns).
+- Stations no passenger train calls at show their catchment's full part of T (generic pile), matching the town panel.

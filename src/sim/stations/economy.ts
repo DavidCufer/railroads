@@ -11,14 +11,13 @@
  *   "overlapping supply is split evenly").
  */
 import { CARGO_TYPES, type CargoType } from "../../data/cargo";
-import { inducedTrafficFactor, PAIR_DEMAND } from "../../data/economy";
 import { INDUSTRIES } from "../../data/industries";
 import {
   POST_OFFICE_MAIL_SUPPLY_MULT,
   STATION_ACCEPTANCE_THRESHOLD,
   STATION_TYPE_DEFS,
 } from "../../data/stations";
-import { cityTileAcceptance, cityTileSupply } from "../economy/cityStats";
+import { cityTileAcceptance, cityTileSupply, cityTravelDemand } from "../economy/cityStats";
 import type { City, Industry, IndustryEconomyState } from "../economy/types";
 import type { GameMap } from "../map/types";
 import { destinationSupplyMult } from "./destinations";
@@ -38,6 +37,10 @@ export interface StationEconomy {
   /** Where this station's passengers wait (Phase 35): shares of the supply per **first leg** (the next station on the
    * shortest route to their destination), summing to 1. Absent while no passenger train serves the station. */
   passengerBound?: Array<{ stationId: number; share: number }>;
+  /** The town whose travel demand this station draws on most, and the station's part of that demand (people a month,
+   * before only the reachable destinations are kept): `supply.passengers` is the connected part of it. */
+  passengerTownId?: number;
+  passengerDemand?: number;
   /** The reachable destinations behind those buckets, people a month each (the "Where passengers go" sheet). */
   passengerRoutes?: PassengerRoute[];
   /** Towns in travel range that no train connects to, with the people a month they would send. */
@@ -132,10 +135,10 @@ export function computeStationEconomies(
     }
   }
 
-  const induced = inducedTrafficFactor(currentYear);
   for (const city of cities) {
     const perTile = cityTileSupply(city);
-    if (perTile.passengers) perTile.passengers *= induced;
+    // Passengers: the town's total travel demand (population x trips per head, Phase 35C) spread over its tiles.
+    perTile.passengers = cityTravelDemand(city, currentYear) / city.tiles.length;
     for (const tile of city.tiles) {
       const covering = stationsAt.get(tile);
       if (!covering || covering.length === 0) continue;
@@ -185,17 +188,21 @@ export function computeStationEconomies(
     baseSupply.set(station.id, (result.get(station.id) as StationEconomy).supply.passengers ?? 0);
   for (const point of points) {
     const economy = result.get(point.id) as StationEconomy;
-    // The §6.3 figure is what a typical first line carries; the town's total travel demand is `totalDemandMult` times it.
-    const base = (baseSupply.get(point.id) ?? 0) * PAIR_DEMAND.totalDemandMult;
-    const flows = computePassengerFlows(map, cities, currentYear, point, base, points, network);
+    // The station's part of its town's total travel demand; only the reachable shares are generated.
+    const demand = baseSupply.get(point.id) ?? 0;
+    if (point.cityId >= 0) {
+      economy.passengerTownId = point.cityId;
+      economy.passengerDemand = demand;
+    }
+    const flows = computePassengerFlows(map, cities, currentYear, point, demand, points, network);
     if (!flows) continue;
     if (flows.unconnected.length > 0) economy.passengerUnconnected = flows.unconnected;
     if (!network.has(point.id)) continue; // no passenger train calls here yet: one generic pile, nothing is bound
-    economy.supply.passengers = base * flows.fraction;
+    economy.supply.passengers = demand * flows.fraction;
     const buckets = new Map<number, number>();
     for (const route of flows.routes)
       buckets.set(route.firstLeg, (buckets.get(route.firstLeg) ?? 0) + route.perMonth);
-    const total = base * flows.fraction;
+    const total = demand * flows.fraction;
     if (total > 0) {
       economy.passengerBound = [...buckets]
         .sort((x, y) => x[0] - y[0])

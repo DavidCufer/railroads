@@ -1402,4 +1402,4 @@ Fix — make the total a real, explainable number and keep everything consistent
    with a test, and re-check the 13-train Venice–Milan rate after items 1–4. It must show clear diminishing returns
    (report revenue for 1/4/8/13 trains).
 
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6

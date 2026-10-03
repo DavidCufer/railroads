@@ -1,5 +1,7 @@
-/** PLAN Phase 35: passengers are split over reachable destinations by gravity and stored by first leg. */
+/** PLAN Phase 35 / 35C: passengers are split over reachable destinations by gravity and stored by first leg. */
 import { describe, expect, it } from "vitest";
+import { WAITING_PATIENCE } from "../../../src/data/cargo";
+import { tripsPerHeadPerMonth } from "../../../src/data/economy";
 import { accrueDailyCargo } from "../../../src/sim/economy/cargoFlow";
 import {
   boardable,
@@ -90,11 +92,12 @@ describe("station economy with reachability", () => {
   }
   const pax = (...ids: number[]): Train => train(...ids);
 
-  it("without service nothing is bound and the supply is the plain town total", () => {
-    const { economies } = world([3, 12, 21]);
+  it("the town's total travel demand is population x trips per head, and without service nothing is bound", () => {
+    const { economies } = world([3, 12, 21], [12000, 12000, 12000]);
     const e = economies([]).get(0);
     expect(e?.passengerBound).toBeUndefined();
-    expect(e?.supply.passengers).toBeGreaterThan(0);
+    expect(e?.passengerDemand).toBeCloseTo(12000 * tripsPerHeadPerMonth(1860), 6);
+    expect(e?.supply.passengers).toBeCloseTo(12000 * tripsPerHeadPerMonth(1860), 6);
     expect((e?.passengerUnconnected ?? []).length).toBe(2);
   });
 
@@ -127,6 +130,69 @@ describe("station economy with reachability", () => {
     expect(sum).toBeCloseTo(base, 6);
     expect(e?.passengerUnconnected).toBeUndefined();
     expect(e?.supply.passengers).toBeCloseTo(base, 6);
+  });
+
+  it("panels agree: the station figure is the sum of its routes, the connected part of the town total", () => {
+    const { economies } = world([3, 12, 21]);
+    const e = economies([pax(0, 1)]).get(0);
+    const routes = (e?.passengerRoutes ?? []).reduce((s, r) => s + r.perMonth, 0);
+    expect(e?.supply.passengers).toBeCloseTo(routes, 9);
+    const unconnected = (e?.passengerUnconnected ?? []).reduce((s, u) => s + u.perMonth, 0);
+    expect(routes + unconnected).toBeCloseTo(e?.passengerDemand ?? 0, 6);
+    const bound = (e?.passengerBound ?? []).reduce((s, b) => s + b.share, 0);
+    expect(bound).toBeCloseTo(1, 9);
+  });
+
+  it("no destination takes more than half the total unless it is the only town in range", () => {
+    // A metropolis next door and two small towns: gravity alone would give the big one ~97 %.
+    const { economies } = world([3, 20, 40, 60], [12000, 400000, 3000, 3000]);
+    const e = economies([pax(0, 1), pax(1, 2), pax(1, 3)]).get(0);
+    const demand = e?.passengerDemand ?? 0;
+    for (const r of e?.passengerRoutes ?? [])
+      expect(r.perMonth).toBeLessThanOrEqual(demand * 0.5 + 1e-9);
+    const sum = (e?.passengerRoutes ?? []).reduce((s, r) => s + r.perMonth, 0);
+    expect(sum).toBeCloseTo(demand, 6);
+    // A lone partner is the whole total.
+    const lone = world([3, 20])
+      .economies([pax(0, 1)])
+      .get(0);
+    expect(lone?.passengerRoutes?.[0]?.perMonth).toBeCloseTo(lone?.passengerDemand ?? 0, 9);
+  });
+
+  it("of two equal towns the nearer takes more", () => {
+    const { economies } = world([3, 28, 63, 40], [12000, 12000, 12000, 12000]);
+    const e = economies([pax(0, 1), pax(0, 2), pax(0, 3)]).get(0);
+    const near = e?.passengerRoutes?.find((r) => r.cityId === 1)?.perMonth ?? 0;
+    const far = e?.passengerRoutes?.find((r) => r.cityId === 2)?.perMonth ?? 0;
+    expect(near).toBeGreaterThan(far * 1.5);
+  });
+
+  it("a pile nobody collects stays around a week of supply (patience)", () => {
+    const { state, cities, stations } = world([3, 12, 21]);
+    state.stations.push(...stations);
+    state.cities.push(...cities);
+    state.stationEconomy = computeStationEconomies(
+      state.map,
+      state.cities,
+      [],
+      state.stations,
+      1860,
+      undefined,
+      undefined,
+      passengerLinks([pax(0, 1), pax(0, 2)]),
+    );
+    const daily = (state.stationEconomy.get(0)?.supply.passengers ?? 0) / 30;
+    const { graceDays, giveUpPerDay } = WAITING_PATIENCE.passengers as {
+      graceDays: number;
+      giveUpPerDay: number;
+    };
+    let peak = 0;
+    for (let day = 0; day < 120; day++) {
+      accrueDailyCargo(state);
+      peak = Math.max(peak, state.stationCargo.get(0)?.passengers?.amount ?? 0);
+    }
+    expect(peak).toBeLessThanOrEqual((graceDays + 1 / giveUpPerDay) * daily);
+    expect(peak).toBeLessThan(10 * daily);
   });
 
   describe("Ljubljana-like fixture (PLAN Phase 35B): the first line must not take the whole town", () => {
@@ -168,14 +234,11 @@ describe("station economy with reachability", () => {
       expect(sorted).toEqual([...sorted].sort((a, b) => b - a));
     });
 
-    it("the total demand exceeds what a single typical first line carries", () => {
+    it("the total is population x trips per head, a few hundred a month for a 12k town in 1860", () => {
       const { economies } = fixture();
-      const total = (economies([]).get(0)?.passengerUnconnected ?? []).reduce(
-        (sum, u) => sum + u.perMonth,
-        0,
-      );
-      const plain = economies([]).get(0)?.supply.passengers ?? 0;
-      expect(total).toBeGreaterThan(plain);
+      const e = economies([]).get(0);
+      expect(e?.passengerDemand).toBeCloseTo(12000 * tripsPerHeadPerMonth(1860), 6);
+      expect(e?.passengerDemand).toBeLessThan(600);
     });
   });
 
@@ -198,7 +261,7 @@ describe("station economy with reachability", () => {
     expect(toThree?.firstLeg).toBe(1);
   });
 
-  it("beyond the reference distance a nearer town takes the larger share", () => {
+  it("a far town beyond the radius that the network reaches takes less than a near one", () => {
     const { economies } = world([3, 12, 120], [12000, 12000, 12000]);
     const e = economies([pax(0, 1), pax(1, 2)]).get(0);
     const near = e?.passengerRoutes?.find((r) => r.cityId === 1)?.perMonth ?? 0;

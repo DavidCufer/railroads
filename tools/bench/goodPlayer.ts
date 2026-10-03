@@ -9,20 +9,24 @@
  * project is short of cash and repay when cash piles up, relay worn track, rebuild washed-out bridges.
  */
 import * as commands from "../../src/sim/commands";
-import { PAIR_DEMAND, TRAVEL_RANGE_ANCHORS } from "../../src/data/economy";
+import { PAIR_DEMAND, TRAVEL_RANGE_ANCHORS, TRIPS_PER_HEAD_ANCHORS } from "../../src/data/economy";
 
-// PAIR="refTiles,distanceExponent,sizeExponent,totalDemandMult" overrides the passenger-destination table for tuning runs;
-// RANGE=<factor> scales the travel range.
+// PAIR="distanceExponent,sizeExponent,minDistanceTiles,maxShare" overrides the passenger-destination table for tuning
+// runs; TRIPS=<factor> scales the trips-per-head table; RANGE=<factor> scales the travel range.
 if (process.env["PAIR"]) {
-  const [ref, dist, size, mult] = process.env["PAIR"]
+  const [dist, size, minDist, maxShare] = process.env["PAIR"]
     .split(",")
     .map((v) => (v.trim() === "" ? undefined : Number(v)));
   Object.assign(PAIR_DEMAND, {
-    refDistanceTiles: ref ?? PAIR_DEMAND.refDistanceTiles,
     distanceExponent: dist ?? PAIR_DEMAND.distanceExponent,
     sizeExponent: size ?? PAIR_DEMAND.sizeExponent,
-    totalDemandMult: mult ?? PAIR_DEMAND.totalDemandMult,
+    minDistanceTiles: minDist ?? PAIR_DEMAND.minDistanceTiles,
+    maxShare: maxShare ?? PAIR_DEMAND.maxShare,
   });
+}
+if (process.env["TRIPS"]) {
+  const f = Number(process.env["TRIPS"]);
+  for (const anchor of TRIPS_PER_HEAD_ANCHORS as unknown as Array<[number, number]>) anchor[1] *= f;
 }
 if (process.env["RANGE"]) {
   const f = Number(process.env["RANGE"]);

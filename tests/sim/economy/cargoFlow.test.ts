@@ -93,9 +93,9 @@ describe("passengers and mail give up waiting (Phase 30A)", () => {
     const { state, station } = peopleStation(false);
     for (let day = 0; day < 120; day++) accrueDailyCargo(state);
     const pax = state.stationCargo.get(station.id)?.passengers?.amount ?? 0;
-    expect(pax).toBeGreaterThan(STATION_TYPE_DEFS.depot.storagePerCargo * 2);
-    // settles near supply per day / give-up rate = 10 / 0.05
-    expect(pax).toBeLessThan(10 / 0.05 + 1);
+    expect(pax).toBeGreaterThan(STATION_TYPE_DEFS.depot.storagePerCargo);
+    // settles near supply per day x (1 - give-up) / give-up rate = 10 x 0.85 / 0.15 (Phase 35C: a week of supply)
+    expect(pax).toBeLessThan((10 * 0.85) / 0.15 + 1);
   });
 
   it("counts the people who gave up, with the fares lost, per station and month", () => {

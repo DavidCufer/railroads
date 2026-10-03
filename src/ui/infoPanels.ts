@@ -11,7 +11,12 @@ import {
   type CityTier,
 } from "../data/cities";
 import type { Industry } from "../sim/economy/types";
-import { cityAcceptance, citySupply, tierUnlocks } from "../sim/economy/cityStats";
+import {
+  cityAcceptance,
+  citySupply,
+  cityTravelDemand,
+  tierUnlocks,
+} from "../sim/economy/cityStats";
 import { civicInvestment, computeCivicInvestmentPlan } from "../sim/commands";
 import { stationCatchmentTiles } from "../sim/stations/placement";
 import { STATION_ACCEPTANCE_THRESHOLD, STATION_TYPE_DEFS } from "../data/stations";
@@ -165,6 +170,15 @@ export function openCityPanel(
     if (!city) return;
     const currentYear = calendarFromTicks(state.startYear, state.ticks).year;
     const supply = citySupply(city, currentYear);
+    // Passengers: the town's total travel demand (population x trips per head), the same number the station panels
+    // draw from; "connected" is the part of it the stations here reach by train (Phase 35C).
+    const demand = cityTravelDemand(city, currentYear);
+    let connectedPassengers = 0;
+    for (const station of state.stations) {
+      const eco = state.stationEconomy.get(station.id);
+      if (eco?.passengerTownId !== cityId) continue;
+      for (const r of eco.passengerRoutes ?? []) connectedPassengers += r.perMonth;
+    }
     const accepts = cityAcceptance(city, currentYear);
     const acceptEntries = Object.entries(accepts) as Array<[CargoType, number]>;
     const growth = state.cityGrowth.get(cityId);
@@ -182,7 +196,7 @@ export function openCityPanel(
             cargoChip(
               container,
               "passengers",
-              supply.passengers,
+              demand,
               strings.station.supplyRate(CARGO.passengers.unit),
               false,
               true,
@@ -196,6 +210,16 @@ export function openCityPanel(
               true,
             ),
           ),
+          demand > 0 && connectedPassengers > 0
+            ? h(
+                "p",
+                { className: "hint city-connected" },
+                strings.city.connected(
+                  String(Math.max(1, Math.round(connectedPassengers))),
+                  String(Math.round((connectedPassengers / demand) * 100)),
+                ),
+              )
+            : null,
         ],
         strings.station.perMonthNote,
       ),

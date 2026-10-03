@@ -46,6 +46,8 @@ export const strings = {
     info: "Info",
   },
   city: {
+    /** Phase 35C: under the town's passenger figure (its total travel demand): the part trains reach. */
+    connected: (n: string, pct: string) => `Connected: ${n} / month (${pct} %)`,
     tierNames: {
       village: "Village",
       town: "Town",

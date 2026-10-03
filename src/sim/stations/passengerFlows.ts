@@ -1,14 +1,13 @@
 /**
  * Where a station's passengers go (PLAN Phase 35, SPEC §9.5d). Pure.
  *
- * The station's monthly passenger supply is the cap. It is split over the towns within the era's travel range by a
+ * The station's part of its town's total travel demand (population x trips per head, SPEC §9.5d) is split over the towns within the era's travel range by a
  * gravity share (destination size × distance decay); only the shares of towns *reachable* through the train network
  * (stations linked by trains' orders, any number of changes) are generated. Each reachable destination is stored by its
  * **first leg**: the next station on the shortest route there, so the waiting number always equals what the trains
  * calling at the station can take.
  */
 import { PAIR_DEMAND, travelRangeTiles } from "../../data/economy";
-import { citySupply } from "../economy/cityStats";
 import type { City } from "../economy/types";
 import type { GameMap } from "../map/types";
 import { octileTileDistance } from "../trains/geometry";
@@ -81,36 +80,56 @@ export function shortestFirstLegs(
   return best;
 }
 
+/** Share of the town total each candidate takes: gravity weights normalised to 1, no one above `maxShare` unless the
+ * only candidate (the excess is handed to the others in proportion, repeated until it settles). */
+export function capShares(
+  weights: ReadonlyMap<number, number>,
+  maxShare: number,
+): Map<number, number> {
+  const shares = new Map<number, number>();
+  let total = 0;
+  for (const w of weights.values()) total += w;
+  if (total <= 0) return shares;
+  for (const [id, w] of weights) shares.set(id, w / total);
+  if (weights.size < 2) return shares;
+  const cap = Math.max(maxShare, 1 / weights.size);
+  for (let pass = 0; pass < 8; pass++) {
+    let excess = 0;
+    let free = 0;
+    for (const v of shares.values()) {
+      if (v > cap + 1e-12) excess += v - cap;
+      else if (v < cap - 1e-12) free += v;
+    }
+    if (excess <= 1e-12 || free <= 0) break;
+    for (const [id, v] of shares) shares.set(id, v > cap ? cap : v + (excess * v) / free);
+  }
+  return shares;
+}
+
+/** `demand` is the station's part of its town's total travel demand (people a month). */
 export function computePassengerFlows(
   map: GameMap,
   cities: readonly City[],
   year: number,
   source: StationPoint,
-  baseSupply: number,
+  demand: number,
   stations: readonly StationPoint[],
   links: ReadonlyMap<number, ReadonlySet<number>>,
 ): PassengerFlows | undefined {
-  if (baseSupply <= 0) return undefined;
+  if (demand <= 0) return undefined;
   const range = travelRangeTiles(year);
-  const ref = PAIR_DEMAND.refDistanceTiles;
   const tileOf = new Map(stations.map((s) => [s.id, s.tile]));
   const reach = shortestFirstLegs(source.id, links, tileOf, map.width);
 
-  // Candidate towns: within the travel range of this station, or reached by the network.
-  const weight = new Map<number, number>(); // cityId -> gravity weight
-  const gravity = (city: City): number => {
-    const dist = octileTileDistance(
-      source.tile,
-      city.anchorY * map.width + city.anchorX,
-      map.width,
-    );
-    return (
-      Math.pow(citySupply(city, year).passengers, PAIR_DEMAND.sizeExponent) *
-      Math.pow(ref / Math.max(PAIR_DEMAND.minDistanceTiles, dist), PAIR_DEMAND.distanceExponent)
-    );
-  };
+  // Gravity weight: destination population / distance (real decay, clamped so a next-door village does not dominate).
   const distToCity = (city: City): number =>
     octileTileDistance(source.tile, city.anchorY * map.width + city.anchorX, map.width);
+  const gravity = (city: City): number =>
+    Math.pow(city.population, PAIR_DEMAND.sizeExponent) /
+    Math.pow(
+      Math.max(PAIR_DEMAND.minDistanceTiles, distToCity(city)),
+      PAIR_DEMAND.distanceExponent,
+    );
 
   // The best (nearest by route) reachable station of each town.
   const target = new Map<number, { station: number; dist: number; firstLeg: number }>();
@@ -121,31 +140,18 @@ export function computePassengerFlows(
     if (!known || r.dist < known.dist || (r.dist === known.dist && s.id < known.station))
       target.set(s.cityId, { station: s.id, dist: r.dist, firstLeg: r.firstLeg });
   }
+  // Candidates: towns within the known-destination radius, plus any town the network reaches.
+  const weight = new Map<number, number>(); // cityId -> gravity weight
   for (const city of cities) {
     if (city.id === source.cityId) continue;
     if (distToCity(city) <= range || target.has(city.id)) weight.set(city.id, gravity(city));
   }
-  let total = 0;
-  for (const w of weight.values()) total += w;
-  if (total <= 0) return undefined;
-  // The town total is `totalDemandMult` towns of the station's own size at the clamp distance: the denominator is at
-  // least that, so a lone same-size partner carries exactly the base (§6.3) supply (total × w / floor = base) and only
-  // a crowd of competing towns (Σ weights above the floor) dilutes a line's share. No line can take 100 %.
-  const ownCity = cities.find((c) => c.id === source.cityId);
-  const own = Math.pow(
-    ownCity ? citySupply(ownCity, year).passengers : baseSupply / PAIR_DEMAND.totalDemandMult,
-    PAIR_DEMAND.sizeExponent,
-  );
-  const floor =
-    own *
-    Math.pow(ref / PAIR_DEMAND.minDistanceTiles, PAIR_DEMAND.distanceExponent) *
-    PAIR_DEMAND.totalDemandMult;
-  const denominator = Math.max(total, floor);
+  const shares = capShares(weight, PAIR_DEMAND.maxShare);
+  if (shares.size === 0) return undefined;
   const routes: PassengerRoute[] = [];
   const unconnected: PassengerFlows["unconnected"] = [];
   let reachable = 0;
-  for (const [cityId, w] of [...weight].sort((a, b) => a[0] - b[0])) {
-    const share = w / denominator;
+  for (const [cityId, share] of [...shares].sort((a, b) => a[0] - b[0])) {
     const t = target.get(cityId);
     if (t) {
       reachable += share;
@@ -153,9 +159,9 @@ export function computePassengerFlows(
         firstLeg: t.firstLeg,
         destination: t.station,
         cityId,
-        perMonth: baseSupply * share,
+        perMonth: demand * share,
       });
-    } else unconnected.push({ cityId, perMonth: baseSupply * share });
+    } else unconnected.push({ cityId, perMonth: demand * share });
   }
   unconnected.sort((a, b) => b.perMonth - a.perMonth || a.cityId - b.cityId);
   return { fraction: reachable, routes, unconnected };

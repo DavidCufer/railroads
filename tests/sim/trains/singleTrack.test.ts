@@ -16,6 +16,7 @@ interface Setup {
   loops?: number;
   gap?: number;
   km?: number;
+  /** City population; 250k (was 400k): the larger Phase 35C demand otherwise fills every convoy train and hides the spacing effect. */
   pop?: number;
   /** Odd trains start at the far station (opposing traffic from day one). */
   split?: boolean;
@@ -27,7 +28,7 @@ function build(s: Setup): GameState {
     km: s.km ?? 100,
     year: 1900,
     loco: LOCO,
-    population: s.pop ?? 400_000,
+    population: s.pop ?? 250000,
     tier: "metropolis",
     cars: 6,
     stationType: "station",

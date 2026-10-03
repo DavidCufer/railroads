@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inducedTrafficFactor } from "../../../src/data/economy";
-import { CITY_PASSENGER_SUPPLY_DIVISOR } from "../../../src/data/cities";
+import { cityTravelDemand } from "../../../src/sim/economy/cityStats";
 import { INDUSTRIES } from "../../../src/data/industries";
 import { STATION_ACCEPTANCE_THRESHOLD } from "../../../src/data/stations";
 import { computeStationEconomies, previewStationEconomy } from "../../../src/sim/stations/economy";
@@ -165,8 +164,8 @@ describe("computeStationEconomies — supply", () => {
     };
 
     const result = computeStationEconomies(map, [city], [], [stationA, stationB], 1830);
-    const expectedEach =
-      (city.population / CITY_PASSENGER_SUPPLY_DIVISOR / 2) * inducedTrafficFactor(1830);
+    // Passengers: the town's total travel demand (population x trips per head, Phase 35C), half to each station.
+    const expectedEach = cityTravelDemand(city, 1830) / 2;
     expect(result.get(0)!.supply.passengers).toBeCloseTo(expectedEach, 1);
     expect(result.get(1)!.supply.passengers).toBeCloseTo(expectedEach, 1);
   });

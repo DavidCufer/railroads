@@ -7,7 +7,7 @@ import {
   CITY_PASSENGER_SUPPLY_DIVISOR,
   type CityTier,
 } from "../../data/cities";
-import { inducedTrafficFactor } from "../../data/economy";
+import { inducedTrafficFactor, tripsPerHeadPerMonth } from "../../data/economy";
 import type { City } from "./types";
 
 export interface CitySupply {
@@ -16,6 +16,13 @@ export interface CitySupply {
 }
 
 /** Supply per month if fully covered by stations (SPEC §8.3, tuned — see cities.ts). */
+/** The town's total travel demand (Phase 35C): people a month who would ride a train somewhere if every town were on
+ * the network = population x trips per head (`tripsPerHeadPerMonth`). One number, shown on the town panel; a station
+ * generates its catchment's part of it, limited to the destinations the network reaches. */
+export function cityTravelDemand(city: City, year = 1900): number {
+  return city.population * tripsPerHeadPerMonth(year);
+}
+
 export function citySupply(city: City, year = 1900): CitySupply {
   return {
     passengers: Math.round(

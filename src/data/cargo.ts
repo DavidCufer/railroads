@@ -73,11 +73,13 @@ export const WAITING_DECAY_RATE_PER_DAY = 0.05;
  * no storage cap and no warehouse. A pile nobody has collected from for `graceDays` starts to give up: every day
  * `giveUpPerDay` of it leaves (takes the coach or stays at home), so a pile settles at about
  * `supply / giveUpPerDay` and a long gap between trains simply loses people. Mail waits a little longer: a
- * posted letter can sit in the sorting office, but an unserved mail contract moves to the road mail coach. */
+ * posted letter can sit in the sorting office, but an unserved mail contract moves to the road mail coach.
+ * Phase 35C: travellers do not wait a month on a platform: they give a train ~3 days, then 15 % a day take the coach or
+ * go home, so a pile nobody collects settles at about `grace + 1/giveUpPerDay - 1` = a week of supply. */
 export const WAITING_PATIENCE: Partial<
   Record<CargoType, { graceDays: number; giveUpPerDay: number }>
 > = {
-  passengers: { graceDays: 10, giveUpPerDay: 0.05 },
+  passengers: { graceDays: 3, giveUpPerDay: 0.15 },
   mail: { graceDays: 15, giveUpPerDay: 0.05 },
 };
 

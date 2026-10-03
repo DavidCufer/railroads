@@ -153,5 +153,22 @@ test.describe("Phase 35 — where passengers go", () => {
     await expect(sheet.locator(".dest-unconnected")).toContainText("Padua");
     await page.waitForTimeout(300);
     await page.screenshot({ path: shot("destinations") });
+
+    // Phase 35C: the town panel shows the same kind of number: the town total, and how much of it is connected.
+    const header = (await sheet.locator(".hint").first().textContent()) ?? "";
+    await sheet.locator(".sheet-close").click();
+    await expect(sheet).toHaveCount(0);
+    await page.evaluate(() => window.__game!.debugOpenCity(0));
+    const connected = page.locator(".city-connected");
+    await expect(connected).toBeVisible();
+    await expect(connected).toContainText("Connected:");
+    // Venice 40k x 0.0116 a month in 1900 = 464 for the town; the station sends only the connected part of it.
+    const town = Number(
+      (await page.locator(".chip-lg").first().textContent())?.replace(/\D/g, "") ?? "0",
+    );
+    expect(town).toBe(464);
+    expect(Number(header.replace(/\D/g, "").slice(0, 3))).toBeLessThanOrEqual(town);
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: "docs/screenshots/phase-35c-town.png" });
   });
 });
