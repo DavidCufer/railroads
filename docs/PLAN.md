@@ -1396,5 +1396,10 @@ Fix — make the total a real, explainable number and keep everything consistent
 6. Tests: town total = population × rate; panels agree; single-destination share cap; nearer town of equal size takes
    more; waiting pile bounded by ~patience × daily supply; adding a connection increases the station total.
    Regenerate `phase-35-destinations.png` (+ a town panel screenshot `phase-35c-town.png`), SPEC §9.5d updated.
+7. **Addendum (player report, Apr 1843)**: Venice station "901/month, **2784 waiting**" (3× a month's supply, so the
+   first-leg buckets apparently don't give up like the generic pile), and Venice–Milan with 13 trains at
+   "Rate +$737k/yr" in 1843. Verify give-up applies to every `bound` bucket (and migrated piles), bound the pile
+   with a test, and re-check the 13-train Venice–Milan rate after items 1–4. It must show clear diminishing returns
+   (report revenue for 1/4/8/13 trains).
 
 Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
