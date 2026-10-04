@@ -79,7 +79,7 @@ describe("accrueDailyCargo", () => {
   });
 });
 
-describe("passengers and mail give up waiting (Phase 30A)", () => {
+describe("passengers and mail: linear fill to one month, nobody gives up (Phase 35D)", () => {
   function peopleStation(warehouse: boolean) {
     const { state, station } = stationWithCoalMine();
     const st = state.stations[0] as { improvements: string[] };
@@ -88,23 +88,90 @@ describe("passengers and mail give up waiting (Phase 30A)", () => {
     eco.supply = { passengers: 300, mail: 60 };
     return { state, station };
   }
+  const pile = (state: ReturnType<typeof peopleStation>["state"], id: number) =>
+    state.stationCargo.get(id);
 
-  it("has no storage cap: a never-served pile grows until giving up balances supply", () => {
+  it("grows linearly at the monthly rate: half a month holds half the cap", () => {
     const { state, station } = peopleStation(false);
-    for (let day = 0; day < 120; day++) accrueDailyCargo(state);
-    const pax = state.stationCargo.get(station.id)?.passengers?.amount ?? 0;
-    expect(pax).toBeGreaterThan(STATION_TYPE_DEFS.depot.storagePerCargo);
-    // settles near supply per day x (1 - give-up) / give-up rate = 10 x 0.85 / 0.15 (Phase 35C: a week of supply)
-    expect(pax).toBeLessThan((10 * 0.85) / 0.15 + 1);
+    for (let day = 0; day < 15; day++) accrueDailyCargo(state);
+    expect(pile(state, station.id)?.passengers?.amount).toBeCloseTo(150, 6);
+    expect(pile(state, station.id)?.mail?.amount).toBeCloseTo(30, 6);
+    expect(state.stationFlow.get(station.id)?.month.passengers?.lostUnits ?? 0).toBe(0);
   });
 
-  it("counts the people who gave up, with the fares lost, per station and month", () => {
+  it("stops at one month's worth and holds there, however long nobody comes", () => {
+    const { state, station } = peopleStation(false);
+    for (let day = 0; day < 400; day++) {
+      accrueDailyCargo(state);
+      expect(pile(state, station.id)?.passengers?.amount ?? 0).toBeLessThanOrEqual(300 + 1e-9);
+    }
+    expect(pile(state, station.id)?.passengers?.amount).toBeCloseTo(300, 6);
+    expect(pile(state, station.id)?.mail?.amount).toBeCloseTo(60, 6);
+  });
+
+  it("counts the overflow, and only the overflow, as unserved demand with the fares lost", () => {
     const { state, station } = peopleStation(false);
     for (let day = 0; day < 40; day++) accrueDailyCargo(state);
-    const month = state.stationFlow.get(station.id)?.month.passengers;
-    expect(month?.lostUnits).toBeGreaterThan(10);
-    expect(month?.lostRevenue).toBeGreaterThan(0);
-    expect(state.stationFlow.get(station.id)?.month.mail?.lostUnits ?? 0).toBeGreaterThan(0);
+    const month = state.stationFlow.get(station.id)?.month;
+    // 40 days generated 400 people, 300 fit.
+    expect(month?.passengers?.lostUnits).toBeCloseTo(100, 6);
+    expect(month?.passengers?.lostRevenue).toBeGreaterThan(0);
+    expect(month?.mail?.lostUnits).toBeCloseTo(20, 6);
+  });
+
+  it("a train taking people refills the pile linearly", () => {
+    const { state, station } = peopleStation(false);
+    for (let day = 0; day < 40; day++) accrueDailyCargo(state);
+    pile(state, station.id)!.passengers!.amount -= 80;
+    for (let day = 0; day < 4; day++) accrueDailyCargo(state);
+    expect(pile(state, station.id)?.passengers?.amount).toBeCloseTo(220 + 40, 6);
+    for (let day = 0; day < 10; day++) accrueDailyCargo(state);
+    expect(pile(state, station.id)?.passengers?.amount).toBeCloseTo(300, 6);
+  });
+
+  it("each first-leg bucket fills and caps at its own month", () => {
+    const { state, station } = peopleStation(false);
+    state.stationEconomy.get(station.id)!.passengerBound = [
+      { stationId: 7, share: 0.5 },
+      { stationId: 8, share: 0.5 },
+    ];
+    for (let day = 0; day < 60; day++) accrueDailyCargo(state);
+    const p = pile(state, station.id)?.passengers;
+    expect(p?.bound?.[7]).toBeCloseTo(150, 6);
+    expect(p?.bound?.[8]).toBeCloseTo(150, 6);
+    expect(p?.amount).toBeCloseTo(300, 6);
+    // A train takes the 7s: only that bucket refills, and only the 8s' overflow keeps counting.
+    p!.bound![7] = 70;
+    p!.amount -= 80;
+    for (let day = 0; day < 6; day++) accrueDailyCargo(state);
+    expect(p?.bound?.[7]).toBeCloseTo(100, 6);
+    expect(p?.bound?.[8]).toBeCloseTo(150, 6);
+  });
+
+  it("clamps to the new cap when the rate falls; unreachable destinations become unassigned", () => {
+    const { state, station } = peopleStation(false);
+    const eco = state.stationEconomy.get(station.id)!;
+    eco.passengerBound = [
+      { stationId: 7, share: 0.5 },
+      { stationId: 8, share: 0.5 },
+    ];
+    for (let day = 0; day < 30; day++) accrueDailyCargo(state);
+    // Station 8 loses its service and the supply halves: bucket 7 now holds at most 0.5 x 150.
+    eco.supply = { passengers: 150, mail: 60 };
+    eco.passengerBound = [{ stationId: 7, share: 0.5 }];
+    accrueDailyCargo(state);
+    const p = pile(state, station.id)?.passengers;
+    expect(p?.bound?.[7]).toBeCloseTo(75, 6);
+    expect(p?.bound?.[8]).toBeUndefined();
+    expect(p?.amount ?? 0).toBeLessThanOrEqual(150 + 1e-9);
+  });
+
+  it("freight is unchanged: storage cap and decay as before", () => {
+    const { state, station } = stationWithCoalMine();
+    for (let day = 0; day < 200; day++) accrueDailyCargo(state);
+    expect(state.stationCargo.get(station.id)?.coal?.amount).toBeLessThanOrEqual(
+      STATION_TYPE_DEFS.depot.storagePerCargo,
+    );
   });
 
   it("a Warehouse does nothing for passengers and mail (PLAYTEST-2 exploit 1)", () => {

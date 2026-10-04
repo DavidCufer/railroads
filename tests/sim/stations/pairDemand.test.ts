@@ -1,6 +1,5 @@
 /** PLAN Phase 35 / 35C: passengers are split over reachable destinations by gravity and stored by first leg. */
 import { describe, expect, it } from "vitest";
-import { WAITING_PATIENCE } from "../../../src/data/cargo";
 import { tripsPerHeadPerMonth } from "../../../src/data/economy";
 import { accrueDailyCargo } from "../../../src/sim/economy/cargoFlow";
 import {
@@ -167,7 +166,7 @@ describe("station economy with reachability", () => {
     expect(near).toBeGreaterThan(far * 1.5);
   });
 
-  it("a pile nobody collects stays around a week of supply (patience)", () => {
+  it("a pile nobody collects holds one month of supply and counts the rest as unserved (Phase 35D)", () => {
     const { state, cities, stations } = world([3, 12, 21]);
     state.stations.push(...stations);
     state.cities.push(...cities);
@@ -181,18 +180,15 @@ describe("station economy with reachability", () => {
       undefined,
       passengerLinks([pax(0, 1), pax(0, 2)]),
     );
-    const daily = (state.stationEconomy.get(0)?.supply.passengers ?? 0) / 30;
-    const { graceDays, giveUpPerDay } = WAITING_PATIENCE.passengers as {
-      graceDays: number;
-      giveUpPerDay: number;
-    };
-    let peak = 0;
+    const monthly = state.stationEconomy.get(0)?.supply.passengers ?? 0;
     for (let day = 0; day < 120; day++) {
       accrueDailyCargo(state);
-      peak = Math.max(peak, state.stationCargo.get(0)?.passengers?.amount ?? 0);
+      expect(state.stationCargo.get(0)?.passengers?.amount ?? 0).toBeLessThanOrEqual(
+        monthly + 1e-9,
+      );
     }
-    expect(peak).toBeLessThanOrEqual((graceDays + 1 / giveUpPerDay) * daily);
-    expect(peak).toBeLessThan(10 * daily);
+    expect(state.stationCargo.get(0)?.passengers?.amount).toBeCloseTo(monthly, 6);
+    expect(state.stationFlow.get(0)?.month.passengers?.lostUnits ?? 0).toBeGreaterThan(0);
   });
 
   describe("Ljubljana-like fixture (PLAN Phase 35B): the first line must not take the whole town", () => {

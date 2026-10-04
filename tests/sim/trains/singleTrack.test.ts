@@ -98,10 +98,12 @@ describe("passing loops", () => {
 });
 
 describe("departure spacing", () => {
-  it("six trains in a convoy on one single line earn >10 % more when departures are spaced a day apart", () => {
+  it("six trains in a convoy on one single line earn >5 % more when departures are spaced a day apart", () => {
     const convoy = yearlyRevenue({ trains: 6 });
     const spaced = yearlyRevenue({ trains: 6, gap: 1 });
-    expect(spaced).toBeGreaterThan(convoy * 1.1);
+    // Phase 35D: nobody gives up while the convoy leaves the platform empty for the five trains behind the first, so
+    // spacing no longer recovers lost passengers (+6.5 % measured, was > +10 %); it still shortens the wait.
+    expect(spaced).toBeGreaterThan(convoy * 1.05);
   });
 
   it("four spaced trains with passing loops earn more than two trains (without, four earn less than they could)", () => {

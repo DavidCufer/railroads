@@ -19,7 +19,7 @@ const [
   nameB = "Milan",
   loco = "norris-4-2-0",
   carsArg = "5",
-  maxArg = "8",
+  maxArg = "13",
   yrsArg = "3",
   stype = "station",
 ] = process.argv;
@@ -101,7 +101,7 @@ console.log(
   "trains | revenue | carried | supply/mo (both) | rev/train | marginal rev | marginal profit ÷ train price | cash growth",
 );
 let prev: Row | undefined;
-for (const n of [1, 2, 3, 4, 5, 6, 8, 10, 12].filter((x) => x <= Number(maxArg))) {
+for (const n of [1, 2, 3, 4, 5, 6, 8, 10, 12, 13].filter((x) => x <= Number(maxArg))) {
   const r = run(n);
   const marg = prev ? (r.revenue - prev.revenue) / (r.n - prev.n) : r.revenue;
   const margProfit = prev ? (r.profit - prev.profit) / (r.n - prev.n) : r.profit;

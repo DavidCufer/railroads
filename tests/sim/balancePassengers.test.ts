@@ -27,7 +27,9 @@ describe("Phase 26A passenger & mail balance", () => {
     });
     const ratio = pax.revenue / coal.revenue;
     expect(ratio).toBeGreaterThanOrEqual(0.8);
-    expect(ratio).toBeLessThanOrEqual(1.2);
+    // Phase 35D: waiting passengers no longer give up (one-month pile), so a full-load town line carries all of its
+    // supply: ~2.4x a coal train, was 0.8-1.2x. A balance consequence of the owner's rule, reported in PROGRESS 35D.
+    expect(ratio).toBeLessThanOrEqual(2.6);
   });
 
   it("a mail car pays about 1.3× a passenger car per trip, and a mail train earns 0.1–0.35× a passenger train (mail ≈ 15 % of a line's revenue, Phase 30A)", () => {
@@ -41,7 +43,8 @@ describe("Phase 26A passenger & mail balance", () => {
       tier: "town",
     });
     const mail = measureRoute({ cargo: "mail", km: 100, ...ERA, population: 12_000, tier: "town" });
-    expect(mail.revenue / pax.revenue).toBeGreaterThan(0.1);
+    // Phase 35D: passengers earn ~2x more with no attrition, so mail's share fell to ~0.065 (was 0.1-0.35).
+    expect(mail.revenue / pax.revenue).toBeGreaterThan(0.05);
     expect(mail.revenue / pax.revenue).toBeLessThan(0.35);
   });
 

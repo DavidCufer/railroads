@@ -22,7 +22,7 @@ export function hasImprovement(station: Station, type: StationImprovementType): 
 export function stationStorageCap(station: Station, cargo?: CargoType): number {
   const base = STATION_TYPE_DEFS[station.type].storagePerCargo;
   // Phase 30A: a Warehouse stores freight only. Passengers and mail have no storage cap at all (they give
-  // up waiting instead, see `WAITING_PATIENCE_DAYS`); the figure returned for them is only the station
+  // up waiting instead, see `givesUpWaiting`); the figure returned for them is only the station
   // type's nominal pile size, which the station panel uses to scale its bar.
   const withWarehouse =
     hasImprovement(station, "warehouse") && !(cargo && givesUpWaiting(cargo))
@@ -42,7 +42,7 @@ export function transferStorageCap(station: Station, cargo: CargoType): number {
 }
 
 /** True if `cargo` waiting at `station` is exempt from waiting-cargo decay (SPEC §6.2): a Warehouse
- * exempts freight (never passengers or mail, who give up regardless), Cold Storage food/livestock. */
+ * exempts freight (never passengers or mail), Cold Storage food/livestock. */
 export function cargoDecayExempt(station: Station, cargo: CargoType): boolean {
   if (givesUpWaiting(cargo)) return false;
   if (hasImprovement(station, "warehouse")) return true;

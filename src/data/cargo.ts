@@ -69,23 +69,12 @@ export function waitingDecayThresholdDays(cargo: CargoType): number {
 
 export const WAITING_DECAY_RATE_PER_DAY = 0.05;
 
-/** Passengers and mail are people and post, not goods in a shed (Phase 30A, PLAYTEST-2 exploit 1): they have
- * no storage cap and no warehouse. A pile nobody has collected from for `graceDays` starts to give up: every day
- * `giveUpPerDay` of it leaves (takes the coach or stays at home), so a pile settles at about
- * `supply / giveUpPerDay` and a long gap between trains simply loses people. Mail waits a little longer: a
- * posted letter can sit in the sorting office, but an unserved mail contract moves to the road mail coach.
- * Phase 35C: travellers do not wait a month on a platform: they give a train ~3 days, then 15 % a day take the coach or
- * go home, so a pile nobody collects settles at about `grace + 1/giveUpPerDay - 1` = a week of supply. */
-export const WAITING_PATIENCE: Partial<
-  Record<CargoType, { graceDays: number; giveUpPerDay: number }>
-> = {
-  passengers: { graceDays: 3, giveUpPerDay: 0.15 },
-  mail: { graceDays: 15, giveUpPerDay: 0.05 },
-};
-
-/** True for cargo whose waiting pile is made of people / post (patience, no storage cap). */
+/** Passengers and mail are people and post, not goods in a shed (Phase 30A): no storage cap and no warehouse.
+ * Phase 35D, the simple waiting rule: a bucket (a passenger first leg, the generic passenger pile, the mail pile) fills
+ * linearly at its monthly rate and stops at one month's worth. Nobody gives up; what is generated while the bucket is
+ * full is counted as unserved demand. */
 export function givesUpWaiting(cargo: CargoType): boolean {
-  return WAITING_PATIENCE[cargo] !== undefined;
+  return cargo === "passengers" || cargo === "mail";
 }
 
 /** Pre-Phase-16 cargo-agnostic carload size (every car held exactly 20 abstract "units", full or

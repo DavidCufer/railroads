@@ -268,8 +268,7 @@ export const strings = {
       /** Shown instead of "$0" when cargo was sent but the trip has not been paid yet (fares are paid on arrival). */
       pending: "paid on arrival",
       unservedCaption: "Unserved demand",
-      unservedHint:
-        "Unserved demand: people who could have travelled on a train from here but found none to board and gave up. More trains or cars would carry them.",
+      unservedHint: "Platform full: a month's travellers are waiting — run more trains or cars.",
       sent: (n: number, unit: string, fares?: string) =>
         `Sent ${n} ${unit}${fares ? ` → ${fares}` : ""}`,
       deliveredHere: (n: number, unit: string, fares: string) =>

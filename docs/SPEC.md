@@ -596,7 +596,7 @@ player, and there are no blanket multipliers. The 1900 "good player" reached $20
 were the only limit and cash piled up unused); the causes below take that late-game surplus away, one real cost at a time,
 and the last one keeps the first decades playable. Measured results: docs/PROGRESS.md "Phase 30A".
 
-1. **Waiting people give up** (§6.2, §8.1). Passengers and mail have no storage cap and a Warehouse does nothing for them
+1. **Waiting people (Phase 35D: no longer give up; see §9.5d-3)** (§6.2, §8.1). Passengers and mail have no storage cap and a Warehouse does nothing for them
    (it stores *freight* only, ×2 cap). A pile nobody has collected from for `graceDays` (passengers 10, mail 15) loses 5 %
    of itself per day (`WAITING_PATIENCE`): the pile settles near `supply ÷ 0.05` and a long gap between trains simply loses
    people. Each station keeps per month and year the units turned away and the fares they would have paid
@@ -679,10 +679,16 @@ number on the platform must be a number the trains calling there can take. Rule 
    (crow-flies distance) route to it, ties to the lower station id (`StationCargoPile.bound`, keyed by first-leg station).
    Any train whose orders include that station boards them (`sim/stations/boarding.ts`). They leave the game there, paid for
    that leg only; no transfers are tracked. Through passengers on a train A–B–C stay on as before. A train therefore never
-   refuses people the station shows as waiting. People bound for a station whose service ends give up as usual (§9.5c-1);
-   "Unserved demand" is only reachable demand that found no seat. Passengers' patience (Phase 35C, `WAITING_PATIENCE`): a
-   pile nobody collects from for 3 days starts to lose 15 % a day, so the waiting pile settles at about a week of supply.
-4. **Mail** keeps its model: no destinations, the Phase 26A destination bonus (+10 % per extra stop, max +50 %).
+   refuses people the station shows as waiting. **Waiting (Phase 35D, replaces
+   the 35C patience rule):** each bucket (a first leg, or the generic pile at a station no passenger train calls at) fills
+   linearly at its monthly rate (rate / 30 a day) and holds at most **one month's worth** of that rate (150 a month to
+   Venice: at most 150 waiting for Venice; a train taking 80 leaves 70, which refills linearly). Nobody gives up. People
+   generated while their bucket is full are **unserved demand** (overflow; hint "Platform full: a month's travellers are
+   waiting — run more trains or cars."). When reachability changes and a bucket's rate falls its waiting is clamped to the
+   new cap; people of a destination no longer reachable become unassigned (board any train, within the station's one
+   month total). Mail follows the same rule (one month of mail per pile). Freight is unchanged (storage caps, decay).
+4. **Mail** keeps its model: no destinations, the Phase 26A destination bonus (+10 % per extra stop, max +50 %), and the
+   Phase 35D waiting rule above.
 5. **"Where passengers go"** (station panel: tap the passenger tile): per month, bars **by first train stop** (each includes
    people travelling further), each row expandable (▸) to final destinations ("Ljubljana 30 · Zagreb 15"), then **Not
    connected**: the top towns of the radius with no train link, largest first ("Padua ~20 · Verona ~12 · 4 more"), then
