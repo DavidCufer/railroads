@@ -1441,4 +1441,4 @@ so the economy returns to the pre-Phase-34 curve. Only this table changes (plus 
    supply on the player's map in 1843 (target roughly 850–900/month, was 1407), and the pax vs coal ratio. SPEC §9.5d
    and BALANCE.md updated.
 
-Status: [ ] 1 [ ] 2 [ ] 3
+Status: [x] 1 [ ] 2 (no bound can be restored: see PROGRESS 35E) [x] 3

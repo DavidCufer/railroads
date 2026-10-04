@@ -658,7 +658,7 @@ number on the platform must be a number the trains calling there can take. Rule 
 
 1. **The town total is population x trips per head (Phase 35C).** A town's total travel demand T (people a month who would
    ride a train *somewhere* if every town were on the network) = population x `tripsPerHeadPerMonth(year)`
-   (`TRIPS_PER_HEAD_ANCHORS`: 0.02 a month in 1830-60, 0.0116 by 1900; a 15k town in 1840 has T = 300, about 2.5x the old §6.3
+   (`TRIPS_PER_HEAD_ANCHORS`: 0.0124 a month in 1830-60, 0.0093 by 1900 (Phase 35E; was 0.02 / 0.0116 in 35C); a 15k town in 1840 has T = 186, about 1.6x the old §6.3
    figure of 118, which was what one line to one typical partner carried). T is the single passenger number everywhere: the
    town panel shows T with a line "Connected: N / month (X %)" (the part trains reach); the station draws its catchment's
    part of T (towns with several stations split it by covered tiles, §8.3) and generates only the reachable part; the
