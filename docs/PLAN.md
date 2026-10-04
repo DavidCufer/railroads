@@ -1424,3 +1424,21 @@ Player decision (replaces the Phase 35C patience rule for passengers and mail; f
    other balance changes in this phase. SPEC §9.5d updated.
 
 Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5
+
+## Phase 35E — Retune trips per head after the Phase 35D waiting rule; restore loosened balance bounds
+Player decision: keep the 35D waiting rule; lower the passenger rate (`TRIPS_PER_HEAD_ANCHORS`) by roughly 35–40 %
+so the economy returns to the pre-Phase-34 curve. Only this table changes (plus tests/docs).
+1. Tune the table (same shape, one factor, or adjust a single anchor if clearly needed) so that, on central-eu
+   goodPlayer: 1840 Normal 1856 ≈ $3.9M (±15 %) and 1870 ≈ $17.8M (±20 %); 1900 Normal 1916 in $20–34M; Hard ≥ 40 %
+   below Normal in both eras. Update the doc comment's numbers (the basis text stays a real per-head rate).
+2. **Restore the balance bounds that 35D loosened** to their pre-35D values where they now pass:
+   `balance.test.ts`, `balancePassengers.test.ts` (pax/coal 100 km ratio back to 0.8–1.2×; mail/pax floor 0.1),
+   `singleTrack.test.ts` (spacing > 10 %), `goalCalibration.test.ts` floor back to 0.8 (remove the TODO). If a bound
+   still fails after tuning, do NOT loosen it: report the measured value and which way the table would have to move,
+   and pick the table value that satisfies the most bounds; if goals fall under the floor, propose new goal amounts
+   in PROGRESS (do not change goals without the owner).
+3. Report: before → after bench (1840 N/H, 1900 N/H), Venice–Milan pair scaling 1/4/8/13 trains, Venice station
+   supply on the player's map in 1843 (target roughly 850–900/month, was 1407), and the pax vs coal ratio. SPEC §9.5d
+   and BALANCE.md updated.
+
+Status: [ ] 1 [ ] 2 [ ] 3
