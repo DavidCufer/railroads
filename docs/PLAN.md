@@ -1423,4 +1423,4 @@ Player decision (replaces the Phase 35C patience rule for passengers and mail; f
    1870, 1840 Hard 1870, 1900 Normal/Hard 1916 and Venice–Milan pair scaling (1/4/8/13 trains), before → after. No
    other balance changes in this phase. SPEC §9.5d updated.
 
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5
