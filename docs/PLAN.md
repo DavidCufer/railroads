@@ -1403,3 +1403,24 @@ Fix — make the total a real, explainable number and keep everything consistent
    (report revenue for 1/4/8/13 trains).
 
 Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6
+
+## Phase 35D — Simple waiting rule for passengers and mail
+Player decision (replaces the Phase 35C patience rule for passengers and mail; freight unchanged):
+1. **Linear fill, one-month cap, no attrition.** For each passenger bucket (first leg, or the generic pile at a
+   station no passenger train calls at), waiting grows linearly at its monthly rate (rate/30 per day) and stops at
+   **one month's worth** of that bucket (e.g. 150/month to Venice → at most 150 waiting for Venice). A train taking
+   80 drops it to 70 and it refills linearly. Nobody gives up. Mail: same rule (one month of mail per bucket/pile).
+   Remove `WAITING_PATIENCE` for passengers and mail (keep the mechanism for any freight that uses it, if any).
+2. **Unserved demand** = people (mail) generated while their bucket was already full (overflow), shown as today
+   for passengers and mail only. Hint text: "Platform full: a month's travellers are waiting — run more trains or
+   cars." Update strings.
+3. **Freight unchanged** (storage caps, warehouses, etc. as now).
+4. When reachability changes and a bucket's monthly rate falls, clamp its waiting to the new cap; people of a
+   destination that is no longer reachable go to the generic/other bucket logic as in Phase 35 migration (no loss
+   of determinism). Old saves load cleanly.
+5. Tests: linear accrual (half a month → half the cap), cap holds, train boarding then refill, overflow counted as
+   unserved, mail same, freight unaffected; update tests that depended on patience. Bench: report 1840 Normal 1856 /
+   1870, 1840 Hard 1870, 1900 Normal/Hard 1916 and Venice–Milan pair scaling (1/4/8/13 trains), before → after. No
+   other balance changes in this phase. SPEC §9.5d updated.
+
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
