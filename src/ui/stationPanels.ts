@@ -31,6 +31,7 @@ import {
   demolishStation,
   stationRefund,
 } from "../sim/commands";
+import { stationSupplyGrowth } from "../sim/economy/industryDynamics";
 import { processorStatus } from "../sim/economy/processing";
 import { stationCatchmentTiles } from "../sim/stations/placement";
 import { previewStationEconomy, stationStorageCap, type StationEconomy } from "../sim/stations";
@@ -100,6 +101,7 @@ function supplyChipStack(
   ratePerMonth: number,
   waiting?: { amount: number; cap: number },
   onTap?: () => void,
+  trend?: string,
 ): HTMLElement {
   const children: Node[] = [
     cargoChip(
@@ -134,6 +136,7 @@ function supplyChipStack(
       );
     }
   }
+  if (trend) children.push(h("span", { className: "cargo-waiting-label supply-trend" }, trend));
   if (onTap)
     children.push(
       h("button", { className: "dest-link", onClick: onTap }, strings.station.destinations.tapHint),
@@ -170,6 +173,23 @@ function economyBody(
     ? CARGO_TYPES.filter((c) => !suppliedCargo.has(c) && (waitingPile[c]?.amount ?? 0) > 0.5)
     : [];
 
+  // Phase 36: ONE short trend per raw producer's cargo ("↑ 6 %/yr"); nothing when flat.
+  const trendFor = (cargo: CargoType): string | undefined => {
+    const rate = state && station ? stationSupplyGrowth(state, station, cargo) : undefined;
+    const pct = rate === undefined ? 0 : Math.round(rate * 100);
+    if (pct === 0) return undefined;
+    return pct > 0 ? strings.station.growth.up(pct) : strings.station.growth.down(-pct);
+  };
+  const trends = supplyEntries.map(([cargo]) => trendFor(cargo));
+  const growthHint = trends.some((t) => t)
+    ? h(
+        "details",
+        { className: "processing-details" },
+        h("summary", null, strings.station.growth.details),
+        h("div", { className: "panel-row hint" }, strings.station.growth.hint),
+      )
+    : null;
+
   return [
     section(
       strings.station.supplies,
@@ -178,7 +198,7 @@ function economyBody(
           ? h(
               "div",
               { className: "chip-row" },
-              ...supplyEntries.map(([cargo, amount]) =>
+              ...supplyEntries.map(([cargo, amount], i) =>
                 supplyChipStack(
                   container,
                   cargo,
@@ -190,6 +210,7 @@ function economyBody(
                       }
                     : undefined,
                   cargo === "passengers" ? passengerTap : undefined,
+                  trends[i],
                 ),
               ),
               ...extraWaiting.map((cargo) =>
@@ -200,6 +221,7 @@ function economyBody(
               ),
             )
           : emptyState(strings.station.noSupplies, "cargo"),
+        ...(growthHint ? [growthHint] : []),
       ],
       strings.station.perMonthNote,
     ),

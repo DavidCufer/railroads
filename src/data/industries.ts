@@ -51,18 +51,16 @@ export interface IndustryDef {
  * is a reasonable buffer). */
 export const INDUSTRY_INPUT_STORAGE_CAP = 240;
 
-// --- Industry dynamics (SPEC §8.2, Phase 9) -----------------------------------------------------
-// Applies only to raw (terrain-placed) producers — Coal Mine, Iron Mine, Logging Camp, Farm,
-// Ranch, Oil Well. "Served" is approximated from a covering station's `StationCargoPile.waitingDays`
-// for that cargo (src/sim/economy/industryDynamics.ts) rather than a literal rolling 12-month
-// pickup log, to avoid new per-industry-per-month bookkeeping: a station that's actively drawing a
-// pile down keeps resetting `waitingDays` to 0 on every load, so a low value already means "picked
-// up recently" and a high one means "sitting unclaimed" — see that module's own doc comment.
-export const INDUSTRY_SERVED_WAITING_DAYS_THRESHOLD = 12;
-export const INDUSTRY_GROWTH_CHANCE_PER_MONTH = 0.03;
-export const INDUSTRY_SHRINK_CHANCE_PER_MONTH = 0.01;
-export const INDUSTRY_GROWTH_STEP = 1.2;
-export const INDUSTRY_SHRINK_STEP = 0.8;
+/** Phase 36: a raw producer's output follows the share of it that trains carried (units loaded at covering stations ÷
+ * output, smoothed over about `INDUSTRY_CARRIED_SMOOTHING_MONTHS` months). The yearly change is piecewise linear in that
+ * share through these points [share carried, change per year]: unserved shrinks slowly, a little carried is flat, well
+ * served grows ~8 %/yr (a mine roughly doubles in 10 years: 1.08^10 = 2.16). Applied monthly, clamped to the mult range. */
+export const INDUSTRY_GROWTH_RATE_ANCHORS: ReadonlyArray<readonly [number, number]> = [
+  [0, -0.04],
+  [0.4, 0],
+  [0.8, 0.08],
+];
+export const INDUSTRY_CARRIED_SMOOTHING_MONTHS = 6;
 export const INDUSTRY_GROWTH_MULT_MIN = 0.5;
 export const INDUSTRY_GROWTH_MULT_MAX = 3;
 

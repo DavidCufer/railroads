@@ -107,6 +107,10 @@ Phase 35 (SPEC §9.5d): the town's supply is split over towns in range by gravit
 Supply for both ends: 1014 people a month (pre-34), 684 (34), 905 (35: Milan, 290 km away, draws 0.89 of its supply). A short line is untouched (≤ 300 km pairs of equal size keep their full supply; the tables above did not move). Beyond the second train the marginal ROI is about 6–14 % (one convoy step at 6 trains).
 goodPlayer (`tools/bench/goodPlayer.ts`, Central Europe, net worth Jan of the year; pre-34 / 34 / 35): 1840 Normal 1856 $3.9M / $3.1M / $2.8M, 1870 $17.8M / $15.3M / $13.5M; 1840 Hard 1870 $9.1M / $10.9M / $5.7M (Hard 58 % below Normal); 1900 Normal 1916 $33.7M / $15.3M / $4.0M, 1900 Hard 1916 $7.7M / $8.1M / $2.3M (Hard 44 % below Normal). The bench builds isolated pairs, which is the worst case for Phase 35 (each end sends only to its one partner; a connected network draws the whole town total), see docs/PROGRESS.md "Phase 35".
 
+## Phase 36: dearer passenger cars (3× a wagon, 8 % upkeep), `TRIPS_PER_HEAD_ANCHORS` ×1.3
+
+goodPlayer (central-eu Normal, net worth in January): 35E $3.96M (1856) / $19.2M (1870) / $22.4M (1900 start, 1916); cars alone $2.73M / $12.7M / $6.4M; after the x1.3 retune **$3.88M / $19.3M / $30.5M**. Venice–Milan pair scaling (1/4/8/13 trains): 59k / 104k / 168k / 183k -> **63k / 143k / 172k / 241k** (supply 726 a month for both ends, was 560). Town pax / coal at 100 km: 1.88x -> 2.16x.
+
 ## City supply (per month, fully covered)
 
 | Pop | Passengers | = cars | Mail | = cars |

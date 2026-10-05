@@ -435,8 +435,8 @@ Costs and maintenance in $ at introduction year (era inflation applies to later 
 
 | Cargo | Car | Car cost | Base rate | decayDays | Color | Notes |
 |---|---|---|---|---|---|---|
-| Passengers | Passenger | $4k | $3,000 | 3 | white | two-way from cities |
-| Mail | Mail | $4k | $4,000 | 2 | red | two-way from cities |
+| Passengers | Passenger | $6k | $3,000 | 3 | white | two-way from cities |
+| Mail | Mail | $6k | $4,000 | 2 | red | two-way from cities |
 | Coal | Coal hopper | $2k | $1,200 | 30 | black | |
 | Iron Ore | Ore hopper | $2k | $1,100 | 30 | rust | |
 | Wood | Flatcar | $2k | $1,000 | 30 | brown | logs |
@@ -483,11 +483,17 @@ station on each delivery (color = cargo color), and add to the train's lifetime/
 - Processing: delivered inputs are stored at the industry; output equals input processed that month
   and appears at stations covering the industry the following month. Steel needs both inputs (output =
   min(coal, ore)).
-- **Industry dynamics** (monthly, small probabilities): raw producers that are served (≥ 50% of output
-  picked up over the last 12 months) have a 3%/month chance to grow +20% (max 3× base); unserved ones
-  have 1%/month to shrink −20% (min 50% base). A new industry appears somewhere with 0.5%/month chance
+- **Industry dynamics** (monthly, deterministic; Phase 36): a raw producer's output changes smoothly each month
+  with the **share of it that trains carried** (units loaded at covering stations ÷ output, smoothed over ~6 months;
+  `INDUSTRY_GROWTH_RATE_ANCHORS`): 0 % carried → −4 %/yr, 40 % → flat, ≥ 80 % → +8 %/yr (a well-served mine roughly
+  doubles in 10 years), clamped to 0.5×–3× base. The station panel shows one line under the supply chip ("↑ 6 %/yr",
+  nothing when flat). A new industry appears somewhere with 0.5%/month chance
   (higher near served cities). Industries never close entirely in v1.
 - Industries render as small multi-tile-looking icons on their tile (mine headframe, trees+saw, silo, etc.).
+
+Cars (Phase 36): a passenger or mail car costs 3× a basic freight wagon ($6k vs $2k) and costs more to keep up: yearly
+upkeep is the car's price × 8 % (passenger, mail) or 4 % (freight), at the year's prices, added to the train's running cost
+(`carUpkeepRate` in `src/data/cargo.ts`).
 
 ### 8.3 Cities
 
@@ -658,7 +664,7 @@ number on the platform must be a number the trains calling there can take. Rule 
 
 1. **The town total is population x trips per head (Phase 35C).** A town's total travel demand T (people a month who would
    ride a train *somewhere* if every town were on the network) = population x `tripsPerHeadPerMonth(year)`
-   (`TRIPS_PER_HEAD_ANCHORS`: 0.0124 a month in 1830-60, 0.0093 by 1900 (Phase 35E; was 0.02 / 0.0116 in 35C); a 15k town in 1840 has T = 186, about 1.6x the old §6.3
+   (`TRIPS_PER_HEAD_ANCHORS`: 0.0161 a month in 1830-60, 0.0121 by 1900 (Phase 36: x1.3 on 35E to pay for dearer passenger cars; was 0.0124 / 0.0093 in 35E); a 15k town in 1840 has T = 242, about 2.0x the old §6.3
    figure of 118, which was what one line to one typical partner carried). T is the single passenger number everywhere: the
    town panel shows T with a line "Connected: N / month (X %)" (the part trains reach); the station draws its catchment's
    part of T (towns with several stations split it by covered tiles, §8.3) and generates only the reachable part; the

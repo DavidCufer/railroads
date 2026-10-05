@@ -1464,4 +1464,4 @@ Owner: keep panels short (one line, no paragraphs). No hidden or random balance 
 4. Tests: growth is deterministic, grows with high share carried, declines when unserved, capped; carriage prices.
    Screenshot `phase-36-industry-growth.png` (look at it: one line, no clutter).
 
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+Status: [x] 1 [x] 2 [x] 3 (two bounds restored, the rest measured: see PROGRESS 36) [x] 4

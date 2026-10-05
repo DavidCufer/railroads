@@ -1,30 +1,21 @@
 /**
- * Industry dynamics (SPEC §8.2, Phase 9): monthly growth/shrink for served/unserved raw producers,
- * and the occasional new industry appearing on the map. Called once per month boundary from
- * src/sim/tick.ts, after `monthlyIndustryStep` (so a freshly-changed `growthMult` takes effect
- * starting the *next* month's production, matching how processors' own output already lags a
- * month behind their inputs).
+ * Industry dynamics (SPEC §8.2, Phase 9, reworked in Phase 36): monthly growth of raw producers, and the
+ * occasional new industry appearing on the map. Called once per month boundary from src/sim/tick.ts, after
+ * `monthlyIndustryStep` (so a freshly-changed `growthMult` takes effect starting the *next* month's production)
+ * and before the station flow rollover (so `stationFlow.month` still holds the month that just ended).
  *
- * "Served ≥50% of output picked up over the last 12 months" (SPEC's literal wording) would need a
- * new rolling per-industry pickup log; instead this reuses `StationCargoPile.waitingDays`, which a
- * covering station already resets to 0 every time a train loads any of that pile (see
- * src/sim/trains/loading.ts's `applyLoad`) and otherwise climbs without bound (an unserved pile
- * sits pinned near its storage cap forever — see src/sim/economy/cargoFlow.ts — so `waitingDays`
- * keeps counting up instead of getting reset). A low value already means "picked up recently"; this
- * is a simpler, no-new-state proxy for the same idea, checked monthly rather than over a trailing
- * 12-month window (a deliberate simplification — see PROGRESS.md).
+ * Growth is deterministic and visible: a producer's output changes smoothly each month by a yearly rate read off
+ * `INDUSTRY_GROWTH_RATE_ANCHORS` at the share of its output that trains carried (units loaded at the covering
+ * stations ÷ output, smoothed in `IndustryEconomyState.carriedShare`). No random roll.
  */
 import { allCityTiles, cityBufferMask, cityDistanceOk, tooCloseToIndustry } from "./spacing";
 import { WORLD_SCALE } from "../../data/scale";
 import {
   INDUSTRIES,
-  INDUSTRY_GROWTH_CHANCE_PER_MONTH,
+  INDUSTRY_CARRIED_SMOOTHING_MONTHS,
   INDUSTRY_GROWTH_MULT_MAX,
   INDUSTRY_GROWTH_MULT_MIN,
-  INDUSTRY_GROWTH_STEP,
-  INDUSTRY_SERVED_WAITING_DAYS_THRESHOLD,
-  INDUSTRY_SHRINK_CHANCE_PER_MONTH,
-  INDUSTRY_SHRINK_STEP,
+  INDUSTRY_GROWTH_RATE_ANCHORS,
   INDUSTRY_TYPES,
   NEW_INDUSTRY_CHANCE_PER_MONTH,
   NEW_INDUSTRY_CITY_BIAS_RADIUS,
@@ -38,6 +29,7 @@ import { calendarFromTicks } from "../time";
 import { getOrCreateIndustryEconomy } from "./processing";
 import type { GameState } from "../state";
 import type { Industry } from "./types";
+import type { Station } from "../stations/types";
 
 const WATER_ID = terrainId("water");
 
@@ -50,24 +42,73 @@ function clampGrowthMult(mult: number): number {
   return Math.min(INDUSTRY_GROWTH_MULT_MAX, Math.max(INDUSTRY_GROWTH_MULT_MIN, mult));
 }
 
-/** True if some station whose catchment covers `industry`'s tile has recently drawn its `cargo`
- * pile down (see this module's doc comment for why `waitingDays` is the proxy used here). */
-function isServed(state: GameState, industry: Industry, cargo: CargoType): boolean {
+/** Yearly output change for a producer that trains carried `share` (0..1) of its output (piecewise linear). */
+export function growthRatePerYear(share: number): number {
+  const pts = INDUSTRY_GROWTH_RATE_ANCHORS;
+  const first = pts[0] as readonly [number, number];
+  const last = pts[pts.length - 1] as readonly [number, number];
+  if (share <= first[0]) return first[1];
+  if (share >= last[0]) return last[1];
+  for (let i = 1; i < pts.length; i++) {
+    const [x1, y1] = pts[i] as readonly [number, number];
+    const [x0, y0] = pts[i - 1] as readonly [number, number];
+    if (share <= x1) return y0 + ((y1 - y0) * (share - x0)) / (x1 - x0);
+  }
+  return last[1];
+}
+
+/** Yearly output change of the raw producers `station` covers that make `cargo` (weighted by output), for the station
+ * panel's one-line trend. Undefined when none of them has been measured yet. */
+export function stationSupplyGrowth(
+  state: GameState,
+  station: Station,
+  cargo: CargoType,
+): number | undefined {
+  const sx = station.tile % state.map.width;
+  const sy = Math.floor(station.tile / state.map.width);
+  const radius = STATION_TYPE_DEFS[station.type].catchmentRadius;
+  let weighted = 0;
+  let total = 0;
+  for (const industry of state.industries) {
+    if (INDUSTRIES[industry.type].placement.kind !== "terrain") continue;
+    if (Math.max(Math.abs(sx - industry.x), Math.abs(sy - industry.y)) > radius) continue;
+    const econ = state.industryEconomy.get(industry.id);
+    const output = econ?.monthlyOutput[cargo] ?? 0;
+    if (!econ || econ.carriedShare === undefined || output <= 0) continue;
+    weighted += growthRatePerYear(econ.carriedShare) * output;
+    total += output;
+  }
+  return total > 0 ? weighted / total : undefined;
+}
+
+/** Units of `cargo` that trains loaded last month from `industry`: at each covering station, its `sent` figure times this
+ * industry's part of that station's supply of the cargo (other sources at the same station are not counted). */
+function carriedLastMonth(
+  state: GameState,
+  industry: Industry,
+  cargo: CargoType,
+  output: number,
+): number {
+  const covering: number[] = [];
   for (const station of state.stations) {
     const sx = station.tile % state.map.width;
     const sy = Math.floor(station.tile / state.map.width);
     const radius = STATION_TYPE_DEFS[station.type].catchmentRadius;
-    if (Math.max(Math.abs(sx - industry.x), Math.abs(sy - industry.y)) > radius) continue;
-    const pile = state.stationCargo.get(station.id)?.[cargo];
-    if (pile && pile.waitingDays <= INDUSTRY_SERVED_WAITING_DAYS_THRESHOLD) return true;
+    if (Math.max(Math.abs(sx - industry.x), Math.abs(sy - industry.y)) <= radius)
+      covering.push(station.id);
   }
-  return false;
+  let carried = 0;
+  for (const id of covering) {
+    const supply = state.stationEconomy.get(id)?.supply[cargo] ?? 0;
+    const sent = state.stationFlow.get(id)?.month[cargo]?.sent ?? 0;
+    if (supply > 0) carried += sent * Math.min(1, output / covering.length / supply);
+  }
+  return carried;
 }
 
-/** Growth/shrink roll for every raw (terrain-placed) producer (SPEC §8.2: "raw producers that are
- * served... 3%/month chance to grow +20% (max 3×)... unserved... 1%/month to shrink −20% (min
- * 50%)"). Processors and Port are unaffected — their output already tracks delivered inputs. */
-function stepGrowthAndShrink(state: GameState): void {
+/** Monthly output change for every raw (terrain-placed) producer by the share of its output trains carried (see the
+ * header). Processors and Port are unaffected — their output already tracks delivered inputs. */
+function stepGrowth(state: GameState): void {
   for (const industry of state.industries) {
     const def = INDUSTRIES[industry.type];
     if (def.placement.kind !== "terrain") continue;
@@ -76,14 +117,14 @@ function stepGrowthAndShrink(state: GameState): void {
 
     const econ = getOrCreateIndustryEconomy(state, industry.id);
     const mult = econ.growthMult ?? 1;
-    const roll = nextFloat(state.rng);
-    if (isServed(state, industry, cargo)) {
-      if (roll < INDUSTRY_GROWTH_CHANCE_PER_MONTH) {
-        econ.growthMult = clampGrowthMult(mult * INDUSTRY_GROWTH_STEP);
-      }
-    } else if (roll < INDUSTRY_SHRINK_CHANCE_PER_MONTH) {
-      econ.growthMult = clampGrowthMult(mult * INDUSTRY_SHRINK_STEP);
-    }
+    const output = econ.monthlyOutput[cargo] ?? (def.produces[cargo] ?? 0) * mult;
+    if (output <= 0) continue;
+    const share = Math.min(1, carriedLastMonth(state, industry, cargo, output) / output);
+    const k = 1 / INDUSTRY_CARRIED_SMOOTHING_MONTHS;
+    econ.carriedShare =
+      econ.carriedShare === undefined ? share : econ.carriedShare * (1 - k) + share * k;
+    const monthly = Math.pow(1 + growthRatePerYear(econ.carriedShare), 1 / 12);
+    econ.growthMult = clampGrowthMult(mult * monthly);
   }
 }
 
@@ -168,6 +209,6 @@ function maybeSpawnIndustry(state: GameState): void {
 }
 
 export function monthlyIndustryDynamicsStep(state: GameState): void {
-  stepGrowthAndShrink(state);
+  stepGrowth(state);
   maybeSpawnIndustry(state);
 }

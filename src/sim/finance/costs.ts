@@ -35,7 +35,7 @@ import {
   STEAM_MAINTENANCE_SURCHARGE_YEAR,
   type LocomotiveDef,
 } from "../../data/trains";
-import { CARGO } from "../../data/cargo";
+import { CARGO, carUpkeepRate } from "../../data/cargo";
 import { ageRunningCostMult } from "../trains/ageing";
 import type { StationType } from "../../data/stations";
 import type { TrainCar } from "../trains/types";
@@ -70,6 +70,13 @@ export function locoRunningCostPerYear(
     ageRunningCostMult(ageYears) *
     priceIndex(year)
   );
+}
+
+/** Upkeep of the train's cars per year: each car's price × its type's upkeep rate, at the year's prices. */
+export function carsUpkeepPerYear(cars: readonly TrainCar[], year: number): number {
+  let total = 0;
+  for (const c of cars) total += CARGO[c.cargoType].carCost * carUpkeepRate(c.cargoType);
+  return total * priceIndex(year);
 }
 
 /** Wages of the train's crew (footplate + guards) per year. */

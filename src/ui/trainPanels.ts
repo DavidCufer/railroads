@@ -32,7 +32,12 @@ import { cargoGaps } from "../sim/trains/cargoGaps";
 import { cargoGapLine } from "./cargoGapNote";
 import { monthlyBreakdownChance } from "../sim/trains/breakdown";
 import { mechanicalAgeYears } from "../sim/trains/ageing";
-import { locoRunningCostPerYear, trainCompetition, trainWagesPerYear } from "../sim/finance/costs";
+import {
+  carsUpkeepPerYear,
+  locoRunningCostPerYear,
+  trainCompetition,
+  trainWagesPerYear,
+} from "../sim/finance/costs";
 import { trainCrewSize } from "../data/economy";
 import { lineSummaries } from "../sim/finance/lines";
 import { booksProfit, trainProfitPerYear, trainProfitStatus } from "../sim/trains/profit";
@@ -455,7 +460,10 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
       const ageFrac = (state.ticks - t.purchaseTick) / (HOURS_PER_DAY * DAYS_PER_YEAR);
       const monthly = monthlyBreakdownChance(state, t);
       const year = calendarFromTicks(state.startYear, state.ticks).year;
-      const running = l ? locoRunningCostPerYear(l, mechanicalAgeYears(state, t), year) : 0;
+      const running = l
+        ? locoRunningCostPerYear(l, mechanicalAgeYears(state, t), year) +
+          carsUpkeepPerYear(t.cars, year)
+        : 0;
       const wages = l ? trainWagesPerYear(l, t.cars.length, year) : 0;
       const competition = l ? trainCompetition(l, t, state.stations, state.map.width, year) : 0;
       const capacity = t.cars.reduce((sum, c) => sum + CARGO[c.cargoType].capacity, 0);

@@ -59,6 +59,13 @@ export interface CargoDef {
   notes?: string;
 }
 
+/** Yearly upkeep of one car as a share of its price (at 1830 prices). Coaches and mail vans carry upholstery, heating,
+ * lighting and brakes that open freight wagons lack, so they cost more to keep up (basis: a passenger coach cost several
+ * times a wagon, 6 000 vs 2 000, and ran at roughly twice the upkeep rate). */
+export function carUpkeepRate(cargo: CargoType): number {
+  return cargo === "passengers" || cargo === "mail" ? 0.08 : 0.04;
+}
+
 /** SPEC §6.3: waiting cargo at a station older than this many days starts to decay
  * `WAITING_DECAY_RATE_PER_DAY`/day. Passengers and mail decay sooner than freight. */
 export function waitingDecayThresholdDays(cargo: CargoType): number {
@@ -110,7 +117,7 @@ export const CARGO: Record<CargoType, CargoDef> = {
     name: "Passengers",
     car: "Passenger",
     carLabel: "Passenger car",
-    carCost: 4_000,
+    carCost: 6_000,
     capacity: 40,
     unit: "",
     unitsNoun: "passengers",
@@ -126,7 +133,7 @@ export const CARGO: Record<CargoType, CargoDef> = {
     name: "Mail",
     car: "Mail",
     carLabel: "Mail car",
-    carCost: 4_000,
+    carCost: 6_000,
     capacity: 30,
     unit: "bags",
     unitsNoun: "mail bags",

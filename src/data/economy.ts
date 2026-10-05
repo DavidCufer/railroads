@@ -422,15 +422,16 @@ export function goalLandGrant(tier: "bronze" | "silver" | "gold", year: number):
  * rate: the people a month who would ride a train *somewhere* if every town were on the network. Basis: in the 1840s a
  * railway journey was still a rare event (a third-class fare was days of wages; Britain counted ~1.5 journeys per head
  * a year by 1845, the continent far fewer) but each new line created traffic that had never travelled (§9.5c-11: excursions,
- * Sunday trains, clerks and families), ~0.0124 a month = 0.15 a year here; as the novelty became ordinary the per-head
- * rate settled at ~0.009 a month (a little below the game's long-run rate of §6.3, 650 people per carload-month) with fares falling
+ * Sunday trains, clerks and families), ~0.0161 a month = 0.19 a year here; as the novelty became ordinary the per-head
+ * rate settled at ~0.012 a month (a little below the game's long-run rate of §6.3, 650 people per carload-month) with fares falling
  * and the network, not the rate, growing. Calibrated (Phase 35E, after the one-month waiting rule of 35D lets a line carry its whole supply) so a 15k town
- * in 1840 has a total of ~1.6x its §6.3 supply (~186 a month, was 118) and the central-eu good-player bench is back on
- * the pre-Phase-34 curve: the rest comes from the gravity split, never a multiplier. */
+ * in 1840 has a total of ~2.0x its §6.3 supply (~242 a month, was 118) and the central-eu good-player bench is back on
+ * the pre-Phase-34 curve: the rest comes from the gravity split, never a multiplier. Phase 36 raised it x1.3 to pay for
+ * dearer passenger cars (3x a freight wagon) and their upkeep. */
 export const TRIPS_PER_HEAD_ANCHORS: Anchors = [
-  [1830, 0.0124],
-  [1860, 0.0124],
-  [1900, 0.0093],
+  [1830, 0.0161],
+  [1860, 0.0161],
+  [1900, 0.0121],
 ];
 export function tripsPerHeadPerMonth(year: number): number {
   return interpolateYear(TRIPS_PER_HEAD_ANCHORS, year);

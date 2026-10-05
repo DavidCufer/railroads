@@ -413,8 +413,8 @@ describe("Phase 7.1 balance acceptance", () => {
     const ratio = (paxYr2 as number) / (coalYr2 as number);
     expect(ratio).toBeGreaterThanOrEqual(1);
     // Phase 30A: induced traffic makes early passenger routes richer than freight, so the ceiling moves with it
-    // Phase 35D: no attrition on the platform, passengers earn ~x1.3 more
-    expect(ratio).toBeLessThanOrEqual(2.5 * 1.3 * inducedTrafficFactor(1848));
+    // Phase 36: back at the original bound (the dearer passenger cars and their upkeep pay for the rate of 35D/35E)
+    expect(ratio).toBeLessThanOrEqual(2.5 * inducedTrafficFactor(1848));
   });
 
   it("a coal+ore -> steel -> factory -> goods chain out-earns a town passenger shuttle per train", () => {
@@ -516,7 +516,7 @@ describe("Phase 7.1 balance acceptance", () => {
     const yr5 = cumulativeProfitByYear[4] as number;
     expect(yr5).toBeGreaterThan(startingCash * 0.5);
     // Phase 30A: induced traffic (x1.7 passengers in 1848) puts the passenger trains of this network higher
-    // Phase 35D: no attrition on the passenger half (4.1M measured)
+    // Phase 35D: no attrition on the passenger half (Phase 36 measured 3.66M, ceiling 3M not met)
     expect(yr5).toBeLessThan(startingCash * 5);
   });
 });

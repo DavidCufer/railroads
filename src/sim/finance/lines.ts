@@ -8,7 +8,7 @@ import { calendarFromTicks, DAYS_PER_MONTH, DAYS_PER_YEAR, HOURS_PER_DAY } from 
 import { mechanicalAgeYears } from "../trains/ageing";
 import { booksProfit } from "../trains/profit";
 import type { Train, TrainBooks } from "../trains/types";
-import { locoRunningCostPerYear, trainWagesPerYear } from "./costs";
+import { carsUpkeepPerYear, locoRunningCostPerYear, trainWagesPerYear } from "./costs";
 
 export interface LineSummary {
   /** Sorted station ids joined with "-" (stable key). */
@@ -57,6 +57,7 @@ function accruedCosts(state: GameState, train: Train): number {
   const owned = Math.min(sinceMonthStart, state.ticks - train.purchaseTick);
   const monthly =
     (locoRunningCostPerYear(loco, mechanicalAgeYears(state, train), year) +
+      carsUpkeepPerYear(train.cars, year) +
       trainWagesPerYear(loco, train.cars.length, year)) /
     12;
   return (monthly * Math.max(0, owned)) / monthTicks;

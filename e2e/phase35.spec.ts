@@ -162,11 +162,11 @@ test.describe("Phase 35 — where passengers go", () => {
     const connected = page.locator(".city-connected");
     await expect(connected).toBeVisible();
     await expect(connected).toContainText("Connected:");
-    // Venice 40k x 0.0093 a month in 1900 = 372 for the town; the station sends only the connected part of it.
+    // Venice 40k x 0.0121 a month in 1900 = 484 for the town; the station sends only the connected part of it.
     const town = Number(
       (await page.locator(".chip-lg").first().textContent())?.replace(/\D/g, "") ?? "0",
     );
-    expect(town).toBe(372);
+    expect(town).toBe(484);
     expect(Number(header.replace(/\D/g, "").slice(0, 3))).toBeLessThanOrEqual(town);
     await page.waitForTimeout(300);
     await page.screenshot({ path: "docs/screenshots/phase-35c-town.png" });

@@ -215,6 +215,13 @@ export const strings = {
       more: (n: number) => `${n} more`,
       none: "No train runs from here yet. Passengers appear once a train calls.",
     },
+    /** Phase 36: one-line output trend of a raw producer under its supply chip. */
+    growth: {
+      up: (pct: number) => `↑ ${pct} %/yr`,
+      down: (pct: number) => `↓ ${pct} %/yr`,
+      details: "details",
+      hint: "Grows when trains carry most of its output",
+    },
     /** PLAN Phase 33: a processor in the catchment (Steel Mill …) — what it got and made last month. */
     processing: {
       /** "Food plant · makes food from grain or livestock" */

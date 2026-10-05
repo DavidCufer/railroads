@@ -26,6 +26,7 @@ import {
   rollTrainYear,
 } from "../trains/profit";
 import {
+  carsUpkeepPerYear,
   locoRunningCostPerYear,
   stationMonthlyCost,
   trackEdgeMonthlyCost,
@@ -107,7 +108,8 @@ export function monthlyFinanceStep(state: GameState): void {
     const loco = locomotiveById(train.locoModelId);
     if (!loco) continue;
     const ageYears = mechanicalAgeYears(state, train);
-    const running = locoRunningCostPerYear(loco, ageYears, year) / 12;
+    const running =
+      (locoRunningCostPerYear(loco, ageYears, year) + carsUpkeepPerYear(train.cars, year)) / 12;
     const wages = trainWagesPerYear(loco, train.cars.length, year) / 12;
     trainMaint += running;
     crewWages += wages;

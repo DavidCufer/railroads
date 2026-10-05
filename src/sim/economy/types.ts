@@ -43,9 +43,12 @@ export interface IndustryEconomyState {
    * src/sim/stations/economy.ts distributes to covering stations as daily supply. */
   monthlyOutput: Partial<Record<CargoType, number>>;
   /** Industry dynamics multiplier (SPEC §8.2, Phase 9), only meaningful for raw (terrain-placed)
-   * producers — clamped to [0.5, 3] by src/sim/economy/industryDynamics.ts. Undefined/absent means
+   * producers — clamped to [0.5, 3] by src/sim/economy/industryDynamics.ts (Phase 36: changes smoothly with `carriedShare`). Undefined/absent means
    * 1 (never grown or shrunk yet). */
   growthMult?: number;
+  /** Phase 36: share (0..1) of this raw producer's output that trains carried, smoothed over the last few months —
+   * drives its yearly growth rate (`growthRatePerYear`). Absent until the first month it is measured. */
+  carriedShare?: number;
   /** Units delivered since the last month boundary (Phase 33: the station panel's "Received last month"). */
   receivedMonth?: Partial<Record<CargoType, number>>;
   /** The books of the last monthly processing step: what was delivered in the month just ended and
