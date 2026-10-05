@@ -1442,3 +1442,26 @@ so the economy returns to the pre-Phase-34 curve. Only this table changes (plus 
    and BALANCE.md updated.
 
 Status: [x] 1 [ ] 2 (no bound can be restored: see PROGRESS 35E) [x] 3
+
+## Phase 36 — Visible industry growth; carriages cost more than wagons
+Owner: keep panels short (one line, no paragraphs). No hidden or random balance mechanisms.
+1. **Steady, visible industry growth** replaces the hidden random roll in `industryDynamics.ts` (3 %/month chance of
+   +20 %, shrink when unserved). Raw producers (mines, farms, forests, wells…) change output smoothly each month
+   based on **how much of their output trains carried** in the last months (share carried): well served → grows
+   (e.g. up to ~+8 %/yr), poorly served/unserved → slowly declines toward a floor; cap stays 3× base (data table
+   in `src/data/industries.ts`, values chosen so a well-served mine roughly doubles in ~10 years). Deterministic.
+   UI: ONE line on the industry/station supply row, e.g. "60 t/mo ↑ 6 %/yr" (↓ when declining, nothing when flat)
+   plus a tooltip-free short hint only in the existing details toggle ("Grows when trains carry most of its output").
+   Migrate saves (keep current `growthMult`).
+2. **Passenger carriages cost more than freight wagons** (historically several times a wagon): passenger car
+   price ~3× a basic freight wagon and higher per-car running/maintenance (data in `src/data/cargo.ts` /
+   trains data, with a one-line comment on the basis). Mail car similar to passenger. Check current per-car upkeep
+   exists; if not, add a per-car yearly maintenance by car type to the train maintenance cost.
+3. Bench & bounds: report central-eu goodPlayer (1840 N/H 1856/1870, 1900 N/H 1916), Venice–Milan 1/4/8/13, and
+   pax/coal ratio before → after. Retune ONLY `TRIPS_PER_HEAD_ANCHORS` if the 1840 Normal bench leaves $3.9M ±20 %.
+   Then try to restore the balance bounds 35D loosened (pax/coal 0.8–1.2×, etc.); restore those that now pass,
+   report measured values for the rest (never loosen). Update SPEC/BALANCE.
+4. Tests: growth is deterministic, grows with high share carried, declines when unserved, capped; carriage prices.
+   Screenshot `phase-36-industry-growth.png` (look at it: one line, no clutter).
+
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
