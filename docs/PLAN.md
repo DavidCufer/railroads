@@ -1465,3 +1465,19 @@ Owner: keep panels short (one line, no paragraphs). No hidden or random balance 
    Screenshot `phase-36-industry-growth.png` (look at it: one line, no clutter).
 
 Status: [x] 1 [x] 2 [x] 3 (two bounds restored, the rest measured: see PROGRESS 36) [x] 4
+
+## Phase 37 — Era-based balance checks; harder top goals
+Owner decision: passengers may out-earn freight early (historically true in the 1840s); freight must catch up through
+the Phase 36 industry growth. Replace the loosened Phase 35D/36 bounds with **era-based** checks — no balance numbers
+change in this phase except goal amounts.
+1. Balance checks by era (tests/sim/balance*.test.ts): 1840s Town↔Town pax vs coal at 100 km 1.5–2.5×; by ~1880 a
+   well-served coal line (mine grown by served share over the decades, the Phase 36 mechanism, simulated) earns
+   ≥ 0.9× a comparable passenger line. Measure honestly; if freight does NOT catch up by 1880, do not tune — report it
+   in PROGRESS with the measured ratios by decade (1840/1860/1880/1900) as a finding for the owner.
+   Remove the "temporarily loosened" comments; each bound has a one-line rationale.
+2. Goals: raise central-eu gold (netWorth $150M by 1930) and us-west gold (annualRevenue $3M by 1900) so the
+   reference operator ratio is back ≥ 0.8 (builder estimate ~$190–250M; ~1.5× for us-west); restore the
+   `goalCalibration` floor 0.8 and remove its TODO. Check the other goals still pass.
+3. Update BALANCE.md (regenerate), SPEC deviations, PROGRESS.
+
+Status: [ ] 1 [ ] 2 [ ] 3
