@@ -17,6 +17,12 @@ export interface DifficultyDef {
   taxMult: number;
   /** Years the income tax schedule is ahead of the calendar (Hard = the state taxes railways a decade early). */
   taxYearShift: number;
+  /** Phase 39 panics: chance each historical panic happens in this game, how much deeper and longer it is than the
+   * base, and the credit limit left while it lasts (× the normal limit). */
+  panicChance: number;
+  panicDepthMult: number;
+  panicDurationMult: number;
+  panicCreditMult: number;
 }
 
 export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
@@ -31,6 +37,10 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     bankruptcy: false,
     taxMult: 0.6,
     taxYearShift: -10,
+    panicChance: 0.5,
+    panicDepthMult: 0.6,
+    panicDurationMult: 0.7,
+    panicCreditMult: 0.8,
   },
   normal: {
     startingCash: 1_000_000,
@@ -43,6 +53,10 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     bankruptcy: true,
     taxMult: 1.0,
     taxYearShift: 0,
+    panicChance: 0.8,
+    panicDepthMult: 1,
+    panicDurationMult: 1,
+    panicCreditMult: 0.6,
   },
   hard: {
     startingCash: 600_000,
@@ -55,6 +69,10 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     bankruptcy: true,
     taxMult: 1.6,
     taxYearShift: 10,
+    panicChance: 1,
+    panicDepthMult: 1.3,
+    panicDurationMult: 1.25,
+    panicCreditMult: 0.4,
   },
 };
 

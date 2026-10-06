@@ -833,6 +833,8 @@ export const strings = {
           ? `${name} was demolished`
           : `${name} was demolished — removed from the orders of ${trains} ${trains === 1 ? "train" : "trains"}`,
       forcedLoan: (amount: string) => `Borrowed ${amount} to stay solvent`,
+      panic: (name: string, months: number) =>
+        `${name}: demand falls and credit tightens for about ${months} months`,
       insolvent: (months: number) =>
         `Insolvent: ${months} month${months === 1 ? "" : "s"} to recover`,
       fewStops: (trainName: string) =>

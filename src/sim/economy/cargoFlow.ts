@@ -13,6 +13,7 @@ import {
 } from "../../data/cargo";
 import { cargoDecayExempt, stationStorageCap } from "../stations/improvements";
 import { recordTurnedAway } from "../stations/flow";
+import { panicDemandMult } from "../finance/panics";
 import { DAYS_PER_MONTH } from "../time";
 import type { GameState, StationCargoPile } from "../state";
 
@@ -58,6 +59,7 @@ function accrueLinear(
 }
 
 export function accrueDailyCargo(state: GameState): void {
+  const demand = panicDemandMult(state);
   for (const station of state.stations) {
     const economy = state.stationEconomy.get(station.id);
     if (!economy) continue;
@@ -70,7 +72,7 @@ export function accrueDailyCargo(state: GameState): void {
 
     for (const cargo of CARGO_TYPES) {
       const cap = stationStorageCap(station, cargo);
-      const monthly = economy.supply[cargo] ?? 0;
+      const monthly = (economy.supply[cargo] ?? 0) * demand;
       const daily = monthly / DAYS_PER_MONTH;
       const entry: StationCargoPile = pile[cargo] ?? { amount: 0, waitingDays: 0 };
       if (givesUpWaiting(cargo)) {

@@ -35,6 +35,7 @@ import {
   wearCostPerUnit,
 } from "./costs";
 import { NET_WORTH_HISTORY_MAX_SAMPLES } from "./types";
+import { panicStartingNow } from "./panics";
 import { amortise, creditLimitFor, interestRate, issueLoan } from "./credit";
 import {
   PROPERTY_TAX_RATE,
@@ -144,6 +145,9 @@ export function monthlyFinanceStep(state: GameState): void {
   }
 
   accrueIncomeTax(state);
+
+  const panic = panicStartingNow(state);
+  if (panic) pushNews(state, { kind: "panic", name: panic.name, months: panic.months });
 
   if (diff.bankruptcy) {
     if (state.cash < 0) {

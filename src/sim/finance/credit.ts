@@ -11,6 +11,7 @@ import {
   LOAN_TERM_MONTHS,
   ledgerOperatingProfit,
 } from "../../data/finance";
+import { panicCreditMult } from "./panics";
 import { DAYS_PER_MONTH, HOURS_PER_DAY } from "../time";
 import type { GameState } from "../state";
 
@@ -48,7 +49,8 @@ export function creditLimitFor(state: GameState, netWorth: number): number {
   const byAssets = netWorth * CREDIT_LIMIT_FRACTION;
   const byEarnings = earningsBeforeInterest(state) * CREDIT_LIMIT_EARNINGS_MULT;
   const startup = state.ticks < CREDIT_STARTUP_MONTHS * DAYS_PER_MONTH * HOURS_PER_DAY;
-  return Math.max(startup ? CREDIT_LIMIT_MIN : 0, Math.min(byAssets, byEarnings));
+  const limit = Math.max(startup ? CREDIT_LIMIT_MIN : 0, Math.min(byAssets, byEarnings));
+  return limit * panicCreditMult(state);
 }
 
 /** Principal due this month: the bonds' schedule, never more than is owed. */
