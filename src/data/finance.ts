@@ -13,6 +13,10 @@ export interface DifficultyDef {
   /** Leverage premium (Phase 30A): the rate rises by `leveragePremium × (debt ÷ assets)²` — lenders price risk. */
   leveragePremium: number;
   bankruptcy: boolean;
+  /** Phase 39: consecutive month-ends with cash below zero and no credit left before the company is bankrupt. */
+  graceMonths: number;
+  /** Phase 39: lenders' appetite — multiplies the credit limit (and the start-up floor). */
+  creditMult: number;
   /** Multiplies the property and corporate income tax schedule (Hard = a heavier schedule, not lower revenue). */
   taxMult: number;
   /** Years the income tax schedule is ahead of the calendar (Hard = the state taxes railways a decade early). */
@@ -35,6 +39,8 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     interestRate: 0.04,
     leveragePremium: 0.08,
     bankruptcy: false,
+    graceMonths: 4,
+    creditMult: 1.5,
     taxMult: 0.6,
     taxYearShift: -10,
     panicChance: 0.5,
@@ -51,6 +57,8 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     interestRate: 0.06,
     leveragePremium: 0.12,
     bankruptcy: true,
+    graceMonths: 3,
+    creditMult: 1,
     taxMult: 1.0,
     taxYearShift: 0,
     panicChance: 0.8,
@@ -67,6 +75,8 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     interestRate: 0.08,
     leveragePremium: 0.2,
     bankruptcy: true,
+    graceMonths: 2,
+    creditMult: 0.6,
     taxMult: 1.6,
     taxYearShift: 10,
     panicChance: 1,
@@ -99,8 +109,6 @@ export const LOAN_TERM_MONTHS = 120;
 export const CREDIT_LIMIT_EARNINGS_MULT = 5;
 
 // --- Bankruptcy (SPEC §9.4) ---------------------------------------------------------------------
-
-export const BANKRUPTCY_MONTHS = 3;
 
 // --- Net worth (SPEC §9.3) ----------------------------------------------------------------------
 

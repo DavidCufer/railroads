@@ -4,7 +4,6 @@
  * src/sim/trains/loading.ts for individual revenue/expense events.
  */
 import {
-  BANKRUPTCY_MONTHS,
   DIFFICULTY,
   LOCO_DEPRECIATION_MIN_FRACTION,
   LOCO_DEPRECIATION_PER_YEAR,
@@ -162,11 +161,11 @@ export function monthlyFinanceStep(state: GameState): void {
       if (state.cash < 0) {
         // Still negative even after borrowing every dollar of remaining credit.
         state.finance.negativeCashMonths++;
-        if (state.finance.negativeCashMonths >= BANKRUPTCY_MONTHS) state.finance.bankrupt = true;
+        if (state.finance.negativeCashMonths >= diff.graceMonths) state.finance.bankrupt = true;
         else
           pushNews(state, {
             kind: "insolvent",
-            monthsLeft: BANKRUPTCY_MONTHS - state.finance.negativeCashMonths,
+            monthsLeft: diff.graceMonths - state.finance.negativeCashMonths,
           });
       } else {
         state.finance.negativeCashMonths = 0;

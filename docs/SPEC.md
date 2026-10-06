@@ -716,6 +716,9 @@ number on the platform must be a number the trains calling there can take. Rule 
 | Interest (base rate) | 4 % | 6 % | 8 % |
 | Leverage premium (§9.5c) | 0.08 | 0.12 | 0.20 |
 | Land and way-leave price (§9.5c) | ×0.7 | ×1 | ×1.5 |
+| Credit (Phase 39) | ×1.5 | ×1 | ×0.6 |
+| Insolvency grace before bankruptcy | 4 months (bankruptcy off) | 3 months | 2 months |
+| Financial panics (Phase 39, §9.4) | 50 % of them, ×0.6 deep, ×0.7 long, credit ×0.8 | 80 %, ×1, ×1, credit ×0.6 | all, ×1.3 deep, ×1.25 long, credit ×0.4 |
 
 ---
 

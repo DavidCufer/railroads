@@ -212,4 +212,28 @@ describe("wages outrun prices (Economic model v2)", () => {
       stationMonthlyCost("station", 1830).staff,
     );
   });
+
+  it("Hard goes bankrupt after 2 insolvent months, Normal after 3 (Phase 39)", () => {
+    for (const [difficulty, months] of [
+      ["hard", 2],
+      ["normal", 3],
+    ] as const) {
+      const state = makeTestState(makeTestMap(["p"]), { difficulty, cash: 0 });
+      state.ticks = 25 * 30 * 24;
+      for (let i = 1; i <= months; i++) {
+        expect(state.finance.bankrupt).toBe(false);
+        state.cash = -1000;
+        monthlyFinanceStep(state);
+      }
+      expect(state.finance.bankrupt).toBe(true);
+    }
+  });
+
+  it("credit follows the difficulty (Phase 39)", () => {
+    const limit = (difficulty: "easy" | "normal" | "hard") =>
+      computeCreditLimit(makeTestState(makeTestMap(["p"]), { difficulty }));
+    expect(limit("easy")).toBe(750_000);
+    expect(limit("normal")).toBe(500_000);
+    expect(limit("hard")).toBe(300_000);
+  });
 });

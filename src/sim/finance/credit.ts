@@ -50,7 +50,7 @@ export function creditLimitFor(state: GameState, netWorth: number): number {
   const byEarnings = earningsBeforeInterest(state) * CREDIT_LIMIT_EARNINGS_MULT;
   const startup = state.ticks < CREDIT_STARTUP_MONTHS * DAYS_PER_MONTH * HOURS_PER_DAY;
   const limit = Math.max(startup ? CREDIT_LIMIT_MIN : 0, Math.min(byAssets, byEarnings));
-  return limit * panicCreditMult(state);
+  return limit * DIFFICULTY[state.difficulty].creditMult * panicCreditMult(state);
 }
 
 /** Principal due this month: the bonds' schedule, never more than is owed. */
