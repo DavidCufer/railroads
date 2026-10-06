@@ -117,6 +117,7 @@ export const strings = {
       "not-era-available": "Not available yet",
       "already-improved": "Already built here",
       "nothing-to-bulldoze": "No track there to bulldoze",
+      "train-on-track": "A train is using this track",
       "station-no-track": "Needs a straight or dead-end track tile",
       "station-occupied": "There's already a station there",
       "invalid-station": "That station doesn't exist",

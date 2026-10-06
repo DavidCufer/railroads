@@ -91,6 +91,7 @@ export type CommandReasonCode =
   | "not-era-available"
   | "already-improved"
   | "nothing-to-bulldoze"
+  | "train-on-track"
   | "station-no-track"
   | "station-occupied"
   | "invalid-station"
@@ -543,6 +544,18 @@ export function electrifyTrack(state: GameState, path: readonly number[]): Comma
   return { ok: true, cost: plan.cost };
 }
 
+/** The first train whose remaining route (the edge it is on and every edge ahead) runs over `edge` (PLAYTEST-3 B1). */
+function trainUsingEdge(state: GameState, edge: TrackEdge): Train | undefined {
+  return state.trains.find((t) => {
+    for (let i = t.routeIndex; i + 1 < t.route.length; i++) {
+      const a = t.route[i] as number;
+      const b = t.route[i + 1] as number;
+      if ((a === edge.a && b === edge.b) || (a === edge.b && b === edge.a)) return true;
+    }
+    return false;
+  });
+}
+
 /** Removes the track the drag ran along, refunding 25% of each edge's recorded build cost (SPEC §5.2),
  * plus any station left with no track (refused while trains stop there — see `stationRemovalBlocker`). */
 export function bulldoze(state: GameState, path: readonly number[]): CommandResult {
@@ -553,6 +566,8 @@ export function bulldoze(state: GameState, path: readonly number[]): CommandResu
     const blocker = stationRemovalBlocker(state, station);
     if (blocker) return { ok: false, reason: blocker.reason };
   }
+  if (plan.edges.some((e) => trainUsingEdge(state, e)))
+    return { ok: false, reason: "train-on-track" };
 
   for (const edge of plan.edges) state.trackGraph.removeEdge(edge.a, edge.b);
   for (const station of plan.stations) dropStation(state, station);
