@@ -114,6 +114,15 @@ export function trainCrewSize(loco: LocomotiveDef, cars: number): number {
 /** The part of `LocomotiveDef.maintenancePerYear` that is fuel, oil, water and depot servicing (the rest of
  * the old figure was the crew, which is now paid as wages). Scales with general prices. */
 export const RUNNING_COST_SHARE = 0.45;
+/** Phase 39: how much of that running cost is fuel and water burnt per tile run (the rest — servicing, oil, depot —
+ * is paid by the year whether the engine moves or not). Fuel scales with the train's weight, so a long line of
+ * heavy trains costs more than a short one and a train that stands still burns nothing. */
+export const FUEL_SHARE_OF_RUNNING = 0.6;
+/** The yearly mileage a busy train is costed at: a locomotive hauling its full consist's reference weight for this
+ * many tiles a year burns its whole fuel budget (`maintenancePerYear × RUNNING_COST_SHARE × FUEL_SHARE_OF_RUNNING`). */
+export const FUEL_REF_TILES_PER_YEAR = 2000;
+/** Cars of the reference consist are this full on average when fuel is costed. */
+export const FUEL_REF_LOAD_FRACTION = 0.6;
 
 /** Monthly station upkeep splits into the building (general prices) and its staff (wages). */
 export const STATION_STAFF: Record<"depot" | "station" | "terminal", number> = {

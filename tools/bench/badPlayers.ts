@@ -304,10 +304,7 @@ function bootstrapBad(): void {
       .filter((c) => c.tiles.length > 0)
       .sort((p, q) => q.population - p.population)[0]!;
     const small = state.cities
-      .filter(
-        (c) =>
-          c.tiles.length > 0 && c.id !== big.id && c.population < 30_000,
-      )
+      .filter((c) => c.tiles.length > 0 && c.id !== big.id && c.population < 30_000)
       .map((c) => ({ c, d: dist(cityCentre(c), cityCentre(big)) }))
       .filter((x) => x.d <= 110)
       .sort((p, q) => q.d - p.d);
@@ -357,3 +354,10 @@ console.log(
     loansM: state.finance.loans / 1e6,
   }),
 );
+if (process.env["LEDGER"])
+  console.log(
+    Object.entries(state.finance.lastYear as unknown as Record<string, number>)
+      .filter(([, v]) => Math.abs(v) > 1000)
+      .map(([k, v]) => `${k} ${(v / 1e3).toFixed(0)}k`)
+      .join(", "),
+  );

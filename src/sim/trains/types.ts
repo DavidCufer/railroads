@@ -217,6 +217,9 @@ export interface Train {
   /** Wear units this train has inflicted on the track since the month began (Economic model v2); the monthly
    * step turns them into money and resets it. Absent in older saves. */
   wearUnits?: number;
+  /** Fuel burnt since the month began, in 1830-price dollars (Phase 39); the monthly step books it at the year's
+   * prices. Absent in older saves. */
+  fuelUnits?: number;
   /** Per-train revenue and running costs (PLAN Phase 24A). */
   profit: TrainProfit;
   /** Cached fractional (tile-space) position at the start and end of the most recent tick, for the

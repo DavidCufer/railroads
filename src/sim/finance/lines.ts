@@ -2,6 +2,7 @@
  * Per-line books (PLAN Phase 30B): a *line* is the set of trains that share the same set of stops.
  * Pure aggregation over the per-train books; nothing here is saved or feeds back into the sim.
  */
+import { priceIndex } from "../../data/economy";
 import { locomotiveById } from "../../data/trains";
 import type { GameState } from "../state";
 import { calendarFromTicks, DAYS_PER_MONTH, DAYS_PER_YEAR, HOURS_PER_DAY } from "../time";
@@ -60,7 +61,8 @@ function accruedCosts(state: GameState, train: Train): number {
       carsUpkeepPerYear(train.cars, year) +
       trainWagesPerYear(loco, train.cars.length, year)) /
     12;
-  return (monthly * Math.max(0, owned)) / monthTicks;
+  const fuel = (train.fuelUnits ?? 0) * priceIndex(year);
+  return (monthly * Math.max(0, owned)) / monthTicks + fuel;
 }
 
 /** Lines sorted by profit rate, best first (lines too new for a rate last). Trains with fewer than two distinct

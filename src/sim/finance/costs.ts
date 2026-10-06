@@ -8,6 +8,9 @@ import {
   CAR_EMPTY_TONS,
   CAR_LOAD_TONS,
   ELECTRIC_WEAR_MULT,
+  FUEL_REF_LOAD_FRACTION,
+  FUEL_REF_TILES_PER_YEAR,
+  FUEL_SHARE_OF_RUNNING,
   LOCO_TONS,
   RUNNING_COST_SHARE,
   STATION_STAFF,
@@ -66,8 +69,41 @@ export function locoRunningCostPerYear(
   return (
     loco.maintenancePerYear *
     RUNNING_COST_SHARE *
+    (1 - FUEL_SHARE_OF_RUNNING) *
     maintenanceMultiplier(loco, ageYears, year) *
     ageRunningCostMult(ageYears) *
+    priceIndex(year)
+  );
+}
+
+/** Fuel and water burnt for one tile of running, at 1830 prices: the engine's yearly fuel budget spread over
+ * `FUEL_REF_TILES_PER_YEAR`, times the train's weight over the weight of a full-length consist of average load.
+ * An empty short train burns little, a long loaded one a lot; a stationary train burns none. */
+export function fuelUnitsPerTile(loco: LocomotiveDef, cars: readonly TrainCar[]): number {
+  let tons = LOCO_TONS[loco.weightClass];
+  for (const c of cars)
+    tons += CAR_EMPTY_TONS + CAR_LOAD_TONS * (c.loadedUnits / CARGO[c.cargoType].capacity);
+  const refTons =
+    LOCO_TONS[loco.weightClass] +
+    loco.maxCars * (CAR_EMPTY_TONS + CAR_LOAD_TONS * FUEL_REF_LOAD_FRACTION);
+  const budget = loco.maintenancePerYear * RUNNING_COST_SHARE * FUEL_SHARE_OF_RUNNING;
+  return (budget / FUEL_REF_TILES_PER_YEAR) * (tons / refTons);
+}
+
+/** What a busy train's fuel would cost over a year (reference mileage, average load) — for panels that estimate. */
+export function fuelCostPerYearEstimate(loco: LocomotiveDef, cars: number, year: number): number {
+  const refCars = Math.min(cars, loco.maxCars);
+  const tons =
+    LOCO_TONS[loco.weightClass] +
+    refCars * (CAR_EMPTY_TONS + CAR_LOAD_TONS * FUEL_REF_LOAD_FRACTION);
+  const refTons =
+    LOCO_TONS[loco.weightClass] +
+    loco.maxCars * (CAR_EMPTY_TONS + CAR_LOAD_TONS * FUEL_REF_LOAD_FRACTION);
+  return (
+    loco.maintenancePerYear *
+    RUNNING_COST_SHARE *
+    FUEL_SHARE_OF_RUNNING *
+    (tons / refTons) *
     priceIndex(year)
   );
 }

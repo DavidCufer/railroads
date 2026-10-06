@@ -51,7 +51,7 @@ import { directionBetween, edgeDirectionFrom, edgeLengthTiles, tileXY } from "./
 import { blockIdForEdge, type Block, type BlockPartition } from "./blocks";
 import { trainBodyLength, updateCrossing } from "./crossing";
 import { applyPendingConsist, stepLoading } from "./loading";
-import { wearUnitsPerTile } from "../finance/costs";
+import { fuelUnitsPerTile, wearUnitsPerTile } from "../finance/costs";
 import { kmSinceService } from "./breakdown";
 import { addEdgeWear, edgeWearRatio, slowOrderMult } from "../track/condition";
 import { findTrainRoute } from "./route";
@@ -1063,6 +1063,7 @@ export function stepTrain(state: GameState, train: Train, runtime: TrainRuntime)
     if (loco) {
       const perTile = wearUnitsPerTile(loco, train.cars, train.speed);
       train.wearUnits = (train.wearUnits ?? 0) + moved * perTile;
+      train.fuelUnits = (train.fuelUnits ?? 0) + moved * fuelUnitsPerTile(loco, train.cars);
       // Phase 30A: the edge under the head wears too (track condition, src/sim/track/condition.ts).
       const a = train.route[train.routeIndex];
       const b = train.route[train.routeIndex + 1];

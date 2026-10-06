@@ -34,6 +34,7 @@ import { monthlyBreakdownChance } from "../sim/trains/breakdown";
 import { mechanicalAgeYears } from "../sim/trains/ageing";
 import {
   carsUpkeepPerYear,
+  fuelCostPerYearEstimate,
   locoRunningCostPerYear,
   trainCompetition,
   trainWagesPerYear,
@@ -463,7 +464,8 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
       const year = calendarFromTicks(state.startYear, state.ticks).year;
       const running = l
         ? locoRunningCostPerYear(l, mechanicalAgeYears(state, t), year) +
-          carsUpkeepPerYear(t.cars, year)
+          carsUpkeepPerYear(t.cars, year) +
+          fuelCostPerYearEstimate(l, t.cars.length, year)
         : 0;
       const wages = l ? trainWagesPerYear(l, t.cars.length, year) : 0;
       const competition = l ? trainCompetition(l, t, state.stations, state.map.width, year) : 0;

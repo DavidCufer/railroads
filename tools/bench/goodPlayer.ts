@@ -376,3 +376,11 @@ console.log(
 console.log(
   `land spent ${(((state.finance as { landSpent?: number }).landSpent ?? 0) / 1e6).toFixed(2)}M, capital ${(state.finance.capitalInvested / 1e6).toFixed(2)}M`,
 );
+if (process.env["FUELSTAT"]) {
+  const yrs = state.ticks / (DAY * 360) || 1;
+  const rows = state.trains.map((t) => {
+    const loco = locomotiveById(t.locoModelId)!;
+    return `${loco.id}:${(t.distanceTraveled / yrs).toFixed(0)}t/y cars${t.cars.length}`;
+  });
+  console.log("FUEL", rows.slice(0, 8).join(" | "));
+}

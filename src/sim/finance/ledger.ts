@@ -109,8 +109,11 @@ export function monthlyFinanceStep(state: GameState): void {
     const loco = locomotiveById(train.locoModelId);
     if (!loco) continue;
     const ageYears = mechanicalAgeYears(state, train);
+    const fuel = (train.fuelUnits ?? 0) * priceIndex(year);
+    train.fuelUnits = 0;
     const running =
-      (locoRunningCostPerYear(loco, ageYears, year) + carsUpkeepPerYear(train.cars, year)) / 12;
+      (locoRunningCostPerYear(loco, ageYears, year) + carsUpkeepPerYear(train.cars, year)) / 12 +
+      fuel;
     const wages = trainWagesPerYear(loco, train.cars.length, year) / 12;
     trainMaint += running;
     crewWages += wages;
