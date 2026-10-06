@@ -1,37 +1,14 @@
 /**
- * Benchmark: a scripted "good player" on a real-world region (docs/PLAYTEST-2.md "Benchmarks"). Not part of the test suite —
- * run it with `npx tsx tools/bench/goodPlayer.ts [region] [startYear] [difficulty] [endYear] [seed]`.
+ * Benchmark: scripted BAD players (Phase 39). Not part of the test suite. Run with
+ * `npx tsx tools/bench/badPlayers.ts <overbuilder|trainSpammer|leveraged> [startYear] [difficulty] [endYear] [seed]`;
+ * it prints one JSON line (bankrupt year or null, minimum cash, final net worth). `tools/bench/survival.ts` runs the table.
  *
- * Policy (the same for every build of the game, so before/after numbers are comparable; commands that only exist in newer
- * builds are used when present): connect the best unconnected city to the nearest connected one with a dedicated pair of
- * stations (Terminals in cities >= 40k from 1870, Stations otherwise) and double track from 1870, 2 trains of the fastest
- * engine per pair, add trains up to 4 per pair when cash allows, Post Office and Hotel in cities >= 40k, borrow when a good
- * project is short of cash and repay when cash piles up, relay worn track, rebuild washed-out bridges.
+ * overbuilder: long lines to small towns, 2 trains each, as many as cash and credit allow.
+ * trainSpammer: one good line, then trains on it until the credit runs out.
+ * leveraged: borrows to the limit all the time, builds good lines fast with 4 trains each, never repays.
  */
 import * as commands from "../../src/sim/commands";
-import { PAIR_DEMAND, TRAVEL_RANGE_ANCHORS, TRIPS_PER_HEAD_ANCHORS } from "../../src/data/economy";
 
-// PAIR="distanceExponent,sizeExponent,minDistanceTiles,maxShare" overrides the passenger-destination table for tuning
-// runs; TRIPS=<factor> scales the trips-per-head table; RANGE=<factor> scales the travel range.
-if (process.env["PAIR"]) {
-  const [dist, size, minDist, maxShare] = process.env["PAIR"]
-    .split(",")
-    .map((v) => (v.trim() === "" ? undefined : Number(v)));
-  Object.assign(PAIR_DEMAND, {
-    distanceExponent: dist ?? PAIR_DEMAND.distanceExponent,
-    sizeExponent: size ?? PAIR_DEMAND.sizeExponent,
-    minDistanceTiles: minDist ?? PAIR_DEMAND.minDistanceTiles,
-    maxShare: maxShare ?? PAIR_DEMAND.maxShare,
-  });
-}
-if (process.env["TRIPS"]) {
-  const f = Number(process.env["TRIPS"]);
-  for (const anchor of TRIPS_PER_HEAD_ANCHORS as unknown as Array<[number, number]>) anchor[1] *= f;
-}
-if (process.env["RANGE"]) {
-  const f = Number(process.env["RANGE"]);
-  for (const anchor of TRAVEL_RANGE_ANCHORS as unknown as Array<[number, number]>) anchor[1] *= f;
-}
 import { createGameState } from "../../src/sim/state";
 import { advanceOneHour } from "../../src/sim/tick";
 import { findBuildPath } from "../../src/sim/track/pathfind";
@@ -49,7 +26,8 @@ type AnyFn = (...args: never[]) => unknown;
 const optional = (name: string): AnyFn | undefined =>
   (commands as unknown as Record<string, AnyFn>)[name];
 
-const region = (process.argv[2] ?? "central-eu") as "central-eu";
+const bot = (process.argv[2] ?? "overbuilder") as "overbuilder" | "trainSpammer" | "leveraged";
+const region = "central-eu" as const;
 const startYear = Number(process.argv[3] ?? 1900);
 const difficulty = (process.argv[4] ?? "normal") as "easy" | "normal" | "hard";
 const endYear = Number(process.argv[5] ?? startYear + 16);
@@ -251,59 +229,50 @@ function addTrain(pair: Pair): boolean {
   return true;
 }
 
-function yearlyPlanning(): void {
-  const y = year();
-  // 1. housekeeping with newer commands
-  const relay = optional("relayTrack") as ((s: GameState) => unknown) | undefined;
-  const wornEdges = (state.trackGraph.allEdges() as Array<{ wear?: number }>).length;
-  if (relay && wornEdges > 0) relay(state);
-  const rebuild = optional("rebuildBridge") as
-    ((s: GameState, id: number, t?: string) => unknown) | undefined;
-  const washouts = (state as unknown as { washouts?: Array<{ id: number }> }).washouts ?? [];
-  if (rebuild) for (const w of [...washouts]) rebuild(state, w.id, y >= 1840 ? "stone" : undefined);
+let bankruptYear: number | null = null;
 
-  // 2. new connections: best city by population / distance to the nearest connected city
+function takeAllCredit(): void {
+  const limitFn = optional("creditLimit") as ((s: GameState) => number) | undefined;
+  const take = optional("takeLoan") as ((s: GameState, n: number) => unknown) | undefined;
+  if (!limitFn || !take) return;
+  let guard = 0;
+  while (state.finance.loans + 100_000 <= limitFn(state) && guard++ < 200) {
+    if (!ok(take(state, 100_000))) break;
+  }
+}
+
+function expand(maxNew: number): void {
+  const smallTowns = bot === "overbuilder";
   const candidates = state.cities
     .filter(
       (c) =>
         c.tiles.length > 0 &&
-        c.population >= 8_000 &&
         !connected.has(c.id) &&
-        !failedCities.has(c.id),
+        !failedCities.has(c.id) &&
+        (smallTowns ? c.population < 30_000 : c.population >= 8_000),
     )
     .map((c) => {
       const hubs = state.cities.filter((h) => connected.has(h.id) && h.tiles.length > 0);
       if (hubs.length === 0) return null;
+      // overbuilder: the farthest hub-town pair within reach; leveraged: the good player's score
       const hub = hubs.reduce((best, h) =>
         dist(cityCentre(h), cityCentre(c)) < dist(cityCentre(best), cityCentre(c)) ? h : best,
       );
       const d = dist(cityCentre(hub), cityCentre(c));
-      return { c, hub, d, score: (c.population + 0.5 * hub.population) / (d + 6) };
+      return { c, hub, d, score: smallTowns ? d : (c.population + 0.5 * hub.population) / (d + 6) };
     })
-    .filter((x): x is { c: City; hub: City; d: number; score: number } => x !== null && x.d <= 70)
+    .filter(
+      (x): x is { c: City; hub: City; d: number; score: number } =>
+        x !== null && x.d <= (smallTowns ? 110 : 70),
+    )
     .sort((p, q) => q.score - p.score);
   let built = 0;
   for (const cand of candidates) {
-    if (built >= 2) break;
+    if (built >= maxNew) break;
+    if (smallTowns || bot === "leveraged") takeAllCredit();
     const r = tryConnect(cand.c, cand.hub);
     if (r === "built") built++;
     else if (r === "failed") failedCities.add(cand.c.id);
-    // too dear for now: try the next-best city, a cash-short player builds the cheaper line first
-  }
-
-  // 3. more trains on pairs, improvements in big cities
-  for (const pair of pairs) {
-    while (pair.trains.length < 4 && state.cash > 1_500_000 + state.finance.loans) {
-      if (!addTrain(pair)) break;
-    }
-    for (const [st, city] of [
-      [pair.a, pair.cityA],
-      [pair.b, pair.cityB],
-    ] as const) {
-      if (city.population < 40_000 || state.cash < 1_000_000) continue;
-      commands.buildImprovement(state, st.id, "postOffice");
-      commands.buildImprovement(state, st.id, "hotel");
-    }
   }
 }
 
@@ -327,52 +296,64 @@ function bootstrap(): void {
 }
 
 let minCash = Infinity;
-const report: string[] = [];
-function snapshot(label: string): void {
-  const last = state.finance.lastYear;
-  report.push(
-    [
-      label,
-      `cash ${(state.cash / 1e6).toFixed(2)}M`,
-      `NW ${(netWorth(state) / 1e6).toFixed(2)}M`,
-      `rev ${(ledgerRevenue(last) / 1e6).toFixed(2)}M`,
-      `loans ${(state.finance.loans / 1e6).toFixed(1)}M`,
-      `trains ${state.trains.length}`,
-      `stations ${state.stations.length}`,
-    ].join(" · "),
-  );
+
+function bootstrapBad(): void {
+  if (bot === "overbuilder") {
+    // first line: the biggest city to a small town as far away as possible
+    const big = [...state.cities]
+      .filter((c) => c.tiles.length > 0)
+      .sort((p, q) => q.population - p.population)[0]!;
+    const small = state.cities
+      .filter(
+        (c) =>
+          c.tiles.length > 0 && c.id !== big.id && c.population < 30_000,
+      )
+      .map((c) => ({ c, d: dist(cityCentre(c), cityCentre(big)) }))
+      .filter((x) => x.d <= 110)
+      .sort((p, q) => q.d - p.d);
+    for (const s of small) {
+      takeAllCredit();
+      if (tryConnect(s.c, big) === "built") return;
+    }
+  }
+  bootstrap();
 }
 
-bootstrap();
-const wanted = new Set([1, 2, 3, 4, 5, 8, 10, 13, 16, 20, 25, 30]);
-for (let y = 1; startYear + y <= endYear; y++) {
-  // plan in January, then run the year in months with a monthly check for spare cash
-  yearlyPlanning();
+bootstrapBad();
+for (let y = 1; startYear + y <= endYear && bankruptYear === null; y++) {
   for (let m = 0; m < 12; m++) {
+    if (m === 0 || m === 6) {
+      if (bot === "overbuilder") expand(3);
+      else if (bot === "leveraged") expand(3);
+    }
+    if (bot === "trainSpammer" && pairs[0]) {
+      takeAllCredit();
+      let guard = 0;
+      while (pairs[0].trains.length < 30 && guard++ < 10 && addTrain(pairs[0]));
+    }
+    if (bot === "leveraged") {
+      takeAllCredit();
+      for (const pair of pairs) while (pair.trains.length < 4 && addTrain(pair));
+    }
     day(30);
     minCash = Math.min(minCash, state.cash);
-    repayIfRich();
-    if (m === 5) yearlyPlanning();
     if (state.finance.bankrupt) {
-      report.push(`BANKRUPT in ${year()}`);
+      bankruptYear = year();
       break;
     }
   }
-  if (wanted.has(y)) snapshot(`Jan ${startYear + y}`);
-  if (state.finance.bankrupt) break;
 }
 void STATION_TYPE_DEFS;
-console.log(`# ${region} ${startYear} ${difficulty} seed ${seed}`);
-console.log(report.join("\n"));
-console.log(`MINCASH ${(minCash / 1e6).toFixed(2)}`);
-const ly = state.finance.lastYear as unknown as Record<string, number>;
 console.log(
-  "last year ledger:",
-  Object.entries(ly)
-    .filter(([, v]) => typeof v === "number" && Math.abs(v) > 1000)
-    .map(([k, v]) => `${k} ${(v / 1e3).toFixed(0)}k`)
-    .join(", "),
-);
-console.log(
-  `land spent ${(((state.finance as { landSpent?: number }).landSpent ?? 0) / 1e6).toFixed(2)}M, capital ${(state.finance.capitalInvested / 1e6).toFixed(2)}M`,
+  JSON.stringify({
+    bot,
+    startYear,
+    difficulty,
+    seed,
+    bankruptYear,
+    minCashM: Math.round(minCash / 1e4) / 100,
+    netWorthM: Math.round(netWorth(state) / 1e4) / 100,
+    trains: state.trains.length,
+    loansM: state.finance.loans / 1e6,
+  }),
 );
