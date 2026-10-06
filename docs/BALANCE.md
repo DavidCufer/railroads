@@ -21,95 +21,91 @@ Normal difficulty, year-3 ledger, mean of 3 seeds. `ROI` = net profit ÷ price o
 
 | Era / loco | price | revenue | profit | ROI |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 32k | 9k | 4k | 13% |
-| 1840 norris-4-2-0 | 60k | 72k | 64k | 106% |
-| 1860 american-4-4-0 | 94k | 70k | 58k | 62% |
-| 1900 atlantic-4-4-2 | 201k | 38k | 13k | 7% |
-| 1920 pacific-4-6-2 | 295k | 37k | -7k | -2% |
-| 1950 road-switcher-diesel | 468k | 34k | -18k | -4% |
-| 1980 heavy-diesel | 1070k | 33k | -79k | -7% |
+| 1830 grasshopper-0-4-0 | 38k | 17k | 10k | 26% |
+| 1840 norris-4-2-0 | 72k | 128k | 118k | 165% |
+| 1860 american-4-4-0 | 110k | 156k | 140k | 127% |
+| 1900 atlantic-4-4-2 | 223k | 107k | 77k | 34% |
+| 1920 pacific-4-6-2 | 329k | 105k | 45k | 14% |
+| 1950 road-switcher-diesel | 508k | 97k | 23k | 5% |
+| 1980 heavy-diesel | 1114k | 92k | -34k | -3% |
 
 ### Passengers City 40k ↔ City 40k, 100 km
 
 | Era / loco | price | revenue | profit | ROI |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 32k | 19k | 13k | 39% |
-| 1840 norris-4-2-0 | 60k | 60k | 51k | 84% |
-| 1860 american-4-4-0 | 94k | 295k | 281k | 300% |
-| 1900 atlantic-4-4-2 | 201k | 250k | 221k | 110% |
-| 1920 pacific-4-6-2 | 295k | 250k | 173k | 59% |
-| 1950 road-switcher-diesel | 468k | 247k | 132k | 28% |
-| 1980 heavy-diesel | 1070k | 260k | 64k | 6% |
+| 1830 grasshopper-0-4-0 | 38k | 19k | 11k | 29% |
+| 1840 norris-4-2-0 | 72k | 67k | 55k | 77% |
+| 1860 american-4-4-0 | 110k | 273k | 256k | 232% |
+| 1900 atlantic-4-4-2 | 223k | 694k | 657k | 295% |
+| 1920 pacific-4-6-2 | 329k | 706k | 565k | 172% |
+| 1950 road-switcher-diesel | 508k | 693k | 451k | 89% |
+| 1980 heavy-diesel | 1114k | 733k | 373k | 33% |
 
 ### Passengers Metropolis 250k ↔ City 100k, 100 km (a rich route)
 
 | Era / loco | price | revenue | profit | ROI |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 32k | 19k | 13k | 39% |
-| 1840 norris-4-2-0 | 60k | 67k | 58k | 96% |
-| 1860 american-4-4-0 | 94k | 273k | 259k | 276% |
-| 1900 atlantic-4-4-2 | 201k | 872k | 840k | 419% |
-| 1920 pacific-4-6-2 | 295k | 924k | 762k | 258% |
-| 1950 road-switcher-diesel | 468k | 916k | 620k | 132% |
-| 1980 heavy-diesel | 1070k | 969k | 537k | 50% |
+| 1830 grasshopper-0-4-0 | 38k | 19k | 11k | 29% |
+| 1840 norris-4-2-0 | 72k | 67k | 55k | 77% |
+| 1860 american-4-4-0 | 110k | 273k | 255k | 232% |
+| 1900 atlantic-4-4-2 | 223k | 885k | 847k | 380% |
+| 1920 pacific-4-6-2 | 329k | 1181k | 979k | 298% |
+| 1950 road-switcher-diesel | 508k | 1271k | 872k | 172% |
+| 1980 heavy-diesel | 1114k | 1495k | 881k | 79% |
 
 ### Coal mine → steel mill, 100 km
 
 | Era / loco | price | revenue | profit | ROI |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 26k | 14k | 9k | 35% |
-| 1840 norris-4-2-0 | 49k | 71k | 63k | 127% |
-| 1860 american-4-4-0 | 78k | 81k | 69k | 89% |
-| 1900 atlantic-4-4-2 | 178k | 85k | 59k | 33% |
-| 1920 pacific-4-6-2 | 262k | 90k | 36k | 14% |
-| 1950 road-switcher-diesel | 429k | 98k | 25k | 6% |
-| 1980 heavy-diesel | 1025k | 109k | -39k | -4% |
+| 1830 grasshopper-0-4-0 | 26k | 14k | 9k | 36% |
+| 1840 norris-4-2-0 | 49k | 72k | 65k | 132% |
+| 1860 american-4-4-0 | 78k | 95k | 83k | 107% |
+| 1900 atlantic-4-4-2 | 178k | 94k | 69k | 39% |
+| 1920 pacific-4-6-2 | 262k | 100k | 46k | 17% |
+| 1950 road-switcher-diesel | 429k | 108k | 35k | 8% |
+| 1980 heavy-diesel | 1025k | 119k | -23k | -2% |
 
 ### Hard vs Normal: Passengers City 40k ↔ City 40k, 100 km (profit per train-year)
 
 | Era | Normal | Hard | Hard ÷ Normal |
 |---|---|---|---|
-| 1830 | 13k | 12k | 93% |
-| 1840 | 51k | 50k | 99% |
-| 1860 | 281k | 280k | 100% |
-| 1900 | 221k | 197k | 89% |
-| 1920 | 173k | 156k | 90% |
-| 1950 | 132k | 80k | 61% |
-| 1980 | 64k | 30k | 46% |
+| 1830 | 11k | 10k | 92% |
+| 1840 | 55k | 55k | 99% |
+| 1860 | 256k | 255k | 100% |
+| 1900 | 657k | 592k | 90% |
+| 1920 | 565k | 516k | 91% |
+| 1950 | 451k | 289k | 64% |
+| 1980 | 373k | 250k | 67% |
 
 ### Where the money goes: Passengers City 40k ↔ City 40k, 100 km (share of revenue)
 
 | Era | revenue | fuel & servicing | crew | track | wear | stations | repairs | property tax | income tax |
 |---|---|---|---|---|---|---|---|---|---|
-| 1830 | 19k | 5% | 4% | 7% | 1% | 12% | 0% | 4% | 0% |
-| 1840 | 60k | 3% | 2% | 2% | 1% | 5% | 0% | 1% | 0% |
-| 1860 | 295k | 1% | 1% | 1% | 1% | 1% | 0% | 0% | 0% |
-| 1900 | 250k | 2% | 1% | 1% | 3% | 3% | 0% | 1% | 0% |
-| 1920 | 250k | 3% | 2% | 2% | 9% | 3% | 0% | 1% | 10% |
-| 1950 | 247k | 4% | 4% | 3% | 9% | 5% | 0% | 1% | 21% |
-| 1980 | 260k | 8% | 5% | 4% | 30% | 6% | 0% | 1% | 21% |
+| 1830 | 19k | 13% | 4% | 7% | 1% | 12% | 0% | 4% | 0% |
+| 1840 | 67k | 6% | 2% | 2% | 1% | 4% | 0% | 1% | 0% |
+| 1860 | 273k | 2% | 1% | 1% | 1% | 1% | 0% | 0% | 0% |
+| 1900 | 694k | 2% | 1% | 1% | 1% | 1% | 0% | 0% | 0% |
+| 1920 | 706k | 2% | 1% | 1% | 4% | 1% | 0% | 0% | 11% |
+| 1950 | 693k | 3% | 1% | 1% | 4% | 2% | 0% | 0% | 24% |
+| 1980 | 733k | 4% | 2% | 1% | 11% | 2% | 0% | 0% | 28% |
 
-## Pair scaling: trains added to ONE pair (Phases 34–35, `npx tsx tools/bench/pairScaling.ts`)
+## Pair scaling: trains added to ONE pair (Phase 34 item 10, `npx tsx tools/bench/pairScaling.ts`)
 
-Venice–Milan, Central Europe 1847 (290 km crow-flies), Norris × 5 passenger cars, Stations, double track (`DOUBLE=1`), year-3 figures, cash growth after upkeep. Marginal = per train added since the previous row; ROI = marginal profit ÷ the train's price.
-Phase 35 (SPEC §9.5d): the town's supply is split over towns in range by gravity and only the reachable shares are generated, stored by first leg; a lone partner further than 300 km draws a fraction of the people. "Pre-34" = every train loaded from one generic pool; "34" = the Phase 34 boarding rule.
+Venice–Milan, Central Europe 1847 (290 km crow-flies), Norris × 5 passenger cars, Stations, double track, year-3 figures, cash growth after upkeep. Marginal = per train added since the previous row; ROI = marginal profit ÷ the train's price.
+Pair demand (SPEC §9.5d): passengers are bound for a destination, trips ∝ size of both ends ÷ distance beyond 200 km. Before = every train loaded from one generic pool.
 
-| trains | revenue pre-34 | revenue 34 | revenue 35 | marginal ROI pre-34 / 34 / 35 | cash growth pre-34 → 34 → 35 |
+| trains | revenue before | revenue after | marginal ROI before | marginal ROI after | cash growth before → after |
 |---|---|---|---|---|---|
-| 1 | 63k | 63k | 63k | 71% / 71% / 71% | 46k → 46k → 46k |
-| 2 | 115k | 73k | 101k | 76% / 11% / 53% | 96k → 53k → 81k |
-| 3 | 123k | 80k | 108k | 7% / 5% / 6% | 100k → 57k → 85k |
-| 4 | 133k | 87k | 118k | 10% / 6% / 11% | 106k → 60k → 92k |
-| 6 | 209k | 115k | 167k | 75% / 23% / 48% | 175k → 80k → 132k |
-| 8 | 209k | 133k | 187k | −8% / 7% / 8% | 165k → 89k → 143k |
-| 12 | 279k | 140k | 244k | 21% / −5% / 8% | 226k → 87k → 191k |
+| 1 | 63k | 63k | 71% | 71% | 46k → 46k |
+| 2 | 115k | 73k | 76% | 11% | 96k → 53k |
+| 3 | 123k | 80k | 7% | 5% | 100k → 57k |
+| 4 | 133k | 87k | 10% | 6% | 106k → 60k |
+| 6 | 209k | 115k | 75% | 23% | 175k → 80k |
+| 8 | 209k | 133k | −8% | 7% | 165k → 89k |
+| 12 | 279k | 140k | 21% | −5% | 226k → 87k |
 
-Supply for both ends: 1014 people a month (pre-34), 684 (34), 905 (35: Milan, 290 km away, draws 0.89 of its supply). A short line is untouched (≤ 300 km pairs of equal size keep their full supply; the tables above did not move). Beyond the second train the marginal ROI is about 6–14 % (one convoy step at 6 trains).
-goodPlayer (`tools/bench/goodPlayer.ts`, Central Europe, net worth Jan of the year; pre-34 / 34 / 35): 1840 Normal 1856 $3.9M / $3.1M / $2.8M, 1870 $17.8M / $15.3M / $13.5M; 1840 Hard 1870 $9.1M / $10.9M / $5.7M (Hard 58 % below Normal); 1900 Normal 1916 $33.7M / $15.3M / $4.0M, 1900 Hard 1916 $7.7M / $8.1M / $2.3M (Hard 44 % below Normal). The bench builds isolated pairs, which is the worst case for Phase 35 (each end sends only to its one partner; a connected network draws the whole town total), see docs/PROGRESS.md "Phase 35".
-
-## Phase 36: dearer passenger cars (3× a wagon, 8 % upkeep), `TRIPS_PER_HEAD_ANCHORS` ×1.3
-
-goodPlayer (central-eu Normal, net worth in January): 35E $3.96M (1856) / $19.2M (1870) / $22.4M (1900 start, 1916); cars alone $2.73M / $12.7M / $6.4M; after the x1.3 retune **$3.88M / $19.3M / $30.5M**. Venice–Milan pair scaling (1/4/8/13 trains): 59k / 104k / 168k / 183k -> **63k / 143k / 172k / 241k** (supply 726 a month for both ends, was 560). Town pax / coal at 100 km: 1.88x -> 2.16x.
+The pair's ceiling halves (supply 1014 → 684 people a month for both ends: the far partner weighs 0.68); a short line is untouched (≤ 200 km pairs keep their full supply: the tables above did not move).
+goodPlayer (`tools/bench/goodPlayer.ts`, Central Europe, net worth Jan of the year): 1900 Normal 1916 $33.7M → $15.3M, 1900 Hard $7.7M → $8.1M; 1840 Normal 1856 $3.9M → $3.1M, 1870 $17.8M → $15.3M; 1840 Hard 1870 $9.1M → $10.9M. Hard is still 47 % below Normal in 1900 (target ≥ 40 %).
 
 ## City supply (per month, fully covered)
 
@@ -126,61 +122,61 @@ goodPlayer (central-eu Normal, net worth in January): 35E $3.96M (1856) / $19.2M
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 19k / 15k | 14k / 10k | 7k / 1k |
-| 1860 american-4-4-0 | 6 | 40k / 30k | 80k / 69k | 124k / 110k |
-| 1900 atlantic-4-4-2 | 6 | 47k / 26k | 94k / 70k | 186k / 157k |
-| 1950 road-switcher-diesel | 8 | 53k / 4k | 108k / 37k | 217k / 107k |
+| 1830 grasshopper-0-4-0 | 3 | 20k / 16k | 14k / 9k | 7k / 1k |
+| 1860 american-4-4-0 | 6 | 48k / 38k | 95k / 83k | 115k / 101k |
+| 1900 atlantic-4-4-2 | 6 | 47k / 25k | 94k / 69k | 185k / 155k |
+| 1950 road-switcher-diesel | 8 | 53k / 2k | 108k / 35k | 216k / 106k |
 
 ## Grain (farm → food plant)
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 19k / 15k | 12k / 8k | 4k / -2k |
-| 1860 american-4-4-0 | 6 | 43k / 34k | 86k / 75k | 134k / 121k |
-| 1900 atlantic-4-4-2 | 6 | 51k / 30k | 102k / 78k | 201k / 172k |
-| 1950 road-switcher-diesel | 8 | 56k / 6k | 116k / 42k | 235k / 121k |
+| 1830 grasshopper-0-4-0 | 3 | 20k / 16k | 12k / 7k | 4k / -2k |
+| 1860 american-4-4-0 | 6 | 52k / 42k | 103k / 91k | 125k / 111k |
+| 1900 atlantic-4-4-2 | 6 | 51k / 29k | 102k / 77k | 201k / 170k |
+| 1950 road-switcher-diesel | 8 | 56k / 5k | 115k / 41k | 234k / 119k |
 
 ## Wood (logging camp → sawmill)
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 16k / 12k | 12k / 7k | 6k / 0k |
-| 1860 american-4-4-0 | 6 | 33k / 24k | 66k / 55k | 103k / 90k |
-| 1900 atlantic-4-4-2 | 6 | 39k / 18k | 79k / 54k | 155k / 126k |
-| 1950 road-switcher-diesel | 8 | 43k / -4k | 89k / 22k | 181k / 81k |
+| 1830 grasshopper-0-4-0 | 3 | 17k / 13k | 12k / 7k | 6k / 0k |
+| 1860 american-4-4-0 | 6 | 40k / 30k | 79k / 67k | 96k / 82k |
+| 1900 atlantic-4-4-2 | 6 | 39k / 17k | 78k / 53k | 154k / 124k |
+| 1950 road-switcher-diesel | 8 | 43k / -5k | 89k / 21k | 180k / 79k |
 
 ## Passengers Town 12k ↔ Town 12k
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 9k / 4k | 10k / 4k | 11k / 4k |
-| 1860 american-4-4-0 | 6 | 70k / 58k | 108k / 94k | 112k / 96k |
-| 1900 atlantic-4-4-2 | 6 | 38k / 13k | 76k / 48k | 109k / 77k |
-| 1950 road-switcher-diesel | 8 | 34k / -18k | 75k / 6k | 138k / 44k |
+| 1830 grasshopper-0-4-0 | 3 | 17k / 10k | 19k / 11k | 15k / 6k |
+| 1860 american-4-4-0 | 6 | 157k / 141k | 270k / 252k | 101k / 81k |
+| 1900 atlantic-4-4-2 | 6 | 103k / 73k | 203k / 170k | 426k / 387k |
+| 1950 road-switcher-diesel | 8 | 98k / 23k | 202k / 93k | 477k / 285k |
 
 ## Passengers City 40k ↔ City 40k
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 18k / 12k | 19k / 13k | 15k / 7k |
-| 1860 american-4-4-0 | 6 | 230k / 218k | 295k / 281k | 165k / 149k |
-| 1900 atlantic-4-4-2 | 6 | 126k / 101k | 250k / 221k | 358k / 324k |
-| 1950 road-switcher-diesel | 8 | 113k / 41k | 247k / 132k | 453k / 273k |
+| 1830 grasshopper-0-4-0 | 3 | 18k / 11k | 19k / 11k | 15k / 6k |
+| 1860 american-4-4-0 | 6 | 357k / 341k | 273k / 256k | 108k / 87k |
+| 1900 atlantic-4-4-2 | 6 | 361k / 329k | 671k / 635k | 1011k / 968k |
+| 1950 road-switcher-diesel | 8 | 300k / 171k | 665k / 430k | 1440k / 987k |
 
 ## Mail Town 12k ↔ Town 12k
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 1k / -4k | 1k / -5k | 2k / -6k |
-| 1860 american-4-4-0 | 6 | 7k / -5k | 10k / -3k | 4k / -12k |
-| 1900 atlantic-4-4-2 | 6 | 7k / -18k | 13k / -14k | 24k / -8k |
-| 1950 road-switcher-diesel | 8 | 6k / -46k | 13k / -47k | 29k / -42k |
+| 1830 grasshopper-0-4-0 | 3 | 2k / -5k | 2k / -5k | 2k / -7k |
+| 1860 american-4-4-0 | 6 | 7k / -9k | 10k / -7k | 6k / -14k |
+| 1900 atlantic-4-4-2 | 6 | 7k / -23k | 13k / -19k | 26k / -11k |
+| 1950 road-switcher-diesel | 8 | 6k / -55k | 13k / -56k | 29k / -51k |
 
 ## Mail City 40k ↔ City 40k
 
 | Era / loco | cars | 50 km | 100 km | 200 km |
 |---|---|---|---|---|
-| 1830 grasshopper-0-4-0 | 3 | 4k / -1k | 4k / -2k | 5k / -3k |
-| 1860 american-4-4-0 | 6 | 24k / 12k | 34k / 21k | 12k / -4k |
-| 1900 atlantic-4-4-2 | 6 | 22k / -2k | 44k / 17k | 79k / 46k |
-| 1950 road-switcher-diesel | 8 | 20k / -32k | 44k / -17k | 97k / 14k |
+| 1830 grasshopper-0-4-0 | 3 | 7k / 0k | 7k / 0k | 8k / -1k |
+| 1860 american-4-4-0 | 6 | 23k / 8k | 34k / 17k | 19k / -1k |
+| 1900 atlantic-4-4-2 | 6 | 22k / -8k | 44k / 11k | 87k / 49k |
+| 1950 road-switcher-diesel | 8 | 20k / -42k | 44k / -27k | 97k / 7k |

@@ -1480,4 +1480,4 @@ change in this phase except goal amounts.
    `goalCalibration` floor 0.8 and remove its TODO. Check the other goals still pass.
 3. Update BALANCE.md (regenerate), SPEC deviations, PROGRESS.
 
-Status: [ ] 1 [ ] 2 [ ] 3
+Status: [x] 1 [x] 2 [x] 3

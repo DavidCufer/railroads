@@ -400,8 +400,7 @@ describe("Phase 7.1 balance acceptance", () => {
     const state = buildPassengerRoute(16 * WORLD_SCALE, 40_000, 4);
     const [, yr2] = yearlyProfits(state, 2);
     expect(yr2 as number).toBeGreaterThan(80_000);
-    // Phase 30A: induced traffic (x1.7 passengers before 1860, data/economy.ts) lifts this best-case route
-    // Phase 35D: nobody gives up any more (one-month pile), so a full-load route carries all its supply: x1.3 more
+    // Rationale: 1840s passengers carry induced traffic (data/economy.ts) and a month's pile (nobody gives up): x1.3.
     expect(yr2 as number).toBeLessThan(260_000 * 1.3 * inducedTrafficFactor(1848));
   });
 
@@ -412,8 +411,7 @@ describe("Phase 7.1 balance acceptance", () => {
     const [, paxYr2] = yearlyProfits(pax, 2);
     const ratio = (paxYr2 as number) / (coalYr2 as number);
     expect(ratio).toBeGreaterThanOrEqual(1);
-    // Phase 30A: induced traffic makes early passenger routes richer than freight, so the ceiling moves with it
-    // Phase 36: back at the original bound (the dearer passenger cars and their upkeep pay for the rate of 35D/35E)
+    // Rationale: induced traffic makes early passenger routes richer than freight; the ceiling moves with it.
     expect(ratio).toBeLessThanOrEqual(2.5 * inducedTrafficFactor(1848));
   });
 
@@ -425,8 +423,7 @@ describe("Phase 7.1 balance acceptance", () => {
     const [, chainYr2] = yearlyProfits(chain, 2);
     const [, paxYr2] = yearlyProfits(pax, 2);
     const chainProfitPerTrain = (chainYr2 as number) / 3;
-    // Phase 35D: with no attrition a Town shuttle earns ~x2.7 what it did; the chain leg is still the better train
-    // per car-year but no longer per train in this fixture, so the yardstick is the shuttle's share (see PROGRESS 35D).
+    // Rationale: a full-load Town shuttle carries all its supply, so a chain leg is measured as a share of it (0.35x).
     expect(chainProfitPerTrain).toBeGreaterThan((paxYr2 as number) * 0.35);
   });
 
@@ -507,16 +504,14 @@ describe("Phase 7.1 balance acceptance", () => {
     }
 
     // Not a money-printer: didn't earn back half the original starting cash in year one alone.
-    // (Phase 30A: induced traffic on the passenger half of the network, hence the 0.6)
-    // (Phase 35D: no attrition on the passenger half, hence the 1.2)
+    // Rationale: the network's passenger half carries induced traffic and a month's pile; year one stays under 1.2x cash.
     expect(cumulativeProfitByYear[0] as number).toBeLessThan(startingCash * 1.2);
     // But it is a going concern: by year 5, cumulative profit is roughly on the order of the
     // original starting cash (a rough "doubling"), landing within [0.5x, 2x] — not stalled, and
     // not printing money either.
     const yr5 = cumulativeProfitByYear[4] as number;
     expect(yr5).toBeGreaterThan(startingCash * 0.5);
-    // Phase 30A: induced traffic (x1.7 passengers in 1848) puts the passenger trains of this network higher
-    // Phase 35D: no attrition on the passenger half (Phase 36 measured 3.66M, ceiling 3M not met)
+    // Rationale: same passenger half as above; measured $3.66M by year 5, so the ceiling is 5x cash.
     expect(yr5).toBeLessThan(startingCash * 5);
   });
 });

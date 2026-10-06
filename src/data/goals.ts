@@ -68,7 +68,7 @@ export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
   "central-eu": [
     { tier: "bronze", def: { type: "connect", cities: ["Munich", "Milan"], byYear: 1875 } },
     { tier: "silver", def: { type: "electrifiedTiles", amount: 60 * WORLD_SCALE, byYear: 1930 } },
-    { tier: "gold", def: { type: "netWorth", amount: 150_000_000, byYear: 1930 } },
+    { tier: "gold", def: { type: "netWorth", amount: 260_000_000, byYear: 1930 } },
   ],
   "us-west": [
     {
@@ -76,6 +76,6 @@ export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
       def: { type: "connect", cities: ["Sacramento", "Salt Lake City"], byYear: 1870 },
     },
     { tier: "silver", def: { type: "netWorth", amount: 50_000_000, byYear: 1920 } },
-    { tier: "gold", def: { type: "annualRevenue", amount: 3_000_000, byYear: 1900 } },
+    { tier: "gold", def: { type: "annualRevenue", amount: 4_500_000, byYear: 1900 } },
   ],
 };
