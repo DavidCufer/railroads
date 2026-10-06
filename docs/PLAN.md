@@ -1481,3 +1481,27 @@ change in this phase except goal amounts.
 3. Update BALANCE.md (regenerate), SPEC deviations, PROGRESS.
 
 Status: [x] 1 [x] 2 [x] 3
+
+## Phase 38 — Play-test 3 fixes: bugs, chains that pay, small clarity items
+Source: docs/PLAYTEST-3.md. Keep panels short (owner hates clutter).
+1. **B1 freeze-on-bulldoze**: bulldozing track a train occupies or is about to enter (its current route ahead) is
+   refused with a clear reason ("Train 3 is using this track"); if a route becomes impossible any other way, the
+   train goes `noRoute` and the existing Stuck indicator + news fire. Test.
+2. **B2 processor input cap**: enforce `INDUSTRY_INPUT_STORAGE_CAP` (now unused). When a processor's input stock is
+   full, that cargo is **not accepted** there (it stays on the train / not unloaded, like an unaccepted cargo) and
+   is not paid. Panel line becomes "Stock: 240 t grain (full)" instead of "Waiting: 2098 t". Migrate saves (clamp).
+3. **BAL1 chains that pay**: processors scale output with input: output per month = inputs received (by recipe;
+   "all" = min of inputs, "any" = sum) converted 1:1 (or the recipe ratio), up to a cap that is **3× the base
+   output** (same as raw producers' growth cap), so a growing farm lifts the whole chain. Data in
+   `src/data/industries.ts`. Measure the farm → Food Plant → town chain before/after (both legs' revenue).
+4. **B3 demolished station**: trains whose orders lose a stop drop it (already) — if fewer than 2 stops remain, the
+   train is stopped at its position with status "No route" and a one-tap "Edit route" in the news item; no running
+   cost while stopped with no orders? (keep running cost; just make it visible). Test.
+5. **UX small items**: (a) station subtitle uses the same town as the name (pick the name's rule); (b) a station
+   without an Engine Shed shows a disabled "Buy Train" with the one-line reason "Needs an Engine Shed"; (c) after
+   loading a save, centre the camera on the player's network (largest station cluster) and suppress stale toasts;
+   (d) forced loans post a news item "Borrowed $X to stay solvent"; (e) "Full load" at a passenger stop shows a
+   one-line warning ("Passenger trains earn less waiting for full") — no extra panels.
+6. Bench (1840 N, 1900 N/H) before/after; e2e screenshots `phase-38-*.png` for 2, 5b; look at them.
+
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
