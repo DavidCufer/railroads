@@ -13,6 +13,7 @@ export function openRulePicker(
   current: LoadingRule,
   onPick: (rule: LoadingRule) => void,
   stopName?: string,
+  passengers = false,
 ): void {
   closeOpen?.();
   const t = strings.trains;
@@ -55,7 +56,11 @@ export function openRulePicker(
           "span",
           { className: "rule-picker-text" },
           h("b", null, t.loadingRules[rule]),
-          h("span", null, t.ruleHint[rule]),
+          h(
+            "span",
+            null,
+            rule === "fullLoad" && passengers ? t.fullLoadPassengers : t.ruleHint[rule],
+          ),
         ),
         rule === current ? icon("check", "icon-sm") : null,
       ),

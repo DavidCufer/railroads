@@ -79,6 +79,7 @@ describe("monthlyFinanceStep", () => {
     expect(state.finance.loans).toBeGreaterThan(0);
     expect(state.cash).toBeGreaterThanOrEqual(0);
     expect(state.finance.negativeCashMonths).toBe(0);
+    expect(state.news.some((n) => n.kind === "forcedLoan" && n.amount > 0)).toBe(true);
   });
 
   it("declares bankruptcy after 3 consecutive negative-cash months with no credit left", () => {

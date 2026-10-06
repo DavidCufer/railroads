@@ -604,6 +604,7 @@ export function demolishStation(state: GameState, stationId: number): CommandRes
   if (station.hasEngineShed && state.stations.filter((s) => s.hasEngineShed).length <= 1)
     return { ok: false, reason: "last-engine-shed" };
   let affected = 0;
+  const stranded: number[] = [];
   for (const train of state.trains) {
     const removedHere = (i: number): boolean => train.orders[i]?.stationId === stationId;
     const touched = train.orders.some((o) => o.stationId === stationId);
@@ -613,6 +614,7 @@ export function demolishStation(state: GameState, stationId: number): CommandRes
       for (let i = 0; i < train.currentOrderIndex; i++) if (removedHere(i)) index--;
       train.orders = train.orders.filter((o) => o.stationId !== stationId);
       train.currentOrderIndex = train.orders.length > 0 ? index % train.orders.length : 0;
+      if (train.orders.length < 2) stranded.push(train.id);
     }
     const atDemolished =
       train.inYardOf === stationId || train.route[train.routeIndex] === station.tile;
@@ -643,6 +645,7 @@ export function demolishStation(state: GameState, stationId: number): CommandRes
     name: station.name,
     trains: affected,
   });
+  for (const trainId of stranded) pushNews(state, { kind: "fewStops", trainId });
   dropStation(state, station);
   state.cash += refund;
   state.trackVersion++;

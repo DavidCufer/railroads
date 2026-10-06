@@ -58,6 +58,7 @@ import { openStationPanel, openStationPlacementPanel } from "./ui/stationPanels"
 import { closePanel } from "./ui/panel";
 import { initBackButton } from "./ui/backButton";
 import { showToast } from "./ui/toast";
+import { networkCentre } from "./sim/stations/cluster";
 import { strings } from "./ui/strings";
 import {
   defaultOverlayState,
@@ -340,7 +341,12 @@ function main(): void {
     currentOptions = loaded.regionId
       ? { seed: loaded.seed, region: loaded.regionId }
       : { seed: loaded.seed, size: "medium", waterLevel: "normal", roughness: "normal" };
+    // Phase 38: a save's queued news and delivery labels are old; don't replay them as toasts.
+    loaded.pendingNews.length = 0;
+    loaded.pendingDeliveries.length = 0;
     applyState(loaded);
+    const centre = networkCentre(state);
+    if (centre) focusTile({ x: Math.round(centre.x), y: Math.round(centre.y) });
   }
 
   function startStationPlacement(tile: number): void {

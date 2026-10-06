@@ -55,6 +55,8 @@ export interface RouteTimelineOptions {
   onMove?: ((index: number, dir: -1 | 1) => void) | undefined;
   /** Departure spacing stepper under each stop (Phase 34); omitted in the buy wizard. */
   onGap?: ((index: number, days: number | undefined) => void) | undefined;
+  /** The train carries passengers: Full load shows a one-line warning in the rule picker. */
+  passengers?: boolean;
   /** Removing is refused below this many stops (a train needs two). */
   minStops?: number;
 }
@@ -72,7 +74,12 @@ function ruleChip(stop: TimelineStop, index: number, options: RouteTimelineOptio
           "aria-label": `${strings.trains.panel.changeRule}: ${label}`,
           "data-testid": "rule-chip",
           onClick: () =>
-            openRulePicker(stop.rule, (rule) => options.onRule?.(index, rule), stop.name),
+            openRulePicker(
+              stop.rule,
+              (rule) => options.onRule?.(index, rule),
+              stop.name,
+              options.passengers,
+            ),
         },
         ...inner,
       )

@@ -22,6 +22,7 @@ import { locoArt } from "./trainArt";
 import { icon, type IconName } from "./icons";
 import { closePanel, openPanel } from "./panel";
 import { diagnoseJam } from "./jamDiagnosis";
+import { openTrainPanel } from "./trainPanels";
 import { strings } from "./strings";
 
 function trainName(state: GameState, trainId: number): string {
@@ -96,6 +97,10 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
       );
     case "stationDemolished":
       return strings.news.kinds.stationDemolished(item.name, item.trains);
+    case "forcedLoan":
+      return strings.news.kinds.forcedLoan(formatMoney(item.amount));
+    case "fewStops":
+      return strings.news.kinds.fewStops(trainName(state, item.trainId));
     case "cityGrowth":
       return strings.news.kinds.cityGrowth(
         cityName(state, item.cityId),
@@ -162,6 +167,8 @@ const NEWS_ICONS: Record<NewsItem["kind"], { icon: IconName; tone: Tone }> = {
   noRoute: { icon: "warning", tone: "signal" },
   undeliverable: { icon: "warning", tone: "signal" },
   stationDemolished: { icon: "trash", tone: "brass" },
+  fewStops: { icon: "warning", tone: "signal" },
+  forcedLoan: { icon: "coin", tone: "signal" },
   cityGrowth: { icon: "city", tone: "go" },
   civicInvestment: { icon: "coin", tone: "go" },
   cityFounded: { icon: "village", tone: "go" },
@@ -189,6 +196,7 @@ export function openNewsPanel(
               const trainLoco =
                 item.kind === "breakdown" ||
                 item.kind === "noRoute" ||
+                item.kind === "fewStops" ||
                 item.kind === "undeliverable"
                   ? locomotiveById(
                       state.trains.find((t) => t.id === item.trainId)?.locoModelId ?? "",
@@ -199,17 +207,29 @@ export function openNewsPanel(
                 ? h("span", { className: "news-thumb-art" }, locoArt(loco, 30))
                 : h("span", { className: `news-thumb tone-${meta.tone}` }, icon(meta.icon));
               const focusTile = onFocus ? newsFocusTile(state, item) : null;
+              const editTrain =
+                item.kind === "fewStops" && state.trains.some((t) => t.id === item.trainId)
+                  ? item.trainId
+                  : undefined;
               return cardRow({
-                className: `news-item${item.id > unreadFrom ? " unread" : ""}${focusTile ? " tappable" : ""}`,
-                ...(focusTile && onFocus
+                className: `news-item${item.id > unreadFrom ? " unread" : ""}${focusTile || editTrain !== undefined ? " tappable" : ""}`,
+                ...(editTrain !== undefined
                   ? {
                       chevron: true,
                       onClick: () => {
                         closePanel();
-                        onFocus(focusTile);
+                        openTrainPanel(container, state, editTrain);
                       },
                     }
-                  : {}),
+                  : focusTile && onFocus
+                    ? {
+                        chevron: true,
+                        onClick: () => {
+                          closePanel();
+                          onFocus(focusTile);
+                        },
+                      }
+                    : {}),
                 thumb,
                 title:
                   formatNewsItem(state, item) +

@@ -8,15 +8,18 @@ async function openStationBy(
   page: import("@playwright/test").Page,
   industryType: string,
   fill: boolean,
+  fresh = true,
 ): Promise<void> {
-  await page.setViewportSize({ width: 800, height: 360 });
-  await page.goto("/?debug=1");
-  await page.waitForFunction(() => window.__game !== undefined);
-  await page.evaluate(() =>
-    window.__game?.regenerate({ seed: 1, region: "central-eu", startYear: 1840 }),
-  );
-  await page.evaluate(() => window.__game!.debugSetCash(5_000_000));
-  await page.evaluate(() => window.__game!.setSpeed(0));
+  if (fresh) {
+    await page.setViewportSize({ width: 800, height: 360 });
+    await page.goto("/?debug=1");
+    await page.waitForFunction(() => window.__game !== undefined);
+    await page.evaluate(() =>
+      window.__game?.regenerate({ seed: 1, region: "central-eu", startYear: 1840 }),
+    );
+    await page.evaluate(() => window.__game!.debugSetCash(5_000_000));
+    await page.evaluate(() => window.__game!.setSpeed(0));
+  }
   const stationId = await page.evaluate(
     ([type, full]) => {
       const game = window.__game!;
@@ -73,4 +76,14 @@ test("a full Food Plant says Stock ... (full)", async ({ page }) => {
   await openStationBy(page, "foodPlant", true);
   await expect(page.locator(".processing-stock").first()).toHaveText("Stock: 240 t grain (full)");
   await page.screenshot({ path: "docs/screenshots/phase-38-processor-full.png" });
+});
+
+test("a station without an Engine Shed shows a disabled Buy Train and why", async ({ page }) => {
+  await openStationBy(page, "farm", false); // the first station gets the shed
+  await openStationBy(page, "foodPlant", false, false);
+  const shed = await page.evaluate(() => window.__game!.getStations().slice(-1)[0]!.hasEngineShed);
+  expect(shed).toBe(false);
+  await expect(page.locator(".station-buy-train-btn")).toBeDisabled();
+  await expect(page.locator(".station-no-shed")).toHaveText("Needs an Engine Shed");
+  await page.screenshot({ path: "docs/screenshots/phase-38-no-engine-shed.png" });
 });

@@ -53,6 +53,21 @@ describe("demolishStation", () => {
     expect(demolishStation(state, ids[3]).ok).toBe(true);
     expect(t2.orders).toHaveLength(1);
     expect(stuckTrains(state).map((s) => s.train.id)).toContain(t2.id);
+    expect(state.news.some((n) => n.kind === "fewStops" && n.trainId === t2.id)).toBe(true);
+  });
+
+  it("stops a train left with one stop where it stands, as No route (Phase 38)", () => {
+    const { state, ids, t2 } = world();
+    for (let h = 0; h < 60; h++) advanceOneHour(state);
+    expect(demolishStation(state, ids[3]).ok).toBe(true);
+    advanceOneHour(state);
+    const tile = t2.route[t2.routeIndex];
+    const progress = t2.distanceTraveled;
+    for (let h = 0; h < 5 * 24; h++) advanceOneHour(state);
+    expect(t2.status).toBe("noRoute");
+    expect(t2.speed).toBe(0);
+    expect(t2.distanceTraveled).toBe(progress);
+    expect(t2.route[t2.routeIndex]).toBe(tile);
   });
 
   it("refuses the last engine shed", () => {

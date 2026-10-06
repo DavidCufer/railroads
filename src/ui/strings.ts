@@ -309,6 +309,7 @@ export const strings = {
   },
   trains: {
     buyTitle: "Buy Train",
+    needsEngineShed: "Needs an Engine Shed",
     locomotive: "Locomotive",
     cars: "Cars",
     orders: "Orders",
@@ -529,6 +530,7 @@ export const strings = {
       passThrough: "Roll through without stopping",
       transfer: "Unload into the warehouse",
     },
+    fullLoadPassengers: "Passenger trains earn less waiting for full",
   },
   /** Short, factual, original notes for the Roster (STYLE §11.3), by locomotive id. */
   locoNotes: {
@@ -830,6 +832,9 @@ export const strings = {
         trains === 0
           ? `${name} was demolished`
           : `${name} was demolished — removed from the orders of ${trains} ${trains === 1 ? "train" : "trains"}`,
+      forcedLoan: (amount: string) => `Borrowed ${amount} to stay solvent`,
+      fewStops: (trainName: string) =>
+        `${trainName} has fewer than 2 stops — tap to edit its route`,
       cityGrowth: (cityName: string, tierName: string) =>
         `${cityName} has grown into a ${tierName}!`,
       civicInvestment: (cityName: string) => `Civic Investment boosts growth in ${cityName}`,

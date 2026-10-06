@@ -4699,3 +4699,9 @@ select {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+
+.station-no-shed {
+  align-self: center;
+  color: var(--muted);
+  font-size: 12px;
+}

@@ -473,6 +473,7 @@ export function openBuyTrainPanel(
                   render();
                 },
                 stationLabel(o.stationId),
+                cars.includes("passengers"),
               ),
           },
           icon(RULE_ICONS[o.rule], "icon-xs"),

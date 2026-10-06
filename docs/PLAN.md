@@ -1504,7 +1504,7 @@ Source: docs/PLAYTEST-3.md. Keep panels short (owner hates clutter).
    one-line warning ("Passenger trains earn less waiting for full") — no extra panels.
 6. Bench (1840 N, 1900 N/H) before/after; e2e screenshots `phase-38-*.png` for 2, 5b; look at them.
 
-Status: [x] 1 [x] 2 [x] 3 [ ] 4 [ ] 5 [ ] 6
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6
 
 ## Phase 39 — Difficulty that bites: bad choices bleed, real debt, bankruptcy, panics
 Owner: on Normal, bad choices must be able to bankrupt you (not just stall); on Hard, bankruptcy is common unless

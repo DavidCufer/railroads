@@ -433,6 +433,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
                 };
               }),
               marker: timelineMarker(t),
+              passengers: t.cars.some((c) => c.cargoType === "passengers"),
               onRule: applyRule,
               onGap: (i, days) => {
                 const result = setOrderGap(state, trainId, i, days);

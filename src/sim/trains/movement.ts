@@ -1092,7 +1092,11 @@ function stepTrainInner(state: GameState, train: Train, runtime: TrainRuntime): 
     const loco = locomotiveById(train.locoModelId);
     if (loco) {
       if (train.inYardOf !== undefined) handleYard(state, train, runtime);
-      else if (train.status === "loading") handleLoading(state, train, runtime);
+      else if (train.orders.length < 2 && train.route.length >= 2) {
+        // Phase 38 (B3): a train whose orders lost stops stands where it is until the player edits its route.
+        train.speed = 0;
+        setStatus(train, "noRoute");
+      } else if (train.status === "loading") handleLoading(state, train, runtime);
       else if (train.status === "noRoute" || train.status === "stuck")
         handleIdle(state, train, runtime, loco);
       else handleMoving(state, train, runtime, loco);

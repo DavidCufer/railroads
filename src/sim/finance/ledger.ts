@@ -14,6 +14,7 @@ import {
   ledgerOperatingProfit,
   type LedgerPeriod,
 } from "../../data/finance";
+import { pushNews } from "../news";
 import { locomotiveById } from "../../data/trains";
 import { mechanicalAgeYears } from "../trains/ageing";
 import type { CargoType } from "../../data/cargo";
@@ -147,6 +148,7 @@ export function monthlyFinanceStep(state: GameState): void {
       if (forced > 0) {
         state.finance.loans += forced;
         state.cash += forced;
+        pushNews(state, { kind: "forcedLoan", amount: forced });
       }
       if (state.cash < 0) {
         // Still negative even after borrowing every dollar of remaining credit.

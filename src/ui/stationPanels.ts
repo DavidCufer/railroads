@@ -643,6 +643,15 @@ function acceptedBySource(
 
 type StationTab = "cargo" | "trains" | "build";
 
+/** The town in the subtitle follows the name's rule: the city the name starts with, else the nearest one. */
+function stationTownName(state: GameState, station: Station): string | null {
+  let named: string | null = null;
+  for (const city of state.cities)
+    if (station.name.startsWith(city.name) && city.name.length > (named?.length ?? 0))
+      named = city.name;
+  return named ?? nearestCityName(state, station.tile);
+}
+
 function nearestCityName(state: GameState, tile: number): string | null {
   const width = state.map.width;
   const tx = tile % width;
@@ -1061,19 +1070,23 @@ export function openStationPanel(
     }
 
     const footer: Node[] = [];
-    if (station.hasEngineShed && handlers) {
+    if (handlers && !station.passingLoop) {
+      const shed = station.hasEngineShed;
       footer.push(
         footerButton({
           kind: "primary",
           icon: "trains",
           label: strings.trains.buyTitle,
           className: "station-buy-train-btn",
-          onClick: () => handlers.onBuyTrain(),
+          disabled: !shed,
+          ...(shed ? { onClick: () => handlers.onBuyTrain() } : {}),
         }),
       );
+      if (!shed)
+        footer.push(h("span", { className: "station-no-shed" }, strings.trains.needsEngineShed));
     }
 
-    const nearestCity = nearestCityName(state, station.tile);
+    const nearestCity = stationTownName(state, station);
     const subtitle = `${strings.station.types[station.type]}${nearestCity ? ` · ${nearestCity}` : ""}`;
     const tabRow = tabs(
       [
