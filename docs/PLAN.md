@@ -1505,3 +1505,43 @@ Source: docs/PLAYTEST-3.md. Keep panels short (owner hates clutter).
 6. Bench (1840 N, 1900 N/H) before/after; e2e screenshots `phase-38-*.png` for 2, 5b; look at them.
 
 Status: [x] 1 [x] 2 [x] 3 [ ] 4 [ ] 5 [ ] 6
+
+## Phase 39 — Difficulty that bites: bad choices bleed, real debt, bankruptcy, panics
+Owner: on Normal, bad choices must be able to bankrupt you (not just stall); on Hard, bankruptcy is common unless
+play is very good. Real mechanisms only; clear warnings; short UI. Do this AFTER Phase 38 is on main.
+1. **Bad-player bench bots** (tools/bench): keep `goodPlayer`; add `overbuilder` (long lines to small towns),
+   `trainSpammer` (too many trains on one pair), `leveraged` (borrows to the limit early). Run each over 3 seeds,
+   Normal and Hard, 1840 and 1900. Report a survival table BEFORE changing anything.
+2. **Bad assets bleed monthly**: running cost per train-km (crew wages, fuel/coal, wear) scaled by locomotive and
+   consist, so an empty/half-empty train on a weak route loses money every month; per-km track upkeep already
+   exists — check it is felt on long lines to small towns. Keep the competent bench on its curve (retune only via
+   real cost tables; no flat multipliers).
+3. **Real debt**: loans as bonds with interest and **repayment** (e.g. 10-year term, yearly principal), credit limit
+   = f(trailing 12-month operating profit and assets), interest rising with leverage (exists — verify). Forced
+   borrowing posts a news item. **Bankruptcy**: if cash < 0 and no credit left at a month end → warning
+   ("Insolvent: 3 months to recover"), after 3 consecutive months → bankrupt, game over screen with a summary.
+4. **Financial panics** (historical: 1857, 1873, 1893, 1907, 1929…; regions may differ): news item, demand for
+   passengers and freight −20…−40 % for 12–24 months, credit tightens. Deterministic per seed. Harsher on Hard.
+5. **Difficulty table** in `src/data/`: Hard = lower credit limit, higher base rate, shorter grace (2 months),
+   harsher panics, land ×1.5 (exists). Easy = forgiving.
+6. **Targets (become tests)**: Normal — goodPlayer survives all seeds; each bad bot bankrupt in ≥ ~50 % of runs.
+   Hard — goodPlayer survives with a thin margin (min cash shown); bad bots bankrupt in ≥ ~80 %. Easy — bad bots
+   mostly survive. Report the table after; SPEC/BALANCE updated.
+7. UI: insolvency banner (one line + days left), game-over screen; e2e screenshot `phase-39-*.png`.
+
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7
+
+## Phase 40 — A valuable long-haul chain (silver before ~1940, uranium after)
+Owner idea: present from the start, far apart, not worth it early (long track, slow trains, costly cars), the big
+late-game prize. Do this AFTER Phase 39.
+1. Chain by era: **silver ore → smelter → mint** (start year < 1940); **uranium ore → enrichment plant → nuclear
+   power plant** (≥ 1940; if the game runs past 1940 with silver already placed, keep silver). One chain per map,
+   sites placed far apart (each leg ≥ ~1/3 of the map), deterministic per seed.
+2. **Paid only on final delivery** (bars at the mint / enriched uranium at the power plant): high value per ton,
+   with a long-distance bonus measured from the ore's origin. Intermediate legs pay nothing (cargo carries its
+   origin tile). Station panel: one line "Pays on arrival at <Mint>: ~$X/t".
+3. **Special secure cars**: several × a wagon price, small capacity, higher upkeep (data tables).
+4. Balance check with the bench: connecting the chain in the first ~15 years should be a poor investment; by
+   mid/late game a strong one. Report ROI by start decade. Tests; screenshot `phase-40-*.png`; SPEC updated.
+
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
