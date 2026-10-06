@@ -15,7 +15,7 @@ import {
 import { DIFFICULTY } from "../../data/finance";
 import { competitionLoss, fareIndex } from "../../data/economy";
 import { KM_PER_TILE } from "../../data/scale";
-import { INDUSTRIES } from "../../data/industries";
+import { INDUSTRIES, inputStorageCap } from "../../data/industries";
 import {
   COLD_STORAGE_REVENUE_MULT,
   HOTEL_PASSENGER_REVENUE_MULT,
@@ -35,7 +35,8 @@ import { boardable, takeBoarders } from "../stations/boarding";
 import { recordDelivered, recordLoadedRevenue, recordSent } from "../stations/flow";
 import { recordTrainRevenue } from "./profit";
 import { accrueCityGrowthScore } from "../economy/cityGrowth";
-import { getOrCreateIndustryEconomy } from "../economy/processing";
+import { cityTileAcceptance } from "../economy/cityStats";
+import { getOrCreateIndustryEconomy, inputFull } from "../economy/processing";
 import { calendarFromTicks, HOURS_PER_DAY } from "../time";
 import type { DeliveryEvent, GameState, StationCargoPile } from "../state";
 import type { Station } from "../stations/types";
@@ -70,7 +71,29 @@ function transferRoom(state: GameState, station: Station, cargo: CargoType): num
 }
 
 function accepts(state: GameState, stationId: number, cargo: CargoType): boolean {
-  return state.stationEconomy.get(stationId)?.accepts.includes(cargo) ?? false;
+  if (!(state.stationEconomy.get(stationId)?.accepts.includes(cargo) ?? false)) return false;
+  return !refusedByFullProcessors(state, stationId, cargo);
+}
+
+/** True when the only takers of `cargo` here are processors whose stockpile is full (PLAYTEST-3 B2): the cargo is
+ * not unloaded, not paid, and not loaded for this stop. A city tile that accepts it (lumber, steel) still does. */
+function refusedByFullProcessors(state: GameState, stationId: number, cargo: CargoType): boolean {
+  const station = state.stations.find((s) => s.id === stationId);
+  if (!station) return false;
+  const consumers = industriesConsuming(state, station, cargo);
+  if (consumers.length === 0) return false;
+  for (const id of consumers) {
+    const industry = state.industries[id];
+    if (industry && !inputFull(state, industry, cargo)) return false;
+  }
+  const radius = STATION_TYPE_DEFS[station.type].catchmentRadius;
+  const year = calendarFromTicks(state.startYear, state.ticks).year;
+  for (const tile of stationCatchmentTiles(state.map, station.tile, radius)) {
+    const cityId = state.map.cityId[tile] as number;
+    const city = cityId >= 0 ? state.cities[cityId] : undefined;
+    if (city && cityTileAcceptance(city.tier, year)[cargo] !== undefined) return false;
+  }
+  return true;
 }
 
 /** Whether `cargo` is accepted at some *other* stop in the train's order list — the "Auto"/"Wait
@@ -344,7 +367,9 @@ function settleUnload(state: GameState, train: Train, station: Station, car: Tra
 
   for (const industryId of industriesConsuming(state, station, cargo)) {
     const econ = getOrCreateIndustryEconomy(state, industryId);
-    econ.inputStock[cargo] = (econ.inputStock[cargo] ?? 0) + unitsDelivered;
+    const industry = state.industries[industryId];
+    const cap = industry ? inputStorageCap(INDUSTRIES[industry.type], cargo) : Infinity;
+    econ.inputStock[cargo] = Math.min(cap, (econ.inputStock[cargo] ?? 0) + unitsDelivered);
     const month = (econ.receivedMonth ??= {});
     month[cargo] = (month[cargo] ?? 0) + unitsDelivered;
   }

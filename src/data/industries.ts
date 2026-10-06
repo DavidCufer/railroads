@@ -45,11 +45,18 @@ export interface IndustryDef {
   recipeMode: "all" | "any";
 }
 
-/** Cap on a processor's undelivered input stockpile per cargo (SPEC §8.2 doesn't specify one —
- * without a cap a permanently-unserved processor's `consumes` inputs would never be picked up
- * anyway, but a served-then-abandoned one shouldn't stockpile forever; ~4 months at full capacity
- * is a reasonable buffer). */
-export const INDUSTRY_INPUT_STORAGE_CAP = 240;
+/** A processor's input stockpile holds this many months of its base consumption per cargo (grain 240 t at the Food
+ * Plant). A full stockpile stops accepting that cargo: trains keep it and are not paid for it (PLAYTEST-3 B2). */
+export const INDUSTRY_INPUT_STORAGE_MONTHS = 4;
+
+/** Phase 38: a processor turns what it receives into output up to this multiple of its base output (the same cap as
+ * a raw producer's growth), so a growing farm lifts the whole chain. */
+export const PROCESSOR_OUTPUT_MULT_MAX = 3;
+
+/** Input stockpile cap for `cargo` at an industry of this kind (0 when it does not consume it). */
+export function inputStorageCap(def: IndustryDef, cargo: CargoType): number {
+  return (def.consumes[cargo] ?? 0) * INDUSTRY_INPUT_STORAGE_MONTHS;
+}
 
 /** Phase 36: a raw producer's output follows the share of it that trains carried (units loaded at covering stations ÷
  * output, smoothed over about `INDUSTRY_CARRIED_SMOOTHING_MONTHS` months). The yearly change is piecewise linear in that

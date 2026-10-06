@@ -1,6 +1,7 @@
 /** Converts between `GameState` and the plain-JSON `SerializedGameStateV1` (SPEC §13). Pure,
  * DOM-free (only `btoa`/`atob`, available in Node/vitest and every browser) — testable without
  * IndexedDB or a browser, per CLAUDE.md's "simulation code must be testable without a DOM". */
+import { clampInputStocks } from "../sim/economy/processing";
 import { materializeAllJunctions } from "../sim/track/routes";
 import { emptyTrainProfit } from "../sim/trains/profit";
 import type { TrainProfit } from "../sim/trains/types";
@@ -189,6 +190,7 @@ export function deserializeGameState(data: SerializedGameStateV3): GameState {
     destinationSets(state.trains),
     links,
   );
+  clampInputStocks(state); // Phase 38: stockpiles are capped now
   rebucketPassengerPiles(state, links); // Phase 34 saves stored waiting passengers by destination
   return state;
 }

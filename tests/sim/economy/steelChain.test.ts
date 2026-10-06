@@ -7,7 +7,7 @@ import { advanceOneHour } from "../../../src/sim/tick";
 import type { Station } from "../../../src/sim/stations/types";
 import type { CargoType } from "../../../src/data/cargo";
 import { getOrCreateIndustryEconomy, processorStatus } from "../../../src/sim/economy/processing";
-import { INDUSTRIES } from "../../../src/data/industries";
+import { INDUSTRIES, inputStorageCap } from "../../../src/data/industries";
 import type { Industry, IndustryEconomyState } from "../../../src/sim/economy/types";
 import { cargoGaps } from "../../../src/sim/trains/cargoGaps";
 import type { Train } from "../../../src/sim/trains/types";
@@ -99,6 +99,35 @@ describe("Trieste steel chain, Central Europe 1840 (PLAN Phase 33)", () => {
     expect(delivered).toBeGreaterThan(0);
     const earned = (mine?.year.ironOre?.revenue ?? 0) + (mine?.lastYear.ironOre?.revenue ?? 0);
     expect(earned).toBeGreaterThan(0);
+  });
+
+  it("a full processor stockpile refuses the cargo: it stays on the train and is not paid (PLAYTEST-3 B2)", () => {
+    const { state, st } = chainGame(163);
+    const iron = st["iron"] as Station;
+    expect(buyTrain(state, iron.id, "norris-4-2-0", CARS).ok).toBe(true);
+    const orders = ORDER.map((k) => ({ stationId: (st[k] as Station).id, rule: "auto" as const }));
+    expect(setOrders(state, 0, orders).ok).toBe(true);
+    const mill = state.industries[MILL_ID] as Industry;
+    const econ = getOrCreateIndustryEconomy(state, MILL_ID);
+    const cap = inputStorageCap(INDUSTRIES.steelMill, "coal");
+    econ.inputStock = { coal: cap, ironOre: cap };
+    const revenueBefore = state.cash;
+    let maxStock = 0;
+    for (let h = 0; h < 24 * 28; h++) {
+      econ.inputStock = { coal: cap, ironOre: cap }; // the mill never gets a chance to use any
+      advanceOneHour(state);
+      maxStock = Math.max(maxStock, econ.inputStock.coal ?? 0, econ.inputStock.ironOre ?? 0);
+    }
+    expect(maxStock).toBeLessThanOrEqual(cap);
+    econ.inputStock = { coal: cap, ironOre: cap };
+    expect(processorStatus(state, mill)?.full).toBe(true);
+    expect(state.cargoDeliveredThisYear.coal ?? 0).toBe(0);
+    expect(state.cargoDeliveredThisYear.ironOre ?? 0).toBe(0);
+    expect(state.cash).toBeLessThanOrEqual(revenueBefore);
+    expect(state.trains[0]?.currentOrderIndex).toBeGreaterThanOrEqual(3); // it called at the mill
+    expect(state.trains[0]?.cars.some((c) => c.loadedUnits > 0 && c.cargoType === "coal")).toBe(
+      true,
+    );
   });
 
   it("a Trieste stop without the Port does not accept steel, so the steel car stays empty — and the planner says so", () => {

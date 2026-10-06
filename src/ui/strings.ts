@@ -231,7 +231,7 @@ export const strings = {
       last: (received: string, made: string, monthsAgo: number) =>
         `${monthsAgo === 0 ? "Last month" : `${monthsAgo + 1} months ago`}: ${received}${made ? ` → ${made}` : " → nothing made"}`,
       nothingYet: "Nothing delivered yet",
-      waiting: (list: string) => `Waiting: ${list}`,
+      stock: (list: string, full: boolean) => `Stock: ${list}${full ? " (full)" : ""}`,
       needsAny: (list: string) => `Needs ${list}`,
       missing: (list: string) => `Missing: ${list}`,
       onTheWay: (list: string) => `On the way: ${list}`,

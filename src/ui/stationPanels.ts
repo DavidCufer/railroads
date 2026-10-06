@@ -260,7 +260,7 @@ function cargoNames(cargos: readonly CargoType[], mode: "all" | "any"): string {
 
 /** One block per processor (Steel Mill, Factory …) in the station's catchment, kept to a heading and ~3 short
  * lines (PLAN Phase 34): "Food plant · makes food from grain or livestock", "Last month: 40 t grain → 40 t food",
- * "Waiting: 12 t grain". "Missing" only for an input no train brings; the explanation sits behind "details". */
+ * "Stock: 12 t grain". "Missing" only for an input no train brings; the explanation sits behind "details". */
 function processingSection(state: GameState, station: Station): Node[] {
   const t = strings.station.processing;
   const seen = new Set<number>();
@@ -291,7 +291,10 @@ function processingSection(state: GameState, station: Station): Node[] {
         received ? t.last(received, made, status.monthsAgo ?? 0) : t.nothingYet,
       ),
     ];
-    if (stock) lines.push(h("div", { className: "panel-row processing-stock" }, t.waiting(stock)));
+    if (stock)
+      lines.push(
+        h("div", { className: "panel-row processing-stock" }, t.stock(stock, status.full)),
+      );
     if (status.needsAny) {
       lines.push(
         h(

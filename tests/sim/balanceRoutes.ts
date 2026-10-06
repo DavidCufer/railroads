@@ -68,8 +68,22 @@ export function totalEdgeWear(state: GameState): number {
   return total;
 }
 
+/** Coal-only fixtures haul to a Steel Mill that never gets its ore. Since Phase 38 a processor's stockpile is capped and
+ * a full one refuses deliveries, so these fixtures stand in for the processor's own use of what arrives: a marked state
+ * has every processor's input stock emptied each hour (full chains are not marked). */
+const SINKS = new WeakSet<GameState>();
+export function markProcessorSink(state: GameState): void {
+  SINKS.add(state);
+}
+
+export function advanceHour(state: GameState): void {
+  advanceOneHour(state);
+  if (!SINKS.has(state)) return;
+  for (const econ of state.industryEconomy.values()) econ.inputStock = {};
+}
+
 export function tickDays(state: GameState, days: number): void {
-  for (let i = 0; i < days * 24; i++) advanceOneHour(state);
+  for (let i = 0; i < days * 24; i++) advanceHour(state);
 }
 
 export function buildRoute(spec: RouteSpec): { state: GameState; cars: number } {
@@ -124,6 +138,7 @@ export function buildRoute(spec: RouteSpec): { state: GameState; cars: number } 
     };
     add(0, spec.producer as IndustryType, ax);
     add(1, spec.acceptor as IndustryType, bx);
+    markProcessorSink(state);
   }
   const path = Array.from({ length: bx - ax + 1 }, (_, i) => tileAt(map, ax + i, trackY));
   if (!buildTrack(state, path).ok) throw new Error("track");

@@ -44,16 +44,19 @@ describe("monthlyIndustryStep", () => {
     expect(state.industryEconomy.get(0)?.inputStock.coal).toBe(40); // untouched
   });
 
-  it("steel mill output is capped at the monthly capacity even with abundant inputs", () => {
+  it("steel mill output scales with its inputs but is capped at 3x the base output (Phase 38)", () => {
     const state = stateWithIndustry({ id: 0, type: "steelMill", x: 0, y: 0 });
     const econ = getOrCreateIndustryEconomy(state, 0);
     econ.inputStock = { coal: 500, ironOre: 500 };
+    const base = INDUSTRIES.steelMill.produces.steel as number;
 
     monthlyIndustryStep(state);
 
-    expect(state.industryEconomy.get(0)?.monthlyOutput.steel).toBe(
-      INDUSTRIES.steelMill.produces.steel,
-    );
+    expect(state.industryEconomy.get(0)?.monthlyOutput.steel).toBe(base * 3);
+
+    econ.inputStock = { coal: 100, ironOre: 100 }; // 100 in, 100 out: more than the base
+    monthlyIndustryStep(state);
+    expect(state.industryEconomy.get(0)?.monthlyOutput.steel).toBe(100);
   });
 
   it("food plant (recipeMode 'any'): grain and livestock both count toward the same output cap, carload for carload", () => {

@@ -5,7 +5,12 @@
  * static `produces` table raw producers use directly).
  */
 import { CARGO, CARGO_TYPES, type CargoType } from "../../data/cargo";
-import { INDUSTRIES, type IndustryDef } from "../../data/industries";
+import {
+  INDUSTRIES,
+  inputStorageCap,
+  PROCESSOR_OUTPUT_MULT_MAX,
+  type IndustryDef,
+} from "../../data/industries";
 import type { GameState } from "../state";
 import { DAYS_PER_MONTH, HOURS_PER_DAY } from "../time";
 import type { Industry, IndustryEconomyState } from "./types";
@@ -50,7 +55,8 @@ export function processIndustryMonth(
   if (consumesEntries.length === 0 || producesEntries.length === 0)
     return { output: {}, consumed: {} };
 
-  const [outputCargo, capacity] = producesEntries[0] as [CargoType, number];
+  const [outputCargo, baseOutput] = producesEntries[0] as [CargoType, number];
+  const capacity = baseOutput * PROCESSOR_OUTPUT_MULT_MAX;
   const consumed: Partial<Record<CargoType, number>> = {};
 
   if (def.recipeMode === "all") {
@@ -121,6 +127,8 @@ export interface ProcessorStatus {
   onTheWay: CargoType[];
   /** True for an "any" recipe with nothing in stock and nothing on the way ("Needs grain or livestock"). */
   needsAny: boolean;
+  /** Some input's stockpile is at its cap: further deliveries of it are refused (Phase 38). */
+  full: boolean;
 }
 
 const STOCK_EPSILON = 0.05;
@@ -165,5 +173,26 @@ export function processorStatus(
     missing,
     onTheWay,
     needsAny,
+    full: inputs.some((c) => inputFull(state, industry, c)),
   };
+}
+
+/** Whether this processor's stockpile of `cargo` is full, so deliveries are refused (PLAYTEST-3 B2). */
+export function inputFull(state: GameState, industry: Industry, cargo: CargoType): boolean {
+  const def = INDUSTRIES[industry.type];
+  if (def.consumes[cargo] === undefined) return false;
+  const stock = state.industryEconomy.get(industry.id)?.inputStock[cargo] ?? 0;
+  return stock >= inputStorageCap(def, cargo);
+}
+
+/** Pulls any stockpile above its cap back to it (older saves piled up without limit). */
+export function clampInputStocks(state: GameState): void {
+  for (const industry of state.industries) {
+    const econ = state.industryEconomy.get(industry.id);
+    if (!econ) continue;
+    const def = INDUSTRIES[industry.type];
+    for (const cargo of Object.keys(econ.inputStock) as CargoType[]) {
+      econ.inputStock[cargo] = Math.min(econ.inputStock[cargo] ?? 0, inputStorageCap(def, cargo));
+    }
+  }
 }

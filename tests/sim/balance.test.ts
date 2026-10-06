@@ -21,7 +21,7 @@ import { WORLD_SCALE } from "../../src/data/scale";
 import { DIFFICULTY, ledgerNetProfit } from "../../src/data/finance";
 import { INDUSTRIES } from "../../src/data/industries";
 import { STATION_IMPROVEMENT_TYPES } from "../../src/data/stations";
-import { advanceOneHour } from "../../src/sim/tick";
+import { advanceHour, markProcessorSink } from "./balanceRoutes";
 import { makeTestMap, makeTestState, tileAt } from "./track/helpers";
 import type { City, Industry } from "../../src/sim/economy/types";
 import type { GameState } from "../../src/sim/state";
@@ -30,7 +30,7 @@ const TWO_YEARS_DAYS = 720;
 const LOCO = "american-4-4-0"; // 1848, $45k, 6 cars max, cheap and widely available
 
 function tickDays(state: GameState, days: number): void {
-  for (let i = 0; i < days * 24; i++) advanceOneHour(state);
+  for (let i = 0; i < days * 24; i++) advanceHour(state);
 }
 
 /** Ticks a full in-game year at a time and returns each year's *completed* ledger net profit
@@ -69,6 +69,7 @@ function buildCoalToSteelRoute(distanceTiles: number, cars: number, startYear = 
     monthlyOutput: { ...INDUSTRIES.coalMine.produces },
   });
   state.industryEconomy.set(1, { inputStock: {}, monthlyOutput: {} });
+  markProcessorSink(state);
 
   const path = Array.from({ length: width }, (_, x) => tileAt(map, x, 1));
   expect(buildTrack(state, path).ok).toBe(true);
@@ -290,6 +291,7 @@ function addNetworkCoalRoute(
     monthlyOutput: { ...INDUSTRIES.coalMine.produces },
   });
   state.industryEconomy.set(millId, { inputStock: {}, monthlyOutput: {} });
+  markProcessorSink(state);
 
   const path = Array.from({ length: width }, (_, x) => tileAt(map, x, yBase + 1));
   expect(buildTrack(state, path).ok).toBe(true);
