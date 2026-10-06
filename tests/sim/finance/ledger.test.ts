@@ -11,7 +11,12 @@ import {
   monthlyFinanceStep,
   netWorth,
 } from "../../../src/sim/finance/ledger";
-import { interestRate } from "../../../src/sim/finance/credit";
+import {
+  interestRate,
+  issueLoan,
+  principalDue,
+  repayPrincipal,
+} from "../../../src/sim/finance/credit";
 import { makeTestMap, makeTestState, tileAt } from "../track/helpers";
 
 describe("ledger revenue/expense buckets", () => {
@@ -67,7 +72,37 @@ describe("monthlyFinanceStep", () => {
 
     monthlyFinanceStep(state);
 
-    expect(cashBefore - state.cash).toBeCloseTo(1_200_000 * (rate / 12), 5);
+    // Phase 39: the bonds amortise, so the month also pays 1/120 of the principal
+    expect(cashBefore - state.cash).toBeCloseTo(1_200_000 * (rate / 12) + 10_000, 5);
+    expect(state.finance.loans).toBeCloseTo(1_190_000, 5);
+  });
+
+  it("repays a bond over ten years in equal monthly slices (Phase 39)", () => {
+    const state = makeTestState(makeTestMap(["p"]), { difficulty: "normal", cash: 5_000_000 });
+    issueLoan(state, 1_200_000);
+    state.cash += 1_200_000;
+    expect(principalDue(state)).toBeCloseTo(10_000, 5);
+    for (let i = 0; i < 12; i++) monthlyFinanceStep(state);
+    expect(state.finance.loans).toBeCloseTo(1_080_000, 3);
+    // early repayment shrinks the instalment in proportion
+    repayPrincipal(state, 540_000);
+    expect(principalDue(state)).toBeCloseTo(5_000, 3);
+  });
+
+  it("the $500k start-up credit floor ends after two years (Phase 39)", () => {
+    const state = makeTestState(makeTestMap(["p"]), { difficulty: "normal", cash: 0 });
+    expect(computeCreditLimit(state)).toBe(500_000);
+    state.ticks = 25 * 30 * 24;
+    expect(computeCreditLimit(state)).toBe(0);
+  });
+
+  it("an insolvent month posts a warning with the months left (Phase 39)", () => {
+    const state = makeTestState(makeTestMap(["p"]), { difficulty: "normal", cash: 0 });
+    state.ticks = 25 * 30 * 24; // no start-up credit any more
+    state.cash = -1000;
+    monthlyFinanceStep(state);
+    expect(state.finance.negativeCashMonths).toBe(1);
+    expect(state.news.some((n) => n.kind === "insolvent" && n.monthsLeft === 2)).toBe(true);
   });
 
   it("takes a forced loan up to the credit limit when cash goes negative (Normal)", () => {

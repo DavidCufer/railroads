@@ -86,6 +86,7 @@ export type SerializedTrainV3 = Omit<Train, "blockPenalties"> & {
 
 export interface SerializedFinanceStateV1 {
   loans: number;
+  amortMonthly?: number;
   capitalInvested: number;
   thisMonth: LedgerPeriod;
   thisYear: LedgerPeriod;

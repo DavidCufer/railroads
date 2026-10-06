@@ -10,6 +10,9 @@ export interface NetWorthSample {
 
 export interface FinanceState {
   loans: number;
+  /** Phase 39: monthly principal due on the bonds (each loan repays over `LOAN_TERM_MONTHS`). Absent in older saves
+   * and in states whose `loans` were set directly: then it is `loans ÷ LOAN_TERM_MONTHS`. */
+  amortMonthly?: number;
   /** Running total of currently-standing track/station/improvement build cost (SPEC §9.3's "50% of
    * (track + station + improvement build cost)") — added to on build/upgrade, subtracted from on
    * bulldoze, in src/sim/commands.ts. */

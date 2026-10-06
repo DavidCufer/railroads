@@ -35,7 +35,7 @@ import {
   wearCostPerUnit,
 } from "./costs";
 import { NET_WORTH_HISTORY_MAX_SAMPLES } from "./types";
-import { creditLimitFor, interestRate } from "./credit";
+import { amortise, creditLimitFor, interestRate, issueLoan } from "./credit";
 import {
   PROPERTY_TAX_RATE,
   WEAR_ROUTINE_SHARE,
@@ -139,6 +139,8 @@ export function monthlyFinanceStep(state: GameState): void {
     const interest = state.finance.loans * (interestRate(state, netWorth(state)) / 12);
     addExpense(state, "interest", interest);
     state.cash -= interest;
+    // Phase 39: the bonds amortise — the month's slice of principal is paid out of cash, whether or not there is any.
+    state.cash -= amortise(state);
   }
 
   accrueIncomeTax(state);
@@ -149,7 +151,7 @@ export function monthlyFinanceStep(state: GameState): void {
       const available = Math.max(0, limit - state.finance.loans);
       const forced = Math.min(available, -state.cash);
       if (forced > 0) {
-        state.finance.loans += forced;
+        issueLoan(state, forced);
         state.cash += forced;
         pushNews(state, { kind: "forcedLoan", amount: forced });
       }
@@ -157,6 +159,11 @@ export function monthlyFinanceStep(state: GameState): void {
         // Still negative even after borrowing every dollar of remaining credit.
         state.finance.negativeCashMonths++;
         if (state.finance.negativeCashMonths >= BANKRUPTCY_MONTHS) state.finance.bankrupt = true;
+        else
+          pushNews(state, {
+            kind: "insolvent",
+            monthsLeft: BANKRUPTCY_MONTHS - state.finance.negativeCashMonths,
+          });
       } else {
         state.finance.negativeCashMonths = 0;
       }

@@ -6,9 +6,12 @@ import {
   CREDIT_LIMIT_EARNINGS_MULT,
   CREDIT_LIMIT_FRACTION,
   CREDIT_LIMIT_MIN,
+  CREDIT_STARTUP_MONTHS,
   DIFFICULTY,
+  LOAN_TERM_MONTHS,
   ledgerOperatingProfit,
 } from "../../data/finance";
+import { DAYS_PER_MONTH, HOURS_PER_DAY } from "../time";
 import type { GameState } from "../state";
 
 /** Net worth as the ledger computes it — passed in to avoid a cycle with ledger.ts. */
@@ -44,7 +47,41 @@ export function earningsBeforeInterest(state: GameState): number {
 export function creditLimitFor(state: GameState, netWorth: number): number {
   const byAssets = netWorth * CREDIT_LIMIT_FRACTION;
   const byEarnings = earningsBeforeInterest(state) * CREDIT_LIMIT_EARNINGS_MULT;
-  return Math.max(CREDIT_LIMIT_MIN, Math.min(byAssets, byEarnings));
+  const startup = state.ticks < CREDIT_STARTUP_MONTHS * DAYS_PER_MONTH * HOURS_PER_DAY;
+  return Math.max(startup ? CREDIT_LIMIT_MIN : 0, Math.min(byAssets, byEarnings));
+}
+
+/** Principal due this month: the bonds' schedule, never more than is owed. */
+export function principalDue(state: GameState): number {
+  const loans = state.finance.loans;
+  if (loans <= 0) return 0;
+  return Math.min(loans, state.finance.amortMonthly ?? loans / LOAN_TERM_MONTHS);
+}
+
+/** Pays this month's scheduled principal out of the loan book (not cash) and returns it; the instalment stays level. */
+export function amortise(state: GameState): number {
+  const due = principalDue(state);
+  state.finance.amortMonthly = state.finance.amortMonthly ?? state.finance.loans / LOAN_TERM_MONTHS;
+  state.finance.loans -= due;
+  if (state.finance.loans <= 0.005) {
+    state.finance.loans = 0;
+    state.finance.amortMonthly = 0;
+  }
+  return due;
+}
+
+/** Books a new bond of `amount`: the loan book grows and the monthly schedule rises by `amount ÷ term`. */
+export function issueLoan(state: GameState, amount: number): void {
+  state.finance.amortMonthly = principalDue(state) + amount / LOAN_TERM_MONTHS;
+  state.finance.loans += amount;
+}
+
+/** Repays `amount` early; the schedule shrinks in proportion, so a half-repaid book owes half the instalment. */
+export function repayPrincipal(state: GameState, amount: number): void {
+  const before = state.finance.loans;
+  const due = principalDue(state);
+  state.finance.loans = Math.max(0, before - amount);
+  state.finance.amortMonthly = before > 0 ? (due * state.finance.loans) / before : 0;
 }
 
 export interface CreditTerms {

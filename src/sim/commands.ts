@@ -69,6 +69,7 @@ import {
 } from "../data/trains";
 import { eraInflation } from "../data/finance";
 import { addExpense, computeCreditLimit } from "./finance/ledger";
+import { issueLoan, repayPrincipal } from "./finance/credit";
 import { emptyTrainProfit, recordTrainRepair } from "./trains/profit";
 import { DAYS_PER_YEAR, HOURS_PER_DAY } from "./time";
 import { dropCarCargo } from "./trains/loading";
@@ -1492,7 +1493,7 @@ export function takeLoan(state: GameState, amount: number): CommandResult {
   if (state.finance.loans + amount > computeCreditLimit(state)) {
     return { ok: false, reason: "credit-limit-exceeded" };
   }
-  state.finance.loans += amount;
+  issueLoan(state, amount);
   state.cash += amount;
   return { ok: true, cost: -amount };
 }
@@ -1504,7 +1505,7 @@ export function repayLoan(state: GameState, amount: number): CommandResult {
   }
   const payment = Math.min(amount, state.finance.loans);
   if (payment > state.cash) return { ok: false, reason: "cant-afford" };
-  state.finance.loans -= payment;
+  repayPrincipal(state, payment);
   state.cash -= payment;
   return { ok: true, cost: payment };
 }

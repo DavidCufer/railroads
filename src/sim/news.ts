@@ -26,6 +26,7 @@ export type NewsPayload =
   | { kind: "stationDemolished"; name: string; trains: number }
   | { kind: "fewStops"; trainId: number }
   | { kind: "forcedLoan"; amount: number }
+  | { kind: "insolvent"; monthsLeft: number }
   | { kind: "cityGrowth"; cityId: number; tier: CityTier }
   | { kind: "civicInvestment"; cityId: number }
   | { kind: "cityFounded"; cityId: number }

@@ -70,6 +70,11 @@ export function eraInflation(year: number): number {
 export const LOAN_INCREMENT = 100_000;
 export const CREDIT_LIMIT_FRACTION = 0.5;
 export const CREDIT_LIMIT_MIN = 500_000;
+/** Phase 39: the `CREDIT_LIMIT_MIN` floor is start-up credit — it lasts this many months from the start of the game.
+ * After that a company with no earnings and no assets has no credit, and a lender will not roll its debt over. */
+export const CREDIT_STARTUP_MONTHS = 24;
+/** Phase 39: loans are bonds. Each $ borrowed is repaid in equal monthly principal over this many months. */
+export const LOAN_TERM_MONTHS = 120;
 /** Credit from earnings (Phase 30A): lenders lend against cash flow, not only against what the company owns. The
  * limit is the lower of `CREDIT_LIMIT_FRACTION` of net worth and `CREDIT_LIMIT_EARNINGS_MULT` × the last twelve
  * months' operating profit before interest (the interest cover a lender wants), but never below `CREDIT_LIMIT_MIN`. */
