@@ -1608,5 +1608,6 @@ route some trains should lose money. Real mechanisms only.
 4. **Re-check difficulty**: goodPlayer bench (1840/1900/1930/1950) within ±20 % of now; survival targets incl. the
    Hard misses (trainSpammer/leveraged 67 %) — report whether higher running costs close them. Never loosen bounds.
 5. Tests, SPEC/BALANCE, screenshots `phase-43-*.png` (look at them).
+6. **Suspected bug (orchestrator)**: owner's Lines view showed Venice–Milan "Rate +$539k/yr" while "This year: revenue $8k" after 9 days (≈$320k/yr revenue) and the owner bench gives line revenue $143k/yr, profit $52k/yr. A profit rate above revenue is impossible: check `ratePerYear` in `lineSummaries` (trains bought mid-window, owned-time scaling, accrued costs) and fix; test with trains bought at different times.
 
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
