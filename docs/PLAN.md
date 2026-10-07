@@ -1589,4 +1589,4 @@ Owner: 1930/1950 starts must punish bad choices like 1840/1900 (Phase 39 targets
    full table (1840/1900/1930/1950) before/after; 1840/1900 must not get easier or break.
 4. Tests for the new data (crisis years, fuel shock), SPEC/BALANCE updated; one-line UI only.
 
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+Status: [x] 1 [x] 2 [~] 3 (Normal met; Hard 67 % for trainSpammer/leveraged, see PROGRESS) [x] 4

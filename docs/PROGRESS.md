@@ -4998,3 +4998,31 @@ Bad bots at 1930/1950 (after): overbuilder 0/18 bankrupt, trainSpammer 3/18, lev
 ### Notes
 - Items 1-2 and 3-5 were committed together per group (shared files), not one commit per item. Full `npm run check` and `npm run e2e` passed before each push (786 tests, 221 e2e at the last full run; one e2e spec for the wizard default added afterwards and run alone).
 - The start-up warning shows only when a loan is outstanding. An over-limit warning can coincide with the call if the limit collapses at month end.
+
+## 2026-10-07 — Phase 42: late eras punish bad choices (crises, oil shocks, small-town road competition)
+### What changed
+1. **Later crises and oil shocks** (commit de9cd7a, see its message): `src/data/panics.ts` 1931-1981, fuel +25..60 % for steam and diesel.
+2. **Overbuilder bot checked and fixed** (measuring tool, not the game). At 1930/1950 it built one line, bought 2 trains and sat on about $300k cash with $500k credit, unable to afford a second line (each costs $1.5-2.2M). Now: no cash margin, one train per new line, spare cash into a second train per line (`tools/bench/badPlayers.ts`). This alone moved 1900 Normal to 2/3 but left 1930/1950 Normal at 0/3.
+3. **Small-town road competition** (extends the existing section 9.5b (6), which only bites trips under 150 km and so never touched the overbuilder's 300-550 km lines): `smallTownRoadLoss(population, year)` in `src/data/economy.ts`, applied to passenger and mail demand in `cityTravelDemand` / `cityTileSupply`. Anchors 0 (1920), 0.4 (1930), 0.6 (1950), 0.7 (1970+); full up to 15,000 people, fading to 0 at 40,000. Zero before 1920, so 1840/1900 are not changed by it. Station panel line "Road competition: −N % since 1920". Tests: `smallTownRoad.test.ts`, `economicModel.test.ts`. SPEC 9.5b (6) and BALANCE updated.
+4. `survival.ts ASSERT` now checks 1840-1900 and 1930-1950 separately.
+### Survival table, 1930/1950 (3 seeds, 16 years)
+Before (Phase 41, Normal only reported): overbuilder 0/18 bankrupt, trainSpammer 3/18, leveraged 3/18 (pooled over diffs; Hard survived with $1.8-3.3M NW).
+After (this phase):
+| bot | start | diff | bankrupt | min cash $M | final NW $M |
+|---|---|---|---|---|---|
+| good | 1930 | easy / normal / hard | 0/3 each | 0.14 / 0.03-0.07 / 0.17-0.2 | 12.8-27.8 / 5.8-6.5 / 3.7-5.6 |
+| good | 1950 | easy / normal / hard | 0/3 each | -0.13 (easy) / 0.01-0.15 / 0.15 | 8.6-17.9 / 5.3-5.5 / 3.0-3.3 |
+| overbuilder | 1930 | easy / normal / hard | 0 / 1 / 3 of 3 | | 1.1 / 1.0 / 0.26 |
+| overbuilder | 1950 | easy / normal / hard | 0 / 3 / 3 of 3 | | 1.1-1.3 / 1.3 / 0.47 |
+| trainSpammer | 1930 | easy / normal / hard | 0 / 2 / 2 of 3 | | |
+| trainSpammer | 1950 | easy / normal / hard | 0 / 3 / 2 of 3 | | |
+| leveraged | 1930 | easy / normal / hard | 0 / 2 / 2 of 3 | | |
+| leveraged | 1950 | easy / normal / hard | 0 / 3 / 2 of 3 | | |
+(trainSpammer and leveraged rows are identical on Normal/Hard for the reason in Phase 40 item 0.)
+1840/1900 (overbuilder with the new bot, small-town loss is 0 there): Normal 1840 3/3, 1900 2/3 (Phase 39: 3/3, 1/3); Hard 3/3 and 3/3. Other bots and goodPlayer 1840/1900 not re-run: no code on their path changed.
+### Against the targets (late eras, pooled 1930+1950)
+- goodPlayer survives all 18 runs on every difficulty (thinnest: 1930 Normal min cash $0.03M). Met.
+- Normal: overbuilder 4/6, trainSpammer 5/6, leveraged 5/6 (all >= 50 %). Met.
+- Hard: overbuilder 6/6; **trainSpammer 4/6 and leveraged 4/6 = 67 % (target ~80 % MISSED)**, the same miss as leveraged at 1840/1900 since Phase 39. Not loosened; `ASSERT=1` will fail on those rows. Further road competition would also squeeze the goodPlayer's thin late margins, so this needs an owner decision (e.g. a Hard-specific lever).
+- Easy: no bankruptcy.
+- Per-era: overbuilder Normal 1930 is only 1/3 (1950 3/3).
