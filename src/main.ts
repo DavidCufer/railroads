@@ -157,7 +157,9 @@ import { createGoalsButton, openGoalCelebration, openGoalsPanel } from "./ui/goa
 import { isPanelOpen } from "./ui/panel";
 import { formatMoney } from "./ui/format";
 import { openTitleScreen } from "./ui/titleScreen";
-import { autosave, exportSaveJson } from "./save";
+import { autosave, exportSaveJson, latestSaveSlot, loadSlot } from "./save";
+import { createStatusBanner } from "./ui/statusBanner";
+import { openGameOver } from "./ui/gameOver";
 import { setStaleReservationReporter } from "./sim/trains";
 import { App } from "@capacitor/app";
 import { loadSettings, type Settings } from "./ui/settings";
@@ -304,6 +306,30 @@ function main(): void {
   /** Common wiring for "the live GameState object changed out from under every renderer/input
    * handler" — a brand-new random/region map (`regenerate`) and a loaded save (`loadGame`) both
    * need every one of these resets, so a save/load bug can't silently diverge from a New Game one. */
+  let gameOverEl: HTMLElement | null = null;
+
+  /** Bankruptcy (Phase 39): stop the clock and show the game-over card once per game. */
+  function showGameOverOnce(): void {
+    if (gameOverEl || !state.finance.bankrupt) return;
+    loop.setSpeed(0);
+    gameOverEl = openGameOver(ui, state, {
+      onLoadLast: () => {
+        void latestSaveSlot().then(async (slot) => {
+          const loaded = slot ? await loadSlot(slot.slotId) : null;
+          if (loaded && !loaded.finance.bankrupt) loadGame(loaded);
+          else window.alert(strings.gameOver.noSave);
+        });
+      },
+      onNewGame: () => {
+        gameOverEl?.remove();
+        openTitleScreen(ui, {
+          onStart: (options) => regenerate(options),
+          onLoad: (loaded) => loadGame(loaded),
+        });
+      },
+    });
+  }
+
   function applyState(newState: GameState): void {
     state = newState;
     camera.setMapSize(state.map.width, state.map.height);
@@ -323,6 +349,8 @@ function main(): void {
     closeSheet();
     dismissNewEngineCard();
     clearYearReportBadge();
+    gameOverEl?.remove();
+    gameOverEl = null;
     lastStuckTrainId = null;
     newsButton.refreshBadge(state);
     setTool("info");
@@ -1011,7 +1039,7 @@ function main(): void {
 
     // SPEC §13: autosave monthly (rotating 3 slots). Fire-and-forget — a failed autosave (e.g.
     // IndexedDB unavailable in a private-browsing context) shouldn't interrupt play.
-    if (isMonthBoundary(state.ticks)) {
+    if (isMonthBoundary(state.ticks) && !state.finance.bankrupt) {
       void autosave(state).catch(() => {});
     }
 
@@ -1198,6 +1226,8 @@ function main(): void {
       const calendar = calendarFromTicks(state.startYear, state.ticks);
       topBar.update(calendar, state.cash);
       topBar.setStuckCount(stuckTrains(state).length);
+      statusBanner.update(state);
+      showGameOverOnce();
 
       if (DEBUG && debugOverlay) {
         debugOverlay.textContent =
@@ -1212,6 +1242,7 @@ function main(): void {
     camera.x = (at.x + 0.5) * TILE_SIZE;
     camera.y = (at.y + 0.5) * TILE_SIZE;
   }
+  const statusBanner = createStatusBanner(ui, () => openFinancePanel(ui, state));
   const topBar = createTopBar(ui, {
     onSetSpeed: (speed: GameSpeed) => loop.setSpeed(speed),
     getSpeed: () => loop.getSpeed(),

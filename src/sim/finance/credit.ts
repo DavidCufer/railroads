@@ -31,6 +31,15 @@ export function leverage(state: GameState, netWorth: number): number {
   return Math.min(1, loans / assets);
 }
 
+/** Days until the bankruptcy check that ends the grace, or undefined when the company is not insolvent. */
+export function insolvencyDaysLeft(state: GameState): number | undefined {
+  const months = state.finance.negativeCashMonths;
+  if (!DIFFICULTY[state.difficulty].bankruptcy || months <= 0) return undefined;
+  const monthsLeft = DIFFICULTY[state.difficulty].graceMonths - months;
+  const toMonthEnd = DAYS_PER_MONTH - (Math.floor(state.ticks / HOURS_PER_DAY) % DAYS_PER_MONTH);
+  return Math.max(0, (monthsLeft - 1) * DAYS_PER_MONTH + toMonthEnd);
+}
+
 /** Premium for earnings that do not cover the interest (0 during the start-up credit and with no loans). */
 export function coverPremium(state: GameState): number {
   const loans = state.finance.loans;

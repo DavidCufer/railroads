@@ -4862,3 +4862,82 @@ Restoring the pre-35D bounds against the new table, measured: `balancePassengers
 - Identical: the bench policy is passenger-only, so none of the freight changes reach it (the chain bench above is where they show). 1900 N 1916 differs from the $30.5M of Phase 36 only because the bench is one chaotic trajectory per code state; before/after here are the same code but for this phase.
 ### Notes
 - Not done: whether the 3x processor cap should also scale the stock cap (it is 4 months of *base* consumption; a plant at 3x throughput holds about 1.3 months).
+
+## 2026-10-07 — Phase 39: difficulty that bites (bad choices bleed, bonds, bankruptcy, panics)
+### What changed
+1. **Bad-player bots** (`tools/bench/badPlayers.ts`: overbuilder, trainSpammer, leveraged) and `tools/bench/survival.ts` (runs every bot over seeds, start years and difficulties in child processes; `BOTS=`, `STARTS=`, `DIFFS=` filters; `ASSERT=1` checks the Phase 39 targets). `goodPlayer.ts` now prints the lowest cash (`MINCASH`). central-eu has no town under 9,000, so "small towns" for the overbuilder are those under 30,000.
+2. **Fuel per tile**: 60 % of a locomotive's running cost (`FUEL_SHARE_OF_RUNNING`) is fuel burnt per tile run, scaled by the train's weight (`fuelUnitsPerTile`, `Train.fuelUnits`, booked monthly at the year's prices); the rest is paid by the year. Calibrated at 2,000 tiles a year per full-weight train (`FUEL_REF_TILES_PER_YEAR`) so the competent bench stays on its curve. Per-km track upkeep, wear and property tax were already there; not changed.
+3. **Bonds and bankruptcy**: loans repay in equal monthly principal over 10 years (`amortMonthly`, `issueLoan` / `repayPrincipal` / `amortise` in `credit.ts`); the $500k credit floor is start-up credit for 24 months only; interest adds a cover premium (up to +8 points when earnings before interest are under 3x the base interest); lenders call 25 % of the excess each month when the limit falls below the debt (`loansCalled` news). Forced loans post news (existed); an insolvent month posts "Insolvent: N months to recover".
+4. **Panics** (`src/data/panics.ts`, `src/sim/finance/panics.ts`, pure function of seed / start year / region / difficulty, nothing saved): 1837-1937, 12-24 months, demand -20..-40 % on every cargo (easing over the last 6 months), credit limit x the difficulty's panic credit factor, news at the start.
+5. **Difficulty table**: credit x1.5 / 1 / 0.6 (the earnings-based limit; the start-up floor is the same for all), insolvency grace 4 / 3 / 2 months, panic chance 0.5 / 0.8 / 1, depth x0.6 / 1 / 1.3, length x0.7 / 1 / 1.25, panic credit x0.8 / 0.6 / 0.3 (Hard base rate 8 % and land x1.5 existed). SPEC §9.1, §9.4, §9.6 updated.
+6. **Targets**: `ASSERT=1 npx tsx tools/bench/survival.ts 3` (about 25 minutes; too slow for vitest). Mechanisms are unit tested (`ledger.test.ts`, `panics.test.ts`).
+7. **UI**: one-line status banner under the top bar (insolvency with the days left, else the panic in force; tap opens Finance), game-over card (summary, "Load last autosave", "New game"), no autosave once bankrupt so the last autosave is loadable. e2e `phase39.spec.ts`; screenshots `phase-39-insolvent.png`, `phase-39-game-over.png` (looked at).
+
+### Survival table BEFORE (Phase 38 code, 3 seeds, 16 years)
+| bot | start | difficulty | bankrupt | min cash $M (per seed) | final NW $M (per seed) |
+|---|---|---|---|---|---|
+| good | 1840 | easy | 0/3 | 0.16 / 0.16 / 0.15 | 13.34 / 12.4 / 12.31 |
+| good | 1840 | normal | 0/3 | 0.14 / 0.11 / 0.14 | 3.88 / 2.85 / 3.94 |
+| good | 1840 | hard | 0/3 | 0.12 / 0.12 / 0.12 | 1.43 / 1.54 / 1.44 |
+| good | 1900 | easy | 0/3 | 0.18 / 0.18 / 0.18 | 56.24 / 60.19 / 56.31 |
+| good | 1900 | normal | 0/3 | 0.15 / 0.15 / 0.15 | 18.3 / 25.64 / 15.83 |
+| good | 1900 | hard | 0/3 | 0.17 / 0.17 / 0.17 | 7.08 / 13.94 / 14.31 |
+| overbuilder | 1840 | easy | 0/3 | -0.96 / -0.89 / -0.95 | -0.7 / -0.64 / -0.69 |
+| overbuilder | 1840 | normal | 3/3 | -0.02 / -0.02 / -0.02 | 0.04 / 0.05 / 0.04 |
+| overbuilder | 1840 | hard | 3/3 | -0.02 / -0.02 / -0.02 | -0.14 / -0.13 / -0.14 |
+| overbuilder | 1900 | easy | 0/3 | 0.03 / 0.1 / 0.23 | 0.5 / 0.91 / 1.19 |
+| overbuilder | 1900 | normal | 0/3 | 0.3 / 0.3 / 0.3 | 0.77 / 0.8 / 0.82 |
+| overbuilder | 1900 | hard | 0/3 | 0.13 / 0.13 / 0.13 | 0.91 / 0.84 / 0.97 |
+| trainSpammer | 1840 | easy | 0/3 | -1.28 / -1.15 / -1.19 | -1.35 / -1.22 / -1.27 |
+| trainSpammer | 1840 | normal | 3/3 | -0.02 / -0.01 / 0 | 0.26 / 0.22 / 0.31 |
+| trainSpammer | 1840 | hard | 3/3 | -0.01 / -0.01 / -0.02 | 0.06 / 0.04 / 0 |
+| trainSpammer | 1900 | easy | 0/3 | -0.24 / -0.24 / -0.03 | -0.25 / -0.25 / -0.04 |
+| trainSpammer | 1900 | normal | 0/3 | -0.01 / 0.11 / 0.09 | 0.16 / 0.36 / 0.34 |
+| trainSpammer | 1900 | hard | 0/3 | 0.09 / 0.1 / 0.02 | 0.63 / 0.6 / 0.67 |
+| leveraged | 1840 | easy | 0/3 | 0.12 / 0.12 / 0.12 | 9.18 / 9.83 / 9.82 |
+| leveraged | 1840 | normal | 0/3 | 0.11 / 0.11 / 0.1 | 1.83 / 1.81 / 1.68 |
+| leveraged | 1840 | hard | 0/3 | 0.11 / 0.1 / 0.11 | 1.51 / 1.5 / 1.46 |
+| leveraged | 1900 | easy | 0/3 | 0.13 / 0.15 / 0.14 | 5.04 / 17.88 / 4.99 |
+| leveraged | 1900 | normal | 0/3 | 0.13 / 0.15 / 0.15 | 3.58 / 4.06 / 3.73 |
+| leveraged | 1900 | hard | 0/3 | 0.11 / 0.11 / 0.11 | 0.87 / 0.92 / 0.83 |
+
+### Survival table AFTER
+| good | 1840 | easy | 0/3 | 0.15 / 0.15 / 0.15 | 14.36 / 14.93 / 13.08 |
+| good | 1840 | normal | 0/3 | 0.1 / 0.11 / 0.11 | 5.15 / 4.62 / 4.7 |
+| good | 1840 | hard | 0/3 | 0.11 / 0.11 / 0.11 | 1.75 / 1.71 / 2.01 |
+| good | 1900 | easy | 0/3 | 0.18 / 0.18 / 0.18 | 66 / 64.5 / 65.2 |
+| good | 1900 | normal | 0/3 | 0.15 / 0 / 0.15 | 30.31 / 11.44 / 28.56 |
+| good | 1900 | hard | 0/3 | 0 / 0.17 / 0.15 | 11.17 / 9.1 / 9.01 |
+| overbuilder | 1840 | easy | 0/3 | -0.73 / -0.69 / -0.71 | 0.03 / 0.07 / 0.04 |
+| overbuilder | 1840 | normal | 3/3 | -0.1 / -0.1 / -0.1 | 0.47 / 0.47 / 0.47 |
+| overbuilder | 1840 | hard | 3/3 | -0.06 / -0.09 / -0.09 | 0.18 / 0.18 / 0.18 |
+| overbuilder | 1900 | easy | 0/3 | -0.08 / -0.02 / -0.04 | 0.94 / 0.98 / 0.96 |
+| overbuilder | 1900 | normal | 1/3 | -0.06 / 0.07 / 0.02 | 0.94 / 0.85 / 0.89 |
+| overbuilder | 1900 | hard | 3/3 | -0.05 / -0.05 / -0.05 | 0.34 / 0.34 / 0.34 |
+| trainSpammer | 1840 | easy | 0/3 | -0.71 / -0.66 / -0.68 | -0.28 / -0.23 / -0.26 |
+| trainSpammer | 1840 | normal | 3/3 | -0.04 / -0.04 / -0.08 | 0.79 / 0.79 / 0.78 |
+| trainSpammer | 1840 | hard | 3/3 | -0.05 / -0.05 / -0.05 | 0.47 / 0.47 / 0.46 |
+| trainSpammer | 1900 | easy | 0/3 | -0.09 / -0.16 / -0.36 | 0.44 / 0.45 / 0.28 |
+| trainSpammer | 1900 | normal | 3/3 | -0.04 / -0.01 / -0.02 | 1.03 / 1.03 / 1.03 |
+| trainSpammer | 1900 | hard | 2/3 | 0.02 / -0.03 / -0.02 | 1.02 / 1.37 / 1.38 |
+| leveraged | 1840 | easy | 0/3 | 0.01 / 0 / -0.1 | 1.23 / 1.16 / 1.19 |
+| leveraged | 1840 | normal | 3/3 | -0.05 / -0.02 / -0.02 | 1.34 / 1.18 / 1.3 |
+| leveraged | 1840 | hard | 2/3 | -0.01 / 0.01 / -0.01 | 0.53 / 1.17 / 0.97 |
+| leveraged | 1900 | easy | 0/3 | -0.02 / 0.03 / 0.04 | 1.02 / 1 / 1.08 |
+| leveraged | 1900 | normal | 3/3 | -0.04 / -0.01 / -0.02 | 1.03 / 1.03 / 1.03 |
+| leveraged | 1900 | hard | 2/3 | 0.02 / -0.03 / -0.02 | 1.02 / 1.37 / 1.38 |
+
+### Against the targets
+- Normal: good bot survives all 18 runs; bad bots bankrupt overbuilder 4/6, trainSpammer 6/6, leveraged 6/6 (all >= 50 %).
+- Hard: good bot survives all 18 runs, lowest cash $0.00M (1900 seed 1, a thin margin) to $0.17M; overbuilder 6/6, trainSpammer 5/6, **leveraged 4/6 = 67 % (target 80 % MISSED)**. Tried to close it: call fraction 0.35 and 0.5 take leveraged to 6/6 on Hard but also bankrupt the good bot on a 1900 seed (Normal and Hard), so they were rejected and 0.25 kept. The leveraged bot that kept a cash buffer never went bankrupt at all (0/12 on Normal); it was changed to spend down to ~zero cash, which is what a leveraged player does.
+- Easy: bankruptcy off; bad bots are never bankrupt (they run negative cash, trainSpammer 1840 ends below zero net worth).
+- Overbuilder 1900 Normal is 1/3 (the other two stall on a small line near break-even), pooled over both start years 4/6.
+- `ASSERT=1` fails on `leveraged hard` until that is tuned.
+
+### goodPlayer bench (central-eu, net worth at the end of 16 years, $M, seeds 1/2/3: Phase 38 -> Phase 39)
+- 1840 Normal 3.88 / 2.85 / 3.94 -> 5.15 / 4.62 / 4.70; 1840 Hard 1.43 / 1.54 / 1.44 -> 1.75 / 1.71 / 2.01; 1840 Easy 13.3 / 12.4 / 12.3 -> 14.4 / 14.9 / 13.1.
+- 1900 Normal 18.3 / 25.6 / 15.8 -> 30.3 / 11.4 / 28.6; 1900 Hard 7.08 / 13.9 / 14.3 -> 11.2 / 9.1 / 9.0; 1900 Easy 56.2 / 60.2 / 56.3 -> 66.0 / 64.5 / 65.2.
+- January checkpoints, seed 1 Normal: 1856 $4.67M (target $3.9M +-20 %: inside), 1916 $19.95M with the final fuel calibration (1900 target $20-34M: at the edge). The bench is one chaotic trajectory per code state (+-2x between neighbouring settings), so single seeds move more than the means.
+### Notes
+- 1900 Hard: the first line of a 1900 game needs about $1.0M, so the start-up floor stays $500k on every difficulty (Hard credit x0.6 applied to the floor made the good bot unable to build at all).
+- The year-1 / year-5 balance bounds in `balance.test.ts` were not touched and pass.

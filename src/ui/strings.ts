@@ -661,6 +661,9 @@ export const strings = {
     chartCash: "Cash",
     chartNetWorth: "Net worth",
     yearlyReport: "Yearly Report",
+    insolvent: (days: number) => `Insolvent: ${days} days to recover`,
+    panic: (name: string, fall: number, months: number) =>
+      `${name}: demand −${fall} %, credit tight, ${months} mo left`,
     bankruptWarning: "Cash has been negative for months — borrow, sell trains, or cut costs.",
   },
   yearlyReport: {
@@ -885,6 +888,17 @@ export const strings = {
   celebration: {
     title: "Goal reached!",
     close: "Continue",
+  },
+  gameOver: {
+    title: "Bankrupt",
+    line: (date: string) => `The lenders closed in. Final date: ${date}.`,
+    years: (n: number) => `${n} years of railroading`,
+    bestWorth: (amount: string) => `Best net worth ${amount}`,
+    owed: (amount: string) => `Owed ${amount}`,
+    network: (trains: number, stations: number) => `${trains} trains, ${stations} stations`,
+    loadLast: "Load last autosave",
+    noSave: "No earlier autosave to load.",
+    newGame: "New game",
   },
   titleScreen: {
     gameTitle: "Railroads",

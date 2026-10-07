@@ -14,6 +14,7 @@ import {
 import {
   coverPremium,
   creditCall,
+  insolvencyDaysLeft,
   interestRate,
   issueLoan,
   principalDue,
@@ -260,5 +261,19 @@ describe("wages outrun prices (Economic model v2)", () => {
     monthlyFinanceStep(state);
     expect(state.finance.loans).toBeLessThan(before - 10_000); // the instalment plus the call
     expect(state.news.some((n) => n.kind === "loansCalled")).toBe(true);
+  });
+
+  it("counts the days left of the insolvency grace (Phase 39)", () => {
+    const state = makeTestState(makeTestMap(["p"]), { difficulty: "normal", cash: 0 });
+    expect(insolvencyDaysLeft(state)).toBeUndefined();
+    state.ticks = 25 * 30 * 24;
+    state.cash = -1000;
+    monthlyFinanceStep(state); // first insolvent month end: 2 more checks, the next one 30 days away
+    expect(insolvencyDaysLeft(state)).toBe(60);
+    state.ticks += 10 * 24; // ten days on
+    expect(insolvencyDaysLeft(state)).toBe(50);
+    const easy = makeTestState(makeTestMap(["p"]), { difficulty: "easy" });
+    easy.finance.negativeCashMonths = 1;
+    expect(insolvencyDaysLeft(easy)).toBeUndefined(); // no bankruptcy on Easy
   });
 });

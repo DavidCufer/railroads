@@ -4705,3 +4705,72 @@ select {
   color: var(--muted);
   font-size: 12px;
 }
+
+/* Phase 39: status banner under the top bar, game-over screen */
+.status-banner {
+  position: absolute;
+  top: calc(48px + var(--safe-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink-800);
+  color: var(--brass);
+  font: 700 var(--fs-xs) var(--font-ui);
+}
+.status-banner.insolvent {
+  background: var(--signal);
+  color: var(--text);
+}
+.status-banner[hidden] {
+  display: none;
+}
+.game-over {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 13, 18, 0.82);
+  color: var(--text);
+  font: var(--fs-s) var(--font-ui);
+}
+.game-over-card {
+  min-width: 300px;
+  padding: 14px 22px;
+  border-radius: var(--radius-l);
+  background: var(--ink-800);
+  border: 1px solid var(--ink-600);
+  text-align: center;
+}
+.game-over-card h2 {
+  margin: 0 0 4px;
+  color: var(--signal);
+  font-family: var(--font-display);
+}
+.game-over-card p {
+  margin: 0;
+  color: var(--muted);
+}
+.game-over-card ul {
+  margin: 8px 0 12px;
+  padding: 0;
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+}
+.game-over-buttons {
+  display: flex;
+  gap: var(--gap-2);
+  justify-content: center;
+}
+.game-over-buttons .title-btn {
+  white-space: nowrap;
+  padding-inline: 14px;
+}

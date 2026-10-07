@@ -1529,7 +1529,7 @@ play is very good. Real mechanisms only; clear warnings; short UI. Do this AFTER
    mostly survive. Report the table after; SPEC/BALANCE updated.
 7. UI: insolvency banner (one line + days left), game-over screen; e2e screenshot `phase-39-*.png`.
 
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6 (leveraged on Hard 4/6 = 67 %, target 80 %: see PROGRESS) [x] 7
 
 ## Phase 40 — A valuable long-haul chain (silver before ~1940, uranium after)
 Owner idea: present from the start, far apart, not worth it early (long track, slow trains, costly cars), the big
