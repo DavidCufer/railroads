@@ -1534,6 +1534,9 @@ Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6 (leveraged on Hard 4/6 = 67 %, targe
 ## Phase 40 — A valuable long-haul chain (silver before ~1940, uranium after)
 Owner idea: present from the start, far apart, not worth it early (long track, slow trains, costly cars), the big
 late-game prize. Do this AFTER Phase 39.
+0. First, a quick check left from Phase 39: in the survival-after table the rows "trainSpammer 1900 hard" and
+   "leveraged 1900 hard" are identical to the cent (1.02 / 1.37 / 1.38) — verify the two bots really differ
+   (copy/paste or bot-selection bug in `survival.ts`?) and fix/re-run those rows if so.
 1. Chain by era: **silver ore → smelter → mint** (start year < 1940); **uranium ore → enrichment plant → nuclear
    power plant** (≥ 1940; if the game runs past 1940 with silver already placed, keep silver). One chain per map,
    sites placed far apart (each leg ≥ ~1/3 of the map), deterministic per seed.
