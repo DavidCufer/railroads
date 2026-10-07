@@ -1590,3 +1590,23 @@ Owner: 1930/1950 starts must punish bad choices like 1840/1900 (Phase 39 targets
 4. Tests for the new data (crisis years, fuel shock), SPEC/BALANCE updated; one-line UI only.
 
 Status: [x] 1 [x] 2 [~] 3 (Normal met; Hard 67 % for trainSpammer/leveraged, see PROGRESS) [x] 4
+
+## Phase 43 — Realistic break-even: crowded lines have losing trains; transparency
+Owner report (1845–46, Venice–Milan, 18 Norris trains × 5 cars + 1 Venice–Trieste train): every train earns
+($4k–$20k/yr even when nearly empty); Venice shows 907 waiting (mostly Trieste-bound, invisible). Owner: on a crowded
+route some trains should lose money. Real mechanisms only.
+1. **Break-even load factor ~40–50 %**: raise per-train running costs to realistic levels — crew paid per hour of
+   service (including waiting at stations/signals), fuel/water and wear per km run regardless of load — so a train
+   ~45 % full breaks even and a ~20 % full train loses money. Then retune ONLY `TRIPS_PER_HEAD_ANCHORS` so a
+   well-loaded train earns about what it does now. Data tables with a one-line historical basis.
+2. **Owner's scenario as a fixed test/bench** (`tools/bench/` + vitest where fast enough): central-eu, 1842 start,
+   Venice–Milan 18 Norris × 5 pax cars + Venice–Trieste 1 train; after 2 years: the first ~5–6 trains profitable,
+   the marginal trains ≤ 0, line total profit below the 6-train optimum. Also the pairScaling table before/after.
+3. **Transparency (short UI)**: train list shows load % per train ("load 23 %"); station waiting shows the split
+   by destination (one short line: "Milan 40 · Trieste 540"); destinations sheet rows show "N/mo · M waiting";
+   Lines view one hint per line when over-served: "~6 trains would carry this demand".
+4. **Re-check difficulty**: goodPlayer bench (1840/1900/1930/1950) within ±20 % of now; survival targets incl. the
+   Hard misses (trainSpammer/leveraged 67 %) — report whether higher running costs close them. Never loosen bounds.
+5. Tests, SPEC/BALANCE, screenshots `phase-43-*.png` (look at them).
+
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
