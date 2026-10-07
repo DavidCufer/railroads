@@ -3,6 +3,9 @@
  * Pure functions of the state, used by the monthly ledger, the loan commands and the Finance panel.
  */
 import {
+  COVER_PREMIUM_MAX,
+  CREDIT_CALL_FRACTION,
+  INTEREST_COVER_FULL,
   CREDIT_LIMIT_EARNINGS_MULT,
   CREDIT_LIMIT_FRACTION,
   CREDIT_LIMIT_MIN,
@@ -28,11 +31,31 @@ export function leverage(state: GameState, netWorth: number): number {
   return Math.min(1, loans / assets);
 }
 
-/** Yearly interest rate on the whole loan book right now: the difficulty's base rate plus the leverage premium. */
+/** Premium for earnings that do not cover the interest (0 during the start-up credit and with no loans). */
+export function coverPremium(state: GameState): number {
+  const loans = state.finance.loans;
+  if (loans <= 0 || state.ticks < CREDIT_STARTUP_MONTHS * DAYS_PER_MONTH * HOURS_PER_DAY) return 0;
+  const baseInterest = loans * DIFFICULTY[state.difficulty].interestRate;
+  const cover = earningsBeforeInterest(state) / baseInterest;
+  return (
+    COVER_PREMIUM_MAX *
+    Math.min(1, Math.max(0, (INTEREST_COVER_FULL - cover) / INTEREST_COVER_FULL))
+  );
+}
+
+/** Yearly interest rate on the whole loan book right now: the difficulty's base rate plus the leverage premium and the
+ * premium for thin interest cover. */
 export function interestRate(state: GameState, netWorth: number): number {
   const diff = DIFFICULTY[state.difficulty];
   const l = leverage(state, netWorth);
-  return diff.interestRate + diff.leveragePremium * l * l;
+  return diff.interestRate + diff.leveragePremium * l * l + coverPremium(state);
+}
+
+/** Loans the lenders call this month: a share of what is owed above the credit limit (never in the start-up period). */
+export function creditCall(state: GameState, netWorth: number): number {
+  if (state.ticks < CREDIT_STARTUP_MONTHS * DAYS_PER_MONTH * HOURS_PER_DAY) return 0;
+  const excess = state.finance.loans - creditLimitFor(state, netWorth);
+  return excess > 0 ? Math.min(state.finance.loans, excess * CREDIT_CALL_FRACTION) : 0;
 }
 
 /** Operating profit before interest over the last twelve completed months (plus the month so far). */
@@ -49,8 +72,8 @@ export function creditLimitFor(state: GameState, netWorth: number): number {
   const byAssets = netWorth * CREDIT_LIMIT_FRACTION;
   const byEarnings = earningsBeforeInterest(state) * CREDIT_LIMIT_EARNINGS_MULT;
   const startup = state.ticks < CREDIT_STARTUP_MONTHS * DAYS_PER_MONTH * HOURS_PER_DAY;
-  const limit = Math.max(startup ? CREDIT_LIMIT_MIN : 0, Math.min(byAssets, byEarnings));
-  return limit * DIFFICULTY[state.difficulty].creditMult * panicCreditMult(state);
+  const earned = Math.min(byAssets, byEarnings) * DIFFICULTY[state.difficulty].creditMult;
+  return Math.max(startup ? CREDIT_LIMIT_MIN : 0, earned) * panicCreditMult(state);
 }
 
 /** Principal due this month: the bonds' schedule, never more than is owed. */
@@ -101,7 +124,7 @@ export interface CreditTerms {
 export function creditTerms(state: GameState, netWorth: number): CreditTerms {
   const diff = DIFFICULTY[state.difficulty];
   const l = leverage(state, netWorth);
-  const premium = diff.leveragePremium * l * l;
+  const premium = diff.leveragePremium * l * l + coverPremium(state);
   const limit = creditLimitFor(state, netWorth);
   return {
     rate: diff.interestRate + premium,

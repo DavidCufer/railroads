@@ -330,10 +330,26 @@ for (let y = 1; startYear + y <= endYear && bankruptYear === null; y++) {
     }
     if (bot === "leveraged") {
       takeAllCredit();
-      for (const pair of pairs) while (pair.trains.length < 4 && addTrain(pair));
+      // no cash buffer: every spare dollar goes into more trains (up to 10 a pair), and borrowing tops it up
+      for (const pair of pairs) while (pair.trains.length < 10 && addTrain(pair));
     }
     day(30);
     minCash = Math.min(minCash, state.cash);
+    if (process.env["TRACE"] && m % 3 === 2)
+      console.log(
+        year(),
+        "m" + m,
+        "cash",
+        Math.round(state.cash / 1e3),
+        "loans",
+        Math.round(state.finance.loans / 1e3),
+        "limit",
+        Math.round(commands.creditLimit(state) / 1e3),
+        "trains",
+        state.trains.length,
+        "negMonths",
+        state.finance.negativeCashMonths,
+      );
     if (state.finance.bankrupt) {
       bankruptYear = year();
       break;

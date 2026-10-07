@@ -82,7 +82,7 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     panicChance: 1,
     panicDepthMult: 1.3,
     panicDurationMult: 1.25,
-    panicCreditMult: 0.4,
+    panicCreditMult: 0.3,
   },
 };
 
@@ -101,6 +101,13 @@ export const CREDIT_LIMIT_MIN = 500_000;
 /** Phase 39: the `CREDIT_LIMIT_MIN` floor is start-up credit — it lasts this many months from the start of the game.
  * After that a company with no earnings and no assets has no credit, and a lender will not roll its debt over. */
 export const CREDIT_STARTUP_MONTHS = 24;
+/** Phase 39: lenders price weak earnings. Once the start-up credit is over, interest cover (earnings before interest ÷
+ * interest at the base rate) below `INTEREST_COVER_FULL` adds up to `COVER_PREMIUM_MAX` to the rate, rising as cover falls. */
+export const INTEREST_COVER_FULL = 3;
+export const COVER_PREMIUM_MAX = 0.08;
+/** Phase 39: when the limit falls below the loans (earnings fell, a panic) lenders call this share of the excess each
+ * month, out of cash. */
+export const CREDIT_CALL_FRACTION = 0.25;
 /** Phase 39: loans are bonds. Each $ borrowed is repaid in equal monthly principal over this many months. */
 export const LOAN_TERM_MONTHS = 120;
 /** Credit from earnings (Phase 30A): lenders lend against cash flow, not only against what the company owns. The

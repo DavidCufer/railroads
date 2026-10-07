@@ -27,6 +27,7 @@ export type NewsPayload =
   | { kind: "fewStops"; trainId: number }
   | { kind: "forcedLoan"; amount: number }
   | { kind: "insolvent"; monthsLeft: number }
+  | { kind: "loansCalled"; amount: number }
   | { kind: "panic"; name: string; months: number }
   | { kind: "cityGrowth"; cityId: number; tier: CityTier }
   | { kind: "civicInvestment"; cityId: number }

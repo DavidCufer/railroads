@@ -12,6 +12,8 @@ import {
   netWorth,
 } from "../../../src/sim/finance/ledger";
 import {
+  coverPremium,
+  creditCall,
   interestRate,
   issueLoan,
   principalDue,
@@ -229,11 +231,34 @@ describe("wages outrun prices (Economic model v2)", () => {
     }
   });
 
-  it("credit follows the difficulty (Phase 39)", () => {
-    const limit = (difficulty: "easy" | "normal" | "hard") =>
-      computeCreditLimit(makeTestState(makeTestMap(["p"]), { difficulty }));
-    expect(limit("easy")).toBe(750_000);
-    expect(limit("normal")).toBe(500_000);
-    expect(limit("hard")).toBe(300_000);
+  it("credit follows the difficulty after the start-up period; the floor is the same for all (Phase 39)", () => {
+    const limit = (difficulty: "easy" | "normal" | "hard", late: boolean) => {
+      const state = makeTestState(makeTestMap(["p"]), { difficulty, cash: 2_000_000 });
+      if (late) {
+        state.ticks = 25 * 30 * 24;
+        state.finance.thisMonth.passengers = 1_000_000; // earnings well above the asset limit
+      }
+      return computeCreditLimit(state);
+    };
+    expect([limit("easy", false), limit("normal", false), limit("hard", false)]).toEqual([
+      500_000, 500_000, 500_000,
+    ]);
+    expect(limit("easy", true)).toBe(1_500_000);
+    expect(limit("normal", true)).toBe(1_000_000);
+    expect(limit("hard", true)).toBe(600_000);
+  });
+
+  it("lenders call part of the debt above a shrunken limit and charge more for thin cover (Phase 39)", () => {
+    const state = makeTestState(makeTestMap(["p"]), { difficulty: "normal", cash: 3_000_000 });
+    state.ticks = 25 * 30 * 24;
+    state.finance.thisMonth.passengers = 100_000; // earnings 100k: limit 500k, cover well under 3
+    issueLoan(state, 1_000_000);
+    state.cash += 1_000_000;
+    expect(creditCall(state, netWorth(state))).toBeGreaterThan(0);
+    expect(coverPremium(state)).toBeCloseTo(0.08 * (1 - 100_000 / 60_000 / 3), 5); // cover 1.67 of 3
+    const before = state.finance.loans;
+    monthlyFinanceStep(state);
+    expect(state.finance.loans).toBeLessThan(before - 10_000); // the instalment plus the call
+    expect(state.news.some((n) => n.kind === "loansCalled")).toBe(true);
   });
 });

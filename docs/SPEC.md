@@ -523,6 +523,12 @@ upkeep is the car's price × 8 % (passenger, mail) or 4 % (freight), at the year
   months' operating profit before interest (lenders lend against cash flow), never below $500k (Phase 30A, §9.5c).
   Interest = base rate 6%/year (Easy 4%, Hard 8%) **plus a leverage premium** (§9.5c), charged monthly on the whole loan
   book. Repay anytime in $100k increments.
+- **Phase 39: loans are bonds.** Each loan repays in equal monthly principal over 10 years (120 months); the month's
+  instalment comes out of cash. The $500k floor on the credit limit is start-up credit and ends after 24 months; after that
+  the limit is `creditMult` × the lower of 50 % of net worth and 5× trailing earnings (zero for a company that earns
+  nothing and owns nothing). Interest also carries a cover premium (up to +8 points) when earnings before interest are
+  under 3× the base interest. If the limit falls below the debt (earnings fell, a panic) lenders call 25 % of the excess
+  each month out of cash.
 - No stock market, no shares, no competitors.
 
 ### 9.2 Ledger categories (tracked per month and per year)
@@ -538,9 +544,20 @@ construction (track, stations, improvements, electrification — capital), rolli
 
 ### 9.4 Bankruptcy
 
-If cash < 0 at month end: forced loan up to the credit limit. If still < 0, show warning; after
-3 consecutive months with negative cash and no credit left → "Bankruptcy" game-over dialog
-(options: load last autosave, new game). Easy difficulty: no bankruptcy, just can't spend.
+If cash < 0 at month end: forced loan (a news item) up to the credit limit. If still < 0 the company is **insolvent**: a
+news item and a banner give the months left (Phase 39: grace 4 on Easy, 3 on Normal, 2 on Hard); a month that ends with cash
+back at or above zero resets the count; when the grace is spent → "Bankruptcy" game-over dialog (options: load last
+autosave, new game). Easy difficulty: no bankruptcy, just can't spend.
+
+**Financial panics (Phase 39).** Historical crashes (1837, 1847*, 1857, 1866*, 1873, 1884, 1893, 1907, 1920, 1929, 1937; * =
+GB and central Europe only) each happen, per game, with the difficulty's probability, in a month drawn from the seed
+(never in the first 12 months). A panic lasts 12-24 months and cuts demand for every cargo by 20-40 % (easing off over
+its last 6 months); the credit limit is multiplied by the difficulty's panic credit factor while it lasts. Depth and length
+scale with the difficulty (§9.6). Deterministic per seed: `src/sim/finance/panics.ts` stores nothing.
+
+**Running costs (Phase 39).** Fuel is 60 % of a locomotive's running cost and is paid per tile run, scaled by the
+train's weight (engine class plus cars, loaded cars heavier); the rest (servicing, oil, depot) is paid by the year. A train
+that stands still burns no fuel; a long line of heavy trains burns a lot.
 
 ### 9.5 Era inflation
 
@@ -718,7 +735,7 @@ number on the platform must be a number the trains calling there can take. Rule 
 | Land and way-leave price (§9.5c) | ×0.7 | ×1 | ×1.5 |
 | Credit (Phase 39) | ×1.5 | ×1 | ×0.6 |
 | Insolvency grace before bankruptcy | 4 months (bankruptcy off) | 3 months | 2 months |
-| Financial panics (Phase 39, §9.4) | 50 % of them, ×0.6 deep, ×0.7 long, credit ×0.8 | 80 %, ×1, ×1, credit ×0.6 | all, ×1.3 deep, ×1.25 long, credit ×0.4 |
+| Financial panics (Phase 39, §9.4) | 50 % of them, ×0.6 deep, ×0.7 long, credit ×0.8 | 80 %, ×1, ×1, credit ×0.6 | all, ×1.3 deep, ×1.25 long, credit ×0.3 |
 
 ---
 

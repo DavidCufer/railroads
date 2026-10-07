@@ -101,6 +101,8 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
       return strings.news.kinds.forcedLoan(formatMoney(item.amount));
     case "insolvent":
       return strings.news.kinds.insolvent(item.monthsLeft);
+    case "loansCalled":
+      return strings.news.kinds.loansCalled(formatMoney(item.amount));
     case "panic":
       return strings.news.kinds.panic(item.name, item.months);
     case "fewStops":
@@ -174,6 +176,7 @@ const NEWS_ICONS: Record<NewsItem["kind"], { icon: IconName; tone: Tone }> = {
   fewStops: { icon: "warning", tone: "signal" },
   forcedLoan: { icon: "coin", tone: "signal" },
   insolvent: { icon: "warning", tone: "signal" },
+  loansCalled: { icon: "coin", tone: "signal" },
   panic: { icon: "warning", tone: "signal" },
   cityGrowth: { icon: "city", tone: "go" },
   civicInvestment: { icon: "coin", tone: "go" },

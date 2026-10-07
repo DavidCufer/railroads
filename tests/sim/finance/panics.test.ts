@@ -66,7 +66,7 @@ describe("financial panics (Phase 39)", () => {
     monthlyFinanceStep(state);
     expect(state.news.some((n) => n.kind === "panic" && n.name === p.name)).toBe(true);
     expect(panicDemandMult(state)).toBeCloseTo(1 - p.depth, 5);
-    expect(panicCreditMult(state)).toBe(0.4);
+    expect(panicCreditMult(state)).toBe(0.3);
     expect(computeCreditLimit(state)).toBeLessThan(before);
     state.ticks = (p.startMonth + p.months) * MONTH;
     expect(activePanic(state)).toBeUndefined();
