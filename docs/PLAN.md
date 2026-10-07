@@ -1548,3 +1548,29 @@ late-game prize. Do this AFTER Phase 39.
    mid/late game a strong one. Report ROI by start decade. Tests; screenshot `phase-40-*.png`; SPEC updated.
 
 Status: [x] 0 [x] 1 [x] 2 [x] 3 [x] 4
+
+## Phase 41 — Play-test 4 fixes: visible causes, era start, chain bottlenecks, uranium output
+Source: docs/PLAYTEST-4.md (top 5). Short UI only. Owner: keep uranium; if it earns too much, **the mines produce
+less** (no price cut, no demand cap).
+1. **Heavy engine vs wooden bridge (B1)**: `noRoute` caused by a bridge weight limit says so on the train panel and
+   in the news ("Hudson is too heavy for the wooden bridge near X"), with a one-tap "Rebuild in stone ($X)"
+   (command; uses existing bridge types/costs). The buy wizard warns when an order leg crosses a wooden bridge the
+   chosen engine can't use, and pre-selects the best *usable* engine (also fixes the electric-locked default, UX6).
+2. **Warnings you can see (B2, UX3, UX4)**: toasts stack below the status banner (never cover it); banner and toast
+   use the same wording ("1 month to recover"). News + banner 3 months before start-up credit ends ("Start-up
+   credit ends in 3 months: limit will be ~$X"), and when debt exceeds the limit before the first call ("Debt $Y over
+   limit $X: lenders call 25 %/month"). Insolvent news suggests "sell trains or raise cash". Borrow shows one line:
+   rate, 10-year term, monthly repayment. Dedupe identical toasts within a few seconds (UX2/UX8).
+3. **Era start (BAL1)**: starting cash scales with the era's price level (data table; 1840 unchanged), and New Game
+   labels late starts ("Expert: few, expensive first lines") if they stay harder. Add 1930 and 1950 rows to
+   `tools/bench/survival.ts`; goodPlayer must not go bankrupt there (fix its opener if it is the bench's fault).
+4. **Chain bottlenecks visible (BAL3, BAL4)**: station supply row shows "Pile full: N t lost last month" when
+   production overflowed the station's pile (+ "Terminal holds 150 t" if upgradable). The single-track jam toast
+   shows the passing-loop price and taps into the loop tool at that place; posted once.
+5. **Honest chain pay (UX1) + uranium output**: "Pays on arrival" line adds the yearly figure at the mine's current
+   output ("~$X/t · ~$Y/yr at full output"). Measure uranium on the real map (playtest's central-eu seed 1, 1950)
+   and the bench; if it exceeds ~2× the 1930 silver return, lower `LONG_HAUL_OUTPUT_ANCHORS` for uranium (mine
+   produces less) until it does not. Report before/after.
+6. Tests for each; screenshots `phase-41-*.png` (look at them); survival + goodPlayer numbers before/after.
+
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
