@@ -268,6 +268,32 @@ export const TRUCK_SUSCEPTIBILITY: Partial<Record<CargoType, number>> = {
   food: 1,
   goods: 1,
 };
+/** Road competition on small towns' own traffic (Phase 42): from the 1920s buses, then private cars, take the local
+ * trips of small towns (historically the cause of branch-line closures); this is the share of a full-size small
+ * town's passenger and mail demand that leaves the railway. It applies at every trip length, because the lost
+ * trips are the local ones, and it comes on top of the short-haul loss in `competitionLoss`. */
+export const SMALL_TOWN_ROAD_ANCHORS: Anchors = [
+  [1920, 0],
+  [1930, 0.4],
+  [1950, 0.6],
+  [1970, 0.7],
+  [2030, 0.7],
+];
+/** The year the loss starts (first anchor), named in the station line. */
+export const SMALL_TOWN_ROAD_SINCE = SMALL_TOWN_ROAD_ANCHORS[0]![0];
+/** Towns up to this population suffer the whole loss; it falls away linearly to nothing at `SMALL_TOWN_FADE_POP`. */
+export const SMALL_TOWN_FULL_POP = 15_000;
+export const SMALL_TOWN_FADE_POP = 40_000;
+
+/** Share (0-1) of a town's passenger and mail demand lost to buses and cars in `year`, by its population. */
+export function smallTownRoadLoss(population: number, year: number): number {
+  const size = Math.min(
+    1,
+    Math.max(0, (SMALL_TOWN_FADE_POP - population) / (SMALL_TOWN_FADE_POP - SMALL_TOWN_FULL_POP)),
+  );
+  return interpolateYear(SMALL_TOWN_ROAD_ANCHORS, year) * size;
+}
+
 /** Trains at or above this speed (km/h) win passengers back from road and air. */
 export const FAST_TRAIN_KMH = 200;
 /** What a fast train keeps of the competition's bite (0.3 = loses only 30 % as many passengers). */

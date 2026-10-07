@@ -7,7 +7,7 @@ import {
   CITY_PASSENGER_SUPPLY_DIVISOR,
   type CityTier,
 } from "../../data/cities";
-import { inducedTrafficFactor, tripsPerHeadPerMonth } from "../../data/economy";
+import { inducedTrafficFactor, smallTownRoadLoss, tripsPerHeadPerMonth } from "../../data/economy";
 import type { City } from "./types";
 
 export interface CitySupply {
@@ -20,7 +20,9 @@ export interface CitySupply {
  * the network = population x trips per head (`tripsPerHeadPerMonth`). One number, shown on the town panel; a station
  * generates its catchment's part of it, limited to the destinations the network reaches. */
 export function cityTravelDemand(city: City, year = 1900): number {
-  return city.population * tripsPerHeadPerMonth(year);
+  return (
+    city.population * tripsPerHeadPerMonth(year) * (1 - smallTownRoadLoss(city.population, year))
+  );
 }
 
 export function citySupply(city: City, year = 1900): CitySupply {
@@ -36,11 +38,12 @@ export function citySupply(city: City, year = 1900): CitySupply {
  * fraction of city tiles each covers" — this is that per-tile fraction, unrounded so a station
  * covering several tiles can sum them before rounding once). Used by src/sim/stations/economy.ts
  * to split supply between stations whose catchments overlap the city. */
-export function cityTileSupply(city: City): CitySupply {
+export function cityTileSupply(city: City, year = 1900): CitySupply {
   const tiles = city.tiles.length;
+  const kept = 1 - smallTownRoadLoss(city.population, year);
   return {
     passengers: city.population / CITY_PASSENGER_SUPPLY_DIVISOR / tiles,
-    mail: city.population / CITY_MAIL_SUPPLY_DIVISOR / tiles,
+    mail: (city.population / CITY_MAIL_SUPPLY_DIVISOR / tiles) * kept,
   };
 }
 

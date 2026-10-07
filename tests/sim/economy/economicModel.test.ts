@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   PROPERTY_TAX_RATE,
   competitionLoss,
+  smallTownRoadLoss,
   fareIndex,
   incomeTaxRate,
   priceIndex,
@@ -231,6 +232,15 @@ describe("5. taxes", () => {
 });
 
 describe("6. competition from other transport", () => {
+  it("small towns lose local trips to road from the 1920s; big towns and earlier years do not (Phase 42)", () => {
+    expect(smallTownRoadLoss(10_000, 1900)).toBe(0);
+    expect(smallTownRoadLoss(10_000, 1920)).toBe(0);
+    expect(smallTownRoadLoss(10_000, 1930)).toBeCloseTo(0.4, 5);
+    expect(smallTownRoadLoss(10_000, 1950)).toBeGreaterThan(smallTownRoadLoss(10_000, 1930));
+    expect(smallTownRoadLoss(27_500, 1950)).toBeCloseTo(smallTownRoadLoss(10_000, 1950) / 2, 5);
+    expect(smallTownRoadLoss(60_000, 1980)).toBe(0);
+  });
+
   it("short passenger trips lose fares to buses from the 1920s, long ones do not", () => {
     expect(competitionLoss(1910, "passengers", 60, 100)).toBe(0);
     const short1950 = competitionLoss(1950, "passengers", 60, 100);

@@ -157,14 +157,16 @@ function tryConnect(newCity: City, hub: City): "built" | "nocash" | "failed" {
         commands.computeStationBuildPlan(state, ta, typeA).cost +
         commands.computeStationBuildPlan(state, tb, typeB).cost;
       const loco = locomotiveById(bestLoco())!;
+      // an overbuilder commits every dollar to track: no safety margin, one train on each new line
+      const overbuild = bot === "overbuilder";
       const trainCost =
         commands.computeBuyTrainPlan(state, loco.id, consist(loco.id)).cost *
-        (pairs.length === 0 ? 1 : 2);
+        (pairs.length === 0 || overbuild ? 1 : 2);
       // double track only when the company is comfortably rich; a cash-short player lays single track first
       const wantDouble = year() >= 1870 && state.cash > 2_500_000;
       const dbl = wantDouble ? plan.cost * 0.7 : 0;
-      const total = plan.cost + stationBudget + trainCost + dbl + 60_000;
-      if (!ensureCash(total + 50_000)) {
+      const total = plan.cost + stationBudget + trainCost + dbl + (overbuild ? 0 : 60_000);
+      if (!ensureCash(total + (overbuild ? 0 : 50_000))) {
         if (process.env.V)
           console.log(
             "nocash",
@@ -208,7 +210,7 @@ function tryConnect(newCity: City, hub: City): "built" | "nocash" | "failed" {
       connected.add(newCity.id);
       connected.add(hub.id);
       addTrain(pair);
-      addTrain(pair);
+      if (!overbuild) addTrain(pair);
       return "built";
     }
   }
@@ -328,6 +330,11 @@ for (let y = 1; startYear + y <= endYear && bankruptYear === null; y++) {
     if (m === 0 || m === 6) {
       if (bot === "overbuilder") expand(3);
       else if (bot === "leveraged") expand(3);
+    }
+    if (bot === "overbuilder") {
+      // idle cash goes into a second train per line, then nothing is kept back
+      takeAllCredit();
+      for (const pair of pairs) while (pair.trains.length < 2 && addTrain(pair));
     }
     if (bot === "trainSpammer" && pairs[0]) {
       takeAllCredit();

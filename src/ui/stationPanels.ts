@@ -39,7 +39,7 @@ import { previewStationEconomy, stationStorageCap, type StationEconomy } from ".
 import type { Station } from "../sim/stations/types";
 import type { GameState } from "../sim/state";
 import { calendarFromTicks } from "../sim/time";
-import { STATION_STAFF } from "../data/economy";
+import { SMALL_TOWN_ROAD_SINCE, STATION_STAFF, smallTownRoadLoss } from "../data/economy";
 import { stationMonthlyCost } from "../sim/finance/costs";
 import { cargoChip, cargoDemandTile } from "./infoPanels";
 import { h } from "./h";
@@ -219,6 +219,21 @@ function economyBody(
         ),
       )
     : null;
+  // Phase 42: ONE line when buses and cars take this town's local trips.
+  const roadTown =
+    economy.passengerTownId !== undefined ? state?.cities[economy.passengerTownId] : undefined;
+  const roadLoss =
+    state && roadTown
+      ? smallTownRoadLoss(roadTown.population, calendarFromTicks(state.startYear, state.ticks).year)
+      : 0;
+  const roadLine =
+    roadLoss >= 0.005
+      ? h(
+          "div",
+          { className: "panel-row hint", "data-testid": "road-competition" },
+          strings.station.roadCompetition(Math.round(roadLoss * 100), SMALL_TOWN_ROAD_SINCE),
+        )
+      : null;
   const growthHint = trends.some((t) => t)
     ? h(
         "details",
@@ -261,6 +276,7 @@ function economyBody(
             )
           : emptyState(strings.station.noSupplies, "cargo"),
         ...(chainLine ? [chainLine] : []),
+        ...(roadLine ? [roadLine] : []),
         ...(growthHint ? [growthHint] : []),
       ],
       strings.station.perMonthNote,

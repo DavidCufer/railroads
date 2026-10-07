@@ -56,18 +56,19 @@ for (const bot of bots)
   for (const start of starts)
     for (const diff of difficulties) {
       const rs = Array.from({ length: seeds }, (_, i) => run(bot, start, diff, i + 1));
-      const t = tally.get(`${bot}|${diff}`) ?? { bankrupt: 0, runs: 0, minCash: Infinity };
+      const era = start < 1930 ? "1840-1900" : "1930-1950";
+      const t = tally.get(`${bot}|${diff}|${era}`) ?? { bankrupt: 0, runs: 0, minCash: Infinity };
       t.bankrupt += rs.filter((r) => r.bankrupt).length;
       t.runs += rs.length;
       for (const r of rs)
         if (!Number.isNaN(r.minCashM)) t.minCash = Math.min(t.minCash, r.minCashM);
-      tally.set(`${bot}|${diff}`, t);
+      tally.set(`${bot}|${diff}|${era}`, t);
       console.log(
         `| ${bot} | ${start} | ${diff} | ${rs.filter((r) => r.bankrupt).length}/${seeds} | ${rs.map((r) => r.minCashM).join(" / ")} | ${rs.map((r) => r.netWorthM).join(" / ")} |`,
       );
     }
 
-// Phase 39 targets (ASSERT=1 exits non-zero when one is missed): the competent bot survives every run on Normal and
+// Phase 39 targets, checked separately for the early starts (1840, 1900) and, since Phase 42, the late ones (1930, 1950) (ASSERT=1 exits non-zero when one is missed): the competent bot survives every run on Normal and
 // Hard; the bad bots go bankrupt in at least 50 % of Normal runs and 80 % of Hard runs, and mostly survive on Easy.
 if (process.env["ASSERT"]) {
   let failed = false;
@@ -76,9 +77,9 @@ if (process.env["ASSERT"]) {
     if (!ok) failed = true;
   };
   for (const [key, t] of tally) {
-    const [bot, diff] = key.split("|") as [string, string];
+    const [bot, diff, era] = key.split("|") as [string, string, string];
     const rate = t.bankrupt / t.runs;
-    const label = `${bot} ${diff}: ${t.bankrupt}/${t.runs} bankrupt`;
+    const label = `${bot} ${diff} ${era}: ${t.bankrupt}/${t.runs} bankrupt`;
     if (bot === "good")
       check(`${label}, min cash ${t.minCash}M`, diff === "easy" || t.bankrupt === 0);
     else if (diff === "normal") check(label, rate >= 0.5);

@@ -136,7 +136,7 @@ export function computeStationEconomies(
   }
 
   for (const city of cities) {
-    const perTile = cityTileSupply(city);
+    const perTile = cityTileSupply(city, currentYear);
     // Passengers: the town's total travel demand (population x trips per head, Phase 35C) spread over its tiles.
     perTile.passengers = cityTravelDemand(city, currentYear) / city.tiles.length;
     for (const tile of city.tiles) {

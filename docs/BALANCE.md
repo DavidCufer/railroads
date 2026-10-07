@@ -180,3 +180,9 @@ goodPlayer (`tools/bench/goodPlayer.ts`, Central Europe, net worth Jan of the ye
 | 1860 american-4-4-0 | 6 | 23k / 8k | 34k / 17k | 19k / -1k |
 | 1900 atlantic-4-4-2 | 6 | 22k / -8k | 44k / 11k | 87k / 49k |
 | 1950 road-switcher-diesel | 8 | 20k / -42k | 44k / -27k | 97k / 7k |
+
+## Road competition on small towns (Phase 42)
+`smallTownRoadLoss(population, year)`: share of a town's passenger and mail demand lost to buses and cars. Anchors
+(`SMALL_TOWN_ROAD_ANCHORS`): 0 in 1920, 0.4 in 1930, 0.6 in 1950, 0.7 from 1970. Full for towns up to 15,000, linearly
+less to 0 at 40,000. So a 12k town in 1930 sends 60 % of its 1900 trips (a 27.5k town 80 %), in 1950 40 %. Added on top
+of the short-haul loss of §9.5b (6), which never reaches lines over 150 km. Nothing before 1920 (1840 / 1900 unchanged).

@@ -219,6 +219,9 @@ export const strings = {
     /** Phase 40: the long-haul chain's one line under the supply chips. */
     chainPay: (sink: string, perTon: number, perYear: string) =>
       `Pays on arrival at the ${sink}: ~$${Math.round(perTon).toLocaleString("en-US")}/t · ~${perYear}/yr at full output`,
+    /** Phase 42: small towns lose local trips to buses and cars. */
+    roadCompetition: (pct: number, since: number) =>
+      `Road competition: \u2212${pct} % since ${since}`,
     /** Phase 41: production that did not fit the pile last month; the bigger type's pile when one would help. */
     pileFull: (n: number, unit: string, terminalCap?: number) =>
       `Pile full: ${n} ${unit} lost last month${terminalCap ? ` · Terminal holds ${terminalCap} ${unit}` : ""}`,

@@ -636,6 +636,11 @@ shown to the player where it costs money (Finance cost lines with tooltips, trai
    top speed ≥ 200 km/h keeps 70 % of what road and air would take. News announces "Motor buses now compete on short
    routes" (1920), lorries (1930) and airlines (1955). The loss is applied to the fare of each delivery, shown in the
    train panel ("Buses, lorries and airlines take N % of this route's fares").
+   **Small towns (Phase 42):** from the 1920s buses and then cars take the *local* trips of small towns (the historical
+   cause of branch-line closures). A town's passenger and mail demand falls by `SMALL_TOWN_ROAD_ANCHORS` (0 in 1920,
+   40 % in 1930, 60 % in 1950, 70 % from 1970) for towns up to 15,000 people, fading linearly to nothing at 40,000,
+   at every trip length (`smallTownRoadLoss`, applied in `cityTravelDemand` / `cityTileSupply`). The station panel
+   shows one line, "Road competition: −N % since 1920". Nothing changes before 1920.
 7. **Freight rates by value and distance** stay as in §8.1; the freight real-rate curve in (1) is what makes 1830s–40s
    bulk freight pay (it competes with the wagon and canal).
 
