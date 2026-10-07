@@ -51,6 +51,7 @@ export function createStatusBanner(container: HTMLElement, onTap: () => void): S
                     panic.panic.name,
                     Math.round(panic.demandFall * 100),
                     panic.monthsLeft,
+                    panic.panic.fuelRise,
                   )
                 : "";
       if (label === last) return;

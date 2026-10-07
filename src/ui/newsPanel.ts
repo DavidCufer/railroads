@@ -109,7 +109,7 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
     case "overLimit":
       return strings.news.kinds.overLimit(formatMoney(item.debt), formatMoney(item.limit));
     case "panic":
-      return strings.news.kinds.panic(item.name, item.months);
+      return strings.news.kinds.panic(item.name, item.months, item.fuelRise ?? 0);
     case "fewStops":
       return strings.news.kinds.fewStops(trainName(state, item.trainId));
     case "cityGrowth":

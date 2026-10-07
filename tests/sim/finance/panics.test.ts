@@ -4,10 +4,12 @@ import {
   activePanic,
   panicCreditMult,
   panicDemandMult,
+  fuelPriceMult,
   panicSchedule,
 } from "../../../src/sim/finance/panics";
 import { computeCreditLimit, monthlyFinanceStep } from "../../../src/sim/finance/ledger";
 import { accrueDailyCargo } from "../../../src/sim/economy/cargoFlow";
+import { strings } from "../../../src/ui/strings";
 import type { Difficulty } from "../../../src/data/finance";
 
 const MONTH = 30 * 24;
@@ -84,5 +86,47 @@ describe("financial panics (Phase 39)", () => {
     state.ticks = p.startMonth * MONTH;
     accrueDailyCargo(state);
     expect(state.stationCargo.get(1)!.coal!.amount).toBeCloseTo(normal * (1 - p.depth), 5);
+  });
+});
+
+describe("late crises and oil shocks (Phase 42)", () => {
+  const years = (startYear: number, seed: number, difficulty: Difficulty = "hard") =>
+    panicSchedule(mk(seed, difficulty, startYear)).map((p) => p.year);
+
+  it("a 1930 start meets 1931 and 1937; a 1950 start meets the 1950s recessions", () => {
+    const all = (startYear: number) =>
+      new Set([1, 2, 3, 4, 5, 6, 7, 8].flatMap((s) => years(startYear, s)));
+    expect(all(1930)).toContain(1931);
+    expect(all(1930)).toContain(1937);
+    for (const y of [1953, 1957, 1960]) expect(all(1950)).toContain(y);
+    for (const y of [1973, 1979]) expect(all(1950)).toContain(y);
+  });
+
+  it("earlier panics are unchanged by the new ones (own rng per year)", () => {
+    const a = panicSchedule(mk(5, "normal", 1850)).filter((p) => p.year < 1930);
+    expect(a.length).toBeGreaterThan(0);
+    expect(a.every((p) => p.fuelRise === 0)).toBe(true);
+  });
+
+  it("oil crises raise fuel for steam and diesel, never electric, and ease off at the end", () => {
+    const state = mk(1, "hard", 1950);
+    const oil = panicSchedule(state).find((p) => p.name === "Oil crisis");
+    expect(oil?.fuelRise).toBe(0.6);
+    state.ticks = (oil!.startMonth - 1) * MONTH;
+    expect(fuelPriceMult(state, "diesel")).toBe(1);
+    state.ticks = oil!.startMonth * MONTH;
+    expect(fuelPriceMult(state, "diesel")).toBeCloseTo(1.6, 5);
+    expect(fuelPriceMult(state, "steam")).toBeCloseTo(1.6, 5);
+    expect(fuelPriceMult(state, "electric")).toBe(1);
+    state.ticks = (oil!.startMonth + oil!.months - 1) * MONTH;
+    expect(fuelPriceMult(state, "diesel")).toBeLessThan(1.2);
+    state.ticks = (oil!.startMonth + oil!.months) * MONTH;
+    expect(fuelPriceMult(state, "diesel")).toBe(1);
+  });
+
+  it("the oil crisis headline says what fuel does", () => {
+    expect(strings.finance.panic("Oil crisis", 30, 18, 0.6)).toContain("fuel +60 %");
+    expect(strings.news.kinds.panic("Oil crisis", 18, 0.6)).toContain("fuel +60 %");
+    expect(strings.finance.panic("Crash", 30, 18)).not.toContain("fuel");
   });
 });

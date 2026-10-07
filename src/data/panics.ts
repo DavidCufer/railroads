@@ -9,6 +9,8 @@ export interface PanicDef {
   name: string;
   /** Regions it hit; absent = all. */
   regions?: readonly RegionId[];
+  /** Oil shock (Phase 42): fuel for steam and diesel costs this much more (0.6 = +60 %) while the panic lasts. */
+  fuelRise?: number;
 }
 
 export const PANICS: readonly PanicDef[] = [
@@ -22,7 +24,15 @@ export const PANICS: readonly PanicDef[] = [
   { year: 1907, name: "Panic of 1907" },
   { year: 1920, name: "Post-war slump" },
   { year: 1929, name: "Crash of 1929" },
+  { year: 1931, name: "Banking crisis of 1931" },
   { year: 1937, name: "Recession of 1937" },
+  { year: 1948, name: "Recession of 1948" },
+  { year: 1953, name: "Recession of 1953" },
+  { year: 1957, name: "Suez oil shock and recession", fuelRise: 0.25 },
+  { year: 1960, name: "Recession of 1960" },
+  { year: 1973, name: "Oil crisis", fuelRise: 0.6 },
+  { year: 1979, name: "Second oil crisis", fuelRise: 0.5 },
+  { year: 1981, name: "Recession of 1981" },
 ];
 
 /** Base fall in passenger and freight demand: drawn between these (before the difficulty's depth factor). */

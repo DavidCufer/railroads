@@ -30,7 +30,7 @@ export type NewsPayload =
   | { kind: "loansCalled"; amount: number }
   | { kind: "startupCreditEnding"; months: number; limit: number }
   | { kind: "overLimit"; debt: number; limit: number }
-  | { kind: "panic"; name: string; months: number }
+  | { kind: "panic"; name: string; months: number; fuelRise?: number }
   | { kind: "cityGrowth"; cityId: number; tier: CityTier }
   | { kind: "civicInvestment"; cityId: number }
   | { kind: "cityFounded"; cityId: number }

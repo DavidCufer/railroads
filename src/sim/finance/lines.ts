@@ -9,6 +9,7 @@ import { calendarFromTicks, DAYS_PER_MONTH, DAYS_PER_YEAR, HOURS_PER_DAY } from 
 import { mechanicalAgeYears } from "../trains/ageing";
 import { booksProfit } from "../trains/profit";
 import type { Train, TrainBooks } from "../trains/types";
+import { fuelPriceMult } from "./panics";
 import { carsUpkeepPerYear, locoRunningCostPerYear, trainWagesPerYear } from "./costs";
 
 export interface LineSummary {
@@ -61,7 +62,7 @@ function accruedCosts(state: GameState, train: Train): number {
       carsUpkeepPerYear(train.cars, year) +
       trainWagesPerYear(loco, train.cars.length, year)) /
     12;
-  const fuel = (train.fuelUnits ?? 0) * priceIndex(year);
+  const fuel = (train.fuelUnits ?? 0) * priceIndex(year) * fuelPriceMult(state, loco.type);
   return (monthly * Math.max(0, owned)) / monthTicks + fuel;
 }
 

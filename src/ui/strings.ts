@@ -675,8 +675,9 @@ export const strings = {
     yearlyReport: "Yearly Report",
     insolvent: (months: number) =>
       `Insolvent: ${months} month${months === 1 ? "" : "s"} to recover`,
-    panic: (name: string, fall: number, months: number) =>
-      `${name}: demand −${fall} %, credit tight, ${months} mo left`,
+    panic: (name: string, fall: number, months: number, fuelRise = 0) =>
+      `${name}: demand −${fall} %, credit tight, ${months} mo left` +
+      (fuelRise > 0 ? `, fuel +${Math.round(fuelRise * 100)} %` : ""),
     bankruptWarning: "Cash has been negative for months — borrow, sell trains, or cut costs.",
   },
   yearlyReport: {
@@ -855,8 +856,9 @@ export const strings = {
       forcedLoan: (amount: string) => `Borrowed ${amount} to stay solvent`,
       loansCalled: (amount: string) =>
         `Lenders called ${amount}: the credit limit fell below your debt`,
-      panic: (name: string, months: number) =>
-        `${name}: demand falls and credit tightens for about ${months} months`,
+      panic: (name: string, months: number, fuelRise = 0) =>
+        `${name}: demand falls and credit tightens for about ${months} months` +
+        (fuelRise > 0 ? `; fuel +${Math.round(fuelRise * 100)} %` : ""),
       insolvent: (months: number) =>
         `Insolvent: ${months} month${months === 1 ? "" : "s"} to recover — sell trains or raise cash`,
       startupCreditEnding: (months: number, limit: string) =>

@@ -34,7 +34,7 @@ import {
   wearCostPerUnit,
 } from "./costs";
 import { NET_WORTH_HISTORY_MAX_SAMPLES } from "./types";
-import { panicStartingNow } from "./panics";
+import { fuelPriceMult, panicStartingNow } from "./panics";
 import {
   amortise,
   creditCall,
@@ -116,7 +116,7 @@ export function monthlyFinanceStep(state: GameState): void {
     const loco = locomotiveById(train.locoModelId);
     if (!loco) continue;
     const ageYears = mechanicalAgeYears(state, train);
-    const fuel = (train.fuelUnits ?? 0) * priceIndex(year);
+    const fuel = (train.fuelUnits ?? 0) * priceIndex(year) * fuelPriceMult(state, loco.type);
     train.fuelUnits = 0;
     const running =
       (locoRunningCostPerYear(loco, ageYears, year) + carsUpkeepPerYear(train.cars, year)) / 12 +
@@ -161,7 +161,13 @@ export function monthlyFinanceStep(state: GameState): void {
   accrueIncomeTax(state);
 
   const panic = panicStartingNow(state);
-  if (panic) pushNews(state, { kind: "panic", name: panic.name, months: panic.months });
+  if (panic)
+    pushNews(state, {
+      kind: "panic",
+      name: panic.name,
+      months: panic.months,
+      fuelRise: panic.fuelRise,
+    });
 
   if (diff.bankruptcy) {
     if (state.cash < 0) {

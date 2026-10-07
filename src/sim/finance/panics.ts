@@ -22,6 +22,8 @@ export interface Panic {
   months: number;
   /** Fall in demand at the bottom, 0–1. */
   depth: number;
+  /** Fuel price rise for steam and diesel while it lasts (0 = none). */
+  fuelRise: number;
 }
 
 const TICKS_PER_MONTH = DAYS_PER_MONTH * HOURS_PER_DAY;
@@ -51,6 +53,7 @@ export function panicSchedule(state: GameState): Panic[] {
       startMonth,
       months: Math.round(months0 * diff.panicDurationMult),
       depth: Math.min(PANIC_DEPTH_MAX, depth0 * diff.panicDepthMult),
+      fuelRise: def.fuelRise ?? 0,
     });
   }
   cache.set(key, out);
@@ -94,4 +97,13 @@ export function panicCreditMult(state: GameState): number {
 export function panicStartingNow(state: GameState): Panic | undefined {
   const month = state.ticks / TICKS_PER_MONTH;
   return panicSchedule(state).find((p) => p.startMonth === month);
+}
+
+/** Oil shock (Phase 42): fuel price factor for a locomotive of this type; electric traction is unaffected. The rise
+ * eases off over the panic's last months like demand does. */
+export function fuelPriceMult(state: GameState, locoType: string): number {
+  if (locoType === "electric") return 1;
+  const now = activePanic(state);
+  if (!now || now.panic.fuelRise === 0) return 1;
+  return 1 + now.panic.fuelRise * Math.min(1, now.monthsLeft / PANIC_RECOVERY_MONTHS);
 }
