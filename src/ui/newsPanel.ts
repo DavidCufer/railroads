@@ -22,6 +22,7 @@ import { locoArt } from "./trainArt";
 import { icon, type IconName } from "./icons";
 import { closePanel, openPanel } from "./panel";
 import { trainWeightBridgeBlock } from "../sim/trains/bridgeBlock";
+import { suggestPassingLoop } from "../sim/loopSuggest";
 import { diagnoseJam } from "./jamDiagnosis";
 import { openTrainPanel } from "./trainPanels";
 import { strings } from "./strings";
@@ -66,8 +67,13 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
       const near = nearestStationName(state, item.tile);
       const jam = diagnoseJam(state, item.tile);
       if (jam.trains < 2) return strings.news.kinds.trafficJam(near);
+      const loop = jam.singleTrack ? suggestPassingLoop(state, item.tile) : undefined;
       return jam.singleTrack
-        ? strings.news.kinds.trafficJamSingle(jam.trains, near)
+        ? strings.news.kinds.trafficJamSingle(
+            jam.trains,
+            near,
+            loop ? formatMoney(loop.cost) : undefined,
+          )
         : strings.news.kinds.trafficJamBusy(jam.trains, near);
     }
     case "noRoute": {

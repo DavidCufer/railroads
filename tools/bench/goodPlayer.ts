@@ -32,6 +32,10 @@ if (process.env["RANGE"]) {
   const f = Number(process.env["RANGE"]);
   for (const anchor of TRAVEL_RANGE_ANCHORS as unknown as Array<[number, number]>) anchor[1] *= f;
 }
+import { ERA_START_CASH_MULT } from "../../src/data/finance";
+// ERAMULT=off: every era starts with the plain difficulty cash (the numbers before Phase 41).
+if (process.env["ERAMULT"] === "off") (ERA_START_CASH_MULT as unknown as unknown[][]).length = 0;
+import { fixWeightBridges } from "./fixBridges";
 import { createGameState } from "../../src/sim/state";
 import { advanceOneHour } from "../../src/sim/tick";
 import { findBuildPath } from "../../src/sim/track/pathfind";
@@ -120,7 +124,8 @@ function repayIfRich(): void {
 
 function bestLoco(): string {
   const y = year();
-  const all = buyableLocomotivesIn(y);
+  // electric engines need catenary the bench never lays: a train of one sits on the platform (PLAYTEST-4)
+  const all = buyableLocomotivesIn(y).filter((l) => l.type !== "electric");
   // engines of 6+ cars when the era has them, else the best that exists (1830s-40s engines pull 3-5)
   const strong = all.filter((l) => l.maxCars >= 6);
   const cands = strong.length > 0 ? strong : all;
@@ -350,6 +355,7 @@ for (let y = 1; startYear + y <= endYear; y++) {
   yearlyPlanning();
   for (let m = 0; m < 12; m++) {
     day(30);
+    fixWeightBridges(state);
     minCash = Math.min(minCash, state.cash);
     repayIfRich();
     if (m === 5) yearlyPlanning();
@@ -364,6 +370,7 @@ for (let y = 1; startYear + y <= endYear; y++) {
 void STATION_TYPE_DEFS;
 console.log(`# ${region} ${startYear} ${difficulty} seed ${seed}`);
 console.log(report.join("\n"));
+if (process.env.V) console.log(state.trains.map((t) => `${t.locoModelId}:${t.status}`).join(" "));
 console.log(`MINCASH ${(minCash / 1e6).toFixed(2)}`);
 const ly = state.finance.lastYear as unknown as Record<string, number>;
 console.log(

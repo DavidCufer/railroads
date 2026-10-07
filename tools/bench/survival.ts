@@ -7,7 +7,7 @@ import { execFileSync } from "node:child_process";
 const seeds = Number(process.argv[2] ?? 3);
 const bots = (process.env["BOTS"] ?? "good,overbuilder,trainSpammer,leveraged").split(",");
 const difficulties = (process.env["DIFFS"] ?? "easy,normal,hard").split(",");
-const starts = (process.env["STARTS"] ?? "1840,1900").split(",").map(Number);
+const starts = (process.env["STARTS"] ?? "1840,1900,1930,1950").split(",").map(Number);
 
 interface Result {
   bankrupt: boolean;

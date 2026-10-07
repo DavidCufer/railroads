@@ -7,7 +7,7 @@
  */
 import type { CargoType } from "../../data/cargo";
 import { CITY_TIERS } from "../../data/cities";
-import { DIFFICULTY } from "../../data/finance";
+import { startingCashFor } from "../../data/finance";
 import { REGION_GOALS, type GoalDefByName } from "../../data/goals";
 import type { RegionId } from "../regions/types";
 import { nextInt, pick } from "../rng";
@@ -61,7 +61,7 @@ export function generateRandomGoals(state: GameState): Goal[] {
   const byPopulation = [...state.cities].sort((a, b) => b.population - a.population);
   const biggest = byPopulation[0];
   const secondBiggest = byPopulation[1];
-  const startingCash = DIFFICULTY[state.difficulty].startingCash;
+  const startingCash = startingCashFor(state.difficulty, state.startYear);
 
   if (biggest && secondBiggest) {
     goals.push({

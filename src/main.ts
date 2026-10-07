@@ -151,6 +151,9 @@ import {
 import { createTrainListButton } from "./ui/toolbar";
 import { createNewsButton, formatNewsItem, newsFocusTile, openNewsPanel } from "./ui/newsPanel";
 import { openHelpPanel } from "./ui/helpPanel";
+import { openPassingLoopPanel } from "./ui/loopPanel";
+import { diagnoseJam } from "./ui/jamDiagnosis";
+import { suggestPassingLoop } from "./sim/loopSuggest";
 import { openFinancePanel } from "./ui/financePanel";
 import { clearYearReportBadge, setYearReportBadge } from "./ui/yearReportBadge";
 import { createGoalsButton, openGoalCelebration, openGoalsPanel } from "./ui/goalsPanel";
@@ -1057,7 +1060,25 @@ function main(): void {
           announceNewEngine(ui, item.locoId, () => openRosterSheet(ui, state));
         } else {
           const at = newsFocusTile(state, item);
-          showToast(ui, formatNewsItem(state, item), "warn", at ? () => focusTile(at) : undefined);
+          // A single-track jam: the tap goes to the passing loop that would help (Phase 41).
+          const jamTile = item.kind === "trafficJam" ? item.tile : undefined;
+          const jam = jamTile !== undefined ? diagnoseJam(state, jamTile) : undefined;
+          const loop =
+            jamTile !== undefined && jam && jam.singleTrack && jam.trains >= 2
+              ? suggestPassingLoop(state, jamTile)
+              : undefined;
+          const onTap = loop
+            ? () => {
+                focusTile({
+                  x: loop.tile % state.map.width,
+                  y: Math.floor(loop.tile / state.map.width),
+                });
+                openPassingLoopPanel(ui, state, loop.tile);
+              }
+            : at
+              ? () => focusTile(at)
+              : undefined;
+          showToast(ui, formatNewsItem(state, item), "warn", onTap);
         }
       }
       state.pendingNews.length = 0;

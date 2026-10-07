@@ -8,6 +8,7 @@ import { CARGO, CARGO_TYPES, type CargoType } from "../../data/cargo";
 import {
   INDUSTRIES,
   inputStorageCap,
+  LONG_HAUL_CHAINS,
   longHaulOutputMult,
   PROCESSOR_OUTPUT_MULT_MAX,
   type IndustryDef,
@@ -97,7 +98,10 @@ export function monthlyIndustryStep(state: GameState): void {
         def.placement.kind === "terrain"
           ? (econ.growthMult ?? 1)
           : def.placement.kind === "chain"
-            ? longHaulOutputMult(calendarFromTicks(state.startYear, state.ticks).year)
+            ? longHaulOutputMult(
+                calendarFromTicks(state.startYear, state.ticks).year,
+                industry.type === LONG_HAUL_CHAINS.uranium.mine ? "uranium" : "silver",
+              )
             : 1;
       econ.monthlyOutput = Object.fromEntries(
         Object.entries(def.produces).map(([cargo, amount]) => [cargo, amount * mult]),

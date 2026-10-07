@@ -6,7 +6,7 @@ import type { City, CityGrowthState, Industry, IndustryEconomyState } from "./ec
 import { initIndustryEconomy } from "./economy/processing";
 import { addLongHaulChain } from "./economy/longHaulChain";
 import { DEFAULT_START_YEAR } from "../data/mapGen";
-import { DEFAULT_DIFFICULTY, DIFFICULTY, type Difficulty } from "../data/finance";
+import { DEFAULT_DIFFICULTY, startingCashFor, type Difficulty } from "../data/finance";
 import type { CargoType } from "../data/cargo";
 import { TrackGraph } from "./track/graph";
 import type { Station } from "./stations/types";
@@ -218,7 +218,7 @@ export function createGameState(options: NewGameOptions): GameState {
     startYear,
     ticks: 0,
     difficulty,
-    cash: DIFFICULTY[difficulty].startingCash,
+    cash: startingCashFor(difficulty, startYear),
     trackGraph: new TrackGraph(),
     stations: [],
     nextStationId: 0,

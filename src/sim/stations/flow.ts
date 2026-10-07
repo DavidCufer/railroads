@@ -18,6 +18,8 @@ export interface CargoFlow {
   lostUnits: number;
   /** Estimated fares those people would have paid (`lostUnits` × the recent fare per unit here). */
   lostRevenue: number;
+  /** Freight the producers made that did not fit the station's pile (Phase 41: "Pile full"). */
+  pileFullUnits?: number;
   /** Units loaded onto trains here (counted at loading, so a long trip still shows before it is paid). */
   sent?: number;
   /** Units of this cargo delivered (unloaded for pay) at this station. */
@@ -121,6 +123,21 @@ export function recordTurnedAway(
     const b = bucket(period, cargo);
     b.lostUnits += units;
     b.lostRevenue += units * fare;
+  }
+}
+
+/** Freight production that found the station's pile full and was lost. */
+export function recordPileFull(
+  state: GameState,
+  stationId: number,
+  cargo: CargoType,
+  units: number,
+): void {
+  if (units <= 0) return;
+  const flow = getStationFlow(state, stationId);
+  for (const period of [flow.month, flow.year]) {
+    const b = bucket(period, cargo);
+    b.pileFullUnits = (b.pileFullUnits ?? 0) + units;
   }
 }
 

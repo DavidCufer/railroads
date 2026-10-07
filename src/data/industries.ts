@@ -374,17 +374,32 @@ export const LONG_HAUL_SINK_CITY_RANKS = 8;
 /** Random site combinations tried per customer town and relaxation step. */
 export const LONG_HAUL_ATTEMPTS = 120;
 
+/** The uranium mine's output multiple (Phase 41), the same in every year of the uranium era. */
+const URANIUM_OUTPUT_MULT = 2;
+
 /** Phase 40: the chain's mine produces more as mining modernises (drills, pumps, electric haulage): its base `produces`
  * is multiplied by this, by year, piecewise linear. This is what makes the chain a poor buy in the first decades (a few
- * cars of ore a month over two very long legs) and the biggest earner of the late game. */
-export const LONG_HAUL_OUTPUT_ANCHORS: ReadonlyArray<readonly [number, number]> = [
-  [1830, 1],
-  [1880, 1],
-  [1900, 2],
-  [1930, 3],
-  [1960, 3],
-];
+ * cars of ore a month over two very long legs) and the biggest earner of the late game.
+ *
+ * Phase 41: uranium has its own, lower anchors. On a real map the 1950 uranium chain returned 50-70 % a year against
+ * 20-30 % for 1930 silver (PLAYTEST-4 BAL2); only the mine's output is lowered, not prices or demand. */
+export const LONG_HAUL_OUTPUT_ANCHORS: Record<
+  LongHaulChainDef["id"],
+  ReadonlyArray<readonly [number, number]>
+> = {
+  silver: [
+    [1830, 1],
+    [1880, 1],
+    [1900, 2],
+    [1930, 3],
+    [1960, 3],
+  ],
+  uranium: [
+    [1830, URANIUM_OUTPUT_MULT],
+    [1960, URANIUM_OUTPUT_MULT],
+  ],
+};
 
-export function longHaulOutputMult(year: number): number {
-  return interpolateYear(LONG_HAUL_OUTPUT_ANCHORS, year);
+export function longHaulOutputMult(year: number, chain: LongHaulChainDef["id"] = "silver"): number {
+  return interpolateYear(LONG_HAUL_OUTPUT_ANCHORS[chain], year);
 }

@@ -6,7 +6,12 @@
 import type { MapSizeName, Roughness, WaterLevel } from "../data/mapGen";
 import { DEFAULT_START_YEAR, RANDOM_START_YEAR_CHOICES } from "../data/mapGen";
 import type { CityCount, ResourceDensity } from "../data/cities";
-import { DEFAULT_DIFFICULTY, DIFFICULTY, type Difficulty } from "../data/finance";
+import {
+  DEFAULT_DIFFICULTY,
+  EXPERT_START_YEAR,
+  startingCashFor,
+  type Difficulty,
+} from "../data/finance";
 import { REGIONS } from "../sim/regions";
 import { REGION_IDS, type RegionId } from "../sim/regions/types";
 import type { NewGameOptions } from "../sim/state";
@@ -263,6 +268,10 @@ export function renderNewGameScreen(handlers: NewGameScreenHandlers): HTMLElemen
             ),
           );
 
+    const shownStartYear =
+      tab === "random"
+        ? random.startYear
+        : (REGIONS[selectedRegion]?.startYear ?? DEFAULT_START_YEAR);
     const footer = h(
       "div",
       { className: "new-game-footer new-game-footer-row" },
@@ -275,7 +284,14 @@ export function renderNewGameScreen(handlers: NewGameScreenHandlers): HTMLElemen
           render();
         },
       ),
-      h("span", { className: "starting-cash" }, formatMoney(DIFFICULTY[difficulty].startingCash)),
+      h(
+        "span",
+        { className: "starting-cash" },
+        formatMoney(startingCashFor(difficulty, shownStartYear)),
+      ),
+      shownStartYear >= EXPERT_START_YEAR
+        ? h("span", { className: "expert-start", "data-testid": "expert-start" }, s.expertStart)
+        : null,
       h(
         "button",
         {

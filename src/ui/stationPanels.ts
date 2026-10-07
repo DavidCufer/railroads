@@ -103,6 +103,7 @@ function supplyChipStack(
   waiting?: { amount: number; cap: number },
   onTap?: () => void,
   trend?: string,
+  pileFull?: string,
 ): HTMLElement {
   const children: Node[] = [
     cargoChip(
@@ -138,6 +139,14 @@ function supplyChipStack(
     }
   }
   if (trend) children.push(h("span", { className: "cargo-waiting-label supply-trend" }, trend));
+  if (pileFull)
+    children.push(
+      h(
+        "span",
+        { className: "cargo-waiting-label pile-full", "data-testid": "pile-full" },
+        pileFull,
+      ),
+    );
   if (onTap)
     children.push(
       h("button", { className: "dest-link", onClick: onTap }, strings.station.destinations.tapHint),
@@ -182,6 +191,18 @@ function economyBody(
     return pct > 0 ? strings.station.growth.up(pct) : strings.station.growth.down(-pct);
   };
   const trends = supplyEntries.map(([cargo]) => trendFor(cargo));
+  // Phase 41: freight the producers made that the pile had no room for, last month.
+  const pileFullFor = (cargo: CargoType): string | undefined => {
+    const lost =
+      state && station ? state.stationFlow.get(station.id)?.lastMonth[cargo]?.pileFullUnits : 0;
+    if (!lost || lost < 0.5 || !station) return undefined;
+    const bigger = stationStorageCap({ ...station, type: "terminal" }, cargo);
+    return strings.station.pileFull(
+      Math.round(lost),
+      CARGO[cargo].unit,
+      bigger > stationStorageCap(station, cargo) ? Math.round(bigger) : undefined,
+    );
+  };
   // Phase 40: ONE line for the long-haul chain's cargo the station supplies (ore or bars).
   const chainCargo = state
     ? supplyEntries.map(([c]) => c).find((c) => CARGO[c].chainLeg !== undefined)
@@ -191,7 +212,11 @@ function economyBody(
     ? h(
         "div",
         { className: "panel-row hint", "data-testid": "chain-pay" },
-        strings.station.chainPay(chainEstimate.sinkName, chainEstimate.perTon),
+        strings.station.chainPay(
+          chainEstimate.sinkName,
+          chainEstimate.perTon,
+          formatMoney(chainEstimate.perYear),
+        ),
       )
     : null;
   const growthHint = trends.some((t) => t)
@@ -224,6 +249,7 @@ function economyBody(
                     : undefined,
                   cargo === "passengers" ? passengerTap : undefined,
                   trends[i],
+                  pileFullFor(cargo),
                 ),
               ),
               ...extraWaiting.map((cargo) =>

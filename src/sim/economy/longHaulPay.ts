@@ -4,7 +4,8 @@
  * player can see what it is worth. Pure.
  */
 import { CARGO, type CargoType } from "../../data/cargo";
-import { INDUSTRIES } from "../../data/industries";
+import { INDUSTRIES, LONG_HAUL_CHAINS, longHaulOutputMult } from "../../data/industries";
+import { calendarFromTicks } from "../time";
 import type { GameState } from "../state";
 import { computeRevenue, expectedTransitDays } from "../trains/loading";
 import type { Industry } from "./types";
@@ -14,6 +15,8 @@ export interface ChainPayEstimate {
   sinkName: string;
   /** Dollars per ton of `cargo` asked about, at today's fares and a delivery on schedule. */
   perTon: number;
+  /** Dollars a year if the mine's current output were all carried and delivered on schedule (Phase 41). */
+  perYear: number;
 }
 
 const producerOf = (state: GameState, cargo: CargoType, raw: boolean): Industry | undefined =>
@@ -46,7 +49,20 @@ export function chainPayEstimate(state: GameState, cargo: CargoType): ChainPayEs
   const perCar = computeRevenue(state, final, distance, expectedTransitDays(final, distance));
   const perTonOfFinal = perCar / CARGO[final].capacity;
   const yieldPerTon = leg === "intermediate" ? CARGO[final].capacity / CARGO[cargo].capacity : 1;
-  return { sinkName: INDUSTRIES[sink.type].name, perTon: perTonOfFinal * yieldPerTon };
+  const oreCargo =
+    leg === "intermediate" ? cargo : (Object.keys(processor.consumes)[0] as CargoType);
+  const orePerMonth =
+    state.industryEconomy.get(mine.id)?.monthlyOutput[oreCargo] ??
+    (INDUSTRIES[mine.type].produces[oreCargo] ?? 0) *
+      longHaulOutputMult(
+        calendarFromTicks(state.startYear, state.ticks).year,
+        mine.type === LONG_HAUL_CHAINS.uranium.mine ? "uranium" : "silver",
+      );
+  return {
+    sinkName: INDUSTRIES[sink.type].name,
+    perTon: perTonOfFinal * yieldPerTon,
+    perYear: perTonOfFinal * (CARGO[final].capacity / CARGO[oreCargo].capacity) * orePerMonth * 12,
+  };
 }
 
 /** Whether `cargo` has any use on this map: ordinary cargo always, a chain's ore and bars only when the map has an

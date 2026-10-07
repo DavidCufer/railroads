@@ -12,7 +12,7 @@ import {
   waitingDecayThresholdDays,
 } from "../../data/cargo";
 import { cargoDecayExempt, stationStorageCap } from "../stations/improvements";
-import { recordTurnedAway } from "../stations/flow";
+import { recordPileFull, recordTurnedAway } from "../stations/flow";
 import { panicDemandMult } from "../finance/panics";
 import { DAYS_PER_MONTH } from "../time";
 import type { GameState, StationCargoPile } from "../state";
@@ -90,7 +90,11 @@ export function accrueDailyCargo(state: GameState): void {
         pile[cargo] = entry;
         continue;
       }
-      if (daily > 0) entry.amount = Math.min(cap, entry.amount + daily);
+      if (daily > 0) {
+        const lost = entry.amount + daily - cap;
+        if (lost > 0) recordPileFull(state, station.id, cargo, lost);
+        entry.amount = Math.min(cap, entry.amount + daily);
+      }
 
       if (entry.amount > DECAY_FLOOR) {
         entry.waitingDays++;

@@ -217,8 +217,11 @@ export const strings = {
       none: "No train runs from here yet. Passengers appear once a train calls.",
     },
     /** Phase 40: the long-haul chain's one line under the supply chips. */
-    chainPay: (sink: string, perTon: number) =>
-      `Pays on arrival at the ${sink}: ~$${Math.round(perTon).toLocaleString("en-US")}/t`,
+    chainPay: (sink: string, perTon: number, perYear: string) =>
+      `Pays on arrival at the ${sink}: ~$${Math.round(perTon).toLocaleString("en-US")}/t · ~${perYear}/yr at full output`,
+    /** Phase 41: production that did not fit the pile last month; the bigger type's pile when one would help. */
+    pileFull: (n: number, unit: string, terminalCap?: number) =>
+      `Pile full: ${n} ${unit} lost last month${terminalCap ? ` · Terminal holds ${terminalCap} ${unit}` : ""}`,
     /** Phase 36: one-line output trend of a raw producer under its supply chip. */
     growth: {
       up: (pct: number) => `↑ ${pct} %/yr`,
@@ -833,8 +836,10 @@ export const strings = {
       trafficJam: (nearName: string) =>
         `Traffic jam near ${nearName} — consider double track or more stations`,
       /** A jam where the sim can count the trains involved (Phase 30B). */
-      trafficJamSingle: (n: number, nearName: string) =>
-        `${n} trains share a single line near ${nearName} — add a passing loop or double track`,
+      trafficJamSingle: (n: number, nearName: string, loopPrice?: string) =>
+        loopPrice
+          ? `${n} trains share a single line near ${nearName} — passing loop ${loopPrice}, tap to build`
+          : `${n} trains share a single line near ${nearName} — add a passing loop or double track`,
       trafficJamBusy: (n: number, nearName: string) =>
         `${n} trains queue near ${nearName} — add platforms, a second station or another line`,
       noRoute: (trainName: string, stationName: string) =>
@@ -965,6 +970,12 @@ export const strings = {
     next: "Got it",
     done: "Start playing",
     skip: "Skip tips",
+  },
+  loop: {
+    title: "Passing loop",
+    line: "A short double section where two trains can meet.",
+    build: "Build",
+    built: (cost: string) => `Passing loop built · ${cost}`,
   },
   newGame: {
     title: "New Game",

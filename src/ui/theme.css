@@ -4810,3 +4810,7 @@ select {
   color: var(--muted);
   font-size: var(--fs-xs);
 }
+
+.pile-full {
+  color: var(--signal);
+}

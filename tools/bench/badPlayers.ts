@@ -9,6 +9,10 @@
  */
 import * as commands from "../../src/sim/commands";
 
+import { ERA_START_CASH_MULT } from "../../src/data/finance";
+// ERAMULT=off: every era starts with the plain difficulty cash (the numbers before Phase 41).
+if (process.env["ERAMULT"] === "off") (ERA_START_CASH_MULT as unknown as unknown[][]).length = 0;
+import { fixWeightBridges } from "./fixBridges";
 import { createGameState } from "../../src/sim/state";
 import { advanceOneHour } from "../../src/sim/tick";
 import { findBuildPath } from "../../src/sim/track/pathfind";
@@ -71,6 +75,7 @@ const ok = (r: unknown): boolean => !!r && (r as { ok: boolean }).ok;
 
 function day(n: number): void {
   for (let i = 0; i < n * DAY; i++) advanceOneHour(state);
+  fixWeightBridges(state);
 }
 
 function ensureCash(needed: number): boolean {
@@ -98,7 +103,8 @@ function repayIfRich(): void {
 
 function bestLoco(): string {
   const y = year();
-  const all = buyableLocomotivesIn(y);
+  // electric engines need catenary the bench never lays (PLAYTEST-4)
+  const all = buyableLocomotivesIn(y).filter((l) => l.type !== "electric");
   // engines of 6+ cars when the era has them, else the best that exists (1830s-40s engines pull 3-5)
   const strong = all.filter((l) => l.maxCars >= 6);
   const cands = strong.length > 0 ? strong : all;

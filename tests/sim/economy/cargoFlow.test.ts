@@ -58,6 +58,18 @@ describe("accrueDailyCargo", () => {
     expect(pile?.coal?.amount).toBeLessThanOrEqual(STATION_TYPE_DEFS.depot.storagePerCargo);
   });
 
+  it("counts the production the full pile had no room for (Phase 41: 'Pile full')", () => {
+    const { state, station } = stationWithCoalMine();
+    const monthly = INDUSTRIES.coalMine.produces.coal as number;
+    const cap = STATION_TYPE_DEFS.depot.storagePerCargo;
+    const days = 25; // before the waiting-decay threshold (30 days), so only the cap loses cargo
+    for (let day = 0; day < days; day++) accrueDailyCargo(state);
+    const lost = state.stationFlow.get(station.id)?.year.coal?.pileFullUnits ?? 0;
+    // everything made beyond what the pile holds is lost, none of it earlier than the pile filling up
+    expect(lost).toBeCloseTo((monthly / 30) * days - cap, 3);
+    expect(lost).toBeGreaterThan(0);
+  });
+
   it("decays a waiting pile 5%/day once it's older than the cargo's threshold", () => {
     const { state, station } = stationWithCoalMine();
     expect(waitingDecayThresholdDays("coal")).toBe(30);

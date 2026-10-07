@@ -129,4 +129,18 @@ describe("long-haul chain pays on final delivery only (Phase 40)", () => {
     expect(ore.perTon / bars.perTon).toBeCloseTo(0.5, 6);
     expect(chainPayEstimate(state, "coal")).toBeUndefined();
   });
+
+  it("adds a yearly figure at the mine's current output (Phase 41), the same from the ore or the bars station", () => {
+    const { state, mine } = world(["silverOre"]);
+    const bars = chainPayEstimate(state, "silverBars")!;
+    const ore = chainPayEstimate(state, "silverOre")!;
+    expect(ore.perYear).toBeCloseTo(bars.perYear, 6);
+    const orePerMonth = state.industryEconomy.get(mine.id)!.monthlyOutput["silverOre"] as number;
+    expect(orePerMonth).toBeGreaterThan(0);
+    // a year of the mine's ore, at the pay of a ton of ore
+    expect(ore.perYear).toBeCloseTo(ore.perTon * orePerMonth * 12, 3);
+    // a bigger mine output raises it in proportion
+    state.industryEconomy.get(mine.id)!.monthlyOutput["silverOre"] = orePerMonth * 2;
+    expect(chainPayEstimate(state, "silverOre")!.perYear).toBeCloseTo(ore.perYear * 2, 3);
+  });
 });
