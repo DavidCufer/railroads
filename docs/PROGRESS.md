@@ -4963,3 +4963,38 @@ Ordinary early lines return 25 %+. On a small map (64-tile legs) 1840 returns 21
 `ASSERT=1 npx tsx tools/bench/survival.ts 3` after Phase 40 gives every row of the Phase 39 "AFTER" table unchanged (good 1840 Normal 5.15 / 4.62 / 4.70, 1900 Normal 30.31 / 11.44 / 28.56, Hard 1840 1.75 / 1.71 / 2.01, 1900 11.17 / 9.10 / 9.01; no goodPlayer bankruptcy, min cash 0-0.17M; bad bots overbuilder 4/6 Normal 6/6 Hard, trainSpammer 6/6 and 5/6, leveraged 6/6 and 4/6): the bots never touch the chain and the rng stream is untouched. `leveraged hard` still misses 80 % (67 %), as in Phase 39.
 ### Bounds
 No test bound loosened. `zoomMarkers` colour fallback for a pure customer (Mint) added.
+
+## 2026-10-07 — Phase 41: play-test 4 fixes (visible causes, era start, chain bottlenecks, uranium output)
+### What changed
+1. **Heavy engine vs wooden bridge**: `weightBridgeBlock` / `trainWeightBridgeBlock` (`sim/trains/bridgeBlock.ts`, route option `ignoreBridgeWeight`) name the bridge; the train panel and the `noRoute` news say "Hudson is too heavy for the wooden bridge near X"; new command `upgradeBridge` (stone/steel, full price) behind a one-tap "Rebuild in stone" on the train panel and in the wizard's route step (which warns per leg). The wizard's default engine is the fastest one usable from that station (never the locked electric).
+2. **Warnings**: banner sits beside the tool column under open panels, toasts start below it; both say "N months to recover" (insolvent news adds "sell trains or raise cash"). `sim/finance/warnings.ts`: news + banner 3 months before start-up credit ends (only with a loan on the book) and when debt exceeds the limit (once per 90 days). Finance shows the Borrow terms in one line. Identical toasts within 5 s show once. `e2e/phase39` banner check changed from days to months with the same bounds (2-3 months = the old 30-90 days).
+3. **Era start**: `ERA_START_CASH_MULT` (x1 before 1930, x1.5 from 1930, x2 from 1950; 1840 and 1900 unchanged, 1900 was benched at $1M); also scales random-map gold goals. New Game labels 1930+ "Expert: few, expensive first lines". Bench fix: goodPlayer / badPlayers bought the electric E-Unit (never runs without catenary: zero revenue, the "bankrupt in 1932/1952" of the playtest) and ignored the bridge limit; they now skip electrics and call `upgradeBridge` for parked heavy trains (`tools/bench/fixBridges.ts`). `survival.ts` now defaults to 1840,1900,1930,1950; `ERAMULT=off` gives the pre-Phase-41 cash.
+4. **Chain bottlenecks**: freight production lost to a full pile is counted (`pileFullUnits`) and the station supply row shows "Pile full: N t lost last month · Terminal holds 150 t". The single-track jam toast shows the passing-loop price and taps into a new loop panel (there was no UI for `buildPassingLoop` before); jam news is one item per place.
+5. **Chain pay**: "Pays on arrival ... · ~$X/yr at full output" (mine's current output). Uranium has its own anchors (`LONG_HAUL_OUTPUT_ANCHORS.uranium`, 2x instead of 3x): only the mine output is lowered.
+6. Tests: `bridgeUpgrade`, `warnings`, `startCash`, `loopSuggest`, cargoFlow pile-full, longHaulPay yearly; `e2e/phase41.spec.ts`; screenshots `phase-41-*.png` (looked at). SPEC §8.2b and §9.1 updated.
+
+### Numbers
+Uranium on the real map (`tools/bench/longHaulReal.ts`, central-eu seed 1, legs 149+117 tiles, 10 years, years 3+ average):
+| case | before (x3) | after (x2) |
+|---|---|---|
+| 1930 silver 2+2 single / 2+2 double / 3+3 double | 23 % / 18 % / 28 % | unchanged |
+| 1950 uranium 1+1 single | 53 % ($2.0M/yr) | 53 % |
+| 1950 uranium 2+2 single | 49 % | 46 % |
+| 1950 uranium 2+2 double | 71 % ($4.1M/yr) | 43 % ($2.5M/yr) |
+| best 1950 / best 1930 | 71/28 = 2.5x | 53/28 = 1.9x |
+Flat bench (`longHaul.ts 1950 100`): best return 173 %/yr ($5.77M), most profit $6.2M/yr (Phase 40: 178 % / $6.8M); 1930 silver 104 %/yr, so about 1.7x. `balanceLongHaul` bounds untouched and pass.
+
+goodPlayer / survival, 3 seeds, 16 years, central-eu (final NW $M per seed):
+| start | diff | before (old bench, plain cash) | bench fixed, plain cash | after (era cash) |
+|---|---|---|---|---|
+| 1930 | normal | bankrupt 1932 (seed 1) | 6.4 / 6.25 / 6.08 | 6.65 / 6.8 / 6.71 |
+| 1930 | hard | no first line (NaN) | NaN (cannot afford it) | 5.87 / 5.76 / 5.62 |
+| 1930 | easy | - | 27.0 / 24.6 / 13.9 | 26.2 / 29.3 / 15.4 |
+| 1950 | normal | bankrupt 1952 (seed 1) | 6.18 / 5.86 / 5.88 | 5.56 / 5.23 / 6.51 |
+| 1950 | hard | no first line (NaN) | NaN | 2.81 / 2.87 / 3.3 |
+| 1950 | easy | - | 9.9 / 13.9 / 12.5 | 14.8 / 14.6 / 13.4 |
+goodPlayer is never bankrupt (min cash $0.07-0.20M). The era cash mostly buys the first years (1950 normal NW at year 1: $0.95M -> $1.9M) and the Hard start that was impossible; the 16-year NW is about the same. 1840/1900 rows not re-run (code path unchanged: start cash identical, same rng).
+Bad bots at 1930/1950 (after): overbuilder 0/18 bankrupt, trainSpammer 3/18, leveraged 3/18 (all on Normal). They are far less punished than at 1840/1900 (Phase 39 targets were only set for those); Hard 1930/1950 bad bots survive with $1.8-3.3M NW. Not tuned here. leveraged and trainSpammer rows are identical at 1930/1950 for the same reason as Phase 40 item 0.
+### Notes
+- Items 1-2 and 3-5 were committed together per group (shared files), not one commit per item. Full `npm run check` and `npm run e2e` passed before each push (786 tests, 221 e2e at the last full run; one e2e spec for the wizard default added afterwards and run alone).
+- The start-up warning shows only when a loan is outstanding. An over-limit warning can coincide with the call if the limit collapses at month end.

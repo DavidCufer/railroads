@@ -1573,4 +1573,4 @@ less** (no price cut, no demand cap).
    produces less) until it does not. Report before/after.
 6. Tests for each; screenshots `phase-41-*.png` (look at them); survival + goodPlayer numbers before/after.
 
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6
