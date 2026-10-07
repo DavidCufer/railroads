@@ -1195,6 +1195,10 @@ button.chip {
   pointer-events: none;
   z-index: 30;
 }
+/* Phase 41: the toast stack starts below the status banner (48px + 26px tall), never over it. */
+.has-status-banner > .toast-container {
+  top: calc(80px + var(--safe-top));
+}
 .toast {
   background: var(--ink-800);
   color: var(--text);
@@ -4710,9 +4714,13 @@ select {
 .status-banner {
   position: absolute;
   top: calc(48px + var(--safe-top));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 20;
+  /* Beside the tool column and under an open panel (z 10), so it never covers a panel header. */
+  left: calc(76px + var(--safe-left));
+  max-width: calc(100% - 152px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 9;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -4773,4 +4781,32 @@ select {
 .game-over-buttons .title-btn {
   white-space: nowrap;
   padding-inline: 14px;
+}
+
+/* Phase 41: one-tap fix for a bridge the engine can't cross. */
+.train-bridge-fix {
+  min-height: 44px;
+  padding: 0 var(--gap-3);
+  border-radius: var(--radius-m);
+  border: 1px solid var(--brass);
+  background: transparent;
+  color: var(--text);
+  font: 700 var(--fs-s) var(--font-ui);
+}
+.train-bridge-fix:disabled {
+  opacity: 0.4;
+}
+.rs-bridge-warning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap-2);
+  color: var(--signal);
+  font-size: var(--fs-s);
+  font-weight: 700;
+}
+
+.finance-borrow-terms {
+  color: var(--muted);
+  font-size: var(--fs-xs);
 }

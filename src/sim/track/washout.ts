@@ -39,6 +39,15 @@ export function yearlyWashoutStep(state: GameState): void {
   }
 }
 
+/** Whether a bridge crosses a river or open water, from the terrain under its span. */
+export function bridgeKind(state: GameState, edge: TrackEdge): "river" | "water" {
+  return edge.bridgeSpan.every(
+    (t) => terrainAt(state.map, t % state.map.width, Math.floor(t / state.map.width)) === "river",
+  )
+    ? "river"
+    : "water";
+}
+
 /** Removes `edge` (a bridge) from the track and records the gap. Exposed for the debug hook and tests. */
 export function washOut(state: GameState, edge: TrackEdge, year?: number): Washout {
   const record: Washout = {
@@ -50,11 +59,7 @@ export function washOut(state: GameState, edge: TrackEdge, year?: number): Washo
     year: year ?? calendarFromTicks(state.startYear, state.ticks).year,
     double: edge.double,
     electrified: edge.electrified,
-    kind: edge.bridgeSpan.every(
-      (t) => terrainAt(state.map, t % state.map.width, Math.floor(t / state.map.width)) === "river",
-    )
-      ? "river"
-      : "water",
+    kind: bridgeKind(state, edge),
   };
   state.trackGraph.removeEdge(edge.a, edge.b);
   state.finance.capitalInvested -= edge.cost;

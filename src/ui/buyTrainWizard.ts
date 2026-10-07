@@ -12,7 +12,17 @@ import {
 } from "../data/trains";
 import { LOAN_INCREMENT } from "../data/finance";
 import { KM_PER_TILE } from "../data/scale";
-import { buyTrain, computeBuyTrainPlan, creditLimit, setOrders, takeLoan } from "../sim/commands";
+import {
+  buyTrain,
+  computeBuyTrainPlan,
+  computeUpgradeBridgePlan,
+  creditLimit,
+  setOrders,
+  takeLoan,
+  upgradeBridge,
+} from "../sim/commands";
+import { weightBridgeBlock } from "../sim/trains/bridgeBlock";
+import { nearestStationName } from "./placeNames";
 import type { GameState } from "../sim/state";
 import { calendarFromTicks } from "../sim/time";
 import type { TrainOrder } from "../sim/trains/types";
@@ -73,7 +83,13 @@ export function openBuyTrainPanel(
     ? state.trackGraph.edgesAt(station.tile).some((e) => e.electrified)
     : false;
 
-  let selected: LocomotiveDef | undefined = listOrder[0];
+  const lockedHere = (loco: LocomotiveDef): boolean => loco.type === "electric" && !electrifiedHere;
+  const usable = available.filter((l) => !lockedHere(l));
+  /** The best engine the player can run from here — never the locked electric (PLAYTEST-4 UX6). */
+  let selected: LocomotiveDef | undefined = usable.reduce<LocomotiveDef | undefined>(
+    (top, l) => (!top || l.maxSpeedKmh > top.maxSpeedKmh ? l : top),
+    undefined,
+  );
   let filter: Filter = "all";
   const cars: CargoType[] = [];
   const orders: TrainOrder[] = [];
@@ -85,7 +101,7 @@ export function openBuyTrainPanel(
   const stationLabel = (id: number): string =>
     state.stations.find((s) => s.id === id)?.name ?? strings.fallback.station;
   const priceOf = (loco: LocomotiveDef): number => computeBuyTrainPlan(state, loco.id, []).cost;
-  const isLocked = (loco: LocomotiveDef): boolean => loco.type === "electric" && !electrifiedHere;
+  const isLocked = lockedHere;
 
   /** Cash against the price, with the way out when short (Playtest 2, Bug 5): "Borrow $X" takes the smallest loan
    * that covers it. Refreshed with `update(price)` as the selection changes. */
@@ -556,6 +572,53 @@ export function openBuyTrainPanel(
       return [h("div", { className: "rs-search-row" }, backButton(), search), rowsHost];
     }
 
+    /** Phase 41: the first leg of the route that crosses a wooden bridge the chosen engine can't use, with the fix. */
+    function bridgeWarning(): HTMLElement | null {
+      const loco = selected;
+      if (!loco || orders.length === 0) return null;
+      const stops = [stationId, ...orders.map((o) => o.stationId)];
+      for (let i = 0; i + 1 < stops.length; i++) {
+        const from = state.stations.find((s) => s.id === stops[i]);
+        const to = state.stations.find((s) => s.id === stops[i + 1]);
+        if (!from || !to || from.tile === to.tile) continue;
+        const block = weightBridgeBlock(
+          state,
+          loco.weightClass,
+          loco.type === "electric",
+          from.tile,
+          to.tile,
+        );
+        if (!block) continue;
+        const option = computeUpgradeBridgePlan(state, block.a, block.b).options[0];
+        return h(
+          "div",
+          { className: "rs-bridge-warning", "data-testid": "wizard-bridge-warning" },
+          icon("warning", "icon-sm tone-signal"),
+          h("span", null, t.heavyBridge(loco.name, nearestStationName(state, block.a))),
+          option
+            ? h(
+                "button",
+                {
+                  className: "train-bridge-fix",
+                  disabled: option.cost > state.cash,
+                  onClick: () => {
+                    const result = upgradeBridge(state, block.a, block.b, option.type);
+                    if (!result.ok)
+                      showToast(container, strings.build.reasons[result.reason], "warn");
+                    render();
+                  },
+                },
+                t.rebuildBridge(
+                  t.bridgeMaterial[option.type as "stone" | "steel"],
+                  formatMoney(option.cost),
+                ),
+              )
+            : null,
+        );
+      }
+      return null;
+    }
+
     function shortStrip(price: number): HTMLElement {
       const strip = cashStrip(render);
       strip.update(price);
@@ -606,6 +669,7 @@ export function openBuyTrainPanel(
         confirmGaps = false;
       }
       const ordersOk = orders.length >= 2 && orders.length <= 8;
+      const bridgeWarningEl = bridgeWarning();
       const buyBtn = h(
         "button",
         {
@@ -667,6 +731,7 @@ export function openBuyTrainPanel(
             "div",
             { className: "rs-right" },
             h("div", { className: "rs-add-row" }, pickBtn, listBtn),
+            ...(bridgeWarningEl ? [bridgeWarningEl] : []),
             ...(plan.cost > state.cash ? [shortStrip(plan.cost)] : []),
             h("div", { className: "rs-buy-row" }, backButton(), buyBtn),
           ),

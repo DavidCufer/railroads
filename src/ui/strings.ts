@@ -395,6 +395,10 @@ export const strings = {
     undeliverableChip: (cars: number, cargo: string) =>
       `${cars} ${cars === 1 ? "car" : "cars"} of ${cargo} can't be delivered on this route`,
     noRouteTo: (station: string) => `No route to ${station}`,
+    heavyBridge: (loco: string, near: string) =>
+      `${loco} is too heavy for the wooden bridge near ${near}`,
+    rebuildBridge: (material: string, cost: string) => `Rebuild in ${material} · ${cost}`,
+    bridgeMaterial: { stone: "stone", steel: "steel" },
     editCars: "Edit cars",
     editCarsTitle: "Edit Consist",
     /** PLAN Phase 15: shown while `train.pendingConsist` is set (the train isn't at a station right
@@ -616,6 +620,8 @@ export const strings = {
     borrowTip: "Borrow $100k",
     repayTip: "Repay $100k",
     creditNote: "Loans come in $100k steps",
+    borrowTerms: (step: string, rate: string, years: number, monthly: string) =>
+      `Borrow ${step}: ${rate} a year, ${years} years, ${monthly} a month plus interest`,
     netWorth: "Net worth",
     thisYear: "This year",
     lastYear: "Last year",
@@ -664,7 +670,8 @@ export const strings = {
     chartCash: "Cash",
     chartNetWorth: "Net worth",
     yearlyReport: "Yearly Report",
-    insolvent: (days: number) => `Insolvent: ${days} days to recover`,
+    insolvent: (months: number) =>
+      `Insolvent: ${months} month${months === 1 ? "" : "s"} to recover`,
     panic: (name: string, fall: number, months: number) =>
       `${name}: demand −${fall} %, credit tight, ${months} mo left`,
     bankruptWarning: "Cash has been negative for months — borrow, sell trains, or cut costs.",
@@ -832,6 +839,8 @@ export const strings = {
         `${n} trains queue near ${nearName} — add platforms, a second station or another line`,
       noRoute: (trainName: string, stationName: string) =>
         `${trainName} has no route to ${stationName}`,
+      heavyBridge: (loco: string, near: string) =>
+        `${loco} is too heavy for the wooden bridge near ${near}`,
       undeliverable: (trainName: string, cars: number, cargo: string) =>
         `${trainName} carries ${cars} ${cars === 1 ? "car" : "cars"} of ${cargo} that no stop on its route accepts`,
       stationDemolished: (name: string, trains: number) =>
@@ -844,7 +853,11 @@ export const strings = {
       panic: (name: string, months: number) =>
         `${name}: demand falls and credit tightens for about ${months} months`,
       insolvent: (months: number) =>
-        `Insolvent: ${months} month${months === 1 ? "" : "s"} to recover`,
+        `Insolvent: ${months} month${months === 1 ? "" : "s"} to recover — sell trains or raise cash`,
+      startupCreditEnding: (months: number, limit: string) =>
+        `Start-up credit ends in ${months} month${months === 1 ? "" : "s"}: limit ~${limit}`,
+      overLimit: (debt: string, limit: string) =>
+        `Debt ${debt}, limit ${limit}: lenders call 25 %/month`,
       fewStops: (trainName: string) =>
         `${trainName} has fewer than 2 stops — tap to edit its route`,
       cityGrowth: (cityName: string, tierName: string) =>
@@ -965,6 +978,7 @@ export const strings = {
       hard: "Hard",
     },
     startingCash: "Starting cash",
+    expertStart: "Expert: few, expensive first lines",
     start: "Start Game",
     seed: "Seed",
     randomizeSeed: "Randomize seed",

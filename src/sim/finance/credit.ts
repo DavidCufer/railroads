@@ -40,6 +40,13 @@ export function insolvencyDaysLeft(state: GameState): number | undefined {
   return Math.max(0, (monthsLeft - 1) * DAYS_PER_MONTH + toMonthEnd);
 }
 
+/** Months left to recover (what the news says too), or undefined when the company is not insolvent. */
+export function insolvencyMonthsLeft(state: GameState): number | undefined {
+  const months = state.finance.negativeCashMonths;
+  if (!DIFFICULTY[state.difficulty].bankruptcy || months <= 0) return undefined;
+  return Math.max(1, DIFFICULTY[state.difficulty].graceMonths - months);
+}
+
 /** Premium for earnings that do not cover the interest (0 during the start-up credit and with no loans). */
 export function coverPremium(state: GameState): number {
   const loans = state.finance.loans;
@@ -78,11 +85,18 @@ export function earningsBeforeInterest(state: GameState): number {
 
 /** How much the company may owe in all: the lower of half its net worth and 5× its yearly earnings, at least $500k. */
 export function creditLimitFor(state: GameState, netWorth: number): number {
+  const startup = state.ticks < CREDIT_STARTUP_MONTHS * DAYS_PER_MONTH * HOURS_PER_DAY;
+  return (
+    Math.max(startup ? CREDIT_LIMIT_MIN : 0, earnedCreditLimit(state, netWorth)) *
+    panicCreditMult(state)
+  );
+}
+
+/** The limit the company's own record earns, without the start-up floor (what it will have once start-up credit ends). */
+export function earnedCreditLimit(state: GameState, netWorth: number): number {
   const byAssets = netWorth * CREDIT_LIMIT_FRACTION;
   const byEarnings = earningsBeforeInterest(state) * CREDIT_LIMIT_EARNINGS_MULT;
-  const startup = state.ticks < CREDIT_STARTUP_MONTHS * DAYS_PER_MONTH * HOURS_PER_DAY;
-  const earned = Math.min(byAssets, byEarnings) * DIFFICULTY[state.difficulty].creditMult;
-  return Math.max(startup ? CREDIT_LIMIT_MIN : 0, earned) * panicCreditMult(state);
+  return Math.min(byAssets, byEarnings) * DIFFICULTY[state.difficulty].creditMult;
 }
 
 /** Principal due this month: the bonds' schedule, never more than is owed. */

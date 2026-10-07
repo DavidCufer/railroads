@@ -50,7 +50,7 @@ import {
 } from "./track/cost";
 import type { TrackEdge } from "./track/types";
 import { canPlaceStationAt, stationAtTile, stationCatchmentTiles } from "./stations/placement";
-import type { Washout } from "./track/washout";
+import { bridgeKind, type Washout } from "./track/washout";
 import { landPrices, passingLoopLandCost, stationLandCost } from "./economy/land";
 import { passingLoopCost, stationCost, stationUpgradeCost } from "./stations/cost";
 import { defaultStationName } from "./stations/naming";
@@ -459,6 +459,57 @@ export function rebuildBridge(
   state.trackGraph.addEdge(edge);
   registerBuildRoutes(state.trackGraph, routeSnapshot, [edge.a, edge.b]);
   state.washouts = state.washouts.filter((w) => w.id !== washoutId);
+  state.cash -= option.cost;
+  state.finance.capitalInvested += option.cost;
+  addExpense(state, "construction", option.cost);
+  state.trackVersion++;
+  return { ok: true, cost: option.cost };
+}
+
+export interface UpgradeBridgePlan {
+  edge: TrackEdge | undefined;
+  /** Stone and steel prices this crossing and year allow, cheapest first. */
+  options: RebuildOption[];
+  valid: boolean;
+}
+
+/** Prices replacing the standing wooden bridge `a`-`b` in a heavier material (Phase 41). */
+export function computeUpgradeBridgePlan(
+  state: GameState,
+  a: number,
+  b: number,
+): UpgradeBridgePlan {
+  const edge = state.trackGraph.getEdge(a, b);
+  if (!edge || edge.bridge !== "wood") return { edge, options: [], valid: false };
+  const ctx = costContext(state);
+  const kind = bridgeKind(state, edge);
+  const options = validBridgeTypes(kind, edge.bridgeSpan.length, ctx.year)
+    .filter((type) => type !== "wood")
+    .map((type) => {
+      const single = bridgeCost(type, kind, edge.bridgeSpan.length, ctx);
+      const cost = edge.double
+        ? single + doubleUpgradeCost({ cost: single, bridge: type })
+        : single;
+      return { type, cost, washable: false };
+    });
+  return { edge, options, valid: options.length > 0 };
+}
+
+/** Replaces a standing wooden bridge with stone or steel (default: the cheapest): heavy engines can cross it and it never
+ * washes out. The old timber is scrapped; the new bridge is paid in full. */
+export function upgradeBridge(
+  state: GameState,
+  a: number,
+  b: number,
+  type?: BridgeType,
+): CommandResult {
+  const plan = computeUpgradeBridgePlan(state, a, b);
+  if (!plan.edge || !plan.valid) return { ok: false, reason: "no-bridge-to-rebuild" };
+  const option = type ? plan.options.find((o) => o.type === type) : plan.options[0];
+  if (!option) return { ok: false, reason: "not-era-available" };
+  if (option.cost > state.cash) return { ok: false, reason: "cant-afford" };
+  plan.edge.bridge = option.type;
+  plan.edge.cost += option.cost;
   state.cash -= option.cost;
   state.finance.capitalInvested += option.cost;
   addExpense(state, "construction", option.cost);

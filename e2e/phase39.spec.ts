@@ -33,10 +33,10 @@ test("a company with no cash and no credit shows the insolvency banner with the 
   await page.evaluate(() => window.__game!.runDays(31));
   const banner = page.locator(".status-banner");
   await expect(banner).toBeVisible();
-  await expect(banner).toHaveText(/Insolvent: \d+ days to recover/);
-  const days = Number((await banner.textContent())!.match(/(\d+) days/)![1]);
-  expect(days).toBeGreaterThan(30);
-  expect(days).toBeLessThanOrEqual(90);
+  await expect(banner).toHaveText(/Insolvent: \d+ months? to recover/);
+  const months = Number((await banner.textContent())!.match(/(\d+) months?/)![1]);
+  expect(months).toBeGreaterThanOrEqual(2); // the old bound: more than 30 days left
+  expect(months).toBeLessThanOrEqual(3); // ... and at most 90
   await page.screenshot({ path: "docs/screenshots/phase-39-insolvent.png" });
 });
 

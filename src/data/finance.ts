@@ -86,6 +86,25 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
   },
 };
 
+/** Phase 41 (PLAYTEST-4 BAL1): start cash follows the era's price level. A start before 1900 keeps the difficulty's
+ * figure (1840 is unchanged, and 1900 was benched at it); later starts get a multiple, so the first line and its first
+ * train cost the same share of the start cash as in 1900. Rows are [first start year, multiple], ascending. */
+export const ERA_START_CASH_MULT: ReadonlyArray<readonly [number, number]> = [
+  [1830, 1],
+  [1930, 1.5],
+  [1950, 2],
+];
+
+/** From this start year the New Game screen calls the start an expert one. */
+export const EXPERT_START_YEAR = 1930;
+
+/** The cash a company starts with: the difficulty's figure times the era's multiple. */
+export function startingCashFor(difficulty: Difficulty, startYear: number): number {
+  let mult = 1;
+  for (const [from, m] of ERA_START_CASH_MULT) if (startYear >= from) mult = m;
+  return DIFFICULTY[difficulty].startingCash * mult;
+}
+
 export const DEFAULT_DIFFICULTY: Difficulty = "normal";
 
 /** Era inflation (SPEC §9.5): all costs/revenues scale by this factor, ≈2.4× by 1950. */
@@ -108,6 +127,10 @@ export const COVER_PREMIUM_MAX = 0.08;
 /** Phase 39: when the limit falls below the loans (earnings fell, a panic) lenders call this share of the excess each
  * month, out of cash. */
 export const CREDIT_CALL_FRACTION = 0.25;
+/** Phase 41: the end of start-up credit is announced this many months ahead. */
+export const CREDIT_STARTUP_WARNING_MONTHS = 3;
+/** Phase 41: debt over the limit is announced at most once per this many days. */
+export const CREDIT_OVER_LIMIT_NEWS_GAP_DAYS = 90;
 /** Phase 39: loans are bonds. Each $ borrowed is repaid in equal monthly principal over this many months. */
 export const LOAN_TERM_MONTHS = 120;
 /** Credit from earnings (Phase 30A): lenders lend against cash flow, not only against what the company owns. The

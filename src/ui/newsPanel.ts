@@ -21,9 +21,11 @@ import { h } from "./h";
 import { locoArt } from "./trainArt";
 import { icon, type IconName } from "./icons";
 import { closePanel, openPanel } from "./panel";
+import { trainWeightBridgeBlock } from "../sim/trains/bridgeBlock";
 import { diagnoseJam } from "./jamDiagnosis";
 import { openTrainPanel } from "./trainPanels";
 import { strings } from "./strings";
+import { nearestStationName } from "./placeNames";
 
 function trainName(state: GameState, trainId: number): string {
   return state.trains.find((t) => t.id === trainId)?.name ?? strings.fallback.train;
@@ -35,22 +37,6 @@ function stationName(state: GameState, stationId: number): string {
 
 function cityName(state: GameState, cityId: number): string {
   return state.cities.find((c) => c.id === cityId)?.name ?? strings.fallback.city;
-}
-
-/** Nearest built station to `tile` by straight-line tile distance — used to name a place for
- * tile-anchored news (traffic jams, washouts) that don't reference a specific station. */
-function nearestStationName(state: GameState, tile: number): string {
-  const width = state.map.width;
-  const tx = tile % width;
-  const ty = Math.floor(tile / width);
-  let best: { name: string; d: number } | null = null;
-  for (const s of state.stations) {
-    const sx = s.tile % width;
-    const sy = Math.floor(s.tile / width);
-    const d = Math.hypot(sx - tx, sy - ty);
-    if (!best || d < best.d) best = { name: s.name, d };
-  }
-  return best?.name ?? strings.fallback.place;
 }
 
 function nearestCityName(state: GameState, x: number, y: number): string {
@@ -84,11 +70,20 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
         ? strings.news.kinds.trafficJamSingle(jam.trains, near)
         : strings.news.kinds.trafficJamBusy(jam.trains, near);
     }
-    case "noRoute":
+    case "noRoute": {
+      const train = state.trains.find((t) => t.id === item.trainId);
+      const loco = train && locomotiveById(train.locoModelId);
+      const block =
+        train &&
+        loco &&
+        trainWeightBridgeBlock(state, train, loco.weightClass, loco.type === "electric");
+      if (block && loco)
+        return strings.news.kinds.heavyBridge(loco.name, nearestStationName(state, block.a));
       return strings.news.kinds.noRoute(
         trainName(state, item.trainId),
         stationName(state, item.stationId),
       );
+    }
     case "undeliverable":
       return strings.news.kinds.undeliverable(
         trainName(state, item.trainId),
@@ -103,6 +98,10 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
       return strings.news.kinds.insolvent(item.monthsLeft);
     case "loansCalled":
       return strings.news.kinds.loansCalled(formatMoney(item.amount));
+    case "startupCreditEnding":
+      return strings.news.kinds.startupCreditEnding(item.months, formatMoney(item.limit));
+    case "overLimit":
+      return strings.news.kinds.overLimit(formatMoney(item.debt), formatMoney(item.limit));
     case "panic":
       return strings.news.kinds.panic(item.name, item.months);
     case "fewStops":
@@ -178,6 +177,8 @@ const NEWS_ICONS: Record<NewsItem["kind"], { icon: IconName; tone: Tone }> = {
   insolvent: { icon: "warning", tone: "signal" },
   loansCalled: { icon: "coin", tone: "signal" },
   panic: { icon: "warning", tone: "signal" },
+  startupCreditEnding: { icon: "coin", tone: "brass" },
+  overLimit: { icon: "coin", tone: "signal" },
   cityGrowth: { icon: "city", tone: "go" },
   civicInvestment: { icon: "coin", tone: "go" },
   cityFounded: { icon: "village", tone: "go" },

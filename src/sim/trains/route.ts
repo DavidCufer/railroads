@@ -37,6 +37,8 @@ export interface RouteOptions {
   edgeToBlock?: ReadonlyMap<string, number>;
   /** Safety cap on explored (node, direction) states. */
   maxExpansions?: number;
+  /** Diagnosis only: let any weight class over wooden bridges. */
+  ignoreBridgeWeight?: boolean;
 }
 
 interface HeapItem {
@@ -154,7 +156,8 @@ export function findTrainRoute(
     for (const neighborTile of graph.neighborsOf(current.tile)) {
       const edge = graph.getEdge(current.tile, neighborTile);
       if (!edge) continue;
-      if (!bridgeAllowsWeight(edge.bridge, options.weightClass)) continue;
+      if (!options.ignoreBridgeWeight && !bridgeAllowsWeight(edge.bridge, options.weightClass))
+        continue;
       if (options.electric && !edge.electrified) continue;
 
       const dirOut = directionBetween(current.tile, neighborTile, mapWidth);

@@ -30,6 +30,10 @@ function syncInset(toastRoot: HTMLElement): void {
   toastRoot.style.setProperty("--toast-left-inset", inset > 0 ? `${TOOL_COLUMN_PX}px` : "0px");
 }
 
+/** Identical messages raised within this window show once (Phase 41: the jam hint came twice in a row). */
+const TOAST_DEDUPE_MS = 5000;
+const recentToasts = new Map<string, number>();
+
 let insetTimer: number | null = null;
 
 function watchInset(toastRoot: HTMLElement): void {
@@ -50,6 +54,13 @@ export function showToast(
   kind: ToastKind = "info",
   onTap?: () => void,
 ): void {
+  const now = performance.now();
+  const shownAt = recentToasts.get(message);
+  if (shownAt !== undefined && now - shownAt < TOAST_DEDUPE_MS) return;
+  recentToasts.set(message, now);
+  if (recentToasts.size > 50) {
+    for (const [m, t] of recentToasts) if (now - t >= TOAST_DEDUPE_MS) recentToasts.delete(m);
+  }
   const toastRoot = ensureContainer(container);
   syncInset(toastRoot);
   watchInset(toastRoot);

@@ -13,6 +13,8 @@ import {
 } from "../data/trains";
 import {
   computeEditConsistPlan,
+  computeUpgradeBridgePlan,
+  upgradeBridge,
   computeReplaceLocoPlan,
   computeSellTrainPlan,
   editConsist,
@@ -26,6 +28,8 @@ import {
 import type { GameState } from "../sim/state";
 import { calendarFromTicks, DAYS_PER_YEAR, HOURS_PER_DAY } from "../sim/time";
 import { getTrainRuntime, isElectrificationOnlyBlocker } from "../sim/trains";
+import { trainWeightBridgeBlock } from "../sim/trains/bridgeBlock";
+import { nearestStationName } from "./placeNames";
 import { passedOrderStops } from "../sim/trains/passedStops";
 import { undeliverableCars } from "../sim/trains/undeliverable";
 import { cargoGaps } from "../sim/trains/cargoGaps";
@@ -158,7 +162,14 @@ export function statusText(state: GameState, train: Train): string {
   if (repair?.phase === "repairing") return strings.trains.repairing(repair.daysLeft);
   const order = train.orders[train.currentOrderIndex];
   const orderStation = order && state.stations.find((s) => s.id === order.stationId)?.name;
-  if (train.status === "noRoute" && orderStation) return strings.trains.noRouteTo(orderStation);
+  if (train.status === "noRoute" && orderStation) {
+    const loco = locomotiveById(train.locoModelId);
+    const block =
+      loco && trainWeightBridgeBlock(state, train, loco.weightClass, loco.type === "electric");
+    if (loco && block)
+      return strings.trains.heavyBridge(loco.name, nearestStationName(state, block.a));
+    return strings.trains.noRouteTo(orderStation);
+  }
   const targetName =
     train.waitingForStationId !== undefined
       ? state.stations.find((s) => s.id === train.waitingForStationId)?.name
@@ -220,6 +231,36 @@ function warningsLine(
   );
 }
 
+/** One-tap "Rebuild in stone" for the wooden bridge a heavy engine can't cross (Phase 41). */
+function bridgeFix(state: GameState, train: Train, loco: LocomotiveDef): HTMLElement | null {
+  const block = trainWeightBridgeBlock(state, train, loco.weightClass, loco.type === "electric");
+  if (!block) return null;
+  const option = computeUpgradeBridgePlan(state, block.a, block.b).options[0];
+  if (!option) return null;
+  const btn = h(
+    "button",
+    {
+      className: "train-bridge-fix",
+      "data-testid": "bridge-fix",
+      disabled: option.cost > state.cash,
+      onClick: () => {
+        const result = upgradeBridge(state, block.a, block.b, option.type);
+        if (!result.ok)
+          showToast(
+            btn.parentElement ?? document.body,
+            strings.build.reasons[result.reason],
+            "warn",
+          );
+      },
+    },
+    strings.trains.rebuildBridge(
+      strings.trains.bridgeMaterial[option.type as "stone" | "steel"],
+      formatMoney(option.cost),
+    ),
+  );
+  return btn;
+}
+
 function statusLine(state: GameState, train: Train, loco: LocomotiveDef | undefined): HTMLElement {
   const st = STATUS_ICON[train.status];
   const kids: Array<Node | string> = [
@@ -229,6 +270,8 @@ function statusLine(state: GameState, train: Train, loco: LocomotiveDef | undefi
   if (loco && electrifiedRouteBlocked(state, train, loco)) {
     kids.push(h("span", { className: "train-route-warning" }, strings.trains.routeNotElectrified));
   }
+  const bridge = loco && train.status === "noRoute" ? bridgeFix(state, train, loco) : null;
+  if (bridge) kids.push(bridge);
   if (train.pendingConsist) {
     kids.push(
       h("span", { className: "train-consist-pending" }, strings.trains.consistChangeQueued),
