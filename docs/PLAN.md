@@ -1574,3 +1574,19 @@ less** (no price cut, no demand cap).
 6. Tests for each; screenshots `phase-41-*.png` (look at them); survival + goodPlayer numbers before/after.
 
 Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6
+
+## Phase 42 — Late eras as unforgiving as 1840/1900
+Owner: 1930/1950 starts must punish bad choices like 1840/1900 (Phase 39 targets). Real mechanisms only.
+1. **Later crises** in `src/data/panics.ts` (historical, deterministic per seed as today): e.g. 1937–38 recession,
+   1948–49, 1953–54, 1957–58, 1973–75 oil crisis, 1979–82; regions may differ. The **oil crises also raise fuel
+   prices** for diesel/steam (data table by year; electric unaffected) — a real cost shock, shown in the panic
+   banner/news ("Oil crisis: fuel +60 %").
+2. **Late-era competition and costs, if needed to reach the targets** (measure first): road competition (trucks/cars)
+   that grows after ~1920 already exists? — verify it bites in 1930–1980 for short hauls; wages rising faster than
+   fares after 1945 (data tables). Keep the good bot's late-era curve within ~±20 %.
+3. **Targets** (extend `survival.ts ASSERT`): 1930 and 1950, Normal: goodPlayer survives all seeds; each bad bot
+   bankrupt ≥ ~50 %. Hard: goodPlayer survives (thin margin), bad bots ≥ ~80 %. Easy: no bankruptcy. Report the
+   full table (1840/1900/1930/1950) before/after; 1840/1900 must not get easier or break.
+4. Tests for the new data (crisis years, fuel shock), SPEC/BALANCE updated; one-line UI only.
+
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
