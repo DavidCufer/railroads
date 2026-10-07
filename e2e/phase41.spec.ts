@@ -244,3 +244,40 @@ test("a station whose pile is full says how much was lost and what a Terminal ho
   await expect(line).toHaveText(/Pile full: \d+ t lost last month · Terminal holds 150 t/);
   await page.screenshot({ path: "docs/screenshots/phase-41-pile-full.png" });
 });
+
+test("the buy wizard starts on an engine you can run, not the locked electric", async ({
+  page,
+}) => {
+  await freshGame(page, 1930);
+  const stationId = await page.evaluate(() => {
+    const game = window.__game!;
+    const map = game.getMap();
+    const m = map as unknown as {
+      terrain: Uint8Array;
+      riverNext: Int32Array;
+      riverFlow: Uint16Array;
+      industryId: Int32Array;
+    };
+    const y = Math.floor(map.height / 2);
+    const tiles: number[] = [];
+    for (let x = 30; x < 38; x++) {
+      const idx = y * map.width + x;
+      m.terrain[idx] = 0;
+      m.riverNext[idx] = -1;
+      m.riverFlow[idx] = 0;
+      m.industryId[idx] = -1;
+      tiles.push(idx);
+    }
+    game.debugSetCash(5_000_000);
+    game.buildTrackPath(tiles);
+    game.buildStation(tiles[0]!, "station");
+    return game.getStations()[0]!.id;
+  });
+  await page.evaluate((id) => window.__game!.debugOpenStation(id), stationId);
+  await page.getByRole("button", { name: "Buy Train" }).click();
+  await expect(page.getByTestId("engine-e-unit-electric")).toBeVisible();
+  await expect(page.getByTestId("engine-e-unit-electric")).not.toHaveClass(/active/);
+  await expect(page.locator(".eng-card.active")).toHaveCount(1);
+  await expect(page.locator(".eng-card.active.locked")).toHaveCount(0);
+  await page.screenshot({ path: "docs/screenshots/phase-41-wizard-default.png" });
+});
