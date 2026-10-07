@@ -19,6 +19,7 @@ import type { TrainOrder } from "../sim/trains/types";
 import { cardRow } from "./components/cardRow";
 import { emptyState } from "./components/emptyState";
 import { footerButton } from "./components/footer";
+import { cargoUsableOnMap } from "../sim/economy/longHaulPay";
 import { consistBuilder, suggestConsists } from "./consistBuilder";
 import { formatMoney } from "./format";
 import { flashLast, h } from "./h";
@@ -384,6 +385,7 @@ export function openBuyTrainPanel(
       year,
       cars,
       stripHeight: 56,
+      onMap: (c) => cargoUsableOnMap(state, c),
       suggestions: () => suggestConsists(state.stationEconomy.get(stationId), selected, year),
       onChange: () => {
         builder.refresh();

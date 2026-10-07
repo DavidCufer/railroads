@@ -495,6 +495,33 @@ Cars (Phase 36): a passenger or mail car costs 3× a basic freight wagon ($6k vs
 upkeep is the car's price × 8 % (passenger, mail) or 4 % (freight), at the year's prices, added to the train's running cost
 (`carUpkeepRate` in `src/data/cargo.ts`).
 
+### 8.2b The long-haul chain (Phase 40)
+
+One valuable chain per map, on the map from the first day: **silver** (Silver Mine → Smelter → Mint) when the game starts
+before 1940, **uranium** (Uranium Mine → Enrichment Plant → Nuclear Power Plant) from 1940 on. A silver game keeps its silver
+chain past 1940; there is never more than one chain. `src/sim/economy/longHaulChain.ts` places it on a copy of the map's rng
+stream (no other map changes), after the ordinary industries and `ensureIndustryChains`, for generated maps and regions alike.
+
+- **Far apart**: the mine and the processor, and the processor and the customer, are each at least a third of the map's longer
+  side apart (and at most two thirds), the mine is at least 1.2 legs from the customer, all three on one landmass (8-neighbour
+  land components), 6 tiles off the map edge, with the usual city / industry spacing. The customer stands within 4×scale tiles
+  of one of the 8 biggest towns; the mine is on hills or mountains. If a map cannot fit it the legs relax in steps (×0.85 … ×0.4).
+  These industries have placement kind `chain`: the growth, discovery and spawn code never touches them.
+- **Paid only on final delivery.** Ore (`chainLeg: "intermediate"`) pays nothing at the smelter; it only hands its origin tile to
+  the processor (`IndustryEconomyState.oreOriginTile`). Bars / enriched uranium (`"final"`) are loaded with that origin on the
+  car (`TrainCar.oreOriginTile`, kept through a Warehouse transfer in `TransferLot`) and pay on arrival at the Mint / Power Plant
+  by the **straight-line distance from the ore's origin** (the mine's station), not from where they were loaded. The time factor
+  still runs from the loading at the smelter. Bars: $4,200 per 10 t car per 100 km (`SILVER_BARS_BASE_RATE`), enriched
+  uranium $6,300, at era-1830 prices (≈ 7× coal per ton and km, paid on the whole mine-to-customer distance).
+- **Output**: the mine makes 80 t of ore a month × `longHaulOutputMult(year)` (1× to 1880, 2× in 1900, 3× from 1930); a 20 t ore
+  car makes a 10 t bar car (80 t of ore → 40 t of bars at base).
+- **Secure cars**: bars and enriched uranium travel in a bullion van / flask car: $12k (6× a wagon), 10 t, upkeep 12 %/yr of
+  price (3× a wagon's). Ore uses ordinary ore hoppers.
+- **UI**: the station panel adds one line under the supply chips of a station that supplies the chain's ore or bars: "Pays on
+  arrival at the Mint: ~$6,230/t" (`chainPayEstimate`: the mine-to-customer distance at today's fare, delivery on schedule; for ore,
+  the value of the bars it makes). The buy-train car palette lists a chain's cars only on a map that has the chain.
+- Balance: see `tools/bench/longHaul.ts` and PROGRESS (Phase 40) for the return by start decade.
+
 ### 8.3 Cities
 
 - A city occupies a cluster of tiles; its size tier determines footprint and buildings drawn:

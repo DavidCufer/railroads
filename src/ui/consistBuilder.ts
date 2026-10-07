@@ -18,9 +18,17 @@ export interface Suggestion {
 }
 
 /** Cars a locomotive may pull at `year` (high-speed trainsets: passengers and mail only). */
-export function allowedCargo(loco: LocomotiveDef | undefined, year: number): CargoType[] {
+export function allowedCargo(
+  loco: LocomotiveDef | undefined,
+  year: number,
+  /** Phase 40: drops cargo this map has no use for (the other era's chain). */
+  onMap: (cargo: CargoType) => boolean = () => true,
+): CargoType[] {
   return CARGO_TYPES.filter(
-    (c) => CARGO[c].era <= year && (!loco?.passengerMailOnly || c === "passengers" || c === "mail"),
+    (c) =>
+      CARGO[c].era <= year &&
+      onMap(c) &&
+      (!loco?.passengerMailOnly || c === "passengers" || c === "mail"),
   );
 }
 
@@ -66,6 +74,8 @@ export interface ConsistBuilderOptions {
   suggestions?: () => Suggestion[];
   onChange: () => void;
   stripHeight?: number;
+  /** Phase 40: whether a cargo has any use on this map (default: all do). */
+  onMap?: (cargo: CargoType) => boolean;
 }
 
 export interface ConsistBuilder {
@@ -167,7 +177,7 @@ export function consistBuilder(options: ConsistBuilderOptions): ConsistBuilder {
 
     const full = options.cars.length >= max;
     palette.replaceChildren(
-      ...allowedCargo(loco, options.year).map((c) =>
+      ...allowedCargo(loco, options.year, options.onMap).map((c) =>
         h(
           "button",
           {

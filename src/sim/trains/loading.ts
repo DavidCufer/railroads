@@ -226,6 +226,12 @@ function computeDwellTicks(
   return Math.max(MIN_LOADING_TICKS, Math.round(handled * perCar));
 }
 
+/** Transit days after which a delivery of `cargo` over `distanceTiles` still gets its full fare (no time bonus or
+ * penalty), as `computeRevenue` reckons it. */
+export function expectedTransitDays(cargo: CargoType, distanceTiles: number): number {
+  return (distanceTiles / EXPECTED_TILES_PER_DAY) * CARGO[cargo].urgency + 2;
+}
+
 export function computeRevenue(
   state: GameState,
   cargo: CargoType,
@@ -235,7 +241,7 @@ export function computeRevenue(
   trainKmh = 0,
 ): number {
   const def = CARGO[cargo];
-  const expected = (distanceTiles / EXPECTED_TILES_PER_DAY) * def.urgency + 2;
+  const expected = expectedTransitDays(cargo, distanceTiles);
   const timeFactor =
     days <= expected
       ? 1 + 0.25 * (1 - days / expected)
@@ -255,6 +261,29 @@ function tileDistance(mapWidth: number, a: number, b: number): number {
   const [ax, ay] = tileXY(a, mapWidth);
   const [bx, by] = tileXY(b, mapWidth);
   return Math.hypot(ax - bx, ay - by);
+}
+
+/** Phase 40: where the ore behind the long-haul chain's final cargo `cargo` was loaded — the origin its processor
+ * recorded from the last delivery of ore, found through the processors in `station`'s catchment that make it. */
+function chainOreOrigin(state: GameState, station: Station, cargo: CargoType): number | undefined {
+  const radius = STATION_TYPE_DEFS[station.type].catchmentRadius;
+  const tiles = new Set(stationCatchmentTiles(state.map, station.tile, radius));
+  for (const industry of state.industries) {
+    if (!tiles.has(industry.y * state.map.width + industry.x)) continue;
+    const def = INDUSTRIES[industry.type];
+    if ((def.produces[cargo] ?? 0) <= 0 || Object.keys(def.consumes).length === 0) continue;
+    const origin = state.industryEconomy.get(industry.id)?.oreOriginTile;
+    if (origin !== undefined) return origin;
+  }
+  return undefined;
+}
+
+/** Empties a car's load record. */
+function clearLoad(car: TrainCar): void {
+  car.loadedUnits = 0;
+  delete car.loadedTile;
+  delete car.loadedTick;
+  delete car.oreOriginTile;
 }
 
 /** Industries in `station`'s catchment that consume `cargo` (SPEC §8.2: delivered inputs feed
@@ -302,11 +331,15 @@ function queueDelivery(state: GameState, train: Train, event: DeliveryEvent): vo
 function settleUnload(state: GameState, train: Train, station: Station, car: TrainCar): void {
   const cargo = car.cargoType;
   const unitsDelivered = car.loadedUnits;
+  // Phase 40: a chain's final cargo pays by the distance from its ore's origin; its ore (the intermediate leg) pays
+  // nothing and only hands its origin on to the processor.
+  const origin = car.oreOriginTile ?? car.loadedTile;
   const distanceTiles =
-    car.loadedTile !== undefined ? tileDistance(state.map.width, car.loadedTile, station.tile) : 0;
+    origin !== undefined ? tileDistance(state.map.width, origin, station.tile) : 0;
+  const pays = CARGO[cargo].chainLeg !== "intermediate";
 
   let deliveredRevenue = 0;
-  if (distanceTiles >= MIN_REVENUE_DISTANCE_TILES && unitsDelivered > 0) {
+  if (pays && distanceTiles >= MIN_REVENUE_DISTANCE_TILES && unitsDelivered > 0) {
     const days = (state.ticks - (car.loadedTick ?? state.ticks)) / HOURS_PER_DAY;
     // `computeRevenue` is still "per full carload" (SPEC §8.1's `base` rate) — PLAN Phase 16 pays
     // per unit instead, i.e. that same per-carload figure scaled by the fraction of a car actually
@@ -361,12 +394,11 @@ function settleUnload(state: GameState, train: Train, station: Station, car: Tra
   if (unitsDelivered > 0)
     recordDelivered(state, station.id, cargo, unitsDelivered, deliveredRevenue);
 
-  car.loadedUnits = 0;
-  delete car.loadedTile;
-  delete car.loadedTick;
+  clearLoad(car);
 
   for (const industryId of industriesConsuming(state, station, cargo)) {
     const econ = getOrCreateIndustryEconomy(state, industryId);
+    if (!pays && unitsDelivered > 0 && origin !== undefined) econ.oreOriginTile = origin;
     const industry = state.industries[industryId];
     const cap = industry ? inputStorageCap(INDUSTRIES[industry.type], cargo) : Infinity;
     econ.inputStock[cargo] = Math.min(cap, (econ.inputStock[cargo] ?? 0) + unitsDelivered);
@@ -395,6 +427,7 @@ function applyTransfer(state: GameState, train: Train, station: Station, carInde
     (l) =>
       l.cargoType === car.cargoType &&
       l.originTile === originTile &&
+      l.oreOriginTile === car.oreOriginTile &&
       l.loadedTick === loadedTick &&
       l.depositedByTrainId === train.id,
   );
@@ -405,6 +438,7 @@ function applyTransfer(state: GameState, train: Train, station: Station, carInde
       units,
       originTile,
       loadedTick,
+      ...(car.oreOriginTile !== undefined ? { oreOriginTile: car.oreOriginTile } : {}),
       depositedByTrainId: train.id,
       ...(stationAtTile(state.stations, originTile)
         ? { originStationId: (stationAtTile(state.stations, originTile) as Station).id }
@@ -413,11 +447,7 @@ function applyTransfer(state: GameState, train: Train, station: Station, carInde
   }
   state.stationTransfer.set(station.id, lots);
   car.loadedUnits -= units;
-  if (car.loadedUnits <= 0) {
-    car.loadedUnits = 0;
-    delete car.loadedTile;
-    delete car.loadedTick;
-  }
+  if (car.loadedUnits <= 0) clearLoad(car);
   queueDelivery(state, train, {
     stationId: station.id,
     cargoType: car.cargoType,
@@ -440,6 +470,8 @@ function loadFromTransfer(state: GameState, train: Train, station: Station, car:
     if (car.loadedUnits === 0) {
       car.loadedTile = lot.originTile;
       car.loadedTick = lot.loadedTick;
+      if (lot.oreOriginTile !== undefined) car.oreOriginTile = lot.oreOriginTile;
+      else delete car.oreOriginTile;
     }
     car.loadedUnits += amount;
     lot.units -= amount;
@@ -464,9 +496,7 @@ export function dropCarCargo(
   if (accepts(state, station.id, car.cargoType)) {
     settleUnload(state, train, station, car);
   } else {
-    car.loadedUnits = 0;
-    delete car.loadedTile;
-    delete car.loadedTick;
+    clearLoad(car);
   }
 }
 
@@ -502,6 +532,12 @@ function applyLoad(state: GameState, train: Train, station: Station, carIndex: n
   if (car.loadedUnits === 0) {
     car.loadedTile = station.tile;
     car.loadedTick = state.ticks;
+    const ore =
+      CARGO[car.cargoType].chainLeg === "final"
+        ? chainOreOrigin(state, station, car.cargoType)
+        : undefined;
+    if (ore !== undefined) car.oreOriginTile = ore;
+    else delete car.oreOriginTile;
   }
   car.loadedUnits += amount;
   recordSent(state, station.id, car.cargoType, amount);

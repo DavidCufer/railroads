@@ -30,4 +30,21 @@ describe("car prices and upkeep (Phase 36)", () => {
       carsUpkeepPerYear([car("coal")], 1830),
     );
   });
+
+  it("secure cars (Phase 40) cost several wagons, hold little and are the dearest to keep up", () => {
+    for (const cargo of ["silverBars", "enrichedUranium"] as const) {
+      expect(CARGO[cargo].secure).toBe(true);
+      expect(CARGO[cargo].carCost).toBeGreaterThanOrEqual(4 * CARGO.coal.carCost);
+      expect(CARGO[cargo].carCost).toBeGreaterThan(CARGO.passengers.carCost);
+      expect(CARGO[cargo].capacity).toBeLessThanOrEqual(CARGO.coal.capacity / 2);
+      expect(carUpkeepRate(cargo)).toBeGreaterThan(carUpkeepRate("passengers"));
+      // a yearly bill of at least ten times a wagon's
+      expect(carsUpkeepPerYear([car(cargo)], 1900)).toBeGreaterThan(
+        10 * carsUpkeepPerYear([car("coal")], 1900),
+      );
+    }
+    // the ores ride in ordinary hoppers
+    expect(CARGO.silverOre.carCost).toBe(CARGO.coal.carCost);
+    expect(CARGO.silverOre.secure).toBeUndefined();
+  });
 });

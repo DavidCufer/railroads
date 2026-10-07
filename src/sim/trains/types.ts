@@ -37,6 +37,10 @@ export interface TrainCar {
    * is 0. Set once on the first load into an empty car; unaffected by a later top-up. */
   loadedTile?: number;
   loadedTick?: number;
+  /** Phase 40, a long-haul chain's final cargo (bars, enriched uranium): the tile the *ore* it was made from was first
+   * loaded at. The delivery pays by the distance from here, not from where the bars were loaded. Absent for every
+   * other cargo and when the processor never learned an origin. */
+  oreOriginTile?: number;
 }
 
 /** A block reserved as part of the train's current station-to-station section reservation (SPEC

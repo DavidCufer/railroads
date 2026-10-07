@@ -32,6 +32,7 @@ import {
   stationRefund,
 } from "../sim/commands";
 import { stationSupplyGrowth } from "../sim/economy/industryDynamics";
+import { chainPayEstimate } from "../sim/economy/longHaulPay";
 import { processorStatus } from "../sim/economy/processing";
 import { stationCatchmentTiles } from "../sim/stations/placement";
 import { previewStationEconomy, stationStorageCap, type StationEconomy } from "../sim/stations";
@@ -181,6 +182,18 @@ function economyBody(
     return pct > 0 ? strings.station.growth.up(pct) : strings.station.growth.down(-pct);
   };
   const trends = supplyEntries.map(([cargo]) => trendFor(cargo));
+  // Phase 40: ONE line for the long-haul chain's cargo the station supplies (ore or bars).
+  const chainCargo = state
+    ? supplyEntries.map(([c]) => c).find((c) => CARGO[c].chainLeg !== undefined)
+    : undefined;
+  const chainEstimate = state && chainCargo ? chainPayEstimate(state, chainCargo) : undefined;
+  const chainLine = chainEstimate
+    ? h(
+        "div",
+        { className: "panel-row hint", "data-testid": "chain-pay" },
+        strings.station.chainPay(chainEstimate.sinkName, chainEstimate.perTon),
+      )
+    : null;
   const growthHint = trends.some((t) => t)
     ? h(
         "details",
@@ -221,6 +234,7 @@ function economyBody(
               ),
             )
           : emptyState(strings.station.noSupplies, "cargo"),
+        ...(chainLine ? [chainLine] : []),
         ...(growthHint ? [growthHint] : []),
       ],
       strings.station.perMonthNote,

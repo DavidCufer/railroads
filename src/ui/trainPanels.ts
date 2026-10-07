@@ -51,6 +51,7 @@ import { section } from "./components/section";
 import { statRow, statTile } from "./components/statTile";
 import { stackedBar } from "./components/charts";
 import { tabs } from "./components/tabs";
+import { cargoUsableOnMap } from "../sim/economy/longHaulPay";
 import { consistBuilder } from "./consistBuilder";
 import { formatMoney } from "./format";
 import { chipTextColor } from "./infoPanels";
@@ -719,6 +720,7 @@ function openEditConsistSheet(container: HTMLElement, state: GameState, trainId:
     year,
     cars,
     stripHeight: 56,
+    onMap: (c) => cargoUsableOnMap(state, c),
     onChange: () => {
       builder.refresh();
       updateConfirm();

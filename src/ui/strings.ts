@@ -216,6 +216,9 @@ export const strings = {
       more: (n: number) => `${n} more`,
       none: "No train runs from here yet. Passengers appear once a train calls.",
     },
+    /** Phase 40: the long-haul chain's one line under the supply chips. */
+    chainPay: (sink: string, perTon: number) =>
+      `Pays on arrival at the ${sink}: ~$${Math.round(perTon).toLocaleString("en-US")}/t`,
     /** Phase 36: one-line output trend of a raw producer under its supply chip. */
     growth: {
       up: (pct: number) => `↑ ${pct} %/yr`,

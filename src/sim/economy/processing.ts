@@ -8,11 +8,12 @@ import { CARGO, CARGO_TYPES, type CargoType } from "../../data/cargo";
 import {
   INDUSTRIES,
   inputStorageCap,
+  longHaulOutputMult,
   PROCESSOR_OUTPUT_MULT_MAX,
   type IndustryDef,
 } from "../../data/industries";
 import type { GameState } from "../state";
-import { DAYS_PER_MONTH, HOURS_PER_DAY } from "../time";
+import { calendarFromTicks, DAYS_PER_MONTH, HOURS_PER_DAY } from "../time";
 import type { Industry, IndustryEconomyState } from "./types";
 
 export function getOrCreateIndustryEconomy(
@@ -91,7 +92,13 @@ export function monthlyIndustryStep(state: GameState): void {
       // Raw (terrain-placed) producers scale with industry dynamics' growth/shrink multiplier
       // (SPEC §8.2, Phase 9); Port has no `consumes` either but isn't terrain-placed, so it's
       // untouched by dynamics and `growthMult` stays undefined for it.
-      const mult = def.placement.kind === "terrain" ? (econ.growthMult ?? 1) : 1;
+      // The long-haul chain's mine (Phase 40) grows with the era instead.
+      const mult =
+        def.placement.kind === "terrain"
+          ? (econ.growthMult ?? 1)
+          : def.placement.kind === "chain"
+            ? longHaulOutputMult(calendarFromTicks(state.startYear, state.ticks).year)
+            : 1;
       econ.monthlyOutput = Object.fromEntries(
         Object.entries(def.produces).map(([cargo, amount]) => [cargo, amount * mult]),
       );
