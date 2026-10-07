@@ -16,6 +16,10 @@ export const CARGO_TYPES = [
   "food",
   "goods",
   "fuel",
+  "silverOre",
+  "silverBars",
+  "uraniumOre",
+  "enrichedUranium",
 ] as const;
 
 export type CargoType = (typeof CARGO_TYPES)[number];
@@ -57,14 +61,25 @@ export interface CargoDef {
   /** Year this cargo becomes relevant (processed cargo needs the producing industry's era too). */
   era: number;
   notes?: string;
+  /** Phase 40, the long-haul chain: "intermediate" cargo (the ores) pays nothing on delivery — it only feeds the next
+   * plant; "final" cargo (bars, enriched uranium) pays on arrival at the end of the chain, with the distance measured
+   * from the *ore's* origin, which the cargo carries all the way. Absent = an ordinary cargo paid on every delivery. */
+  chainLeg?: "intermediate" | "final";
+  /** Phase 40: carried in a secure car (small capacity, costly, higher upkeep). */
+  secure?: boolean;
 }
 
 /** Yearly upkeep of one car as a share of its price (at 1830 prices). Coaches and mail vans carry upholstery, heating,
  * lighting and brakes that open freight wagons lack, so they cost more to keep up (basis: a passenger coach cost several
  * times a wagon, 6 000 vs 2 000, and ran at roughly twice the upkeep rate). */
 export function carUpkeepRate(cargo: CargoType): number {
+  if (CARGO[cargo].secure) return SECURE_CAR_UPKEEP_RATE;
   return cargo === "passengers" || cargo === "mail" ? 0.08 : 0.04;
 }
+
+/** Phase 40: a secure car (armoured bullion van, shielded flask car) costs 6x a wagon and 12 % of its price a year to
+ * keep up (guards, locks, shielding checks), three times a wagon's rate. */
+export const SECURE_CAR_UPKEEP_RATE = 0.12;
 
 /** SPEC §6.3: waiting cargo at a station older than this many days starts to decay
  * `WAITING_DECAY_RATE_PER_DAY`/day. Passengers and mail decay sooner than freight. */
@@ -110,6 +125,12 @@ export const EXPECTED_TILES_PER_DAY = 2 * WORLD_SCALE;
 
 /** SPEC §8.1: shorter deliveries pay nothing (and warn once). */
 export const MIN_REVENUE_DISTANCE_TILES = 3 * WORLD_SCALE;
+
+/** Revenue per carload (10 t) per 100 km of the long-haul chain's final cargo (Phase 40), at era-1830 prices. Tuned
+ * with `tools/bench/longHaul.ts`: a chain of two legs a third of the map long is a poor buy in the first fifteen
+ * years (the track alone costs more than the cash on hand) and the biggest earner of the late game. */
+export const SILVER_BARS_BASE_RATE = 4_200;
+export const ENRICHED_URANIUM_BASE_RATE = 6_300;
 
 export const CARGO: Record<CargoType, CargoDef> = {
   passengers: {
@@ -315,5 +336,75 @@ export const CARGO: Record<CargoType, CargoDef> = {
     color: "#E0C93C",
     era: 1890,
     notes: "processed",
+  },
+  silverOre: {
+    id: "silverOre",
+    name: "Silver Ore",
+    car: "Ore hopper",
+    carLabel: "Ore hopper",
+    carCost: 2_000,
+    capacity: 20,
+    unit: "t",
+    unitsNoun: "tons of silver ore",
+    baseRate: 0, // intermediate leg: paid nothing, the bars carry its value
+    decayDays: 60,
+    urgency: 2.5,
+    color: "#9AA0A8",
+    era: 1830,
+    chainLeg: "intermediate",
+    notes: "feeds the Smelter; pays only as bars at the Mint",
+  },
+  silverBars: {
+    id: "silverBars",
+    name: "Silver Bars",
+    car: "Bullion van",
+    carLabel: "Bullion van",
+    carCost: 12_000,
+    capacity: 10,
+    unit: "t",
+    unitsNoun: "tons of silver bars",
+    baseRate: SILVER_BARS_BASE_RATE,
+    decayDays: 120,
+    urgency: 1.0,
+    color: "#D5DAE0",
+    era: 1830,
+    chainLeg: "final",
+    secure: true,
+    notes: "pays on arrival at the Mint, by the distance from the mine",
+  },
+  uraniumOre: {
+    id: "uraniumOre",
+    name: "Uranium Ore",
+    car: "Ore hopper",
+    carLabel: "Ore hopper",
+    carCost: 2_000,
+    capacity: 20,
+    unit: "t",
+    unitsNoun: "tons of uranium ore",
+    baseRate: 0,
+    decayDays: 60,
+    urgency: 2.5,
+    color: "#8FB04A",
+    era: 1940,
+    chainLeg: "intermediate",
+    notes: "feeds the Enrichment Plant; pays only as enriched uranium at the Power Plant",
+  },
+  enrichedUranium: {
+    id: "enrichedUranium",
+    name: "Enriched Uranium",
+    car: "Flask car",
+    carLabel: "Flask car",
+    carCost: 12_000,
+    capacity: 10,
+    unit: "t",
+    unitsNoun: "tons of enriched uranium",
+    baseRate: ENRICHED_URANIUM_BASE_RATE,
+    decayDays: 120,
+    urgency: 1.0,
+    color: "#C6F25A",
+    era: 1940,
+    chainLeg: "final",
+    secure: true,
+    notes: "pays on arrival at the Nuclear Power Plant, by the distance from the mine",
   },
 };

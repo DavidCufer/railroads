@@ -34,7 +34,8 @@ type Kind =
   | "gondola"
   | "reefer"
   | "box"
-  | "covered";
+  | "covered"
+  | "secure";
 
 function kindOf(cargo: CargoType, era: EraBucket): Kind {
   switch (cargo) {
@@ -45,7 +46,12 @@ function kindOf(cargo: CargoType, era: EraBucket): Kind {
     case "coal":
       return "hopper";
     case "ironOre":
+    case "silverOre":
+    case "uraniumOre":
       return "ore";
+    case "silverBars":
+    case "enrichedUranium":
+      return "secure";
     case "wood":
       return "logs";
     case "lumber":
@@ -201,6 +207,24 @@ function boxcar(
     shadedBox(p, 2.0, top + 4.4, 3.2, 2.4, 0.3, darken(lv.body, 0.25), { hi: 0, lo: 0 });
   // Ladder rungs on the end.
   line(p, 1.2, top + 1, 1.2, BODY_BOTTOM - 0.8, darken(lv.body, 0.5), 0.3);
+}
+
+/** Phase 40: the armoured bullion van / shielded flask car: a boxcar body with heavy riveted bands, a barred slit and a
+ * padlocked door; the flask car carries a hazard-yellow stripe. */
+function secureVan(p: Pen, w: number, era: EraBucket, lv: CarLivery, flask: boolean): void {
+  boxcar(p, w, era, lv);
+  const top = era === "early" ? 7.6 : 6.4;
+  for (const x of [w * 0.18, w * 0.82])
+    shadedBox(p, x - 0.5, top, 1.0, BODY_BOTTOM - top, 0.2, darken(lv.body, 0.5), {
+      hi: 0.1,
+      lo: 0,
+    });
+  p.ctx.fillStyle = "#15171A";
+  p.ctx.fillRect(w * 0.26, top + 1.0, 2.6, 0.7); // barred slit
+  p.ctx.fillStyle = flask ? "#E8C21E" : "#C9A24A";
+  p.ctx.fillRect(0.9, BODY_BOTTOM - 1.9, w - 1.8, 0.6); // stripe
+  p.ctx.fillStyle = "#E8D9A0";
+  p.ctx.fillRect(w / 2 - 0.4, top + 3.4, 0.8, 0.9); // padlock
 }
 
 function reefer(p: Pen, w: number, era: EraBucket, lv: CarLivery): void {
@@ -572,6 +596,8 @@ export function drawCar(p: Pen, cargo: CargoType, era: EraBucket, fill: number):
       return reefer(p, w, era, lv);
     case "covered":
       return covered(p, w, era, lv);
+    case "secure":
+      return secureVan(p, w, era, lv, cargo === "enrichedUranium");
     default:
       return boxcar(p, w, era, lv, { grain: cargo === "grain" });
   }

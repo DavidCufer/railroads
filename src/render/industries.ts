@@ -649,6 +649,108 @@ function drawPort(p: Paint): void {
   gable(p, 0.55, -0.06, 0.78, 0.42, "#8E8A7C", { height: 1.2 });
 }
 
+function drawSilverMine(p: Paint): void {
+  drawMine(p, "#7B8088", "#B7BDC6", "#4B4F56");
+}
+
+function drawUraniumMine(p: Paint): void {
+  drawMine(p, "#5E7A2E", "#9BC24A", "#3B4A2A");
+}
+
+const SMELTER_STACKS: ReadonlyArray<readonly [number, number]> = [
+  [0.95, 0.12],
+  [1.1, 0.24],
+];
+
+function drawSmelter(p: Paint): void {
+  const { ctx } = p;
+  ground(p, 0.5, 0.54, 1.0, 0.88, "#8F8A7E");
+  gable(p, -0.32, 0.4, 0.9, 0.5, "#6F7480", { wall: "#585C66", height: 1.2 });
+  // Furnace glow and the pour.
+  const fx = 0.42;
+  const fy = 0.22;
+  const glow = ctx.createRadialGradient(fx, fy, 0, fx, fy, 0.45);
+  glow.addColorStop(0, "rgba(255, 190, 90, 0.65)");
+  glow.addColorStop(1, "rgba(255, 150, 60, 0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(fx, fy, 0.45, 0, Math.PI * 2);
+  ctx.fill();
+  tank(p, fx, fy, 0.17, "#74787F", 1.8);
+  ctx.fillStyle = "#F2B25A";
+  ctx.beginPath();
+  ctx.arc(fx - 0.02, fy - 0.02, 0.07, 0, Math.PI * 2);
+  ctx.fill();
+  // Ore heap in, silver ingots out.
+  mound(p, 0.9, 0.72, 0.2, "#7B8088");
+  for (const [bx, by] of [
+    [0.7, 1.05],
+    [0.86, 1.07],
+    [1.02, 1.05],
+  ] as const)
+    flat(p, bx, by, 0.12, 0.07, "#DDE1E6", 0.5);
+  for (const [sx, sy] of SMELTER_STACKS) chimneyTop(p, sx, sy, 0.05, 0.28, "#5E5A56");
+  spur(p, -0.4, 1.2, 0.6, 1.2);
+}
+
+function drawMint(p: Paint): void {
+  const { ctx } = p;
+  ground(p, 0.5, 0.55, 0.98, 0.86, "#B9B4A6");
+  // Stone hall with a pediment and a row of columns, a gilded dome behind it.
+  gable(p, -0.25, 0.42, 0.95, 0.5, "#D9D3C2", { wall: "#BDB6A2", height: 1.3 });
+  tank(p, 0.22, 0.26, 0.2, "#C9A64A", 1.8);
+  if (p.detail) {
+    ctx.fillStyle = "#EFEADB";
+    for (let i = 0; i < 6; i++) ctx.fillRect(-0.16 + i * 0.14, 0.88, 0.05, 0.1);
+  }
+  // Forecourt, railings and a strongroom annex.
+  flat(p, 0.85, 0.5, 0.36, 0.3, "#8F8A7E", 0.9);
+  ctx.strokeStyle = "#3A3A40";
+  ctx.lineWidth = 0.025;
+  ctx.strokeRect(-0.3, 1.0, 1.4, 0.2);
+  spur(p, 1.0, 1.28, 1.5, 1.28);
+}
+
+function drawEnrichmentPlant(p: Paint): void {
+  const { ctx } = p;
+  ground(p, 0.5, 0.54, 1.0, 0.88, "#A9ADA6");
+  // Two long cascade halls and a row of centrifuge tanks.
+  gable(p, -0.3, 0.52, 0.95, 0.3, "#C3C8CC", { wall: "#9DA3A8", height: 1.0 });
+  gable(p, -0.3, 0.1, 0.95, 0.3, "#C3C8CC", { wall: "#9DA3A8", height: 1.0 });
+  for (let i = 0; i < 5; i++) tank(p, -0.18 + i * 0.2, 0.96, 0.07, "#DDE3E6", 1.6);
+  // Control block with a glowing green marker and a ventilation stack.
+  gable(p, 0.82, 0.3, 0.4, 0.4, "#7F868C", { height: 1.2 });
+  ctx.fillStyle = "#9BE04A";
+  ctx.beginPath();
+  ctx.arc(1.0, 0.5, 0.04, 0, Math.PI * 2);
+  ctx.fill();
+  chimneyTop(p, 1.12, 0.12, 0.045, 0.3, "#8E9296");
+  spur(p, -0.4, 1.2, 0.5, 1.2);
+}
+
+const NUCLEAR_TOWERS: ReadonlyArray<readonly [number, number]> = [
+  [0.82, 0.22],
+  [1.12, 0.36],
+];
+
+function drawNuclearPlant(p: Paint): void {
+  const { ctx } = p;
+  ground(p, 0.5, 0.55, 1.02, 0.9, "#A9ADA6");
+  // Turbine hall, containment dome and two hyperbolic cooling towers.
+  gable(p, -0.32, 0.5, 0.95, 0.36, "#B8BDC2", { wall: "#8E949A", height: 1.1 });
+  tank(p, 0.14, 0.3, 0.22, "#D4D8DB", 1.5);
+  for (const [tx, ty] of NUCLEAR_TOWERS) tank(p, tx, ty, 0.17, "#C8CCCE", 2.6);
+  ctx.strokeStyle = "#3A3A40";
+  ctx.lineWidth = 0.025;
+  ctx.beginPath();
+  ctx.moveTo(0.5, 0.96);
+  ctx.lineTo(1.2, 0.96);
+  ctx.stroke();
+  // Pylons.
+  for (const px of [0.7, 0.95, 1.2]) line(p, px, 0.9, px, 1.1, 0.03, "#4A4E56");
+  spur(p, -0.4, 1.22, 0.6, 1.22);
+}
+
 const DRAWERS: Record<IndustryType, Draw> = {
   coalMine: drawCoalMine,
   ironMine: drawIronMine,
@@ -662,6 +764,12 @@ const DRAWERS: Record<IndustryType, Draw> = {
   factory: drawFactory,
   refinery: drawRefinery,
   port: drawPort,
+  silverMine: drawSilverMine,
+  smelter: drawSmelter,
+  mint: drawMint,
+  uraniumMine: drawUraniumMine,
+  enrichmentPlant: drawEnrichmentPlant,
+  nuclearPlant: drawNuclearPlant,
 };
 
 /** Draws the industry standing on the tile whose top-left is (px, py), `size` px per tile. The art
@@ -699,6 +807,9 @@ const SMOKE_SOURCES: Partial<Record<IndustryType, ReadonlyArray<readonly [number
   foodPlant: [[0.5, 0.12]],
   sawmill: [[0.82, 0.14]],
   refinery: [[1.12, 0.14]],
+  smelter: SMELTER_STACKS,
+  enrichmentPlant: [[1.12, 0.12]],
+  nuclearPlant: NUCLEAR_TOWERS,
 };
 
 const SCALED_SOURCES = new Map<IndustryType, ReadonlyArray<readonly [number, number]>>();

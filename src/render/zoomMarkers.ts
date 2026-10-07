@@ -38,7 +38,13 @@ export function mainCargoOf(type: IndustryType): CargoType | null {
       bestAmount = amount;
     }
   }
-  return best ?? (Object.keys(def.consumes)[0] as CargoType | undefined) ?? null;
+  return (
+    best ??
+    (Object.keys(def.consumes)[0] as CargoType | undefined) ??
+    // a pure customer (the Mint) is coloured by what it buys
+    (Object.keys(def.acceptancePoints)[0] as CargoType | undefined) ??
+    null
+  );
 }
 
 export function industryMarkerColor(type: IndustryType): string {

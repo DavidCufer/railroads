@@ -278,6 +278,10 @@ const CAR_BODY: Record<CargoType, (e: EraBucket) => { body: string; roof: string
     food: () => ({ body: CREAM, roof: "#B9AD90", load: "#000" }),
     goods: () => ({ body: "#8B3A2B", roof: "#5E271D", load: "#000" }),
     fuel: () => ({ body: "#8A9098", roof: "#5F656C", load: "#000" }),
+    silverOre: () => ({ body: "#5E646C", roof: "#40454B", load: "#AEB4BC" }),
+    silverBars: () => ({ body: "#3C4652", roof: "#262D36", load: "#000" }),
+    uraniumOre: () => ({ body: "#566B3A", roof: "#3C4B28", load: "#8FB04A" }),
+    enrichedUranium: () => ({ body: "#4A4F55", roof: "#2D3136", load: "#000" }),
   };
 
 export function carLivery(cargo: CargoType, era: EraBucket): CarLivery {

@@ -179,7 +179,7 @@ test.describe("Phase 19 — rolling-stock art", () => {
 
   test("gallery: every car type in three eras, empty and full", async ({ page }) => {
     await openGallery(page, "&h=64");
-    expect(await page.locator("#gallery-cars canvas").count()).toBe(13 * 3 * 6);
+    expect(await page.locator("#gallery-cars canvas").count()).toBe(17 * 3 * 6);
     await page
       .locator("#gallery-cars")
       .screenshot({ path: "docs/screenshots/phase-19-gallery-cars.png" });

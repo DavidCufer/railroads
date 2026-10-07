@@ -4,6 +4,7 @@ import { generateMap, type MapGenOptions } from "./map/generate";
 import type { GameMap } from "./map/types";
 import type { City, CityGrowthState, Industry, IndustryEconomyState } from "./economy/types";
 import { initIndustryEconomy } from "./economy/processing";
+import { addLongHaulChain } from "./economy/longHaulChain";
 import { DEFAULT_START_YEAR } from "../data/mapGen";
 import { DEFAULT_DIFFICULTY, DIFFICULTY, type Difficulty } from "../data/finance";
 import type { CargoType } from "../data/cargo";
@@ -61,6 +62,8 @@ export interface TransferLot {
   /** Tile (and tick) of the original pickup, as on `TrainCar.loadedTile`/`loadedTick`. */
   originTile: number;
   loadedTick: number;
+  /** Chain cargo only (Phase 40): the ore's origin, as on `TrainCar.oreOriginTile`. */
+  oreOriginTile?: number;
   /** Station at `originTile`, for "40 t coal from Idrija" — absent if it no longer exists. */
   originStationId?: number;
   /** The feeder train, which never reloads its own drop. */
@@ -202,6 +205,9 @@ export function createGameState(options: NewGameOptions): GameState {
     industries = generated.industries;
     pendingCityFoundings = [];
   }
+
+  // Phase 40: the one long-haul chain of the map. Placed on a copy of the stream so no other map changes.
+  industries = addLongHaulChain(map, { ...rng }, cities, industries, startYear);
 
   const state: GameState = {
     seed: options.seed,

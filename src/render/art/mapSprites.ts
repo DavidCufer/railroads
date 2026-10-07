@@ -183,7 +183,8 @@ export function drawLocoSprite(
   }
 }
 
-type CarShape = "passenger" | "mail" | "hopper" | "tanker" | "flatcar" | "boxcar" | "livestock";
+type CarShape =
+  "passenger" | "mail" | "hopper" | "tanker" | "flatcar" | "boxcar" | "livestock" | "secure";
 
 const SHAPE: Record<CargoType, CarShape> = {
   passengers: "passenger",
@@ -199,6 +200,10 @@ const SHAPE: Record<CargoType, CarShape> = {
   food: "boxcar",
   goods: "boxcar",
   fuel: "tanker",
+  silverOre: "hopper",
+  silverBars: "secure",
+  uraniumOre: "hopper",
+  enrichedUranium: "secure",
 };
 
 export function drawCarSprite(
@@ -277,6 +282,16 @@ export function drawCarSprite(
       ctx.strokeStyle = OUTLINE;
       ctx.lineWidth = Math.max(1, size * 0.02);
       ctx.strokeRect(-len / 2, -w * 0.28, len, w * 0.56);
+      break;
+    }
+    case "secure": {
+      body(w * 0.16);
+      ctx.fillStyle = cargo === "enrichedUranium" ? "#E8C21E" : "#C9A24A";
+      ctx.fillRect(-len * 0.44, w * 0.18, len * 0.88, Math.max(1, w * 0.14)); // stripe
+      ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+      for (const bx of [-0.3, 0.3])
+        ctx.fillRect(len * bx - w * 0.04, -w * 0.44, w * 0.08, w * 0.88);
+      if (detail) dot(ctx, 0, -w * 0.08, w * 0.1, "#E8D9A0"); // padlock
       break;
     }
     case "boxcar":

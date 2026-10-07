@@ -2,6 +2,7 @@
 import type { Terrain } from "../sim/map/terrain";
 import { WORLD_SCALE } from "./scale";
 import type { CargoType } from "./cargo";
+import { interpolateYear } from "./economy";
 
 export const INDUSTRY_TYPES = [
   "coalMine",
@@ -16,6 +17,12 @@ export const INDUSTRY_TYPES = [
   "factory",
   "refinery",
   "port",
+  "silverMine",
+  "smelter",
+  "mint",
+  "uraniumMine",
+  "enrichmentPlant",
+  "nuclearPlant",
 ] as const;
 
 export type IndustryType = (typeof INDUSTRY_TYPES)[number];
@@ -25,7 +32,11 @@ export type IndustryPlacement =
   | { kind: "terrain"; terrain: readonly Terrain[] }
   | { kind: "nearCity"; maxTilesFromCity: number }
   | { kind: "nearForestOrCity"; maxTilesFromCity: number }
-  | { kind: "coastalCity" };
+  | { kind: "coastalCity" }
+  /** Phase 40: a site of the one long-haul chain per map, picked by `src/sim/economy/longHaulChain.ts` (far apart,
+   * never by the ordinary placement, growth or discovery code). `terrain` limits where a mine may stand;
+   * `nearCityTiles` makes a plant stand within that many tiles of a big city. */
+  | { kind: "chain"; terrain?: readonly Terrain[]; nearCityTiles?: number };
 
 export interface IndustryDef {
   id: IndustryType;
@@ -214,6 +225,66 @@ export const INDUSTRIES: Record<IndustryType, IndustryDef> = {
     era: 1830,
     recipeMode: "any",
   },
+  silverMine: {
+    id: "silverMine",
+    name: "Silver Mine",
+    placement: { kind: "chain", terrain: ["hills", "mountain"] },
+    produces: { silverOre: 80 },
+    consumes: {},
+    acceptancePoints: {},
+    era: 1830,
+    recipeMode: "any",
+  },
+  smelter: {
+    id: "smelter",
+    name: "Smelter",
+    placement: { kind: "chain" },
+    produces: { silverBars: 40 }, // a 20 t ore car makes a 10 t bar car: 80 t of ore (4 cars) make 40 t of bars (4 cars)
+    consumes: { silverOre: 80 },
+    acceptancePoints: { silverOre: 8 },
+    era: 1830,
+    recipeMode: "any",
+  },
+  mint: {
+    id: "mint",
+    name: "Mint",
+    placement: { kind: "chain", nearCityTiles: 4 * WORLD_SCALE },
+    produces: {},
+    consumes: {},
+    acceptancePoints: { silverBars: 8 },
+    era: 1830,
+    recipeMode: "any",
+  },
+  uraniumMine: {
+    id: "uraniumMine",
+    name: "Uranium Mine",
+    placement: { kind: "chain", terrain: ["hills", "mountain"] },
+    produces: { uraniumOre: 80 },
+    consumes: {},
+    acceptancePoints: {},
+    era: 1940,
+    recipeMode: "any",
+  },
+  enrichmentPlant: {
+    id: "enrichmentPlant",
+    name: "Enrichment Plant",
+    placement: { kind: "chain" },
+    produces: { enrichedUranium: 40 },
+    consumes: { uraniumOre: 80 },
+    acceptancePoints: { uraniumOre: 8 },
+    era: 1940,
+    recipeMode: "any",
+  },
+  nuclearPlant: {
+    id: "nuclearPlant",
+    name: "Nuclear Power Plant",
+    placement: { kind: "chain", nearCityTiles: 4 * WORLD_SCALE },
+    produces: {},
+    consumes: {},
+    acceptancePoints: { enrichedUranium: 8 },
+    era: 1940,
+    recipeMode: "any",
+  },
 };
 
 // --- Production chains (PLAN Phase 18 D) --------------------------------------------------------
@@ -258,3 +329,62 @@ export const DISCOVERY_CHANCE_PER_MONTH = 1 / 36;
 /** The site is drawn from this best fraction of valid sites ranked by distance from the nearest
  * industry or city (larger = emptier land). */
 export const DISCOVERY_EMPTY_FRACTION = 0.1;
+
+// --- The long-haul chain (Phase 40) ---------------------------------------------------------------
+
+/** One chain per map: silver (ore -> Smelter -> Mint) for games that start before this year, uranium (ore ->
+ * Enrichment Plant -> Nuclear Power Plant) from it. A game that starts in the silver era keeps its silver chain after
+ * the year passes. */
+export const LONG_HAUL_URANIUM_FROM_YEAR = 1940;
+
+export interface LongHaulChainDef {
+  id: "silver" | "uranium";
+  /** Mine, processor, final customer, in the order the cargo travels. */
+  mine: IndustryType;
+  processor: IndustryType;
+  sink: IndustryType;
+}
+
+export const LONG_HAUL_CHAINS: Record<LongHaulChainDef["id"], LongHaulChainDef> = {
+  silver: { id: "silver", mine: "silverMine", processor: "smelter", sink: "mint" },
+  uranium: {
+    id: "uranium",
+    mine: "uraniumMine",
+    processor: "enrichmentPlant",
+    sink: "nuclearPlant",
+  },
+};
+
+/** Which chain a game starting in `startYear` gets. */
+export function longHaulChainFor(startYear: number): LongHaulChainDef {
+  return LONG_HAUL_CHAINS[startYear < LONG_HAUL_URANIUM_FROM_YEAR ? "silver" : "uranium"];
+}
+
+/** Each leg (mine to processor, processor to customer) is at least this share of the map's longer side, and the mine
+ * is at least `LONG_HAUL_SPAN_MULT` times that far from the customer, so the three sites are far apart whatever the
+ * map's shape. Relaxed in steps (`LONG_HAUL_RELAX`) on maps too small or too broken up by water to fit. */
+export const LONG_HAUL_LEG_MAP_FRACTION = 1 / 3;
+export const LONG_HAUL_SPAN_MULT = 1.2;
+export const LONG_HAUL_LEG_MAX_MULT = 2;
+/** Sites keep this many tiles from the map edge (room for a station and a track approach). */
+export const LONG_HAUL_EDGE_MARGIN = 6;
+export const LONG_HAUL_RELAX: readonly number[] = [1, 0.85, 0.7, 0.55, 0.4];
+/** The customer's town is one of the this many biggest. */
+export const LONG_HAUL_SINK_CITY_RANKS = 8;
+/** Random site combinations tried per customer town and relaxation step. */
+export const LONG_HAUL_ATTEMPTS = 120;
+
+/** Phase 40: the chain's mine produces more as mining modernises (drills, pumps, electric haulage): its base `produces`
+ * is multiplied by this, by year, piecewise linear. This is what makes the chain a poor buy in the first decades (a few
+ * cars of ore a month over two very long legs) and the biggest earner of the late game. */
+export const LONG_HAUL_OUTPUT_ANCHORS: ReadonlyArray<readonly [number, number]> = [
+  [1830, 1],
+  [1880, 1],
+  [1900, 2],
+  [1930, 3],
+  [1960, 3],
+];
+
+export function longHaulOutputMult(year: number): number {
+  return interpolateYear(LONG_HAUL_OUTPUT_ANCHORS, year);
+}

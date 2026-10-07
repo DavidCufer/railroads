@@ -193,6 +193,10 @@ const CARGO_ICONS: Record<CargoType, string> = {
   food: `<svg viewBox="0 0 24 24" ${STROKE}><rect x="6" y="6" width="12" height="14" rx="1"/><ellipse cx="12" cy="6" rx="6" ry="2"/></svg>`,
   goods: `<svg viewBox="0 0 24 24" ${STROKE}><rect x="4" y="6" width="16" height="14"/><line x1="4" y1="13" x2="20" y2="13"/><line x1="12" y1="6" x2="12" y2="20"/></svg>`,
   fuel: `<svg viewBox="0 0 24 24" ${STROKE}><rect x="5" y="7" width="14" height="13" rx="2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="12" y1="10" x2="12" y2="16"/></svg>`,
+  silverOre: `<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="4,18 8,9 13,12 11,18"/><polygon points="12,18 16,7 21,13 18,18"/><circle cx="9" cy="6" r="1.6"/></svg>`,
+  silverBars: `<svg viewBox="0 0 24 24" ${STROKE}><path d="M3 18l3-6h8l3 6z"/><path d="M9 12l3-6h8l3 6h-6"/></svg>`,
+  uraniumOre: `<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="4,18 8,9 13,12 11,18"/><polygon points="12,18 16,7 21,13 18,18"/><path d="M12 3l1.5 3h-3z"/></svg>`,
+  enrichedUranium: `<svg viewBox="0 0 24 24" ${STROKE}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><path d="M12 4v4M5.1 16l3.4-2M18.9 16l-3.4-2"/></svg>`,
 };
 
 /** The raw cargo pictogram markup, with `currentColor` resolved to `color` via an inline style on

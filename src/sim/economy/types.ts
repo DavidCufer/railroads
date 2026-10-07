@@ -49,6 +49,9 @@ export interface IndustryEconomyState {
   /** Phase 36: share (0..1) of this raw producer's output that trains carried, smoothed over the last few months —
    * drives its yearly growth rate (`growthRatePerYear`). Absent until the first month it is measured. */
   carriedShare?: number;
+  /** Long-haul chain processors (Phase 40): the tile the ore in stock was first loaded at (carried by the car that
+   * delivered it). The bars made from it carry this as their origin. Absent until ore arrives. */
+  oreOriginTile?: number;
   /** Units delivered since the last month boundary (Phase 33: the station panel's "Received last month"). */
   receivedMonth?: Partial<Record<CargoType, number>>;
   /** The books of the last monthly processing step: what was delivered in the month just ended and
