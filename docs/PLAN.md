@@ -1547,4 +1547,4 @@ late-game prize. Do this AFTER Phase 39.
 4. Balance check with the bench: connecting the chain in the first ~15 years should be a poor investment; by
    mid/late game a strong one. Report ROI by start decade. Tests; screenshot `phase-40-*.png`; SPEC updated.
 
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+Status: [x] 0 [x] 1 [x] 2 [x] 3 [x] 4

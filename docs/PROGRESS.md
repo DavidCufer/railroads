@@ -4941,3 +4941,25 @@ Restoring the pre-35D bounds against the new table, measured: `balancePassengers
 ### Notes
 - 1900 Hard: the first line of a 1900 game needs about $1.0M, so the start-up floor stays $500k on every difficulty (Hard credit x0.6 applied to the floor made the good bot unable to build at all).
 - The year-1 / year-5 balance bounds in `balance.test.ts` were not touched and pass.
+
+## 2026-10-07 — Phase 40: a valuable long-haul chain (silver before 1940, uranium after)
+### What changed
+0. **Item 0 (identical Phase 39 rows)**: checked, not a bug. `trainSpammer` and `leveraged` are separate code paths and differ where money allows (1840 Normal seed 1: 16 trains bankrupt 1842 vs 27 trains bankrupt 1847). At 1900 on Hard (and Normal) credit is so tight that neither can build a second line, so both end with the same one line and 6-7 trains: same NW to the cent (re-ran seeds 1-3, traces identical month by month). No fix needed.
+1. **Chain from the start** (`src/sim/economy/longHaulChain.ts`, called from `createGameState` on a copy of the rng, so no other map or the stream changes; generated maps and regions): silver (Silver Mine, Smelter, Mint) when the start year is before 1940, uranium (Uranium Mine, Enrichment Plant, Nuclear Power Plant) from 1940; silver stays after 1940. One per map. Each leg is 1/3 to 2/3 of the map's longer side (relaxed in steps on awkward maps), mine to customer at least 1.2 legs, all on one landmass, 6 tiles off the edge, customer by one of the 8 biggest towns, mine on hills/mountain. New placement kind `chain` keeps growth/discovery/spawn code away. Data: `LONG_HAUL_*` in `src/data/industries.ts`. 4 new cargos, 6 new industries, procedural art (mine heaps, smelter glow, domed Mint, enrichment halls, cooling towers), car art (secure van), icons, liveries.
+2. **Paid only on final delivery**: ore (`chainLeg: "intermediate"`) pays nothing and hands its origin tile to the processor (`oreOriginTile`); bars / enriched uranium carry it on the car (kept through Warehouse transfers) and pay on arrival by the straight-line distance from the mine station. Time factor runs from loading. Bars $4,200 / 10 t car / 100 km, uranium $6,300 (data). The mine's output grows with the era (`LONG_HAUL_OUTPUT_ANCHORS`: x1 to 1880, x2 in 1900, x3 from 1930). UI: one line in the station panel, "Pays on arrival at the Mint: ~$X/t" (`chainPayEstimate`); the car palette hides the other era's chain cars.
+3. **Secure cars**: bullion van / flask car $12k (6x a wagon), 10 t, upkeep 12 %/yr (3x a wagon).
+4. Bench `tools/bench/longHaul.ts` (+ `longHaulScenario.ts`, also used by `tests/sim/balanceLongHaul.test.ts`). Screenshots `phase-40-station-line.png`, `phase-40-chain-industries.png` (looked at). SPEC §8.2b. e2e `phase19` gallery count 13 -> 17 cargo types (the only test number changed, to match the roster).
+### ROI by start decade (central 100-tile legs = a third of a 300-tile map, best fleet found, terminals at mine and smelter; plains with 30 % hills, no land cost or rivers, so real maps cost more)
+| start | loco | invested | later-years return | net a year | payback |
+|---|---|---|---|---|---|
+| 1840 | Norris 45 km/h | $1.4M | 10 % | $0.14M | never in 12 y |
+| 1855 | American 60 km/h | $1.4M | 23 % | $0.33M | 6 y |
+| 1870 | American 60 km/h | $1.6M | 21 % | $0.34M | 7 y |
+| 1900 | Atlantic 100 km/h | $2.2M | 85 % | $1.85M | 2 y |
+| 1930 | Hudson 135 km/h | $3.2M | 104 % | $3.4M | 2 y |
+| 1950 uranium | Streamliner 145 km/h | $3.8M | 178 % | $6.8M | 1 y |
+Ordinary early lines return 25 %+. On a small map (64-tile legs) 1840 returns 21 % and 1900 147 %. A depot's 40 t pile throttles a mine of this size, so the bench uses terminals (found while tuning: with depots 1930 earned a third as much).
+### Survival and goodPlayer, before (Phase 39 table) and after: identical
+`ASSERT=1 npx tsx tools/bench/survival.ts 3` after Phase 40 gives every row of the Phase 39 "AFTER" table unchanged (good 1840 Normal 5.15 / 4.62 / 4.70, 1900 Normal 30.31 / 11.44 / 28.56, Hard 1840 1.75 / 1.71 / 2.01, 1900 11.17 / 9.10 / 9.01; no goodPlayer bankruptcy, min cash 0-0.17M; bad bots overbuilder 4/6 Normal 6/6 Hard, trainSpammer 6/6 and 5/6, leveraged 6/6 and 4/6): the bots never touch the chain and the rng stream is untouched. `leveraged hard` still misses 80 % (67 %), as in Phase 39.
+### Bounds
+No test bound loosened. `zoomMarkers` colour fallback for a pure customer (Mint) added.
