@@ -105,22 +105,74 @@ export function footplateCrew(loco: LocomotiveDef): number {
 /** One guard/brakeman/conductor per this many cars (a short train's guard rides with the crew). */
 export const CARS_PER_TRAIN_STAFF = 4;
 
-/** Everyone on a train: footplate crew plus guards/conductors for the cars. A Grasshopper with three cars has
- * a crew of 2; a 10-car Pacific train needs 2 + 2 = 4, a 22-car articulated freight 3 + 5 = 8. */
-export function trainCrewSize(loco: LocomotiveDef, cars: number): number {
-  return footplateCrew(loco) + Math.floor(cars / CARS_PER_TRAIN_STAFF);
+/** Phase 43: how far operating costs have grown into their mature form (0 = the 1830s railway, 1 = a fully staffed,
+ * fuel-hungry, ticketed railway). Early lines were run on shoestring crews with cheap wood and coal and a guard for a few
+ * carriages, so a thin 1840s train could still pay its way at a low load; by 1900 shift crews, attendants, station
+ * staff and bought-in fuel put the break-even at about 45 % full. Everything below blends between the two ends by this. */
+export const COST_REALISM_ANCHORS: Anchors = [
+  [1830, 0],
+  [1860, 0.05],
+  [1900, 0.05],
+  [1930, 0.12],
+  [1950, 0],
+];
+export function costRealism(year: number): number {
+  return interpolateYear(COST_REALISM_ANCHORS, year);
+}
+const blend = (early: number, mature: number, year: number): number =>
+  early + (mature - early) * costRealism(year);
+
+/** Station staff selling the ticket, loading the luggage and cleaning the coach, plus the agents' commission, take this
+ * share of every passenger and mail fare once costs are mature (traffic expenses were a fifth to a quarter of a
+ * nineteenth-century railway's costs and followed the traffic). Freight is handled by the shipper and the wagon's brakeman. */
+export const HANDLING_SHARE_OF_FARES = 0.11;
+export function handlingShare(year: number): number {
+  return HANDLING_SHARE_OF_FARES * costRealism(year);
+}
+
+/** A passenger or mail car has its own attendant (guard, ticket collector, porter, mail clerk) once costs are mature;
+ * early trains just had a guard per `CARS_PER_TRAIN_STAFF` cars. Freight wagons only need that brakeman. */
+export const ATTENDANTS_PER_COACH = 0.75;
+
+/** Everyone on a train: footplate crew plus guards/conductors for the cars, plus the coaches' attendants. A Grasshopper
+ * with three wagons has a crew of 2; a 22-wagon articulated freight 3 + 5 = 8. `coaches` is how many of the `cars`
+ * carry passengers or mail; their attendants grow in with `realism` (0..1, see `costRealism`). */
+export function trainCrewSize(loco: LocomotiveDef, cars: number, coaches = 0, realism = 1): number {
+  return (
+    footplateCrew(loco) +
+    Math.floor(cars / CARS_PER_TRAIN_STAFF) +
+    coaches * ATTENDANTS_PER_COACH * realism
+  );
+}
+
+/** A train is in service round the clock (waiting at a platform or a signal included) and a crew works about 8-12 hours,
+ * so a mature railway keeps this many crews on the payroll per train; wages run for every hour the train is owned. */
+export const CREW_SHIFTS_PER_TRAIN = 2;
+export function crewShifts(year: number): number {
+  return blend(1, CREW_SHIFTS_PER_TRAIN, year);
 }
 
 /** The part of `LocomotiveDef.maintenancePerYear` that is fuel, oil, water and depot servicing (the rest of
- * the old figure was the crew, which is now paid as wages). Scales with general prices. */
-export const RUNNING_COST_SHARE = 0.45;
+ * the old figure was the crew, which is now paid as wages). Scales with general prices. Early / mature values. */
+export const RUNNING_COST_SHARE_EARLY = 0.45;
+export const RUNNING_COST_SHARE = 2.8;
+export function runningCostShare(year: number): number {
+  return blend(RUNNING_COST_SHARE_EARLY, RUNNING_COST_SHARE, year);
+}
 /** Phase 39: how much of that running cost is fuel and water burnt per tile run (the rest — servicing, oil, depot —
  * is paid by the year whether the engine moves or not). Fuel scales with the train's weight, so a long line of
  * heavy trains costs more than a short one and a train that stands still burns nothing. */
-export const FUEL_SHARE_OF_RUNNING = 0.6;
+export const FUEL_SHARE_OF_RUNNING = 0.7;
 /** The yearly mileage a busy train is costed at: a locomotive hauling its full consist's reference weight for this
  * many tiles a year burns its whole fuel budget (`maintenancePerYear × RUNNING_COST_SHARE × FUEL_SHARE_OF_RUNNING`). */
-export const FUEL_REF_TILES_PER_YEAR = 2000;
+export const FUEL_REF_TILES_PER_YEAR = 300;
+/** Early railways burnt a fraction of that per tile (the Phase 39 calibration: 0.45 share, 60 % fuel, 2000 tiles). The
+ * fuel units a train books are at the mature rate; this scales them down for the year. */
+const FUEL_PER_TILE_EARLY = (RUNNING_COST_SHARE_EARLY * 0.6) / 2000;
+const FUEL_PER_TILE_MATURE = (RUNNING_COST_SHARE * FUEL_SHARE_OF_RUNNING) / FUEL_REF_TILES_PER_YEAR;
+export function fuelEraScale(year: number): number {
+  return blend(FUEL_PER_TILE_EARLY, FUEL_PER_TILE_MATURE, year) / FUEL_PER_TILE_MATURE;
+}
 /** Cars of the reference consist are this full on average when fuel is costed. */
 export const FUEL_REF_LOAD_FRACTION = 0.6;
 
@@ -467,6 +519,8 @@ export const TRIPS_PER_HEAD_ANCHORS: Anchors = [
   [1830, 0.0161],
   [1860, 0.0161],
   [1900, 0.0121],
+  [1930, 0.0121],
+  [1950, 0.0121],
 ];
 export function tripsPerHeadPerMonth(year: number): number {
   return interpolateYear(TRIPS_PER_HEAD_ANCHORS, year);

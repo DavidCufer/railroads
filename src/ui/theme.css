@@ -3935,6 +3935,24 @@ button.rule-chip:active {
   color: var(--muted);
 }
 
+/* Phase 43: load % under the profit figure in the train list; the over-served hint under a line */
+.train-trailing {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.train-load-col {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.line-overserved {
+  padding: 4px 12px 0;
+  color: var(--warn, var(--muted));
+}
+
 /* Per-train profit (Phase 24A) */
 .train-profit-col {
   display: inline-flex;
@@ -4644,7 +4662,7 @@ select {
 }
 .dest-row-head {
   display: grid;
-  grid-template-columns: 16px minmax(70px, 1.2fr) 2fr 40px;
+  grid-template-columns: 16px minmax(70px, 1.2fr) 1fr auto;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -4676,6 +4694,8 @@ select {
 }
 .dest-count {
   text-align: right;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
 }
 .dest-final {

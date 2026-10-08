@@ -5026,3 +5026,25 @@ After (this phase):
 - Hard: overbuilder 6/6; **trainSpammer 4/6 and leveraged 4/6 = 67 % (target ~80 % MISSED)**, the same miss as leveraged at 1840/1900 since Phase 39. Not loosened; `ASSERT=1` will fail on those rows. Further road competition would also squeeze the goodPlayer's thin late margins, so this needs an owner decision (e.g. a Hard-specific lever).
 - Easy: no bankruptcy.
 - Per-era: overbuilder Normal 1930 is only 1/3 (1950 3/3).
+
+## 2026-10-08 — Phase 43: break-even load, owner scenario bench, load/waiting transparency (item 1 only partly met)
+### Headline (needs the owner)
+**A 45 % break-even load could not be reached without sinking the goodPlayer bench, and the retune lever (trips per head) could not repair it.** The costs are built and era-scaled (owner chose "era-scale the new costs"), but they are phased in so slowly that the 1842 Venice-Milan scenario is essentially unchanged: break-even load **10-16 %** (was 10-16 %), the 18-train line still has 9 losing trains by only about -$2k each. What was measured:
+- Full costs (Norris break-even 44-47 % in the owner bench, crowded 18-train line break-even ~60 %): goodPlayer 1840 Normal 1856 **$5.15M -> $0.99M**, Hard bankrupt 1842; 1900/1930/1950 Normal bankrupt in 1912 / 1932 / 1952. Trips per head x1.5-3 does nothing at 1840 (NW $1.05-1.11M): supply is not what limits a few 5-car Norris trains, a full train earns only 55 % of its revenue at the new costs. At 1900 trips x3 restores $29-43M but then `balancePassengers` (pax/coal <= 2.6) reads 7.9 and mail/pax 0.018: that bound is a saturated-route test and forbids more than ~x1.16. Nothing was loosened.
+- Era-scaled with realism 0.17 at 1842 (BE 14-22 %): 1840 Normal 1856 $2.5M, bankrupt 1858.
+- Final anchors (`COST_REALISM_ANCHORS`): 0 in 1830, 0.05 in 1860 and 1900, 0.12 in 1930, 0 in 1950; TRIPS_PER_HEAD_ANCHORS unchanged. At these the benches are within the old range (below).
+### What changed
+- `src/data/economy.ts`: `costRealism(year)` blends early and mature costs: crew shifts (1 -> 2, `crewShifts`), attendants per passenger/mail car (0.75 each, `ATTENDANTS_PER_COACH`), servicing/fuel (`RUNNING_COST_SHARE` 0.45 -> 2.8, `FUEL_SHARE_OF_RUNNING` 0.6 -> 0.7, `FUEL_REF_TILES_PER_YEAR` 2000 -> 300, booked through `fuelEraScale`), and a handling share of passenger/mail fares (`HANDLING_SHARE_OF_FARES` 0.11, booked as "Stations & staff" and in the train's running costs). Passenger-specific costs exist because the 7.1 balance test (pax <= 4.25x coal profit) cannot hold if only the engine gets dearer.
+- Wages take the car list (`trainWagesPerYear(loco, cars, year)`); `trainCrewSize(loco, cars, coaches, realism)`.
+- `Train.loadShare` (distance-weighted average load over ~150 tiles, optional, no migration).
+- UI (item 3): train list "load N %" under the profit figure; station passenger chip one line "Milan 40 · Trieste 540 · any train N" (`waitingSplit.ts`); destinations sheet rows "N/mo · M waiting"; Lines hint "~N trains would carry this demand" when the average load says so (`trainsNeeded`, target load 60 %). Strings in `strings.ts`; e2e `phase43.spec.ts`, screenshots `phase-43-*.png` (looked at).
+- Test changed (an accounting identity, not a bound): `deliveryAggregation` now subtracts the handling share from the mail fare.
+- Bench: `tools/bench/owner.ts` (`LOCO=`, `CARS=` env, prints per-train profit, load, break-even load).
+### Owner scenario (central-eu 1842, Venice-Milan 18/6/9/12 Norris x5 + 1 Venice-Trieste, 2 years, line profit per year): before -> after
+- 18 trains: $52k -> $50k, 9 of 18 trains losing; 6 trains: $88k -> $88k (all profitable, avg load 41 %); 9: $89k -> $88k; 12: $76k -> $75k. Average load 26 % at 18 trains. Marginal trains are at or below zero and the line total is below the 6-train optimum, as item 2 asks, but already was before.
+- pairScaling (1847, double track) revenue 1/4/8/13 trains: 63k / 143k / 172k / 241k unchanged; marginal profit / price 56 %, 44 %, 29 %, 6 %, -1 %, -1 % (trains 4-6), 5 % at 8, 0 % at 10, 9 % at 12, 31 % at 13.
+### goodPlayer (central-eu Normal, NW in January of start+16, $M, seeds 1/2/3 where run)
+- Before (this code's parent): 1840 -> 1856 5.15 (seed 1); 1900 -> 1916 33.0; 1930 -> 1946 6.47; 1950 -> 1966 5.27 / 5.26 / 5.52.
+- After: 1840 -> 1856 4.58 / 5.35 (seeds 1/2); 1900 -> 1916 25.4 / 15.4 / 24.1; 1930 -> 1946 6.4 / 4.5 / 5.3; 1950 -> 1966 5.70 / 5.20 / **bankrupt 1953 (seed 3)**. The bench is chaotic (+-2x between neighbouring settings), so one seed in three going bankrupt at 1950 is not clearly caused by this phase; baseline seed 3 was fine.
+### Notes
+- A stray `sed` once changed the 1950 road-competition anchor during tuning; restored (the competition test caught it) and the 1950 numbers above are from after the fix.

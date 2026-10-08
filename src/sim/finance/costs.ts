@@ -7,6 +7,11 @@ import {
   CAR_AXLE_FACTOR,
   CAR_EMPTY_TONS,
   CAR_LOAD_TONS,
+  costRealism,
+  crewShifts,
+  fuelEraScale,
+  handlingShare,
+  runningCostShare,
   ELECTRIC_WEAR_MULT,
   FUEL_REF_LOAD_FRACTION,
   FUEL_REF_TILES_PER_YEAR,
@@ -68,7 +73,7 @@ export function locoRunningCostPerYear(
 ): number {
   return (
     loco.maintenancePerYear *
-    RUNNING_COST_SHARE *
+    runningCostShare(year) *
     (1 - FUEL_SHARE_OF_RUNNING) *
     maintenanceMultiplier(loco, ageYears, year) *
     ageRunningCostMult(ageYears) *
@@ -76,7 +81,7 @@ export function locoRunningCostPerYear(
   );
 }
 
-/** Fuel and water burnt for one tile of running, at 1830 prices: the engine's yearly fuel budget spread over
+/** Fuel and water burnt for one tile of running at mature costs and 1830 prices (`fuelEraScale` brings it down for early years): the engine's yearly fuel budget spread over
  * `FUEL_REF_TILES_PER_YEAR`, times the train's weight over the weight of a full-length consist of average load.
  * An empty short train burns little, a long loaded one a lot; a stationary train burns none. */
 export function fuelUnitsPerTile(loco: LocomotiveDef, cars: readonly TrainCar[]): number {
@@ -103,6 +108,7 @@ export function fuelCostPerYearEstimate(loco: LocomotiveDef, cars: number, year:
     loco.maintenancePerYear *
     RUNNING_COST_SHARE *
     FUEL_SHARE_OF_RUNNING *
+    fuelEraScale(year) *
     (tons / refTons) *
     priceIndex(year)
   );
@@ -115,9 +121,27 @@ export function carsUpkeepPerYear(cars: readonly TrainCar[], year: number): numb
   return total * priceIndex(year);
 }
 
+/** Station staff's and agents' cost of handling passenger or mail fares worth `fares` dollars. */
+export function handlingCost(fares: number, year: number): number {
+  return fares * handlingShare(year);
+}
+
+/** How many of the cars carry passengers or mail (each has an attendant). */
+export function coachCount(cars: readonly TrainCar[]): number {
+  return cars.filter((c) => c.cargoType === "passengers" || c.cargoType === "mail").length;
+}
+
 /** Wages of the train's crew (footplate + guards) per year. */
-export function trainWagesPerYear(loco: LocomotiveDef, cars: number, year: number): number {
-  return trainCrewSize(loco, cars) * annualWage(year);
+export function trainWagesPerYear(
+  loco: LocomotiveDef,
+  cars: readonly TrainCar[],
+  year: number,
+): number {
+  return (
+    trainCrewSize(loco, cars.length, coachCount(cars), costRealism(year)) *
+    crewShifts(year) *
+    annualWage(year)
+  );
 }
 
 /** One station's monthly bill: building upkeep at general prices plus its staff at wages. */

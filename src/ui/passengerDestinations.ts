@@ -72,7 +72,16 @@ export function openDestinationsSheet(
                 style: { width: `${(row.total / max) * 100}%` },
               }),
             ),
-            h("span", { className: "dest-count" }, round(row.total)),
+            h(
+              "span",
+              { className: "dest-count" },
+              t.rowCount(
+                round(row.total),
+                Math.round(
+                  state.stationCargo.get(station.id)?.passengers?.bound?.[row.firstLeg] ?? 0,
+                ),
+              ),
+            ),
           ),
           expanded
             ? h(

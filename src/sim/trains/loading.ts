@@ -30,10 +30,11 @@ import {
   locomotiveById,
   TICKS_PER_CAR_HANDLED,
 } from "../../data/trains";
-import { addRevenue } from "../finance/ledger";
+import { handlingCost } from "../finance/costs";
+import { addExpense, addRevenue } from "../finance/ledger";
 import { boardable, takeBoarders } from "../stations/boarding";
 import { recordDelivered, recordLoadedRevenue, recordSent } from "../stations/flow";
-import { recordTrainRevenue } from "./profit";
+import { recordTrainRevenue, recordTrainRunning } from "./profit";
 import { accrueCityGrowthScore } from "../economy/cityGrowth";
 import { cityTileAcceptance } from "../economy/cityStats";
 import { getOrCreateIndustryEconomy, inputFull } from "../economy/processing";
@@ -376,6 +377,12 @@ function settleUnload(state: GameState, train: Train, station: Station, car: Tra
     deliveredRevenue = revenue;
     state.cash += revenue;
     addRevenue(state, cargo, revenue);
+    if (cargo === "passengers" || cargo === "mail") {
+      const handling = handlingCost(revenue, calendarFromTicks(state.startYear, state.ticks).year);
+      state.cash -= handling;
+      addExpense(state, "stationMaintenance", handling);
+      recordTrainRunning(train, handling);
+    }
     if (loadedStation) recordLoadedRevenue(state, loadedStation.id, cargo, unitsDelivered, revenue);
     recordTrainRevenue(train, revenue);
     queueDelivery(state, train, {

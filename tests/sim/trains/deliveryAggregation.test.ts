@@ -1,4 +1,6 @@
 /** Phase 25A: one delivery event (and so one floating label) per cargo type per train arrival. */
+import { calendarFromTicks } from "../../../src/sim/time";
+import { handlingCost } from "../../../src/sim/finance/costs";
 import { describe, expect, it } from "vitest";
 import { buildStation, buildTrack, buyTrain, setOrders } from "../../../src/sim/commands";
 import { stepLoading } from "../../../src/sim/trains/loading";
@@ -60,7 +62,12 @@ describe("delivery events per train arrival", () => {
     const mail = events.find((e) => e.cargoType === "mail")!;
     expect(grain.units).toBeCloseTo(3 * CARGO.grain.capacity, 6);
     expect(mail.units).toBeCloseTo(2 * CARGO.mail.capacity, 6);
-    expect(grain.revenue + mail.revenue).toBeCloseTo(cashGain, 6);
+    // Phase 43: the station staff's handling share of the mail fare is paid out of the cash.
+    expect(
+      grain.revenue +
+        mail.revenue -
+        handlingCost(mail.revenue, calendarFromTicks(state.startYear, state.ticks).year),
+    ).toBeCloseTo(cashGain, 6);
   });
 
   it("a single-cargo train produces one event", () => {

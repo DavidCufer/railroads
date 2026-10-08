@@ -43,6 +43,7 @@ import {
 } from "../../data/trains";
 import { STATION_TYPE_DEFS } from "../../data/stations";
 import { CARGO } from "../../data/cargo";
+import { recordTrainLoad, trainLoad } from "./profit";
 import { pushNews } from "../news";
 import type { GameState } from "../state";
 import type { Station } from "../stations/types";
@@ -1064,6 +1065,12 @@ export function stepTrain(state: GameState, train: Train, runtime: TrainRuntime)
       const perTile = wearUnitsPerTile(loco, train.cars, train.speed);
       train.wearUnits = (train.wearUnits ?? 0) + moved * perTile;
       train.fuelUnits = (train.fuelUnits ?? 0) + moved * fuelUnitsPerTile(loco, train.cars);
+      if (train.cars.length > 0)
+        recordTrainLoad(
+          train,
+          trainLoad(train, (c) => CARGO[c.cargoType].capacity),
+          moved,
+        );
       // Phase 30A: the edge under the head wears too (track condition, src/sim/track/condition.ts).
       const a = train.route[train.routeIndex];
       const b = train.route[train.routeIndex + 1];

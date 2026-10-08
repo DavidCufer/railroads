@@ -41,10 +41,11 @@ import {
   fuelCostPerYearEstimate,
   locoRunningCostPerYear,
   trainCompetition,
+  coachCount,
   trainWagesPerYear,
 } from "../sim/finance/costs";
-import { trainCrewSize } from "../data/economy";
-import { lineSummaries } from "../sim/finance/lines";
+import { costRealism, trainCrewSize } from "../data/economy";
+import { lineSummaries, trainsNeeded } from "../sim/finance/lines";
 import { booksProfit, trainProfitPerYear, trainProfitStatus } from "../sim/trains/profit";
 import type { Train, TrainCar, TrainOrder } from "../sim/trains/types";
 import { cardList, cardRow } from "./components/cardRow";
@@ -511,7 +512,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
           carsUpkeepPerYear(t.cars, year) +
           fuelCostPerYearEstimate(l, t.cars.length, year)
         : 0;
-      const wages = l ? trainWagesPerYear(l, t.cars.length, year) : 0;
+      const wages = l ? trainWagesPerYear(l, t.cars, year) : 0;
       const competition = l ? trainCompetition(l, t, state.stations, state.map.width, year) : 0;
       const capacity = t.cars.reduce((sum, c) => sum + CARGO[c.cargoType].capacity, 0);
       const loaded = t.cars.reduce((sum, c) => sum + c.loadedUnits, 0);
@@ -560,7 +561,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
           statTile({
             icon: "coin",
             value: `${formatMoney(wages)}${strings.trains.stats.perYear}`,
-            caption: `${p.wagesPerYear} · ${p.crewOf(l ? trainCrewSize(l, t.cars.length) : 0)}`,
+            caption: `${p.wagesPerYear} · ${p.crewOf(l ? trainCrewSize(l, t.cars.length, coachCount(t.cars), costRealism(year)) : 0)}`,
           }),
           statTile({
             icon: "track",
@@ -914,6 +915,7 @@ function linesList(
       },
     });
     if (line.trainIds.length < 2) return cardList(row);
+    const needed = trainsNeeded(state, line.trainIds);
     const gap = state.trains
       .find((t) => t.id === line.trainIds[0])
       ?.orders.find((o) => o.minGapDays !== undefined)?.minGapDays;
@@ -921,6 +923,13 @@ function linesList(
       "div",
       { className: "line-block" },
       cardList(row),
+      needed !== undefined && needed < line.trainIds.length
+        ? h(
+            "div",
+            { className: "hint line-overserved", "data-testid": "line-overserved" },
+            L.overServed(needed),
+          )
+        : null,
       h(
         "div",
         { className: "line-actions" },
@@ -1019,14 +1028,25 @@ export function openTrainListPanel(
                   ),
                   trailing: h(
                     "span",
-                    {
-                      className: `train-profit-col profit-${verdict}`,
-                      title: verdict === "bad" ? L.losing : "",
-                    },
-                    h("i", { className: "profit-dot" }),
-                    verdict === "new"
-                      ? "—"
-                      : `${perYear >= 0 ? "+" : "−"}${formatMoney(Math.abs(perYear))}${L.perYear}`,
+                    { className: "train-trailing" },
+                    h(
+                      "span",
+                      {
+                        className: `train-profit-col profit-${verdict}`,
+                        title: verdict === "bad" ? L.losing : "",
+                      },
+                      h("i", { className: "profit-dot" }),
+                      verdict === "new"
+                        ? "—"
+                        : `${perYear >= 0 ? "+" : "−"}${formatMoney(Math.abs(perYear))}${L.perYear}`,
+                    ),
+                    t.loadShare !== undefined && t.cars.length > 0
+                      ? h(
+                          "span",
+                          { className: "train-load-col", "data-testid": "train-load" },
+                          L.load(Math.round(t.loadShare * 100)),
+                        )
+                      : null,
                   ),
                   chevron: true,
                   onClick: () => {

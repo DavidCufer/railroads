@@ -31,9 +31,11 @@ for (const c of [V, M, T])
   if (!ok(commands.buildStation(state, ctr(c), "station"))) throw new Error("station " + c.name);
 const st = (c: typeof V) => state.stations.find((s) => s.tile === ctr(c))!;
 const [sv, sm, stt] = [st(V), st(M), st(T)];
-const cars = Array.from({ length: 5 }, () => "passengers" as const);
+const LOCO = process.env["LOCO"] ?? "norris-4-2-0";
+const NCARS = Number(process.env["CARS"] ?? 5);
+const cars = Array.from({ length: NCARS }, () => "passengers" as const);
 const buy = (from: typeof sv, to: typeof sv, flip: boolean) => {
-  const r = commands.buyTrain(state, from.id, "norris-4-2-0", cars);
+  const r = commands.buyTrain(state, from.id, LOCO, cars);
   if (!ok(r)) throw new Error("train " + JSON.stringify(r));
   const t = state.trains[state.trains.length - 1]!;
   const o = flip ? [to, from] : [from, to];

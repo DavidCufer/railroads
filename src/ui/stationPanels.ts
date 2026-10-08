@@ -5,6 +5,7 @@
  * - `openStationPanel` — tapping a built station (Station or Info mode): name + rename, type +
  *   upgrade, supplies/accepts, a waiting-cargo placeholder (Phase 7 does real cargo flow).
  */
+import { waitingSplitLine } from "./waitingSplit";
 import { CARGO, CARGO_TYPES, type CargoType } from "../data/cargo";
 import {
   STATION_IMPROVEMENT_TYPES,
@@ -104,6 +105,7 @@ function supplyChipStack(
   onTap?: () => void,
   trend?: string,
   pileFull?: string,
+  split?: string,
 ): HTMLElement {
   const children: Node[] = [
     cargoChip(
@@ -138,6 +140,10 @@ function supplyChipStack(
       );
     }
   }
+  if (split)
+    children.push(
+      h("span", { className: "cargo-waiting-label", "data-testid": "waiting-split" }, split),
+    );
   if (trend) children.push(h("span", { className: "cargo-waiting-label supply-trend" }, trend));
   if (pileFull)
     children.push(
@@ -265,13 +271,27 @@ function economyBody(
                   cargo === "passengers" ? passengerTap : undefined,
                   trends[i],
                   pileFullFor(cargo),
+                  cargo === "passengers" && state && station
+                    ? waitingSplitLine(state, station.id)
+                    : undefined,
                 ),
               ),
               ...extraWaiting.map((cargo) =>
-                supplyChipStack(container, cargo, 0, {
-                  amount: waitingPile?.[cargo]?.amount ?? 0,
-                  cap: station ? stationStorageCap(station, cargo) : 1,
-                }),
+                supplyChipStack(
+                  container,
+                  cargo,
+                  0,
+                  {
+                    amount: waitingPile?.[cargo]?.amount ?? 0,
+                    cap: station ? stationStorageCap(station, cargo) : 1,
+                  },
+                  undefined,
+                  undefined,
+                  undefined,
+                  cargo === "passengers" && state && station
+                    ? waitingSplitLine(state, station.id)
+                    : undefined,
+                ),
               ),
             )
           : emptyState(strings.station.noSupplies, "cargo"),

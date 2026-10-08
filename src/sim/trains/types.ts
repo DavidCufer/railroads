@@ -224,6 +224,9 @@ export interface Train {
   /** Fuel burnt since the month began, in 1830-price dollars (Phase 39); the monthly step books it at the year's
    * prices. Absent in older saves. */
   fuelUnits?: number;
+  /** Phase 43: how full the train has been over its last ~`LOAD_SHARE_WINDOW_TILES` tiles run (0..1, an exponential
+   * average of loaded units over capacity, weighted by distance). Absent until it first moves with cars. */
+  loadShare?: number;
   /** Per-train revenue and running costs (PLAN Phase 24A). */
   profit: TrainProfit;
   /** Cached fractional (tile-space) position at the start and end of the most recent tick, for the

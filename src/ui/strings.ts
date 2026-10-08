@@ -199,6 +199,7 @@ export const strings = {
     supplyRate: (unit: string) => `${unit ? ` ${unit}` : ""} / month`,
     /** PLAN Phase 16: the station panel's "Waiting" line, e.g. "12 passengers waiting". */
     waitingCount: (amount: string) => `${amount} waiting`,
+    waitingElsewhere: (n: number) => `any train ${n}`,
     supplies: "Supplies",
     perMonthNote: "per month",
     /** PLAN Phase 35: the "Where passengers go" detail sheet (tap the passenger supply tile). */
@@ -209,6 +210,9 @@ export const strings = {
       total: (n: string) => `About ${n} people a month want to travel from here by train.`,
       /** "Ljubljana 30 · Zagreb 15" */
       row: (name: string, count: string) => `${name} ${count}`,
+      /** "540/mo · 120 waiting" */
+      rowCount: (perMonth: string, waiting: number) =>
+        waiting >= 1 ? `${perMonth}/mo · ${waiting} waiting` : `${perMonth}/mo`,
       expand: "Show final destinations",
       collapse: "Hide final destinations",
       notConnected: "Not connected",
@@ -462,9 +466,11 @@ export const strings = {
       sortProfit: "Profit",
       sortLines: "Lines",
       perYear: "/yr",
+      load: (pct: number) => `load ${pct} %`,
       losing: "Losing money",
       noLines: "No lines yet — a line is trains that share the same stops.",
       lineTrains: (n: number) => (n === 1 ? "1 train" : `${n} trains`),
+      overServed: (n: number) => `~${n} ${n === 1 ? "train" : "trains"} would carry this demand`,
       lineThisYear: (revenue: string, costs: string) =>
         `This year: revenue ${revenue}, costs ${costs}`,
       spaceEvenly: "Space trains evenly",

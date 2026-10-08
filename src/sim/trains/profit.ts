@@ -2,7 +2,7 @@
  * year and over its lifetime. Costs are the locomotive's own upkeep plus breakdown repairs — track
  * and station upkeep are shared and not attributed to trains. Pure, deterministic, saved. */
 import { DAYS_PER_YEAR, HOURS_PER_DAY } from "../time";
-import type { Train, TrainBooks, TrainProfit } from "./types";
+import type { Train, TrainBooks, TrainCar, TrainProfit } from "./types";
 
 export function emptyBooks(): TrainBooks {
   return { revenue: 0, running: 0, wages: 0, wear: 0, repairs: 0 };
@@ -71,4 +71,24 @@ export function trainProfitStatus(train: Train, nowTicks: number): ProfitStatus 
   const perYear = trainProfitPerYear(train, nowTicks);
   if (perYear < 0) return "bad";
   return perYear >= train.purchasePrice * 0.2 ? "good" : "ok";
+}
+
+/** The window (tiles run) over which a train's average load is judged (Phase 43). */
+export const LOAD_SHARE_WINDOW_TILES = 150;
+
+/** Total seats/space of a train in units of cargo, and how much of it is taken. */
+export function trainLoad(train: Pick<Train, "cars">, capacityOf: (c: TrainCar) => number): number {
+  let cap = 0;
+  let used = 0;
+  for (const c of train.cars) {
+    cap += capacityOf(c);
+    used += c.loadedUnits;
+  }
+  return cap > 0 ? used / cap : 0;
+}
+
+/** Folds `tiles` run at load `load` (0..1) into the train's average load. */
+export function recordTrainLoad(train: Train, load: number, tiles: number): void {
+  const previous = train.loadShare ?? load;
+  train.loadShare = previous + (load - previous) * Math.min(1, tiles / LOAD_SHARE_WINDOW_TILES);
 }
