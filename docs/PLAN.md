@@ -1441,7 +1441,7 @@ so the economy returns to the pre-Phase-34 curve. Only this table changes (plus 
    supply on the player's map in 1843 (target roughly 850–900/month, was 1407), and the pax vs coal ratio. SPEC §9.5d
    and BALANCE.md updated.
 
-Status: [x] 1 [ ] 2 (no bound can be restored: see PROGRESS 35E) [x] 3
+Status: [x] 1 [x] 2 (no bound can be restored: see PROGRESS 35E) [x] 3
 
 ## Phase 36 — Visible industry growth; carriages cost more than wagons
 Owner: keep panels short (one line, no paragraphs). No hidden or random balance mechanisms.
@@ -1620,4 +1620,4 @@ Status: [~] 1 (45 % break-even NOT reached; 1840s at realism 0.2, see PROGRESS P
 2. **Survival re-check on the final Phase 43 anchors**: run `ASSERT=1 npx tsx tools/bench/survival.ts 3` for 1900, 1930,
    1950 (all bots, all difficulties) to completion; report the full table. If a target fails, report it; do not tune
    or loosen anything in this phase (owner decides next).
-Status: [x] 1 [ ] 2
+Status: [x] 1 [x] 2

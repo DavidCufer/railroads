@@ -5086,3 +5086,86 @@ goodPlayer is never bankrupt in these rows (min cash $0.00-0.20M; thinnest 1930 
 
 - Against the Phase 39 targets at 1840: good bot never bankrupt on any difficulty; Normal: overbuilder 3/3, trainSpammer 3/3, leveraged 3/3; Hard: overbuilder 3/3, trainSpammer 3/3, **leveraged 3/3 (the earlier 67 % Hard miss is closed at 1840)**. 1900/1930/1950 bad bots were not re-run on the final anchors.
 - `npm run check` (793 tests) and `npm run e2e` (223) pass.
+
+## 2026-10-08 — Phase 43B: Lines "Rate" bug; late-era survival re-check
+### 1. Rate bug (done)
+- **Root cause:** `replaceLocomotive` sets `train.purchaseTick = now` (the new engine's age) but keeps the train's profit books. `lineSummaries` (and `trainProfitPerYear` / `trainProfitStatus`) divided the books' profit by time since `purchaseTick`, so a train re-engined 100 days ago with 300 days of profit in its books was annualised over 100 days: about 3x too high. That reproduces "Rate +$539k/yr" against about $300k of revenue.
+- **Fix:** optional `Train.booksStartTick` (set the first time the engine is replaced; absent = `purchaseTick`, so no save migration) and `booksStartTick()` in `trains/profit.ts`, used by the line rate, the accrued-cost clamp and the train profit/yr and verdict. `purchaseTick` still drives age, resale and breakdown chance.
+- **Tests** (`tests/sim/finance/lines.test.ts`): a replaced-engine case (fails without the fix) and a staggered-purchase case asserting the rate never exceeds the revenue earned over the same window. An 8-train staggered run (no replacements) already matched true rolling profit to within about 15 %, so the rate is sound apart from this bug.
+- **Not changed:** the Lines row still shows revenue *year to date* beside a *rolling 12-month* rate, so early in the year the rate can look larger than the revenue shown. Display only; left for the owner.
+- `npm run check` (795 tests) and `npm run e2e` (223) pass.
+
+### 2. Survival re-check on the final Phase 43 anchors (no tuning, nothing loosened)
+`ASSERT=1 STARTS=1900,1930,1950 npx tsx tools/bench/survival.ts 3`, run to completion, all bots and difficulties, 3 seeds, 16 years. 1840 was not re-run here (the Phase 43 follow-up table above covers it). Because 1840 is absent, the "1840-1900" era below is the 1900 rows only (3 runs).
+
+| bot | start | difficulty | bankrupt | min cash $M (per seed) | final NW $M (per seed) |
+|---|---|---|---|---|---|
+| good | 1900 | easy | 0/3 | 0.18 / 0.18 / 0.18 | 51.06 / 51.49 / 51.06 |
+| good | 1900 | normal | 0/3 | 0.14 / 0.05 / 0.14 | 25.43 / 15.35 / 24.06 |
+| good | 1900 | hard | 0/3 | 0.11 / 0.09 / 0.06 | 11.66 / 7.01 / 8.53 |
+| good | 1930 | easy | 0/3 | 0.04 / 0.08 / 0.13 | 8.63 / 8.21 / 23.23 |
+| good | 1930 | normal | 0/3 | 0.04 / 0.02 / 0 | 6.57 / 4.98 / 5.07 |
+| good | 1930 | hard | 0/3 | 0.2 / 0.17 / 0.17 | 4.52 / 4.07 / 4.08 |
+| good | 1950 | easy | 0/3 | 0.13 / 0.16 / 0.15 | 13.57 / 17.31 / 18.48 |
+| good | 1950 | normal | 1/3 | 0.09 / 0.02 / -0.09 | 5.7 / 5.2 / 2 |
+| good | 1950 | hard | 0/3 | 0.15 / 0.15 / 0.15 | 3.36 / 3.15 / 3.05 |
+| overbuilder | 1900 | easy | 0/3 | -0.27 / -0.32 / -0.16 | 0.68 / 0.65 / 0.68 |
+| overbuilder | 1900 | normal | 0/3 | 0.17 / 0.09 / 0.13 | 0.77 / 0.69 / 0.71 |
+| overbuilder | 1900 | hard | 3/3 | -0.22 / -0.22 / -0.22 | -0.06 / -0.06 / -0.06 |
+| overbuilder | 1930 | easy | 0/3 | -0.24 / -0.76 / -0.1 | 1.02 / 0.97 / 1.06 |
+| overbuilder | 1930 | normal | 3/3 | -0.13 / -0.16 / -0.17 | 0.92 / 0.89 / 0.89 |
+| overbuilder | 1930 | hard | 3/3 | -0.08 / -0.08 / -0.08 | 0.26 / 0.26 / 0.26 |
+| overbuilder | 1950 | easy | 0/3 | -0.12 / -0.11 / -0.49 | 1.15 / 1.18 / 1.05 |
+| overbuilder | 1950 | normal | 2/3 | 0 / -0.01 / -0.04 | 0.89 / 1.31 / 1.27 |
+| overbuilder | 1950 | hard | 3/3 | -0.01 / -0.01 / -0.01 | 0.47 / 0.47 / 0.47 |
+| trainSpammer | 1900 | easy | 0/3 | -0.57 / -0.34 / -0.33 | -0.06 / 0.28 / 0.18 |
+| trainSpammer | 1900 | normal | 3/3 | -0.05 / -0.01 / -0.06 | 0.91 / 0.94 / 1 |
+| trainSpammer | 1900 | hard | 3/3 | -0.05 / -0.06 / -0.05 | 1.3 / 1.31 / 1.34 |
+| trainSpammer | 1930 | easy | 0/3 | -0.42 / -0.68 / -0.75 | 0.6 / 0.59 / 0.42 |
+| trainSpammer | 1930 | normal | 3/3 | -0.03 / -0.03 / -0.14 | 1.53 / 1.39 / 1.5 |
+| trainSpammer | 1930 | hard | 1/3 | -0.04 / 0.12 / 0.12 | 1.81 / 1.98 / 1.81 |
+| trainSpammer | 1950 | easy | 0/3 | -0.09 / -0.15 / 0.02 | 2.22 / 2.18 / 2.06 |
+| trainSpammer | 1950 | normal | 3/3 | -0.04 / -0.05 / -0.08 | 1.84 / 1.86 / 1.87 |
+| trainSpammer | 1950 | hard | 2/3 | -0.03 / -0.02 / 0.09 | 1.68 / 1.33 / 1.73 |
+| leveraged | 1900 | easy | 0/3 | -2.02 / -0.66 / -0.51 | -1.03 / 0.57 / 0.54 |
+| leveraged | 1900 | normal | 3/3 | -0.05 / -0.01 / -0.06 | 0.91 / 0.94 / 1 |
+| leveraged | 1900 | hard | 3/3 | -0.05 / -0.06 / -0.05 | 1.3 / 1.31 / 1.34 |
+| leveraged | 1930 | easy | 0/3 | -0.31 / -0.04 / 0.04 | 1.4 / 1.47 / 1.44 |
+| leveraged | 1930 | normal | 3/3 | -0.03 / -0.03 / -0.14 | 1.53 / 1.39 / 1.5 |
+| leveraged | 1930 | hard | 1/3 | -0.04 / 0.12 / 0.12 | 1.81 / 1.98 / 1.81 |
+| leveraged | 1950 | easy | 0/3 | -0.13 / -1.07 / -0.62 | 2.52 / 1.76 / 1.72 |
+| leveraged | 1950 | normal | 3/3 | -0.04 / -0.05 / -0.08 | 1.84 / 1.86 / 1.87 |
+| leveraged | 1950 | hard | 2/3 | -0.03 / -0.02 / 0.09 | 1.68 / 1.33 / 1.73 |
+
+Targets (good bot never bankrupt on Normal/Hard; bad bots bankrupt in >= 50 % of Normal and >= 80 % of Hard runs, <= 50 % on Easy):
+- PASS good easy 1840-1900: 0/3 bankrupt, min cash 0.18M
+- PASS good normal 1840-1900: 0/3 bankrupt, min cash 0.05M
+- PASS good hard 1840-1900: 0/3 bankrupt, min cash 0.06M
+- PASS good easy 1930-1950: 0/6 bankrupt, min cash 0.04M
+- FAIL good normal 1930-1950: 1/6 bankrupt, min cash -0.09M
+- PASS good hard 1930-1950: 0/6 bankrupt, min cash 0.15M
+- PASS overbuilder easy 1840-1900: 0/3 bankrupt
+- FAIL overbuilder normal 1840-1900: 0/3 bankrupt
+- PASS overbuilder hard 1840-1900: 3/3 bankrupt
+- PASS overbuilder easy 1930-1950: 0/6 bankrupt
+- PASS overbuilder normal 1930-1950: 5/6 bankrupt
+- PASS overbuilder hard 1930-1950: 6/6 bankrupt
+- PASS trainSpammer easy 1840-1900: 0/3 bankrupt
+- PASS trainSpammer normal 1840-1900: 3/3 bankrupt
+- PASS trainSpammer hard 1840-1900: 3/3 bankrupt
+- PASS trainSpammer easy 1930-1950: 0/6 bankrupt
+- PASS trainSpammer normal 1930-1950: 6/6 bankrupt
+- FAIL trainSpammer hard 1930-1950: 3/6 bankrupt
+- PASS leveraged easy 1840-1900: 0/3 bankrupt
+- PASS leveraged normal 1840-1900: 3/3 bankrupt
+- PASS leveraged hard 1840-1900: 3/3 bankrupt
+- PASS leveraged easy 1930-1950: 0/6 bankrupt
+- PASS leveraged normal 1930-1950: 6/6 bankrupt
+- FAIL leveraged hard 1930-1950: 3/6 bankrupt
+
+**Misses (reported, not tuned; owner decides next):**
+- **good, Normal, 1930-1950: 1/6 bankrupt** (1950 Normal seed 3, min cash -$0.09M; this is the seed Phase 43 already flagged).
+- **overbuilder, Normal, 1900: 0/3 bankrupt** (needs >= 50 %). 1930-1950 passes at 5/6.
+- **trainSpammer, Hard, 1930-1950: 3/6 bankrupt** (needs >= 80 %).
+- **leveraged, Hard, 1930-1950: 3/6 bankrupt** (needs >= 80 %); its 1930/1950 rows are identical to trainSpammer's, as in earlier phases.
+Everything else passes, including all three bad bots on Normal at 1930-1950 (except overbuilder 5/6, which still clears 50 %) and on Hard at 1900.
