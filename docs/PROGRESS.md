@@ -5062,3 +5062,27 @@ After (this phase):
 | good | 1930 | normal | 0/3 | 0.04 / 0.02 / 0 | 6.57 / 4.98 / 5.07 |
 | good | 1930 | hard | 0/3 | 0.2 / 0.17 / 0.17 | 4.52 / 4.07 / 4.08 |
 goodPlayer is never bankrupt in these rows (min cash $0.00-0.20M; thinnest 1930 Normal seed 3 at $0.00M). Item 4's bad-bot targets (incl. the Hard 67 % misses) need `ASSERT=1 npx tsx tools/bench/survival.ts 3` re-run to completion (about an hour).
+
+### Phase 43 follow-up (owner decision: the 1840s bench bound moves)
+- The owner accepted a lower 1840s bench instead of changing the bot. `COST_REALISM_ANCHORS` now holds **0.2 from 1830 to 1870**, then falls to 0.05 at 1900 (0.12 in 1930, 0 in 1950 as before). Why that value: the sweep (1840 Normal/Hard, seeds 1-2, to 1870) bankrupted the good bot at 0.4 and 0.6 and survived 0.25 on those seeds, but 0.25 lost seed 3 over 16 years (bankrupt, NW $1.2M); 0.15 and 0.2 survive all three seeds. Trips per head stayed unchanged.
+- **Still not 45 %**: Venice-Milan 1842 break-even load is 15 % (6 trains, uncrowded) to 23 % (18 trains), up from 10-16 %. 1900 and later are bounded by the passenger/coal ratio test, which forbids the trips raise that dearer costs would need, so realism there stays at 0.05-0.12.
+- Owner scenario after (18 Norris x5 + Trieste, 2 years): line profit **$15k/yr** (was $52k), 9 of 18 trains losing (was 9 by about $2k, now by up to $4k), best-first profit $k 15 10 7 6 4 1 1 1 0 -2 -3 -3 -3 -3 -3 -4 -4 -4; 6 trains **$72k** (all profitable, was $88k). So the first 5-6 trains pay, the marginal ones lose, and the line total is far below the 6-train optimum (item 2 met).
+- goodPlayer 1840 (seeds 1/2/3): Normal 1856 NW **$2.9M / $2.9M / $2.5M** (was $5.15M: the lowered bound, about -45 %); no bankruptcy.
+- Survival table 1840, 3 seeds, 16 years (this code):
+| bot | start | difficulty | bankrupt | min cash $M (per seed) | final NW $M (per seed) |
+|---|---|---|---|---|---|
+| good | 1840 | easy | 0/3 | 0.12 / 0.11 / 0.12 | 10.71 / 10.48 / 9.91 |
+| good | 1840 | normal | 0/3 | 0.11 / 0.1 / 0.08 | 2.92 / 2.91 / 2.49 |
+| good | 1840 | hard | 0/3 | 0.11 / 0.11 / 0.11 | 1.98 / 1.78 / 1.94 |
+| overbuilder | 1840 | easy | 0/3 | -1.15 / -1.12 / -1.18 | -0.39 / -0.37 / -0.43 |
+| overbuilder | 1840 | normal | 3/3 | -0.29 / -0.29 / -0.3 | 0.28 / 0.28 / 0.28 |
+| overbuilder | 1840 | hard | 3/3 | -0.01 / -0.01 / -0.01 | 0.04 / 0.04 / 0.04 |
+| trainSpammer | 1840 | easy | 0/3 | -1.47 / -1.42 / -1.45 | -1.05 / -0.99 / -1.02 |
+| trainSpammer | 1840 | normal | 3/3 | -0.19 / -0.16 / -0.19 | 0.72 / 0.73 / 0.72 |
+| trainSpammer | 1840 | hard | 3/3 | -0.08 / -0.08 / -0.09 | 0.42 / 0.42 / 0.41 |
+| leveraged | 1840 | easy | 0/3 | -0.03 / -0.18 / -0.68 | 0.71 / 0.82 / 0.55 |
+| leveraged | 1840 | normal | 3/3 | -0.02 / -0.01 / -0.07 | 1.11 / 1.12 / 1.11 |
+| leveraged | 1840 | hard | 3/3 | -0.04 / -0.04 / -0.04 | 0.47 / 0.48 / 0.48 |
+
+- Against the Phase 39 targets at 1840: good bot never bankrupt on any difficulty; Normal: overbuilder 3/3, trainSpammer 3/3, leveraged 3/3; Hard: overbuilder 3/3, trainSpammer 3/3, **leveraged 3/3 (the earlier 67 % Hard miss is closed at 1840)**. 1900/1930/1950 bad bots were not re-run on the final anchors.
+- `npm run check` (793 tests) and `npm run e2e` (223) pass.

@@ -110,8 +110,8 @@ export const CARS_PER_TRAIN_STAFF = 4;
  * carriages, so a thin 1840s train could still pay its way at a low load; by 1900 shift crews, attendants, station
  * staff and bought-in fuel put the break-even at about 45 % full. Everything below blends between the two ends by this. */
 export const COST_REALISM_ANCHORS: Anchors = [
-  [1830, 0],
-  [1860, 0.05],
+  [1830, 0.2],
+  [1870, 0.2],
   [1900, 0.05],
   [1930, 0.12],
   [1950, 0],

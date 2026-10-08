@@ -1610,4 +1610,4 @@ route some trains should lose money. Real mechanisms only.
 5. Tests, SPEC/BALANCE, screenshots `phase-43-*.png` (look at them).
 6. **Suspected bug (orchestrator)**: owner's Lines view showed Venice–Milan "Rate +$539k/yr" while "This year: revenue $8k" after 9 days (≈$320k/yr revenue) and the owner bench gives line revenue $143k/yr, profit $52k/yr. A profit rate above revenue is impossible: check `ratePerYear` in `lineSummaries` (trains bought mid-window, owned-time scaling, accrued costs) and fix; test with trains bought at different times.
 
-Status: [~] 1 (mechanisms in, 45 % break-even NOT reached: see PROGRESS Phase 43) [x] 2 [x] 3 [~] 4 (survival table in PROGRESS) [x] 5 [ ] 6
+Status: [~] 1 (45 % break-even NOT reached; 1840s at realism 0.2, see PROGRESS Phase 43 follow-up) [x] 2 [x] 3 [~] 4 (1840 table done, 1900/1930/1950 bad bots not re-run) [x] 5 [ ] 6
