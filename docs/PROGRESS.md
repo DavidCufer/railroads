@@ -5048,3 +5048,17 @@ After (this phase):
 - After: 1840 -> 1856 4.58 / 5.35 (seeds 1/2); 1900 -> 1916 25.4 / 15.4 / 24.1; 1930 -> 1946 6.4 / 4.5 / 5.3; 1950 -> 1966 5.70 / 5.20 / **bankrupt 1953 (seed 3)**. The bench is chaotic (+-2x between neighbouring settings), so one seed in three going bankrupt at 1950 is not clearly caused by this phase; baseline seed 3 was fine.
 ### Notes
 - A stray `sed` once changed the 1950 road-competition anchor during tuning; restored (the competition test caught it) and the 1950 numbers above are from after the fix.
+
+### Survival table after (3 seeds, 16 years; good bot rows through 1930 finished when this was written; 1950 and the three bad bots were still running and are NOT reported, so the Hard targets are unchecked)
+| bot | start | difficulty | bankrupt | min cash $M (per seed) | final NW $M (per seed) |
+|---|---|---|---|---|---|
+| good | 1840 | easy | 0/3 | 0.15 / 0.15 / 0.15 | 13.16 / 12.08 / 12.76 |
+| good | 1840 | normal | 0/3 | 0.13 / 0.12 / 0.1 | 4.58 / 5.35 / 3.82 |
+| good | 1840 | hard | 0/3 | 0.11 / 0.11 / 0.11 | 1.89 / 1.66 / 2.08 |
+| good | 1900 | easy | 0/3 | 0.18 / 0.18 / 0.18 | 51.06 / 51.49 / 51.06 |
+| good | 1900 | normal | 0/3 | 0.14 / 0.05 / 0.14 | 25.43 / 15.35 / 24.06 |
+| good | 1900 | hard | 0/3 | 0.11 / 0.09 / 0.06 | 11.66 / 7.01 / 8.53 |
+| good | 1930 | easy | 0/3 | 0.04 / 0.08 / 0.13 | 8.63 / 8.21 / 23.23 |
+| good | 1930 | normal | 0/3 | 0.04 / 0.02 / 0 | 6.57 / 4.98 / 5.07 |
+| good | 1930 | hard | 0/3 | 0.2 / 0.17 / 0.17 | 4.52 / 4.07 / 4.08 |
+goodPlayer is never bankrupt in these rows (min cash $0.00-0.20M; thinnest 1930 Normal seed 3 at $0.00M). Item 4's bad-bot targets (incl. the Hard 67 % misses) need `ASSERT=1 npx tsx tools/bench/survival.ts 3` re-run to completion (about an hour).
