@@ -16,6 +16,11 @@ export function emptyTrainProfit(lifetimeRevenue = 0): TrainProfit {
   };
 }
 
+/** The tick the train's books began: its purchase, even if the locomotive was replaced since. */
+export function booksStartTick(train: Pick<Train, "purchaseTick" | "booksStartTick">): number {
+  return train.booksStartTick ?? train.purchaseTick;
+}
+
 export function booksProfit(b: TrainBooks): number {
   return b.revenue - b.running - (b.wages ?? 0) - (b.wear ?? 0) - b.repairs;
 }
@@ -59,14 +64,14 @@ export const TRAIN_PROFIT_MIN_AGE_DAYS = 60;
 
 /** Lifetime profit per year of ownership (the list's "profit/yr" column and the status verdict). */
 export function trainProfitPerYear(train: Train, nowTicks: number): number {
-  const ageDays = (nowTicks - train.purchaseTick) / HOURS_PER_DAY;
+  const ageDays = (nowTicks - booksStartTick(train)) / HOURS_PER_DAY;
   return booksProfit(train.profit.lifetime) / Math.max(0.25, ageDays / DAYS_PER_YEAR);
 }
 
 /** Judged on lifetime profit per year once past the first two months: losing money is "bad", a
  * profit under a fifth of the purchase price a year is "ok", better is "good". */
 export function trainProfitStatus(train: Train, nowTicks: number): ProfitStatus {
-  const ageDays = (nowTicks - train.purchaseTick) / HOURS_PER_DAY;
+  const ageDays = (nowTicks - booksStartTick(train)) / HOURS_PER_DAY;
   if (ageDays < TRAIN_PROFIT_MIN_AGE_DAYS) return "new";
   const perYear = trainProfitPerYear(train, nowTicks);
   if (perYear < 0) return "bad";

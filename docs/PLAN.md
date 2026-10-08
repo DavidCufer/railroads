@@ -1620,4 +1620,4 @@ Status: [~] 1 (45 % break-even NOT reached; 1840s at realism 0.2, see PROGRESS P
 2. **Survival re-check on the final Phase 43 anchors**: run `ASSERT=1 npx tsx tools/bench/survival.ts 3` for 1900, 1930,
    1950 (all bots, all difficulties) to completion; report the full table. If a target fails, report it; do not tune
    or loosen anything in this phase (owner decides next).
-Status: [ ] 1 [ ] 2
+Status: [x] 1 [ ] 2

@@ -1515,6 +1515,7 @@ export function replaceLocomotive(
 
   train.locoModelId = newLocoModelId;
   train.purchasePrice = plan.newLocoCost + carsValue;
+  train.booksStartTick ??= train.purchaseTick; // the books carry on; only the engine is new
   train.purchaseTick = state.ticks;
   delete train.ageCreditYears;
   train.serviceOdometerTiles = train.distanceTraveled;

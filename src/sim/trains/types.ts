@@ -192,6 +192,9 @@ export interface Train {
    * depreciating rolling-stock value, and the age input for breakdown chance/obsolescence (§7.6). */
   purchasePrice: number;
   purchaseTick: number;
+  /** Tick the train's books (`profit`) began. Set the first time `replaceLocomotive` resets `purchaseTick`; absent =
+   * `purchaseTick`. Per-year profit figures divide by the time since this tick, not since the newest locomotive. */
+  booksStartTick?: number;
   /** Phase 30A: years of mechanical age taken off by overhauls (see src/sim/trains/ageing.ts). Absent = 0. */
   ageCreditYears?: number;
   /** Phase 30A: the end-of-life news for this locomotive has been shown. */

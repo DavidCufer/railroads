@@ -7,7 +7,7 @@ import { locomotiveById } from "../../data/trains";
 import type { GameState } from "../state";
 import { calendarFromTicks, DAYS_PER_MONTH, DAYS_PER_YEAR, HOURS_PER_DAY } from "../time";
 import { mechanicalAgeYears } from "../trains/ageing";
-import { booksProfit } from "../trains/profit";
+import { booksProfit, booksStartTick } from "../trains/profit";
 import type { Train, TrainBooks } from "../trains/types";
 import { fuelPriceMult } from "./panics";
 import { carsUpkeepPerYear, locoRunningCostPerYear, trainWagesPerYear } from "./costs";
@@ -56,7 +56,7 @@ function accruedCosts(state: GameState, train: Train): number {
   const year = calendarFromTicks(state.startYear, state.ticks).year;
   const monthTicks = HOURS_PER_DAY * DAYS_PER_MONTH;
   const sinceMonthStart = state.ticks % monthTicks;
-  const owned = Math.min(sinceMonthStart, state.ticks - train.purchaseTick);
+  const owned = Math.min(sinceMonthStart, state.ticks - booksStartTick(train));
   const monthly =
     (locoRunningCostPerYear(loco, mechanicalAgeYears(state, train), year) +
       carsUpkeepPerYear(train.cars, year) +
@@ -101,7 +101,7 @@ export function lineSummaries(state: GameState): LineSummary[] {
     line.revenueThisYear += t.profit.thisYear.revenue;
     line.costsThisYear += thisCosts;
 
-    const age = state.ticks - t.purchaseTick;
+    const age = state.ticks - booksStartTick(t);
     if (age >= LINE_RATE_MIN_DAYS * HOURS_PER_DAY) {
       // Rolling 12 months: this year to date plus last year, over the time the train was owned in that window.
       const span = Math.min(age, sinceYearStart + yearTicks);

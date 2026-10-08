@@ -70,4 +70,40 @@ describe("line summaries (Phase 34)", () => {
     expect(rate).toBeGreaterThan(70_000);
     expect(rate).toBeLessThan(110_000);
   });
+
+  it("a replaced locomotive resets purchaseTick but not the books: the rate uses the time since the books began", () => {
+    const state = lineWorld(1);
+    const t = state.trains[0]!;
+    // Mid-year (day 200 of year 2). Bought 300 days ago; new engine fitted 100 days ago; books cover all 300 days.
+    state.ticks = (DAYS_PER_YEAR + 200) * HOURS_PER_DAY;
+    t.booksStartTick = state.ticks - 300 * HOURS_PER_DAY;
+    t.purchaseTick = state.ticks - 100 * HOURS_PER_DAY;
+    t.profit.lastYear = { revenue: 40_000, running: 4_000, wages: 1_000, wear: 0, repairs: 0 };
+    t.profit.thisYear = { revenue: 60_000, running: 6_000, wages: 2_000, wear: 0, repairs: 0 };
+    const rate = lineSummaries(state)[0]?.ratePerYear ?? 0;
+    // ~87k profit over 300 days → ~106k/yr (measuring from the new engine would say ~318k/yr).
+    expect(rate).toBeGreaterThan(90_000);
+    expect(rate).toBeLessThan(115_000);
+  });
+
+  it("the rate never exceeds the revenue earned over the same window, for trains bought at different times", () => {
+    const state = lineWorld(3);
+    state.ticks = (DAYS_PER_YEAR + 150) * HOURS_PER_DAY;
+    const ownedDays = [500, 200, 100]; // 500 > the window, 200 and 100 inside it
+    let windowRevenue = 0;
+    state.trains.forEach((t, i) => {
+      const days = ownedDays[i]!;
+      t.purchaseTick = state.ticks - days * HOURS_PER_DAY;
+      const perDay = 300 + i * 100;
+      const ytd = Math.min(days, 150);
+      const prev = Math.max(0, Math.min(days - 150, DAYS_PER_YEAR));
+      t.profit.thisYear = { revenue: perDay * ytd, running: 0, wages: 0, wear: 0, repairs: 0 };
+      t.profit.lastYear = { revenue: perDay * prev, running: 0, wages: 0, wear: 0, repairs: 0 };
+      windowRevenue += perDay * DAYS_PER_YEAR; // each train earns perDay every day, so a year of it
+    });
+    const line = lineSummaries(state)[0]!;
+    // Costs are only the accrued running share, so profit <= revenue and the rate matches revenue/day × 1 year.
+    expect(line.ratePerYear!).toBeLessThanOrEqual(windowRevenue + 1);
+    expect(line.ratePerYear!).toBeGreaterThan(windowRevenue * 0.9);
+  });
 });
