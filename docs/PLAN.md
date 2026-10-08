@@ -1611,3 +1611,13 @@ route some trains should lose money. Real mechanisms only.
 6. **Suspected bug (orchestrator)**: owner's Lines view showed Venice–Milan "Rate +$539k/yr" while "This year: revenue $8k" after 9 days (≈$320k/yr revenue) and the owner bench gives line revenue $143k/yr, profit $52k/yr. A profit rate above revenue is impossible: check `ratePerYear` in `lineSummaries` (trains bought mid-window, owned-time scaling, accrued costs) and fix; test with trains bought at different times.
 
 Status: [~] 1 (45 % break-even NOT reached; 1840s at realism 0.2, see PROGRESS Phase 43 follow-up) [x] 2 [x] 3 [~] 4 (1840 table done, 1900/1930/1950 bad bots not re-run) [x] 5 [ ] 6
+
+## Phase 43B — Follow-up: Lines "Rate" bug; late-era survival re-check
+1. **Lines "Rate" bug** (Phase 43 item 6, not done): owner's Lines view showed Venice–Milan "Rate +$539k/yr" while the
+   line's revenue was ~$300k/yr. Find why `ratePerYear` in `lineSummaries` can exceed revenue (trains bought within the
+   rolling window, owned-time scaling, accrued costs, lifetime vs window books) and fix it; unit tests with trains bought
+   at different times and a mid-year load (the rate must never exceed revenue, and must match profit/time owned).
+2. **Survival re-check on the final Phase 43 anchors**: run `ASSERT=1 npx tsx tools/bench/survival.ts 3` for 1900, 1930,
+   1950 (all bots, all difficulties) to completion; report the full table. If a target fails, report it; do not tune
+   or loosen anything in this phase (owner decides next).
+Status: [ ] 1 [ ] 2
