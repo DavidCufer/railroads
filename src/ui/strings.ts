@@ -137,6 +137,8 @@ export const strings = {
       "invalid-city": "That city doesn't exist",
       "city-not-connected": "Connect this city by rail first",
       "civic-investment-cooldown": "Civic Investment is on cooldown here",
+      "invalid-contract": "That offer is gone",
+      "too-many-contracts": "Two contracts at a time — finish one first",
     },
     confirmBuild: "Build",
     confirmUpgrade: "Upgrade",
@@ -916,6 +918,40 @@ export const strings = {
       delivered: (amount: number, cargo: string) =>
         `Deliver ${amount} carloads of ${cargo} in a year`,
       electrifiedTiles: (n: number) => `Electrify ${n} tiles`,
+    },
+  },
+  /** Phase 45: contracts. One-liners; the sentences are built in ui/contractStrings.ts. */
+  contracts: {
+    title: "Contracts",
+    button: "Contracts",
+    none: "No offers right now.",
+    offers: "Offers",
+    active: "Accepted",
+    accept: "Accept",
+    decline: "Later",
+    abandon: "Give up",
+    abandonConfirm: "Give up? You will be fined",
+    daysLeft: (days: number) => `${days} d left`,
+    expiresIn: (days: number) => `offer ends in ${days} d`,
+    pays: (money: string) => `Pays ${money}`,
+    paysUpTo: (money: string) => `Refunds up to ${money}`,
+    connected: "Connected",
+    notConnected: "Not connected yet",
+    subsidyPaid: (paid: string, cap: string) => `${paid} of ${cap} refunded`,
+    delivery: (city: string, amount: string, cargo: string, date: string) =>
+      `${city} needs ${amount} ${cargo} by ${date}`,
+    connection: (city: string, share: number, date: string) =>
+      `Connect ${city} by ${date} - it pays ${share} % of the track`,
+    service: (a: string, b: string, amount: string, date: string) =>
+      `Carry ${amount} passengers ${a} \u2194 ${b} by ${date}`,
+    rescue: (industry: string, near: string, amount: string, cargo: string, date: string) =>
+      `${industry} near ${near} winds down unless you haul ${amount} ${cargo} by ${date}`,
+    news: {
+      offered: (text: string, money: string) => `Contract: ${text} \u2014 ${money}`,
+      completed: (text: string, money: string) =>
+        `Contract done: ${text}${money ? ` \u2014 ${money}` : ""}`,
+      failed: (text: string, fine: string) =>
+        `Contract failed: ${text}${fine ? ` \u2014 fined ${fine}` : ""}`,
     },
   },
   celebration: {

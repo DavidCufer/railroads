@@ -14,6 +14,7 @@ import type { Station } from "../sim/stations/types";
 import type { Train } from "../sim/trains/types";
 import type { NewsItem } from "../sim/news";
 import type { Goal } from "../sim/goals/types";
+import type { ContractsState } from "../sim/contracts/types";
 import type { RegionId } from "../sim/regions";
 import type { PendingCityFounding } from "../sim/regions";
 import type { TrackEdge } from "../sim/track/types";
@@ -143,6 +144,8 @@ interface SerializedGameStateBase<TTrain> {
   pendingGoalCelebrations: Goal[];
   cargoDeliveredThisYear: Partial<Record<CargoType, number>>;
   cargoDeliveredBestYear: Partial<Record<CargoType, number>>;
+  /** Added in Phase 45 without a version bump: absent in older saves, which get no contracts until the next offer. */
+  contracts?: ContractsState;
 }
 
 export type SerializedGameStateV1 = SerializedGameStateBase<SerializedTrainV1>;

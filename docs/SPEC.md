@@ -848,6 +848,41 @@ Goal types (data-driven): `connect(cityA, cityB, byYear)`, `annualRevenue(amount
 `electrifiedTiles(n, byYear)`. Random maps: goals generated from the same types.
 Goals panel shows progress; reaching gold shows a celebration dialog; game continues.
 
+### 11b. Contracts (Phase 45)
+
+A town or company offers a deal; the game never pays for nothing. Four kinds (`src/data/contracts.ts`):
+- **Delivery** - "Vienna needs 300 t steel by Mar 1862": a town that demands a cargo (tier ladder, era-gated) that a
+  producer near the network really makes. Counts paid deliveries of that cargo to a station covering the town.
+- **Connection** - "Connect Graz by 1863 - it pays 50 % of the track": an unserved town within reach. The town refunds
+  half of the cost (construction + land) of every track step you lay inside the corridor between your network and the
+  town (distance to the anchor + to the town <= 1.3x their separation + 4 tiles), up to a cap of 1.25x the estimated route
+  cost x 0.5, and never more than half of a bill even with two such contracts. It completes when a station covers the
+  town and is on the same track network as a station you had at acceptance. The subsidy is paid as you build and kept
+  if you fail (the cap bounds it); the refund also reduces the construction cost counted in net worth.
+- **Service** - "Carry 2,000 passengers Trieste <-> Venice by <date>": counts paid passenger deliveries that were loaded at a
+  station covering one town and unloaded at one covering the other.
+- **Rescue** - "The Linz coal mine winds down unless you haul 400 t by <date>": a raw producer that trains carry < 5 % of.
+  Success multiplies its output multiplier by 1.2 (within the usual 0.5-3 bounds), failure by 0.8.
+
+**Generation.** Every `OFFER_GAP_MONTHS` (4-8) after the first year and with >= 2 stations, a candidate is drawn from the
+current state: places within 1.5x the average line length of a station (never under 28 tiles), real unmet demand,
+processed cargo only from a producer with output now. Never impossible: the target is reachable by an A* track path
+(else the candidate is dropped), a delivery/rescue quantity is <= 60 % of the source's output over the deadline, and a
+service <= 60 % x 50 % of the smaller town's riders; the deadline is 90 days of set-up plus 2.5 round trips, within
+6-18 months (delivery), 24-36 (connection), 12 (service), 18 (rescue), x1.25 Easy / x0.85 Hard. At most 3 open offers
+(each lapses after 3 months) and 2 accepted. Randomness is a separate seeded stream (`state.contracts.rng`), so contracts
+never change a map or an economy.
+
+**Reward** = (0.5 x missing track + 0.3 x rolling stock + 0.3 x operating cost over the period) x (1 + margin 30-60 %) x
+difficulty (Easy 1.25, Normal 1, Hard 0.8), capped at 25 % of net worth and dropped under $8k (1830 prices). The freight
+revenue of the haul is on top and pays most of the running cost, hence the shares below 1. Failing (deadline or giving up)
+costs 10 % of the reward and no new offer for 8 months. Cash rewards and penalties are outside the ledger (like land
+grants): they move cash and `contracts.stats` only, and are untaxed.
+
+UI: a news item and tappable toast when an offer arrives; a Contracts button (badge = open offers) opens one line per
+contract: Accept / Later on offers, a progress bar, reward and days left on accepted ones, Give up (two taps). Tapping a
+line looks at the town or industry. Commands: `acceptContract`, `declineContract`, `abandonContract`.
+
 ---
 
 ## 12. Commands & determinism
@@ -976,3 +1011,4 @@ localization (English only, but keep strings in one `strings.ts` file for later)
 - [Phase 29 D] §6.3 demand tiles in a station's Cargo tab show an industry badge (anchor for a Port) when only industries accept the cargo there, and tapping one says who accepts it ("Accepted by: Barbridge Port (export)" / "(city)"); a train queued for a platform says how many trains are ahead of it in the yard.
 - [Phase 30A] §9.5c (new): waiting passengers/mail give up instead of hitting a cap and a Warehouse stores freight only; mail supply ×0.213; land and way-leave in every build (city premium follows an urbanisation curve, open country follows prices); leverage-based interest and earnings-based credit; track wear renewal with slow orders and `relayTrack`; locomotive ageing and `overhaulLocomotive`; passing loops and departure spacing; servicing by kilometres; goal land grants; persistent bridge washouts with `rebuildBridge`; induced passenger traffic before 1900. §9.1 credit limit and interest text, §9.6 table rows (leverage premium, land) updated. §11: gb gold goal is $20M by 1870 (was $15M, the induced-traffic economy puts an able player higher); random-map gold goals are net worth 60× (was 40×) and annual revenue 4.5× (was 3×) the starting cash.
 - [Phase 30A] Deviation from the PLAN text: PLAN says the order option is "per-train or per-line"; it is per stop (`TrainOrder.minGapDays`), which covers both. PLAN says interest premium "grows with debt ÷ net worth": implemented as debt ÷ (net worth + debt) so it stays in 0–1 when net worth is small or negative.
+- [Phase 45] New §11b Contracts. Old saves load with no contracts (the first offer comes after a year of play). Contract money is outside the ledger.

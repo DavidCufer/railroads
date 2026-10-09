@@ -1,6 +1,7 @@
 /** Converts between `GameState` and the plain-JSON `SerializedGameStateV1` (SPEC §13). Pure,
  * DOM-free (only `btoa`/`atob`, available in Node/vitest and every browser) — testable without
  * IndexedDB or a browser, per CLAUDE.md's "simulation code must be testable without a DOM". */
+import { createContractsState } from "../sim/contracts/types";
 import { clampInputStocks } from "../sim/economy/processing";
 import { materializeAllJunctions } from "../sim/track/routes";
 import { emptyTrainProfit } from "../sim/trains/profit";
@@ -106,6 +107,7 @@ export function serializeGameState(state: GameState): SerializedGameStateV3 {
     pendingGoalCelebrations: state.pendingGoalCelebrations,
     cargoDeliveredThisYear: state.cargoDeliveredThisYear,
     cargoDeliveredBestYear: state.cargoDeliveredBestYear,
+    contracts: state.contracts,
   };
 }
 
@@ -176,6 +178,7 @@ export function deserializeGameState(data: SerializedGameStateV3): GameState {
     pendingGoalCelebrations: data.pendingGoalCelebrations,
     cargoDeliveredThisYear: data.cargoDeliveredThisYear,
     cargoDeliveredBestYear: data.cargoDeliveredBestYear,
+    contracts: data.contracts ?? createContractsState(data.seed),
   };
 
   const currentYear = calendarFromTicks(state.startYear, state.ticks).year;

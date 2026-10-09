@@ -314,6 +314,34 @@ function yearlyPlanning(): void {
   }
 }
 
+/** Phase 45 (CONTRACTS=1): the "accept if feasible" policy. The bot only runs passenger lines between cities, so it takes a
+ * service offer when it already serves both towns, a connection offer for a town it can afford to link (and then builds
+ * to it with its usual line-building), and turns freight offers (delivery, rescue) down. */
+function contractPolicy(): void {
+  const cs = (state as unknown as { contracts?: GameState["contracts"] }).contracts;
+  if (!cs) return;
+  for (const offer of [...cs.offers]) {
+    let accept = false;
+    if (offer.kind === "service")
+      accept = connected.has(offer.cityId ?? -1) && connected.has(offer.city2Id ?? -1);
+    else if (offer.kind === "connection")
+      accept = state.cash > 500_000 && !failedCities.has(offer.cityId ?? -1);
+    if (accept && cs.active.length < 2) commands.acceptContract(state, offer.id);
+    else if (!accept) commands.declineContract(state, offer.id);
+  }
+  for (const c of cs.active) {
+    if (c.kind !== "connection" || c.cityId === undefined) continue;
+    const city = state.cities[c.cityId]!;
+    const hubs = state.cities.filter((h) => connected.has(h.id) && h.tiles.length > 0);
+    if (hubs.length === 0 || connected.has(city.id)) continue;
+    const hub = hubs.reduce((best, h) =>
+      dist(cityCentre(h), cityCentre(city)) < dist(cityCentre(best), cityCentre(city)) ? h : best,
+    );
+    const r = tryConnect(city, hub);
+    if (r === "failed") failedCities.add(city.id);
+  }
+}
+
 function bootstrap(): void {
   // First line: a good player picks a short line between two big cities (slow early engines make long lines poor
   // earners): best population product per tile of line among the 10 biggest cities, 8 to 70 tiles apart.
@@ -352,10 +380,12 @@ function snapshot(label: string): void {
   );
 }
 
+let totalRevenue = 0;
 bootstrap();
 const wanted = new Set([1, 2, 3, 4, 5, 8, 10, 13, 16, 20, 25, 30]);
 for (let y = 1; startYear + y <= endYear; y++) {
   // plan in January, then run the year in months with a monthly check for spare cash
+  totalRevenue += ledgerRevenue(state.finance.lastYear);
   yearlyPlanning();
   for (let m = 0; m < 12; m++) {
     day(30);
@@ -379,6 +409,7 @@ for (let y = 1; startYear + y <= endYear; y++) {
         `diesel x${fuelPriceMult(state, "diesel").toFixed(2)}`,
       );
     repayIfRich();
+    if (process.env["CONTRACTS"]) contractPolicy();
     if (m === 5) yearlyPlanning();
     if (state.finance.bankrupt) {
       report.push(`BANKRUPT in ${year()}`);
@@ -387,6 +418,36 @@ for (let y = 1; startYear + y <= endYear; y++) {
   }
   if (wanted.has(y)) snapshot(`Jan ${startYear + y}`);
   if (state.finance.bankrupt) break;
+}
+totalRevenue += ledgerRevenue(state.finance.lastYear);
+const cstats = (state as unknown as { contracts?: GameState["contracts"] }).contracts?.stats;
+if (cstats && process.env["CONTRACTS"]) {
+  const share = cstats.income / Math.max(1, totalRevenue + cstats.income);
+  console.log(
+    `CONTRACTS offered ${cstats.offered} completed ${cstats.completed} failed ${cstats.failed} income ${(cstats.income / 1e6).toFixed(2)}M penalties ${(cstats.penalties / 1e6).toFixed(2)}M revenue ${(totalRevenue / 1e6).toFixed(1)}M share ${(share * 100).toFixed(1)} %`,
+  );
+}
+if (process.env["CONTRACTS"] && process.env["TRACE"]) {
+  for (const n of state.news as unknown as Array<{
+    kind: string;
+    event?: string;
+    money?: number;
+    tick: number;
+    contract?: { kind: string; target: number; reward: number };
+  }>)
+    if (n.kind === "contract")
+      console.log(
+        "C",
+        startYear + Math.floor(n.tick / (DAY * 360)),
+        n.event,
+        n.contract?.kind,
+        "target",
+        n.contract?.target,
+        "reward",
+        n.contract?.reward,
+        "money",
+        n.money,
+      );
 }
 void STATION_TYPE_DEFS;
 console.log(`# ${region} ${startYear} ${difficulty} seed ${seed}`);

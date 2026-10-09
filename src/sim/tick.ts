@@ -17,6 +17,7 @@ import { monthlyIndustryStep } from "./economy/processing";
 import { COMPETITION_NEWS_YEARS } from "../data/economy";
 import { dailyCreditWarningStep } from "./finance/warnings";
 import { monthlyFinanceStep, yearlyFinanceRollover } from "./finance/ledger";
+import { dailyContractsStep, monthlyContractsStep } from "./contracts/progress";
 import { pushNews } from "./news";
 import { monthlyStationFlowRollover, yearlyStationFlowRollover } from "./stations/flow";
 import type { GameState } from "./state";
@@ -43,6 +44,7 @@ export function advanceOneHour(state: GameState): void {
   if (isDayBoundary(state.ticks)) {
     accrueDailyCargo(state);
     dailyGoalsStep(state);
+    dailyContractsStep(state);
     dailyUndeliverableStep(state);
     dailyCreditWarningStep(state);
   }
@@ -62,6 +64,7 @@ export function advanceOneHour(state: GameState): void {
     monthlyStationFlowRollover(state);
     monthlyFinanceStep(state);
     monthlyBreakdownStep(state);
+    monthlyContractsStep(state);
   }
 
   if (isYearBoundary(state.ticks)) {

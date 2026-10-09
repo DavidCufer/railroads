@@ -10,6 +10,7 @@ import { clearAllNews } from "../sim/commands";
 import { markAllNewsRead, unreadNewsCount, type NewsItem } from "../sim/news";
 import type { GameState } from "../sim/state";
 import { describeGoal } from "./goalStrings";
+import { contractFocusTile, describeContract } from "./contractStrings";
 import { formatMoney } from "./format";
 import { calendarFromTicks } from "../sim/time";
 import { cardList, cardRow } from "./components/cardRow";
@@ -133,6 +134,14 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
     }
     case "competition":
       return strings.news.kinds.competition[item.mode];
+    case "contract": {
+      const text = describeContract(state, item.contract);
+      const money = formatMoney(item.money);
+      if (item.event === "offered") return strings.contracts.news.offered(text, money);
+      if (item.event === "completed")
+        return strings.contracts.news.completed(text, item.money > 0 ? money : "");
+      return strings.contracts.news.failed(text, item.money > 0 ? money : "");
+    }
     case "goalCompleted": {
       const goal = state.goals.find((g) => g.id === item.goalId);
       const description = goal ? describeGoal(state, goal) : strings.fallback.goal;
@@ -159,6 +168,8 @@ export function newsFocusTile(state: GameState, item: NewsItem): { x: number; y:
       const city = state.cities.find((c) => c.id === item.cityId);
       return city ? { x: city.anchorX, y: city.anchorY } : null;
     }
+    case "contract":
+      return contractFocusTile(state, item.contract);
     case "washout":
     case "slowOrders":
     case "trafficJam":
@@ -190,6 +201,7 @@ const NEWS_ICONS: Record<NewsItem["kind"], { icon: IconName; tone: Tone }> = {
   cityFounded: { icon: "village", tone: "go" },
   discovery: { icon: "coin", tone: "go" },
   goalCompleted: { icon: "trophy", tone: "brass" },
+  contract: { icon: "coin", tone: "brass" },
   competition: { icon: "warning", tone: "brass" },
 };
 

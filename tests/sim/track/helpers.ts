@@ -1,4 +1,5 @@
 /** Synthetic small maps/states for track unit tests — full control over terrain, no RNG needed. */
+import { createContractsState } from "../../../src/sim/contracts/types";
 import { terrainId, type Terrain } from "../../../src/sim/map/terrain";
 import type { GameMap } from "../../../src/sim/map/types";
 import type { GameState } from "../../../src/sim/state";
@@ -85,6 +86,7 @@ export function makeTestState(map: GameMap, overrides: Partial<GameState> = {}):
     pendingGoalCelebrations: [],
     cargoDeliveredThisYear: {},
     cargoDeliveredBestYear: {},
+    contracts: createContractsState(1),
     ...overrides,
   };
 }

@@ -8,6 +8,7 @@ import { NEWS_COLLAPSE_DAYS, NEWS_HISTORY_MAX, NEWS_JAM_MIN_DAYS } from "../data
 import type { CargoType } from "../data/cargo";
 import type { CityTier } from "../data/cities";
 import type { GoalTier } from "../data/goals";
+import type { Contract } from "./contracts/types";
 import type { GameState } from "./state";
 import { HOURS_PER_DAY } from "./time";
 
@@ -36,7 +37,14 @@ export type NewsPayload =
   | { kind: "cityFounded"; cityId: number }
   | { kind: "discovery"; industryId: number }
   | { kind: "goalCompleted"; goalId: string; tier: GoalTier; grant?: number }
-  | { kind: "competition"; mode: "road" | "truck" | "air" };
+  | { kind: "competition"; mode: "road" | "truck" | "air" }
+  /** Phase 45: `contract` is a snapshot at the time; `money` is the reward offered/paid, or the penalty. */
+  | {
+      kind: "contract";
+      event: "offered" | "completed" | "failed";
+      contract: Contract;
+      money: number;
+    };
 
 /** `count` is the number of occurrences folded into this item (absent = 1); `tick` is the latest one. */
 export type NewsItem = NewsPayload & { id: number; tick: number; count?: number };

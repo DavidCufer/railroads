@@ -31,6 +31,12 @@ import { calendarFromTicks } from "./time";
 import type { GameState } from "./state";
 import { applyCivicInvestmentGrowth, getOrCreateCityGrowth } from "./economy/cityGrowth";
 import type { City } from "./economy/types";
+import {
+  abandonContractImpl,
+  acceptContractImpl,
+  contractSubsidy,
+  declineContractImpl,
+} from "./contracts/progress";
 import { clearNews, pushNews } from "./news";
 import { directionIndex } from "./track/graph";
 import { edgeWearRatio, relayCost, relayEdge, wornEdges } from "./track/condition";
@@ -111,7 +117,9 @@ export type CommandReasonCode =
   | "credit-limit-exceeded"
   | "invalid-city"
   | "city-not-connected"
-  | "civic-investment-cooldown";
+  | "civic-investment-cooldown"
+  | "invalid-contract"
+  | "too-many-contracts";
 
 export type CommandResult = { ok: true; cost: number } | { ok: false; reason: CommandReasonCode };
 
@@ -352,7 +360,9 @@ export function buildTrack(
   spendLandGrant(state, plan.landGrant);
   addExpense(state, "construction", plan.cost);
   if (plan.toBuild.length > 0) state.trackVersion++;
-  return { ok: true, cost: plan.cost };
+  // Phase 45: a town that wants a connection refunds its share of the track built towards it
+  const subsidy = contractSubsidy(state, plan.toBuild, plan.cost);
+  return { ok: true, cost: plan.cost - subsidy };
 }
 
 /** Turns the route between two legs of a junction on or off (Track mode, tap a node): e.g. a crossing gets a slip,
@@ -1560,4 +1570,24 @@ export function repayLoan(state: GameState, amount: number): CommandResult {
   repayPrincipal(state, payment);
   state.cash -= payment;
   return { ok: true, cost: payment };
+}
+
+// --- Contracts (Phase 45) -----------------------------------------------------------------------------------------
+
+/** Accepts an open offer; only deliveries and track after this moment count towards it. */
+export function acceptContract(state: GameState, contractId: number): CommandResult {
+  const reason = acceptContractImpl(state, contractId);
+  return reason ? { ok: false, reason } : { ok: true, cost: 0 };
+}
+
+/** Turns an offer down (no penalty). */
+export function declineContract(state: GameState, contractId: number): CommandResult {
+  const reason = declineContractImpl(state, contractId);
+  return reason ? { ok: false, reason } : { ok: true, cost: 0 };
+}
+
+/** Gives up an accepted contract: counts as a failure (penalty, and the towns are wary for a while). */
+export function abandonContract(state: GameState, contractId: number): CommandResult {
+  const reason = abandonContractImpl(state, contractId);
+  return reason ? { ok: false, reason } : { ok: true, cost: 0 };
 }

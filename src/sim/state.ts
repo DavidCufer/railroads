@@ -19,6 +19,7 @@ import type { NewsItem } from "./news";
 import { getRegion, loadRegion, type PendingCityFounding, type RegionId } from "./regions";
 import { createGoalsForNewGame } from "./goals/generate";
 import type { Goal } from "./goals/types";
+import { createContractsState, type ContractsState } from "./contracts/types";
 
 /** A station's waiting pile for one cargo type (SPEC §6.3). */
 export interface StationCargoPile {
@@ -152,6 +153,8 @@ export interface GameState {
    * goal checks against `max(cargoDeliveredThisYear, cargoDeliveredBestYear)` so it can complete
    * either mid-year or from a past year, without needing per-year history. */
   cargoDeliveredBestYear: Partial<Record<CargoType, number>>;
+  /** Contract offers, accepted contracts and their stats (Phase 45, src/sim/contracts). */
+  contracts: ContractsState;
 }
 
 interface BaseNewGameOptions {
@@ -247,6 +250,7 @@ export function createGameState(options: NewGameOptions): GameState {
     pendingGoalCelebrations: [],
     cargoDeliveredThisYear: {},
     cargoDeliveredBestYear: {},
+    contracts: createContractsState(options.seed),
   };
   state.goals = createGoalsForNewGame(state, regionId);
   return state;

@@ -157,6 +157,7 @@ import { suggestPassingLoop } from "./sim/loopSuggest";
 import { openFinancePanel } from "./ui/financePanel";
 import { clearYearReportBadge, setYearReportBadge } from "./ui/yearReportBadge";
 import { createGoalsButton, openGoalCelebration, openGoalsPanel } from "./ui/goalsPanel";
+import { createContractsButton, openContractsPanel } from "./ui/contractsPanel";
 import { isPanelOpen } from "./ui/panel";
 import { formatMoney } from "./ui/format";
 import { openTitleScreen } from "./ui/titleScreen";
@@ -1067,22 +1068,32 @@ function main(): void {
             jamTile !== undefined && jam && jam.singleTrack && jam.trains >= 2
               ? suggestPassingLoop(state, jamTile)
               : undefined;
-          const onTap = loop
-            ? () => {
-                focusTile({
-                  x: loop.tile % state.map.width,
-                  y: Math.floor(loop.tile / state.map.width),
-                });
-                openPassingLoopPanel(ui, state, loop.tile);
-              }
-            : at
-              ? () => focusTile(at)
-              : undefined;
+          const onTap =
+            item.kind === "contract" && item.event === "offered"
+              ? () =>
+                  openContractsPanel(
+                    ui,
+                    state,
+                    () => contractsButton.refreshBadge(state),
+                    focusTile,
+                  )
+              : loop
+                ? () => {
+                    focusTile({
+                      x: loop.tile % state.map.width,
+                      y: Math.floor(loop.tile / state.map.width),
+                    });
+                    openPassingLoopPanel(ui, state, loop.tile);
+                  }
+                : at
+                  ? () => focusTile(at)
+                  : undefined;
           showToast(ui, formatNewsItem(state, item), "warn", onTap);
         }
       }
       state.pendingNews.length = 0;
       newsButton.refreshBadge(state);
+      contractsButton.refreshBadge(state);
     }
 
     if (state.pendingGoalCelebrations.length > 0 && !isPanelOpen()) {
@@ -1298,6 +1309,10 @@ function main(): void {
   });
   const floatingPill = createFloatingPill(ui);
   createGoalsButton(floatingPill, () => openGoalsPanel(ui, state));
+  const contractsButton = createContractsButton(floatingPill, () => {
+    openContractsPanel(ui, state, () => contractsButton.refreshBadge(state), focusTile);
+    contractsButton.refreshBadge(state);
+  });
   const newsButton = createNewsButton(floatingPill, () => {
     openNewsPanel(ui, state, () => newsButton.refreshBadge(state), focusTile);
     newsButton.refreshBadge(state);

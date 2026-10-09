@@ -43,6 +43,7 @@ import type { DeliveryEvent, GameState, StationCargoPile } from "../state";
 import type { Station } from "../stations/types";
 import { hasImprovement, stationLoadSpeedMult, transferStorageCap } from "../stations/improvements";
 import { stationAtTile, stationCatchmentTiles } from "../stations/placement";
+import { recordContractDelivery } from "../contracts/progress";
 import { tileXY } from "./geometry";
 import type { Train, TrainCar, TrainOrder } from "./types";
 
@@ -396,6 +397,7 @@ function settleUnload(state: GameState, train: Train, station: Station, car: Tra
     // SPEC §11's `delivered` goal ("Deliver 1,000 carloads of coal in a year") counts a carload
     // the same moment it earns revenue — a delivery too short to pay out doesn't count either.
     state.cargoDeliveredThisYear[cargo] = (state.cargoDeliveredThisYear[cargo] ?? 0) + carloads;
+    recordContractDelivery(state, station, cargo, unitsDelivered, car.loadedTile);
   }
 
   if (unitsDelivered > 0)

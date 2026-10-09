@@ -875,6 +875,7 @@ button.chip {
 }
 .train-list-button,
 .news-button,
+.contracts-button,
 .goals-button {
   position: relative;
   width: 44px;
@@ -889,6 +890,7 @@ button.chip {
 }
 .train-list-button:active,
 .news-button:active,
+.contracts-button:active,
 .goals-button:active {
   background: var(--ink-700);
 }
@@ -898,7 +900,8 @@ button.chip {
 .floating-hidden {
   display: none !important;
 }
-.news-unread-badge {
+.news-unread-badge,
+.contracts-badge {
   display: none;
   position: absolute;
   top: 2px;
@@ -913,7 +916,8 @@ button.chip {
   color: var(--text);
   font: 700 var(--fs-xs) var(--font-ui);
 }
-.news-unread-badge.visible {
+.news-unread-badge.visible,
+.contracts-badge.visible {
   display: inline-flex;
 }
 .news-item .card-title {
@@ -1316,7 +1320,7 @@ button.chip {
    * overlapping it — the Trains/News/Goals round buttons are always present (stacked at 8/64/120,
    * each 48px), so this sits in the same bottom-right corner just above all three
    * (120 + 48 + 8px gap) instead of on top of the lowest one. */
-  bottom: calc(158px + var(--safe-bottom));
+  bottom: calc(204px + var(--safe-bottom)); /* Phase 45: the pill has a fourth button (Contracts) */
   display: flex;
   align-items: center;
   gap: var(--gap-2);
@@ -4833,4 +4837,36 @@ select {
 
 .pile-full {
   color: var(--signal);
+}
+
+/* ---------- contracts (Phase 45) ---------- */
+.contract-section {
+  padding: var(--gap-3) var(--gap-4) var(--gap-1);
+  font-size: var(--fs-s);
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.contract-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+  padding: var(--gap-3) var(--gap-4);
+  border-bottom: 1px solid var(--ink-700);
+}
+.contract-desc {
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text);
+  font: inherit;
+}
+.contract-meta {
+  font-size: var(--fs-s);
+  opacity: 0.75;
+}
+.contract-actions {
+  display: flex;
+  gap: var(--gap-2);
 }
