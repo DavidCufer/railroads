@@ -1636,3 +1636,34 @@ Source: Phase 43B survival table. Real mechanisms only; never loosen a bound; sh
 3. Full survival table 1840/1900/1930/1950 after (ASSERT=1); overbuilder Normal 1900 miss is accepted by the owner
    (stalls rather than bankrupts) — note it, don't tune for it. Tests, SPEC/BALANCE, PROGRESS.
 Status: [x] 1 (mechanism in; Hard target not met, see PROGRESS) [x] 2 (traced, left) [ ] 3 (partial: full table timed out)
+
+## Phase 45 — Contracts: short, semi-random, balanced goals
+Owner: contracts are a great idea; they must be **balanced** and **semi-random**. Short UI, no clutter. Deterministic
+(seeded RNG in state), real mechanisms (a town or company offering a deal), never a free-money exploit.
+1. **Contract types** (data table in `src/data/contracts.ts`):
+   - **Delivery**: "Vienna needs 300 t of steel by Mar 1862" — only deliveries made *after* accepting count.
+   - **Connection**: "Connect Graz to your network within 3 years — Graz pays 50 % of the track" (subsidy paid as a
+     refund of the qualifying track cost, capped).
+   - **Service**: "Carry 2,000 passengers Trieste ↔ Venice in the next 12 months."
+   - **Rescue**: "The Linz coal mine closes unless served within 18 months" (success: mine keeps/grows; reward cash).
+2. **Semi-random but sensible generation**: offers are drawn from the *current* game state — towns/industries near
+   the player's network (within ~1.5× the player's average line length), real unmet demand (unserved cargo, cities
+   demanding goods, unconnected nearby towns), era-appropriate cargo. Never impossible: the target is reachable by
+   track, the quantity ≤ ~60 % of what the source can produce in the time, deadline from distance ÷ era train speed
+   × a slack factor. Weighted random choice among candidates; 1 new offer every ~4–8 months; at most 3 open offers,
+   at most 2 accepted at once; offers expire after ~3 months.
+3. **Balance formula** (documented, data-driven): reward ≈ the estimated *extra* cost/effort to fulfil it (track km ×
+   era track price for missing links, trains/cars needed, operating cost over the period) × a margin of 30–60 %, plus
+   difficulty scaling (Easy more, Hard less), capped relative to company size (e.g. ≤ 25 % of net worth) so late-game
+   contracts don't print money and early ones are worth doing. A connection subsidy is a share of actual qualifying
+   track cost, never cash for nothing. Failing an accepted contract: a small penalty (e.g. 10 % of the reward) and
+   fewer offers for a while ("the town is wary"). Bench: a tools/bench script that plays goodPlayer with a simple
+   "accept if feasible" contract policy and reports contract income as a share of total income (target ~5–15 %,
+   never > 25 %) and success rate; survival targets must not get easier for bad bots.
+4. **UI (short)**: a news item when an offer appears ("Contract: Vienna needs 300 t steel by 1862 — $250k") with
+   Accept / Later; a small "Contracts" button (badge with count) opening a list: one line per contract with a
+   progress bar and days left; tap a row to highlight the town/industry on the map. Accept/decline via commands.
+   Completion/failure as news. Strings in strings.ts. Screenshots `phase-45-*.png` (look at them).
+5. Save/load (old saves get no contracts until the next offer), tests (generation feasibility, reward formula, only
+   post-acceptance progress counts, caps, expiry, failure), SPEC section, PROGRESS with bench numbers.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
