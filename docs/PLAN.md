@@ -1621,3 +1621,18 @@ Status: [~] 1 (45 % break-even NOT reached; 1840s at realism 0.2, see PROGRESS P
    1950 (all bots, all difficulties) to completion; report the full table. If a target fails, report it; do not tune
    or loosen anything in this phase (owner decides next).
 Status: [x] 1 [x] 2
+
+## Phase 44 — Hard lenders vs risky leverage; the 1950 Normal good-bot bankruptcy
+Source: Phase 43B survival table. Real mechanisms only; never loosen a bound; short UI.
+1. **Hard: lenders punish risky leverage** — on Hard only, when debt exceeds ~50 % of net worth, lenders shorten the
+   bond term / raise the monthly call (e.g. call fraction rises with the debt-to-net-worth ratio) and charge a risk
+   premium. One-line warning in Finance/banner ("Lenders nervous: debt is 70 % of net worth"). Data in the difficulty
+   table. Target: trainSpammer and leveraged on Hard 1930–1950 ≥ 80 % bankrupt (were 3/6); goodPlayer on Hard must
+   still survive every seed in every era (check its debt ratio stays below the threshold; if the good bot itself
+   is risky, report it rather than weaken the rule).
+2. **1950 Normal seed 3 good-bot bankruptcy**: trace the run (cash, loans, panics, fuel shocks, revenue by year) and
+   report the cause in PROGRESS. Fix only if it is a bug or a bench-bot flaw; if it is a real-but-rare outcome (e.g.
+   a crisis right after the first big build), say so and leave it.
+3. Full survival table 1840/1900/1930/1950 after (ASSERT=1); overbuilder Normal 1900 miss is accepted by the owner
+   (stalls rather than bankrupts) — note it, don't tune for it. Tests, SPEC/BALANCE, PROGRESS.
+Status: [ ] 1 [ ] 2 [ ] 3
