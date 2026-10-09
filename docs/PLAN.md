@@ -1635,4 +1635,4 @@ Source: Phase 43B survival table. Real mechanisms only; never loosen a bound; sh
    a crisis right after the first big build), say so and leave it.
 3. Full survival table 1840/1900/1930/1950 after (ASSERT=1); overbuilder Normal 1900 miss is accepted by the owner
    (stalls rather than bankrupts) — note it, don't tune for it. Tests, SPEC/BALANCE, PROGRESS.
-Status: [ ] 1 [ ] 2 [ ] 3
+Status: [x] 1 (mechanism in; Hard target not met, see PROGRESS) [x] 2 (traced, left) [ ] 3 (partial: full table timed out)

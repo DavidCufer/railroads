@@ -5169,3 +5169,53 @@ Targets (good bot never bankrupt on Normal/Hard; bad bots bankrupt in >= 50 % of
 - **trainSpammer, Hard, 1930-1950: 3/6 bankrupt** (needs >= 80 %).
 - **leveraged, Hard, 1930-1950: 3/6 bankrupt** (needs >= 80 %); its 1930/1950 rows are identical to trainSpammer's, as in earlier phases.
 Everything else passes, including all three bad bots on Normal at 1930-1950 (except overbuilder 5/6, which still clears 50 %) and on Hard at 1900.
+
+## 2026-10-09 — Phase 44: Hard lenders vs risky leverage; the 1950 Normal good-bot bankruptcy (items 1-2 done, item 3 partial)
+### 1. Hard lenders punish risky leverage (mechanism in; target NOT met)
+- On Hard only (`riskDebtRatio 0.5`, `riskPremiumMax 0.06` in the difficulty table; Easy/Normal = Infinity/0), after the 24-month start-up credit, debt above 50 % of net worth adds up to 6 points to the rate and lenders call `RISK_CALL_MIN` (25 %) rising to 100 % of the debt above the threshold each month (one call per month, the larger of this and the credit-limit call). Banner: "Lenders nervous: debt is N % of net worth" (no news item). Tests in `credit.test.ts` and `warnings.test.ts`.
+- **Finding: it cannot reach the target.** Hard's credit limit is already `0.5 x 0.6 = 30 %` of net worth, so debt over 50 % of net worth is nearly unreachable. Peak debt / net worth after start-up credit (bench output `maxDebtRatio` / `MAXDEBT`): good bot on Hard 0.29-0.34 (6 runs: 1900/1930/1950, seeds 1-2); trainSpammer on Hard 0.32-0.35, the same for runs that go bankrupt and ones that survive. No threshold separates the good bot from the bad ones: any threshold that bites the bad bots bites the good bot too. Per the owner's rule I did not weaken the rule or tune toward the target. Bad bots survive or fail on timing (a train bought just before a panic cuts the limit), not on leverage.
+- **Hard rows before and after are identical** (the rule never fires): trainSpammer and leveraged 1930-1950 stay at 3/6 bankrupt, below the 80 % target. Owner decision needed on a different lever (e.g. tie the call to cash cover, or cut the limit sooner under a panic).
+
+### 2. 1950 Normal seed 3 good-bot bankruptcy (traced; left as is)
+`TRACE=1 npx tsx tools/bench/goodPlayer.ts central-eu 1950 normal 1966 3`. Jan 1953: cash $1.78M, debt $0.9M, revenue $0.65M/yr. The bot borrowed about $1M and built a second line (2 -> 4 trains, 2 -> 4 stations), ending at debt 55 % of net worth and cash $89k. The **Recession of 1953** began in April: panic credit x0.6 cut the limit $972k -> $591k, lenders called about $300k from cash, cash went negative for three month-ends (Normal grace is 3) and the company went bankrupt with net worth about $2M. No fuel shock (diesel x1.00), no bug: the credit mechanics worked as designed. A real-but-rare outcome (a panic right after the first big leveraged build) plus a bench-bot limitation (no cash reserve, no foresight of a panic). Left alone.
+
+### 3. Survival table (INCOMPLETE)
+`ASSERT=1 npx tsx tools/bench/survival.ts 3` over all bots/starts/difficulties hit the 2-hour background limit after 19 rows and was killed; not restarted. Rows completed (after Phase 44):
+
+| bot | start | difficulty | bankrupt | min cash $M (per seed) | final NW $M (per seed) |
+|---|---|---|---|---|---|
+| good | 1840 | easy | 0/3 | 0.12 / 0.11 / 0.12 | 10.71 / 10.48 / 9.91 |
+| good | 1840 | normal | 0/3 | 0.11 / 0.1 / 0.08 | 2.92 / 2.91 / 2.49 |
+| good | 1840 | hard | 0/3 | 0.11 / 0.11 / 0.11 | 1.98 / 1.78 / 1.92 |
+| good | 1900 | easy | 0/3 | 0.18 / 0.18 / 0.18 | 51.06 / 51.49 / 51.06 |
+| good | 1900 | normal | 0/3 | 0.14 / 0.05 / 0.14 | 25.43 / 15.35 / 24.06 |
+| good | 1900 | hard | 0/3 | 0.11 / 0.09 / 0.06 | 11.66 / 7.01 / 8.53 |
+| good | 1930 | easy | 0/3 | 0.04 / 0.08 / 0.13 | 8.63 / 8.21 / 23.23 |
+| good | 1930 | normal | 0/3 | 0.04 / 0.02 / 0 | 6.57 / 4.98 / 5.07 |
+| good | 1930 | hard | 0/3 | 0.2 / 0.17 / 0.17 | 4.52 / 4.07 / 4.08 |
+| good | 1950 | easy | 0/3 | 0.13 / 0.16 / 0.15 | 13.57 / 17.31 / 18.48 |
+| good | 1950 | normal | 1/3 | 0.09 / 0.02 / -0.09 | 5.7 / 5.2 / 2 |
+| good | 1950 | hard | 0/3 | 0.15 / 0.15 / 0.15 | 3.36 / 3.15 / 3.05 |
+| overbuilder | 1840 | easy | 0/3 | -1.15 / -1.12 / -1.18 | -0.39 / -0.37 / -0.43 |
+| overbuilder | 1840 | normal | 3/3 | -0.29 / -0.29 / -0.3 | 0.28 / 0.28 / 0.28 |
+| overbuilder | 1840 | hard | 3/3 | -0.01 / -0.01 / -0.01 | 0.04 / 0.04 / 0.04 |
+| overbuilder | 1900 | easy | 0/3 | -0.27 / -0.32 / -0.16 | 0.68 / 0.65 / 0.68 |
+| overbuilder | 1900 | normal | 0/3 | 0.17 / 0.09 / 0.13 | 0.77 / 0.69 / 0.71 |
+| overbuilder | 1900 | hard | 3/3 | -0.44 / -0.44 / -0.44 | -0.05 / -0.05 / -0.05 |
+| overbuilder | 1930 | easy | 0/3 | -0.24 / -0.76 / -0.1 | 1.02 / 0.97 / 1.06 |
+
+Hard rows for good, trainSpammer and leveraged at 1900/1930/1950, run separately after the change:
+
+| bot | start | difficulty | bankrupt | min cash $M (per seed) | final NW $M (per seed) |
+|---|---|---|---|---|---|
+| good | 1900 | hard | 0/3 | 0.11 / 0.09 / 0.06 | 11.66 / 7.01 / 8.53 |
+| good | 1930 | hard | 0/3 | 0.2 / 0.17 / 0.17 | 4.52 / 4.07 / 4.08 |
+| good | 1950 | hard | 0/3 | 0.15 / 0.15 / 0.15 | 3.36 / 3.15 / 3.05 |
+| trainSpammer | 1900 | hard | 3/3 | -0.05 / -0.06 / -0.05 | 1.3 / 1.31 / 1.34 |
+| trainSpammer | 1930 | hard | 1/3 | -0.04 / 0.12 / 0.12 | 1.81 / 1.98 / 1.81 |
+| trainSpammer | 1950 | hard | 2/3 | -0.03 / -0.02 / 0.09 | 1.68 / 1.33 / 1.73 |
+| leveraged | 1900 | hard | 3/3 | -0.05 / -0.06 / -0.05 | 1.3 / 1.31 / 1.34 |
+| leveraged | 1930 | hard | 1/3 | -0.04 / 0.12 / 0.12 | 1.81 / 1.98 / 1.81 |
+| leveraged | 1950 | hard | 2/3 | -0.03 / -0.02 / 0.09 | 1.68 / 1.33 / 1.73 |
+
+The remaining rows were not re-run. Only Hard changed and the new rule never fires, so the Phase 43B table above stands for them; that is not a fresh measurement. Overbuilder Normal 1900 (0/3 bankrupt, stalls instead) is accepted by the owner and was not tuned. Rerun the full table split by bot across processes (the good bot is the slow one).
