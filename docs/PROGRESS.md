@@ -5219,3 +5219,21 @@ Hard rows for good, trainSpammer and leveraged at 1900/1930/1950, run separately
 | leveraged | 1950 | hard | 2/3 | -0.03 / -0.02 / 0.09 | 1.68 / 1.33 / 1.73 |
 
 The remaining rows were not re-run. Only Hard changed and the new rule never fires, so the Phase 43B table above stands for them; that is not a fresh measurement. Overbuilder Normal 1900 (0/3 bankrupt, stalls instead) is accepted by the owner and was not tuned. Rerun the full table split by bot across processes (the good bot is the slow one).
+
+## 2026-10-09 - Phase 45: Contracts (items 1-5 done; bench income share below target)
+**What:** four contract kinds (`src/data/contracts.ts`, `src/sim/contracts/`): delivery, connection (town refunds 50 % of qualifying track), service (passengers between two towns, origin-checked), rescue (haul from an unserved raw producer; success x1.2 output, failure x0.8). Offers are drawn from the current state (places within 1.5x the average line, real demand, a producer with output now, A* path must exist), one every 4-8 months after the first year, max 3 open (lapse after 3 months) and 2 accepted. Reward = (0.5 x missing track + 0.3 x stock + 0.3 x operating cost) x (1 + margin 30-60 %) x difficulty (1.25 / 1 / 0.8), capped at 25 % of net worth. Failure: 10 % penalty and 8 months without offers. UI: tappable news toast, Contracts button with a badge, one line per contract, Accept / Later / Give up (two taps). Commands `acceptContract`, `declineContract`, `abandonContract`. SPEC section 11b.
+
+**Decisions (owner asked for none to be asked):**
+- Contracts use their own seeded stream (`state.contracts.rng`), so no map or economy changes; the bad-bot survival rows are identical to Phase 44.
+- Cash rewards, penalties and subsidies are outside the ledger (like land grants), untaxed; the subsidy lowers `capitalInvested`. Track share 0.5 and stock/operating shares 0.3 are my choices (assets stay with the player).
+- Rescue failure cuts the producer's output multiplier instead of closing it (industries cannot close in this sim).
+- A paid delivery only counts (too-short hops pay nothing and do not count); progress counts only after acceptance.
+- The offer toast opens the Contracts panel, where Accept / Later live (no buttons in the toast). Old saves load with no contracts.
+- The fourth pill button moved the quick-build toggle up (158 -> 204 px).
+
+**Bench** (`CONTRACTS=1 npx tsx tools/bench/goodPlayer.ts central-eu 1900 normal 1916 1`; the bot takes a service offer when it serves both towns, a connection offer it can afford, and declines freight offers because it hauls none): 26 offered, 6 completed, 4 failed (success 60 % of those decided), contract income $0.78M of $61M total = **1.3 %**, penalties $0.04M. This is **below the 5-15 % target** (never near the 25 % ceiling); not tuned, since the bot is passive and ignores freight, and the formula follows the PLAN. Owner decision: raise the shares or margin if contracts should matter more.
+
+**Survival check (Hard, 1900, 3 seeds, after the change):** trainSpammer 3/3 bankrupt (min cash -0.05/-0.06/-0.05, NW 1.3/1.31/1.34), overbuilder 3/3 bankrupt (min cash -0.44 x3), good 0/3 (min cash 0.11/0.09/0.06, NW 11.66/7.01/8.53) - all identical to the Phase 44 table, so bad bots do not get easier. The other rows were not re-run (the bots never accept contracts, and contracts draw no main-stream randomness).
+
+**Checks:** `npm run check` 815 tests pass, 16 new in `tests/sim/contracts.test.ts`; e2e 222 passed plus the two fixes (separate badge class, toggle position) re-run green; `e2e/phase45.spec.ts` screenshots `docs/screenshots/phase-45-{toast,offers,accepted}.png` viewed.
+

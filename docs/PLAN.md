@@ -1666,4 +1666,4 @@ Owner: contracts are a great idea; they must be **balanced** and **semi-random**
    Completion/failure as news. Strings in strings.ts. Screenshots `phase-45-*.png` (look at them).
 5. Save/load (old saves get no contracts until the next offer), tests (generation feasibility, reward formula, only
    post-acceptance progress counts, caps, expiry, failure), SPEC section, PROGRESS with bench numbers.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 (bench share below target, see PROGRESS)
