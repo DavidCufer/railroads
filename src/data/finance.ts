@@ -27,6 +27,10 @@ export interface DifficultyDef {
   panicDepthMult: number;
   panicDurationMult: number;
   panicCreditMult: number;
+  /** Phase 44: lenders turn hard on risky leverage. Above this debt ÷ net worth (after start-up credit) they add up to
+   * `riskPremiumMax` to the rate and call `RISK_CALL_MIN`..1 of the debt above the threshold each month. Infinity = off. */
+  riskDebtRatio: number;
+  riskPremiumMax: number;
 }
 
 export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
@@ -47,6 +51,8 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     panicDepthMult: 0.6,
     panicDurationMult: 0.7,
     panicCreditMult: 0.8,
+    riskDebtRatio: Infinity,
+    riskPremiumMax: 0,
   },
   normal: {
     startingCash: 1_000_000,
@@ -65,6 +71,8 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     panicDepthMult: 1,
     panicDurationMult: 1,
     panicCreditMult: 0.6,
+    riskDebtRatio: Infinity,
+    riskPremiumMax: 0,
   },
   hard: {
     startingCash: 600_000,
@@ -83,6 +91,8 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     panicDepthMult: 1.3,
     panicDurationMult: 1.25,
     panicCreditMult: 0.3,
+    riskDebtRatio: 0.5,
+    riskPremiumMax: 0.06,
   },
 };
 
@@ -127,6 +137,9 @@ export const COVER_PREMIUM_MAX = 0.08;
 /** Phase 39: when the limit falls below the loans (earnings fell, a panic) lenders call this share of the excess each
  * month, out of cash. */
 export const CREDIT_CALL_FRACTION = 0.25;
+/** Phase 44: share of the debt above the risk threshold that lenders call in a month at the threshold; it rises
+ * linearly to the whole excess as debt reaches the whole of net worth. */
+export const RISK_CALL_MIN = 0.25;
 /** Phase 41: the end of start-up credit is announced this many months ahead. */
 export const CREDIT_STARTUP_WARNING_MONTHS = 3;
 /** Phase 41: debt over the limit is announced at most once per this many days. */

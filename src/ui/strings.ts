@@ -682,6 +682,7 @@ export const strings = {
     chartCash: "Cash",
     chartNetWorth: "Net worth",
     yearlyReport: "Yearly Report",
+    lendersNervous: (percent: number) => `Lenders nervous: debt is ${percent} % of net worth`,
     insolvent: (months: number) =>
       `Insolvent: ${months} month${months === 1 ? "" : "s"} to recover`,
     panic: (name: string, fall: number, months: number, fuelRise = 0) =>

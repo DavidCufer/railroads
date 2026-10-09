@@ -42,6 +42,8 @@ import { findBuildPath } from "../../src/sim/track/pathfind";
 import { buyableLocomotivesIn, locomotiveById } from "../../src/data/trains";
 import { STATION_TYPE_DEFS } from "../../src/data/stations";
 import { netWorth } from "../../src/sim/finance/ledger";
+import { activePanic, fuelPriceMult } from "../../src/sim/finance/panics";
+import { creditLimitFor } from "../../src/sim/finance/credit";
 import { ledgerRevenue } from "../../src/data/finance";
 import type { GameState } from "../../src/sim/state";
 import type { City } from "../../src/sim/economy/types";
@@ -332,6 +334,8 @@ function bootstrap(): void {
 }
 
 let minCash = Infinity;
+/** Peak debt ÷ net worth at a month end after the 24-month start-up credit (Phase 44: the lenders' risk threshold is chosen against this). */
+let maxDebtRatio = 0;
 const report: string[] = [];
 function snapshot(label: string): void {
   const last = state.finance.lastYear;
@@ -357,6 +361,23 @@ for (let y = 1; startYear + y <= endYear; y++) {
     day(30);
     fixWeightBridges(state);
     minCash = Math.min(minCash, state.cash);
+    if (state.ticks >= 24 * 30 * 24)
+      maxDebtRatio = Math.max(maxDebtRatio, state.finance.loans / Math.max(1, netWorth(state)));
+    if (process.env["TRACE"])
+      console.log(
+        year(),
+        "m" + m,
+        `cash ${Math.round(state.cash / 1e3)}k`,
+        `loans ${Math.round(state.finance.loans / 1e3)}k`,
+        `NW ${Math.round(netWorth(state) / 1e3)}k`,
+        `lastYearRev ${Math.round(ledgerRevenue(state.finance.lastYear) / 1e3)}k`,
+        `thisMonthRev ${Math.round(ledgerRevenue(state.finance.thisMonth) / 1e3)}k`,
+        `trains ${state.trains.length}`,
+        `neg ${state.finance.negativeCashMonths}`,
+        `limit ${Math.round(creditLimitFor(state, netWorth(state)) / 1e3)}k`,
+        `panic ${activePanic(state)?.panic.name ?? "-"}`,
+        `diesel x${fuelPriceMult(state, "diesel").toFixed(2)}`,
+      );
     repayIfRich();
     if (m === 5) yearlyPlanning();
     if (state.finance.bankrupt) {
@@ -372,6 +393,7 @@ console.log(`# ${region} ${startYear} ${difficulty} seed ${seed}`);
 console.log(report.join("\n"));
 if (process.env.V) console.log(state.trains.map((t) => `${t.locoModelId}:${t.status}`).join(" "));
 console.log(`MINCASH ${(minCash / 1e6).toFixed(2)}`);
+console.log(`MAXDEBT ${maxDebtRatio.toFixed(2)}`);
 const ly = state.finance.lastYear as unknown as Record<string, number>;
 console.log(
   "last year ledger:",

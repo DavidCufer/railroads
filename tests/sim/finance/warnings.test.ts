@@ -52,3 +52,20 @@ describe("credit warnings", () => {
     expect(insolvencyMonthsLeft(s)).toBe(2); // Normal grace is 3 months
   });
 });
+
+describe("Phase 44: lenders nervous (Hard)", () => {
+  it("warns when debt passes the risk threshold, only on Hard, and posts no news", () => {
+    const s = makeTestState(makeTestMap(["p"]), { seed: 1, difficulty: "hard", startYear: 1850 });
+    s.ticks = 30 * MONTH;
+    s.cash = 2_000_000;
+    s.finance.thisMonth.passengers = 1e9; // a huge credit limit, so the limit is not the warning
+    s.finance.loans = 200_000;
+    expect(creditWarning(s)).toBeUndefined();
+    s.finance.loans = 2_500_000;
+    expect(creditWarning(s)).toMatchObject({ kind: "lendersNervous" });
+    dailyCreditWarningStep(s);
+    expect(s.news).toHaveLength(0);
+    s.difficulty = "normal"; // no risk threshold: only the ordinary over-limit warning
+    expect(creditWarning(s)).toMatchObject({ kind: "overLimit" });
+  });
+});

@@ -238,6 +238,8 @@ function addTrain(pair: Pair): boolean {
 }
 
 let bankruptYear: number | null = null;
+/** Peak debt ÷ net worth at a month end after the 24-month start-up credit. */
+let maxDebtRatio = 0;
 
 function takeAllCredit(): void {
   const limitFn = optional("creditLimit") as ((s: GameState) => number) | undefined;
@@ -348,6 +350,8 @@ for (let y = 1; startYear + y <= endYear && bankruptYear === null; y++) {
     }
     day(30);
     minCash = Math.min(minCash, state.cash);
+    if (state.ticks >= 24 * 30 * 24)
+      maxDebtRatio = Math.max(maxDebtRatio, state.finance.loans / Math.max(1, netWorth(state)));
     if (process.env["TRACE"] && m % 3 === 2)
       console.log(
         year(),
@@ -381,6 +385,7 @@ console.log(
     netWorthM: Math.round(netWorth(state) / 1e4) / 100,
     trains: state.trains.length,
     loansM: state.finance.loans / 1e6,
+    maxDebtRatio: Math.round(maxDebtRatio * 100) / 100,
   }),
 );
 if (process.env["LEDGER"])

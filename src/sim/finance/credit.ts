@@ -12,6 +12,7 @@ import {
   CREDIT_STARTUP_MONTHS,
   DIFFICULTY,
   LOAN_TERM_MONTHS,
+  RISK_CALL_MIN,
   ledgerOperatingProfit,
 } from "../../data/finance";
 import { panicCreditMult } from "./panics";
@@ -59,19 +60,45 @@ export function coverPremium(state: GameState): number {
   );
 }
 
+/** Phase 44: how far past the difficulty's risky-leverage threshold the debt is, 0 (at or under it, or no such threshold)
+ * to 1 (debt equal to the whole of net worth). Not in force during the start-up credit. */
+export function riskExcess(state: GameState, netWorth: number): number {
+  const t = DIFFICULTY[state.difficulty].riskDebtRatio;
+  const loans = state.finance.loans;
+  if (
+    !Number.isFinite(t) ||
+    loans <= 0 ||
+    state.ticks < CREDIT_STARTUP_MONTHS * DAYS_PER_MONTH * HOURS_PER_DAY
+  )
+    return 0;
+  const ratio = loans / Math.max(1, netWorth);
+  return ratio <= t ? 0 : Math.min(1, (ratio - t) / (1 - t));
+}
+
 /** Yearly interest rate on the whole loan book right now: the difficulty's base rate plus the leverage premium and the
  * premium for thin interest cover. */
 export function interestRate(state: GameState, netWorth: number): number {
   const diff = DIFFICULTY[state.difficulty];
   const l = leverage(state, netWorth);
-  return diff.interestRate + diff.leveragePremium * l * l + coverPremium(state);
+  return (
+    diff.interestRate +
+    diff.leveragePremium * l * l +
+    coverPremium(state) +
+    diff.riskPremiumMax * riskExcess(state, netWorth)
+  );
 }
 
 /** Loans the lenders call this month: a share of what is owed above the credit limit (never in the start-up period). */
 export function creditCall(state: GameState, netWorth: number): number {
   if (state.ticks < CREDIT_STARTUP_MONTHS * DAYS_PER_MONTH * HOURS_PER_DAY) return 0;
   const excess = state.finance.loans - creditLimitFor(state, netWorth);
-  return excess > 0 ? Math.min(state.finance.loans, excess * CREDIT_CALL_FRACTION) : 0;
+  const limitCall = excess > 0 ? excess * CREDIT_CALL_FRACTION : 0;
+  // Phase 44: on Hard, lenders also call debt above the risk threshold, harder the further past it (one call, the larger).
+  const risk = riskExcess(state, netWorth);
+  const over =
+    state.finance.loans - DIFFICULTY[state.difficulty].riskDebtRatio * Math.max(0, netWorth);
+  const riskCall = risk > 0 ? over * (RISK_CALL_MIN + (1 - RISK_CALL_MIN) * risk) : 0;
+  return Math.min(state.finance.loans, Math.max(limitCall, riskCall));
 }
 
 /** Operating profit before interest over the last twelve completed months (plus the month so far). */
@@ -147,7 +174,10 @@ export interface CreditTerms {
 export function creditTerms(state: GameState, netWorth: number): CreditTerms {
   const diff = DIFFICULTY[state.difficulty];
   const l = leverage(state, netWorth);
-  const premium = diff.leveragePremium * l * l + coverPremium(state);
+  const premium =
+    diff.leveragePremium * l * l +
+    coverPremium(state) +
+    diff.riskPremiumMax * riskExcess(state, netWorth);
   const limit = creditLimitFor(state, netWorth);
   return {
     rate: diff.interestRate + premium,

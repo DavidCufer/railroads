@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import { DIFFICULTY, emptyLedgerPeriod } from "../../../src/data/finance";
 import { takeLoan } from "../../../src/sim/commands";
 import {
+  creditCall,
   creditLimitFor,
   creditTerms,
   interestRate,
   leverage,
+  riskExcess,
 } from "../../../src/sim/finance/credit";
 import { monthlyFinanceStep, netWorth } from "../../../src/sim/finance/ledger";
 import { makeTestMap, makeTestState } from "../track/helpers";
@@ -86,5 +88,40 @@ describe("credit follows earnings", () => {
     expect(t.rate).toBeCloseTo(t.baseRate + t.premium, 12);
     expect(t.available).toBe(t.limit - 300_000);
     expect(t.leverage).toBeGreaterThan(0.1);
+  });
+});
+
+describe("Phase 44: Hard lenders punish risky leverage", () => {
+  const past = (d: GameState["difficulty"], loans: number): GameState => {
+    const s = company({ difficulty: d, loans, cash: 1_000_000 });
+    s.ticks = 30 * 30 * 24; // start-up credit is over
+    return s;
+  };
+
+  it("only Hard has a threshold; Easy and Normal are untouched", () => {
+    for (const d of ["easy", "normal"] as const)
+      expect(riskExcess(past(d, 5_000_000), 1_000_000)).toBe(0);
+    expect(riskExcess(past("hard", 400_000), 1_000_000)).toBe(0); // 40 % of net worth
+    expect(riskExcess(past("hard", 700_000), 1_000_000)).toBeCloseTo(0.4, 9); // 70 %
+    expect(riskExcess(past("hard", 2_000_000), 1_000_000)).toBe(1);
+  });
+
+  it("is off during the start-up credit", () => {
+    const s = past("hard", 700_000);
+    s.ticks = 10 * 30 * 24;
+    expect(riskExcess(s, 1_000_000)).toBe(0);
+  });
+
+  it("adds a premium and calls the debt above the threshold, harder the further past it", () => {
+    const calm = past("hard", 250_000);
+    const risky = past("hard", 700_000);
+    const rate = (s: GameState): number => interestRate(s, 1_000_000);
+    expect(rate(risky) - rate(calm)).toBeGreaterThan(DIFFICULTY.hard.riskPremiumMax * 0.4 - 0.01);
+    const call = (s: GameState): number => creditCall(s, 1_000_000);
+    // make the credit limit itself irrelevant (huge earnings) so only the risk rule calls
+    for (const s of [calm, risky, past("hard", 900_000)]) s.finance.thisMonth.passengers = 1e9;
+    expect(call(calm)).toBe(0);
+    expect(call(risky)).toBeCloseTo(200_000 * (0.25 + 0.75 * 0.4), 0);
+    expect(call(past("hard", 900_000))).toBeGreaterThan(call(risky));
   });
 });

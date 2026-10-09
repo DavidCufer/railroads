@@ -11,12 +11,14 @@ import { NEWS_COLLAPSE_DAYS } from "../../data/news";
 import { pushNews } from "../news";
 import type { GameState } from "../state";
 import { DAYS_PER_MONTH, HOURS_PER_DAY } from "../time";
-import { creditLimitFor, earnedCreditLimit } from "./credit";
+import { creditLimitFor, earnedCreditLimit, riskExcess } from "./credit";
 import { netWorth } from "./ledger";
 
 export type CreditWarning =
   | { kind: "startupEnding"; monthsLeft: number; limit: number }
-  | { kind: "overLimit"; debt: number; limit: number };
+  | { kind: "overLimit"; debt: number; limit: number }
+  /** Phase 44 (Hard): debt is past the lenders' risk threshold; `percent` is debt ÷ net worth. */
+  | { kind: "lendersNervous"; percent: number };
 
 const STARTUP_END_TICKS = CREDIT_STARTUP_MONTHS * DAYS_PER_MONTH * HOURS_PER_DAY;
 
@@ -27,6 +29,9 @@ export function creditWarning(state: GameState): CreditWarning | undefined {
   const worth = netWorth(state);
   if (state.ticks >= STARTUP_END_TICKS) {
     const limit = creditLimitFor(state, worth);
+    // The risk call is the harsher one, so it is named first when both apply.
+    if (riskExcess(state, worth) > 0)
+      return { kind: "lendersNervous", percent: Math.round((debt / Math.max(1, worth)) * 100) };
     return debt > limit ? { kind: "overLimit", debt, limit } : undefined;
   }
   const ticksLeft = STARTUP_END_TICKS - state.ticks;
@@ -38,7 +43,7 @@ export function creditWarning(state: GameState): CreditWarning | undefined {
 /** Posts the news for `creditWarning`: the start-up notice once, over-limit once per `CREDIT_OVER_LIMIT_NEWS_GAP_DAYS`. */
 export function dailyCreditWarningStep(state: GameState): void {
   const warning = creditWarning(state);
-  if (!warning) return;
+  if (!warning || warning.kind === "lendersNervous") return; // banner only
   const recent = (kind: string, days: number): boolean =>
     state.news.some((n) => n.kind === kind && (state.ticks - n.tick) / HOURS_PER_DAY <= days);
   if (warning.kind === "startupEnding") {

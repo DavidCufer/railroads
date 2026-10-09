@@ -44,16 +44,18 @@ export function createStatusBanner(container: HTMLElement, onTap: () => void): S
           ? strings.finance.insolvent(months)
           : warning?.kind === "overLimit"
             ? k.overLimit(formatMoney(warning.debt), formatMoney(warning.limit))
-            : warning
-              ? k.startupCreditEnding(warning.monthsLeft, formatMoney(warning.limit))
-              : panic
-                ? strings.finance.panic(
-                    panic.panic.name,
-                    Math.round(panic.demandFall * 100),
-                    panic.monthsLeft,
-                    panic.panic.fuelRise,
-                  )
-                : "";
+            : warning?.kind === "lendersNervous"
+              ? strings.finance.lendersNervous(warning.percent)
+              : warning
+                ? k.startupCreditEnding(warning.monthsLeft, formatMoney(warning.limit))
+                : panic
+                  ? strings.finance.panic(
+                      panic.panic.name,
+                      Math.round(panic.demandFall * 100),
+                      panic.monthsLeft,
+                      panic.panic.fuelRise,
+                    )
+                  : "";
       if (label === last) return;
       last = label;
       root.hidden = label === "";
