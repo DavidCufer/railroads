@@ -876,8 +876,11 @@ never change a map or an economy.
 **Reward** = (0.5 x missing track + 0.3 x rolling stock + 0.3 x operating cost over the period) x (1 + margin 30-60 %) x
 difficulty (Easy 1.25, Normal 1, Hard 0.8), capped at 25 % of net worth and dropped under $8k (1830 prices). The freight
 revenue of the haul is on top and pays most of the running cost, hence the shares below 1. Failing (deadline or giving up)
-costs 10 % of the reward and no new offer for 8 months. Cash rewards and penalties are outside the ledger (like land
-grants): they move cash and `contracts.stats` only, and are untaxed.
+costs 10 % of the reward and no new offer for 8 months. (Phase 47) Delivery, service and rescue rewards are booked as a
+"Contracts" income line and penalties as a "Contract penalty" expense line, in the month, the year and the history (the
+History "Revenue by year" chart counts contracts as revenue). They are outside income tax and the credit limit
+(`ledgerTradeProfit`), so booking them did not change the economy. Connection subsidies stay negative construction (they
+refund track) and land grants stay outside the ledger.
 
 UI: a news item and tappable toast when an offer arrives; a Contracts button (badge = open offers) opens one line per
 contract: Accept / Later on offers, a progress bar, reward and days left on accepted ones, Give up (two taps). Tapping a
@@ -1065,3 +1068,4 @@ localization (English only, but keep strings in one `strings.ts` file for later)
 - [Phase 30A] §9.5c (new): waiting passengers/mail give up instead of hitting a cap and a Warehouse stores freight only; mail supply ×0.213; land and way-leave in every build (city premium follows an urbanisation curve, open country follows prices); leverage-based interest and earnings-based credit; track wear renewal with slow orders and `relayTrack`; locomotive ageing and `overhaulLocomotive`; passing loops and departure spacing; servicing by kilometres; goal land grants; persistent bridge washouts with `rebuildBridge`; induced passenger traffic before 1900. §9.1 credit limit and interest text, §9.6 table rows (leverage premium, land) updated. §11: gb gold goal is $20M by 1870 (was $15M, the induced-traffic economy puts an able player higher); random-map gold goals are net worth 60× (was 40×) and annual revenue 4.5× (was 3×) the starting cash.
 - [Phase 30A] Deviation from the PLAN text: PLAN says the order option is "per-train or per-line"; it is per stop (`TrainOrder.minGapDays`), which covers both. PLAN says interest premium "grows with debt ÷ net worth": implemented as debt ÷ (net worth + debt) so it stays in 0–1 when net worth is small or negative.
 - [Phase 45] New §11b Contracts. Old saves load with no contracts (the first offer comes after a year of play). Contract money is outside the ledger.
+- [Phase 47] §11b: contract rewards and penalties are now ledger lines (untaxed, outside the credit limit); connection subsidies stay negative construction. §10.1: at most 3 toasts on screen, the oldest goes first. §4.4: the New Game screen shows one line for the selected difficulty, built from `DIFFICULTY`. §10: a line whose trains average >= 80 % load (`Train.loadShare`, 30 days of running) with more waiting than one train carries shows "Full trains, N waiting - add a train" in its Lines row, and once per game as a hint card (+ news item `addTrain`). The game-over card shows months under a year.

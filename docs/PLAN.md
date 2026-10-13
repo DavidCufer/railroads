@@ -1714,4 +1714,4 @@ Short UI (one-liners), strings in strings.ts, numbers in src/data, deterministic
    under-served route where trains run empty. Unit test both cases; screenshot `phase-47-add-train.png`.
 5. **Game-over card duration:** under one year show months ("8 months of railroading"); 1 year exactly singular.
 6. Tests, `npm run check` + `npm run e2e`, look at screenshots, SPEC notes, PROGRESS entry.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6

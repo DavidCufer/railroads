@@ -5259,3 +5259,16 @@ The remaining rows were not re-run. Only Hard changed and the new rule never fir
 Three stars are reachable only where measured (Panic); the others need earning before building, not run by a bot.
 
 **Checks:** `npm run check` 842 tests pass; `npm run e2e` all pass (the Jan 1 drag test failed once because a stack of achievement toasts covered the drag point: fixed by one toast per batch).
+
+## 2026-10-13 - Phase 47: Play-test 5 fixes (items 1-6 done)
+**What:** (1) contract rewards book to a `contracts` ledger income line and penalties to `contractPenalty` (`src/data/finance.ts`, `addContractIncome` in `ledger.ts`); shown in Finance, Year in Review and the History revenue chart (`ledgerRevenue` includes contracts). (2) toast cap of 3 (`TOAST_MAX_VISIBLE`, oldest removed). (3) one-line difficulty note on New Game (`src/ui/difficultyNote.ts`, from `DIFFICULTY`). (4) "add a train" hint: `src/sim/finance/lineHints.ts` (`addTrainHint`, `monthlyLineHintStep`), thresholds `ADD_TRAIN_HINT` in `src/data/trains.ts`; Lines row note, plus a one-time hint card driven by a news item (`addTrain`, once per game via `history.memory.addTrainHint`). (5) game-over card: "8 months of railroading", "1 year". (6) tests, SPEC notes, screenshots `docs/screenshots/phase-47-{toasts,difficulty,add-train-card,add-train}.png` (all looked at).
+
+**Decisions (no questions asked):**
+- Contract income and penalties are outside income tax and the credit limit (new `ledgerTradeProfit` is what tax and `earningsBeforeInterest` use), so the economy and bench rows are unchanged; they do count in revenue, operating profit shown to the player, goals' revenue and History. Old saves default the new keys to 0 (already done by `normalizeFinance`).
+- The hint uses the existing `Train.loadShare` (average load over the last ~150 tiles run, both directions), not a new "load on departure over a month" counter; a train needs 30 days of running. A one-way full / empty-back line averages ~50 % and will not trigger (conservative). "Waiting for the line" = what `boardable` says could board its trains at its stops, per cargo; one train's capacity = the line's average per-train capacity of that cargo.
+- The hint card is skipped (a toast is shown instead) while the first-game tips are on screen.
+- The add-train e2e injects the load and the news item by hand: station supply caps piles on a bare test patch, so the real signal cannot be produced there; the sim path is covered by `tests/sim/finance/lineHints.test.ts` (fires, empty route, small crowd, young train, once per game).
+- The difficulty note shows grace months (or "no bankruptcy"), the lender rule (Hard) or loan rate, and revenue change; it leaves out build-cost and land factors to stay one line.
+
+**Checks:** `npm run check` 849 tests pass; e2e both shards pass (`trains.spec` "fit an 800" failed once under load in shard 2, passes alone and on main).
+
