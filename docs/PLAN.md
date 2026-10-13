@@ -1690,3 +1690,28 @@ Owner request. Short UI, procedural graphics only, strings in strings.ts, determ
 4. Tests (scenario goal evaluation, achievement triggers, history snapshots), e2e + screenshots `phase-46-*.png`
    (look at them), SPEC section, PROGRESS.
 Status: [x] 1 [x] 2 [x] 3 [x] 4
+
+## Phase 47 — Play-test 5 fixes (owner approved items 1–4 and 7 of `docs/playtests/PT5-SUMMARY.md`)
+Short UI (one-liners), strings in strings.ts, numbers in src/data, deterministic sim, no flat balance multipliers.
+1. **Contract money in the books.** Delivery/service/rescue rewards are paid straight into `state.cash`
+   (`src/sim/contracts/progress.ts`) and appear nowhere. Book them through the ledger as a "Contracts" income line,
+   and failure penalties as a "Contract penalty" expense line. Show both in Finance (year and history), Year in
+   Review, and the History "Revenue by year" chart (contracts count as revenue there). Connection subsidies stay as
+   negative construction (they refund track); note that in SPEC. Old saves: no migration needed beyond defaulting
+   the new ledger keys to 0. Tests: a completed contract adds exactly its reward to this year's Contracts line; a
+   failure books the penalty; cash change equals the ledger change.
+2. **Toast cap.** At most 3 toasts visible at once. When a 4th arrives, the oldest goes (everything that matters is
+   also in News). Keep the existing dedupe. The insolvency banner must stay visible (existing Phase 41 test).
+   e2e: fire 10 toasts quickly, assert ≤ 3 on screen; screenshot `phase-47-toasts.png`.
+3. **Difficulty one-liners** on the New Game screen under the Easy/Normal/Hard selector: one short line for the
+   selected difficulty, built from the real difficulty data (grace months, start-up credit, lender rules, price
+   level) — not hand-written numbers. E.g. "Hard: 2 months to fix negative cash; lenders charge more when debt
+   exceeds half your net worth." Screenshot `phase-47-difficulty.png`.
+4. **"Add a train" hint** from a real signal: when a line's trains run nearly full (average load ≥ 80 % on departure
+   over the last month) and passengers or cargo waiting for that line exceed one train's capacity, show a one-line
+   hint in that line's row ("Full trains, 240 waiting — add a train") and, the first time in a game, a hint card via
+   the existing hints system. No new numbers scattered in logic: thresholds in src/data. Must not trigger on an
+   under-served route where trains run empty. Unit test both cases; screenshot `phase-47-add-train.png`.
+5. **Game-over card duration:** under one year show months ("8 months of railroading"); 1 year exactly singular.
+6. Tests, `npm run check` + `npm run e2e`, look at screenshots, SPEC notes, PROGRESS entry.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
