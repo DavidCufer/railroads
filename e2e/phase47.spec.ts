@@ -38,20 +38,42 @@ test("the New Game screen describes the selected difficulty", async ({ page }) =
 test("full trains with a crowd waiting get an add-a-train hint, in a card and on the line", async ({
   page,
 }) => {
-  const { a } = await lineWithTrain(page);
+  const { a, trainId } = await lineWithTrain(page);
   await page.evaluate(() => window.__game!.runDays(40));
-  await page.evaluate((stationId) => {
-    const s = window.__game!.getState() as unknown as {
-      stationCargo: Map<number, Record<string, { amount: number; waitingDays: number }>>;
-    };
-    s.stationCargo.set(stationId, { passengers: { amount: 3000, waitingDays: 1 } });
-  }, a);
-  await page.evaluate(() => window.__game!.runDays(70));
+  // The station's supply caps what piles up, and a bare test patch has none: set the two signals by hand.
+  // (The monthly step that raises the news is unit-tested in tests/sim/finance/lineHints.test.ts.)
+  await page.evaluate(
+    ([stationId, id]) => {
+      const s = window.__game!.getState() as unknown as {
+        stationCargo: Map<number, Record<string, { amount: number; waitingDays: number }>>;
+        trains: Array<{ id: number; loadShare?: number }>;
+        news: unknown[];
+        pendingNews: unknown[];
+        nextNewsId: number;
+        ticks: number;
+      };
+      s.trains.find((t) => t.id === id)!.loadShare = 0.95;
+      const piles = s.stationCargo.get(stationId!) ?? {};
+      piles.passengers = { amount: 240, waitingDays: 1 };
+      s.stationCargo.set(stationId!, piles);
+      const item = {
+        kind: "addTrain",
+        trainId: id,
+        waiting: 240,
+        id: s.nextNewsId++,
+        tick: s.ticks,
+      };
+      s.news.push(item);
+      s.pendingNews.push(item);
+    },
+    [a, trainId],
+  );
+  await page.evaluate(() => window.__game!.runDays(0.05));
   await expect(page.getByTestId("hint-card")).toContainText("add a train");
   await page.screenshot({ path: shot("add-train-card") });
   await page.getByTestId("hint-card").getByRole("button").click();
   await page.locator(".train-list-button").click();
   await page.locator('[data-testid="list-sort-lines"]').click();
-  await expect(page.getByTestId("line-add-train")).toContainText("Full trains,");
+  await expect(page.getByTestId("line-add-train")).toContainText("Full trains, 240 waiting");
   await page.screenshot({ path: shot("add-train") });
 });
