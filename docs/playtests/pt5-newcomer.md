@@ -27,78 +27,107 @@ Play-tester report. **No game code or tests were changed.** Screenshots: `docs/s
 
 ## Findings
 
-### **[UX]** Tutorial & Onboarding
+### **[UX]** Tutorial Tooltip Design — Good Affordance
 
-**Title:** Clear tutorial hint guides first action
-- The tooltip **"Drag on the map with the Track tool to lay your first line"** immediately tells a newcomer what to do next
-- Provides a specific action (use Track tool, drag) rather than vague "start building"
-- `[Severity: low / positive finding]` — this is a good UX pattern
+**Title:** Tutorial hint is clear and actionable
+- The tooltip **"Drag on the map with the Track tool to lay your first line."** is specific and action-oriented
+- Dark overlay with rounded corners, centered on screen, easy to read (white text on dark background)
+- Two buttons: "Skip tips" (secondary, left) and "Got it" (primary, gold/yellow highlight, right)
+- Clear visual hierarchy: gold button draws attention to the intended flow
+- **Positive:** Provides concrete next step without overwhelming new player
+- `[Severity: low / positive]`
 
-### **[UX]** Cash Display & Starting Balance
+### **[UX]** Cash Display & Starting Balance — Missing Context
 
-**Title:** Starting cash is not explained contextually
-- The "$1.0M" is shown but no context on what it costs to build a first station or train
-- No tooltip or help text explaining what's affordable (e.g., "enough for ~2 stations and 1 train")
-- First-time player has no anchor for "is this a lot of money?"
-- `[Severity: medium]` — unclear if player is starting with abundance or scarcity
+**Title:** Starting cash ($1.0M) shown but unexplained in value terms
+- Top-left displays "$1.0M" with a coin icon; visually prominent
+- No context for what's affordable: "Can I build 1 station? 10 stations? A full network?"
+- No tooltips or help text on cash (e.g., "Starting balance: $1.0M; enough for ~2 stations and 1 engine")
+- First-time player cannot gauge if this is abundant or tight without trial-and-error
+- **Impact:** Could lead to poor early economic decisions (e.g., over-building initially)
+- `[Severity: medium]` — clarity issue, not a blocker
 
-### **[UX]** Tool Sidebar Clarity
+### **[UX]** Tool Sidebar — Labels Readable, Context Missing
 
-**Title:** Tool names are clear but no hover hints
-- "Track, Double, Electrify, Station, Bulldoze, Info" are labeled and color-differentiated (orange/tan for selected state)
-- Would benefit from one-line descriptions on hover (e.g., "Double: Add a second track line") for brand-new players
-- The "Info" button's purpose is unclear (inspect/query mode?)
-- `[Severity: low]` — text labels are readable, but context would help
+**Title:** Tool buttons are labeled clearly but lack descriptions
+- Left sidebar shows 6 tools in order: **Track, Double, Electrify, Station, Bulldoze, Info**
+- Each has a text label below an icon; color changes on hover/select (tan/orange highlight)
+- Labels are readable at 1× and 2× zoom
+- **Gap:** No hover tooltips explaining what each tool does (e.g., "Double: Add a second parallel track")
+- "Info" tool's purpose is unclear (inspect/query? select mode?)
+- **Positive:** The ordering (build > upgrade > demolish) is logical
+- `[Severity: low]` — visual labels work, but tooltips would help
 
-### **[Idea]** Map Preview & Region Context
+### **[UX] + [Idea]** Minimap Affordance — Effective
 
-**Title:** Minimap in corner is helpful
-- Small map preview in bottom-left corner shows full region extent and current viewport (blue rectangle)
-- This is a strong affordance for understanding map scale
-- `[Severity: low / positive]` — good feature inclusion
+**Title:** Small map preview in corner aids navigation awareness
+- Bottom-left displays a miniature region map with current viewport highlighted (blue rectangle)
+- Shows player the "zoom-out" view immediately
+- Easy to spot where they are in the larger territory
+- **Positive:** Reduces cognitive load on new players ("where am I on the map?")
+- `[Severity: low / positive]` — well-placed feature
 
-### **[UX]** Difficulty Selection Timing
+### **[UX]** New Game Dialog — Region + Difficulty Both Presented
 
-**Title:** Difficulty chosen before region; no guidance
-- After clicking "New Game," player sees **all regions + difficulty buttons together**
-- No text explaining what "Normal" vs "Easy" vs "Hard" means economically (start cash, costs, profit margins, etc.)
-- A one-liner (e.g., "Normal: balanced start costs and revenue") would help
-- `[Severity: medium]` — affects game strategy but player can infer from play
+**Title:** Region and difficulty selection combined in one screen; no tooltips
+- After "New Game" click, player sees:
+  - Two tabs: "Real World" (4 historical regions) and "Random"
+  - Three difficulty buttons: Easy, Normal, Hard
+  - Region cards show year and description (e.g., "The Alps divide Italy from…")
+  - "$1.0M" displayed (starting cash, presumably)
+- **Issue:** No explanation of difficulty trade-offs (e.g., "Hard = lower start cash, higher costs, bigger rewards")
+- **Issue:** Regions' years are shown (1830, 1840, 1860) but it's unclear if this affects gameplay
+- **Positive:** Region descriptions help (e.g., "Coastlines, the Appalachians")
+- `[Severity: medium]` — player can guess from names, but explicit guidance is missing
 
-### **[Balance Question]** No Visible Goals or Contracts Early
+### **[Design Question]** Undefined Victory Condition or Gameplay Goal
 
-**Title:** What is the player supposed to *do*?
-- The tutorial says "drag to lay track" but no mention of why (deliver cargo? earn profit? maximize net worth?)
-- No visible win/lose conditions or milestones (e.g., "Reach $10M by 1900")
-- Help menu (if present) not accessed yet
-- `[Severity: medium]` — unclear early motivation without exploring Help
+**Title:** Tutorial says "lay track" but no mention of why or what comes next
+- Tooltip guides building first line, but not the larger purpose
+- No visible win condition (reach net worth goal? era completion? survive X years?)
+- No mention of contracts, cargo, or economic feedback
+- Help panel (if available) not inspected
+- **Impact:** Newcomer may build track but not understand what makes a "good" or "bad" decision
+- `[Severity: medium]` — can lead to random experimentation vs. strategic thinking
 
-### **[UX]** Menu Responsiveness
+### **[UX]** UI Responsiveness & Stability
 
-**Title:** New Game dialog & Start Game worked smoothly
-- No lag, menus load and respond quickly
-- Buttons are touchable and clickable
-- No accidental double-clicks or missed taps observed
-- `[Severity: low / positive]` — responsive UI
+**Title:** Menus and buttons respond quickly and reliably
+- New Game, region selection, and Start Game buttons all click immediately
+- No lag or visual glitches during navigation
+- Date and cash display update smoothly
+- `[Severity: low / positive]` — smooth interface performance
+
+### **[Minor UX]** Era Display Clarity
+
+**Title:** Year shown in two places; format differs
+- Top bar shows both "Jan 4, 1830" (calendar format) and "1830" (number format)
+- Both refer to the same information; the redundancy is mild but slightly cluttered
+- "1830" in a tan/gold box is good visual emphasis
+- `[Severity: low]` — not confusing, just redundant
+
+## Fun & Pacing
+
+The game is clean and visually clear at first glance; the terrain reads well and cities are identifiable. The tutorial tip is encouraging without being patronizing. The main friction point is the unknown: a newcomer can follow the "drag to build" instruction, but without understanding the economic goal or cost structure, each click feels exploratory rather than strategic. Once a player builds their first connection and sees revenue pop up (presumably), the feedback loop should click. The calm pacing (no real-time pressure at start, pausable/speed-controllable time) is good for onboarding.
 
 ## Not Tested
 
 - Clicking on cities, stations, or trains to inspect them
-- Building actual track or stations
+- Building actual track or stations (UI gestures)
 - Buying trains and setting routes
 - The Help/Info panels in detail
 - Long-term game progression (income decay, bankruptcy, era transitions)
-- Touch gesture controls (is a touchpad enough or needed?)
+- Touch gesture controls (mobile game; need actual tablet or touch event emulation)
 - Eras beyond 1840 (1900, 1950)
-- Multiplayer or save/load (if applicable)
+- Load/save flow and autosave behavior
 
 ## Top 3 Things to Fix/Add
 
-1. **Starting cash context** — add a one-line hint or tutorial note explaining what $1.0M can buy (e.g., "enough for 2–3 stations and 1 locomotive"). Helps newcomer avoid early mistakes.
+1. **Starting cash context + early affordance** — add a one-line tooltip on the cash display ("Starting balance: $1.0M; enough for ~2 stations + 1 engine") and/or a second tutorial tip after "Got it" that says "Build a station (costs ~$50k) near a city, then add track to connect two cities." Newcomers lack mental models of cost/benefit; this prevents early mistakes (over-building, dead-end lines).
 
-2. **Difficulty descriptions** — each option should have a one-sentence summary (e.g., "Hard: tight margins, higher costs, earn bigger profit per successful route"). Helps player self-select the right challenge.
+2. **Difficulty descriptions in New Game dialog** — add a one-sentence hover tooltip to each difficulty button (e.g., "Normal: balanced start; costs and revenue scale with era" / "Hard: lower start cash, higher costs, bigger margins"). Helps player pick the right challenge level rather than guessing from the name.
 
-3. **Early goal/motivation** — the map loads but it's unclear *why* the player should build. Mention in the tutorial or initial text that cargo flows between cities, or that profit targets exist, or what the era system means. Prevents "why am I doing this?" confusion.
+3. **Early goal statement** — add a second tutorial tip or an "Objective" panel that appears after the first tip is dismissed, stating something like: "Deliver cargo between cities using track and stations; earn revenue based on distance and demand. Expand your network and grow your company." This establishes the core loop (build → deliver → earn) and prevents "what am I supposed to be doing?" confusion.
 
 ---
 
