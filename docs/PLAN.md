@@ -1667,3 +1667,26 @@ Owner: contracts are a great idea; they must be **balanced** and **semi-random**
 5. Save/load (old saves get no contracts until the next offer), tests (generation feasibility, reward formula, only
    post-acceptance progress counts, caps, expiry, failure), SPEC section, PROGRESS with bench numbers.
 Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 (bench share below target, see PROGRESS)
+
+## Phase 46 — Scenarios, achievements, company history
+Owner request. Short UI, procedural graphics only, strings in strings.ts, deterministic sim.
+1. **Scenarios** (data in `src/data/scenarios.ts`, menu entry on the title screen "Scenarios"): 5–6 hand-made
+   challenges on existing regions with a fixed start (year, cash, sometimes pre-built track/towns), a goal and a
+   deadline, and a 1–3 star rating by how well/fast. Examples: "The Semmering line: connect Vienna to Trieste over
+   the Alps by 1857"; "Panic of 1873: survive to 1878 with debt below $2M" (start 1871 with a leveraged company);
+   "Coal for Vienna: deliver 20,000 t of coal by 1865"; "Transcontinental (us-west): connect east and west coast
+   towns by 1869"; "Silver rush: deliver 500 t of silver bars to the Mint by 1890". Each must be beatable (verify with
+   a scripted run in a test or bench) and fail-able. Win/lose screen reuses the game-over card style. Best stars
+   saved locally (localStorage, outside the game save).
+2. **Achievements** (data table, ~20–25): milestones like "First train", "100 km of track", "1,000 km", "Survived a
+   panic", "Out of debt", "First contract", "5 contracts", "Silver delivered", "Uranium delivered", "Bridge builder"
+   (10 bridges), "Electrified", "Metropolis served", "$1M / $10M / $100M net worth", "Hard-mode survivor 20 years".
+   Unlock toast (one line) + an Achievements list (title screen and in-game menu) with locked/unlocked and date.
+   Stored per profile in localStorage (cross-game) and also recorded in the save's history.
+3. **Company history screen** (in-game menu + shown on game over / scenario end): a timeline of key events (first
+   line, records, panics survived, contracts, achievements, bankruptcies avoided) and small procedural charts of net
+   worth, revenue and track length by year (canvas, cached). Requires recording a yearly snapshot in the save
+   (`state.history`), migration for old saves (history starts at load).
+4. Tests (scenario goal evaluation, achievement triggers, history snapshots), e2e + screenshots `phase-46-*.png`
+   (look at them), SPEC section, PROGRESS.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
