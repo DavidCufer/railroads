@@ -8,3 +8,6 @@ export const NEWS_HISTORY_MAX = 200;
 export const NEWS_COLLAPSE_DAYS = 60;
 /** A traffic jam near the same place is reported at most once per this many days. */
 export const NEWS_JAM_MIN_DAYS = 30;
+
+/** Phase 47: toasts on screen at once; a newer one pushes the oldest off (everything is also in News). */
+export const TOAST_MAX_VISIBLE = 3;

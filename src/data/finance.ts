@@ -169,6 +169,10 @@ export interface LedgerPeriod {
   passengers: number;
   mail: number;
   freight: number;
+  /** Phase 47: contract rewards (delivery, service, rescue). Outside income tax and the credit limit, see `ledgerTradeProfit`. */
+  contracts: number;
+  /** Phase 47: contract failure penalties. */
+  contractPenalty: number;
   /** Fuel, oil and servicing of the locomotives. */
   trainMaintenance: number;
   /** Wages of train crews (Economic model v2). */
@@ -192,6 +196,8 @@ export function emptyLedgerPeriod(): LedgerPeriod {
     passengers: 0,
     mail: 0,
     freight: 0,
+    contracts: 0,
+    contractPenalty: 0,
     trainMaintenance: 0,
     crewWages: 0,
     trackMaintenance: 0,
@@ -212,8 +218,14 @@ export function addLedgerPeriods(a: LedgerPeriod, b: LedgerPeriod): LedgerPeriod
   return result;
 }
 
-export function ledgerRevenue(p: LedgerPeriod): number {
+/** Income from hauling alone (what is taxed and what lenders look at). */
+export function ledgerTradeRevenue(p: LedgerPeriod): number {
   return p.passengers + p.mail + p.freight;
+}
+
+/** All income: hauling plus contract rewards (Phase 47). */
+export function ledgerRevenue(p: LedgerPeriod): number {
+  return ledgerTradeRevenue(p) + p.contracts;
 }
 
 /** Recurring costs of running the railway (SPEC §9.2, Phase 24A "operating" view). */
@@ -226,7 +238,8 @@ export function ledgerOperatingCosts(p: LedgerPeriod): number {
     p.stationMaintenance +
     p.propertyTax +
     p.breakdownRepairs +
-    p.interest
+    p.interest +
+    p.contractPenalty
   );
 }
 
@@ -238,6 +251,12 @@ export function ledgerInvestments(p: LedgerPeriod): number {
 /** Revenue minus operating costs — what the railway earns before investing (Phase 24A). */
 export function ledgerOperatingProfit(p: LedgerPeriod): number {
   return ledgerRevenue(p) - ledgerOperatingCosts(p);
+}
+
+/** Operating profit from hauling only: the base of income tax and of the credit limit. Contract rewards and penalties
+ * are outside both (Phase 47: booking them did not change the economy). */
+export function ledgerTradeProfit(p: LedgerPeriod): number {
+  return ledgerOperatingProfit(p) - p.contracts + p.contractPenalty;
 }
 
 /** How many completed months the operating view averages over. */

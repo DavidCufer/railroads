@@ -177,7 +177,7 @@ import { loadSettings, type Settings } from "./ui/settings";
 import { renderSettingsScreen } from "./ui/settingsScreen";
 import { renderSaveLoadScreen } from "./ui/saveLoadScreen";
 import { drawGridOverlay } from "./render/overlays";
-import { showFirstGameHints } from "./ui/hints";
+import { showFirstGameHints, showHintCard } from "./ui/hints";
 import { initSound, playSound } from "./ui/sound";
 
 const RIVER_ID = terrainId("river");
@@ -1123,6 +1123,8 @@ function main(): void {
         // A new locomotive model gets an announcement card (STYLE §11.4) instead of a toast.
         if (item.kind === "newLocomotive") {
           announceNewEngine(ui, item.locoId, () => openRosterSheet(ui, state));
+        } else if (item.kind === "addTrain" && showHintCard(ui, formatNewsItem(state, item))) {
+          // Phase 47: the first "add a train" hint is a card, not a toast (it stays in News as well).
         } else {
           const at = newsFocusTile(state, item);
           // A single-track jam: the tap goes to the passing loop that would help (Phase 41).

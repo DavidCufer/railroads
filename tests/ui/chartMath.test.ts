@@ -73,9 +73,11 @@ describe("cashFlashTone", () => {
 describe("ledger parts", () => {
   it("covers every income and cost category of a period", () => {
     const p = { ...emptyLedgerPeriod(), passengers: 10, mail: 5, freight: 20, interest: 3 };
-    expect(incomeParts(p).map((x) => x.value)).toEqual([10, 5, 20]);
+    expect(incomeParts(p).map((x) => x.value)).toEqual([10, 5, 20, 0]);
     // Every cost line of the ledger has a legend entry (Economic model v2 added wages, wear and taxes).
-    const costKeys = Object.keys(p).filter((k) => !["passengers", "mail", "freight"].includes(k));
+    const costKeys = Object.keys(p).filter(
+      (k) => !["passengers", "mail", "freight", "contracts"].includes(k),
+    );
     expect(
       costParts(p)
         .map((x) => x.key)

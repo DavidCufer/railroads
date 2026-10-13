@@ -1777,6 +1777,13 @@ button.chip {
   align-items: center;
   justify-content: center;
 }
+.difficulty-note {
+  flex: 0 0 auto;
+  padding: var(--gap-1) var(--gap-4) 0;
+  font-size: var(--fs-s);
+  color: var(--muted);
+  line-height: 1.25;
+}
 .new-game-footer {
   flex: 0 0 auto;
   padding: var(--gap-2) var(--gap-4) var(--gap-3);

@@ -4,6 +4,8 @@ import { formatMoney } from "../format";
 import { strings } from "../strings";
 import type { StackedBarPart } from "./charts";
 
+const CONTRACT_COLOR = "#c9a64b";
+
 /** Income by kind, in the cargo colours of SPEC §8.1 (freight uses the goods crate colour). */
 export function incomeParts(period: LedgerPeriod): StackedBarPart[] {
   return [
@@ -27,6 +29,13 @@ export function incomeParts(period: LedgerPeriod): StackedBarPart[] {
       color: CARGO.goods.color,
       label: strings.finance.freight,
       display: formatMoney(period.freight),
+    },
+    {
+      key: "contracts",
+      value: period.contracts,
+      color: CONTRACT_COLOR,
+      label: strings.finance.contracts,
+      display: formatMoney(period.contracts),
     },
   ];
 }
@@ -58,6 +67,7 @@ export function costParts(period: LedgerPeriod): StackedBarPart[] {
     ["incomeTax", f.incomeTax, period.incomeTax],
     ["breakdownRepairs", f.breakdownRepairs, period.breakdownRepairs],
     ["interest", f.interest, period.interest],
+    ["contractPenalty", f.contractPenalty, period.contractPenalty],
     ["construction", f.investmentLabel(f.construction), period.construction],
     ["rollingStock", f.investmentLabel(f.rollingStock), period.rollingStock],
   ];

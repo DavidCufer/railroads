@@ -46,6 +46,7 @@ import {
 } from "../sim/finance/costs";
 import { costRealism, trainCrewSize } from "../data/economy";
 import { lineSummaries, trainsNeeded } from "../sim/finance/lines";
+import { addTrainHint } from "../sim/finance/lineHints";
 import { booksProfit, trainProfitPerYear, trainProfitStatus } from "../sim/trains/profit";
 import type { Train, TrainCar, TrainOrder } from "../sim/trains/types";
 import { cardList, cardRow } from "./components/cardRow";
@@ -914,7 +915,18 @@ function linesList(
         openTrainPanel(container, state, first);
       },
     });
-    if (line.trainIds.length < 2) return cardList(row);
+    const full = addTrainHint(state, line.trainIds);
+    const fullNote = full
+      ? h(
+          "div",
+          { className: "hint line-add-train", "data-testid": "line-add-train" },
+          L.addTrain(full.waiting),
+        )
+      : null;
+    if (line.trainIds.length < 2)
+      return fullNote
+        ? h("div", { className: "line-block" }, cardList(row), fullNote)
+        : cardList(row);
     const needed = trainsNeeded(state, line.trainIds);
     const gap = state.trains
       .find((t) => t.id === line.trainIds[0])
@@ -923,6 +935,7 @@ function linesList(
       "div",
       { className: "line-block" },
       cardList(row),
+      fullNote,
       needed !== undefined && needed < line.trainIds.length
         ? h(
             "div",

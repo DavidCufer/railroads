@@ -13,7 +13,7 @@ import {
   DIFFICULTY,
   LOAN_TERM_MONTHS,
   RISK_CALL_MIN,
-  ledgerOperatingProfit,
+  ledgerTradeProfit,
 } from "../../data/finance";
 import { panicCreditMult } from "./panics";
 import { DAYS_PER_MONTH, HOURS_PER_DAY } from "../time";
@@ -105,7 +105,7 @@ export function creditCall(state: GameState, netWorth: number): number {
 export function earningsBeforeInterest(state: GameState): number {
   let total = 0;
   for (const month of [...state.finance.monthHistory, state.finance.thisMonth]) {
-    total += ledgerOperatingProfit(month) + month.interest;
+    total += ledgerTradeProfit(month) + month.interest;
   }
   return total;
 }

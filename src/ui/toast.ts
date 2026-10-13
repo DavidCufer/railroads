@@ -1,4 +1,5 @@
 /** Toasts (SPEC §10.1: "Toasts for news (non-blocking) at top-center"). */
+import { TOAST_MAX_VISIBLE } from "../data/news";
 import { h } from "./h";
 
 const TOAST_DURATION_MS = 3500;
@@ -75,11 +76,15 @@ export function showToast(
       el.remove();
     });
   }
+  // Phase 47: at most TOAST_MAX_VISIBLE on screen; the oldest goes when a newer one arrives.
+  const live = [...toastRoot.children].filter((c) => !c.hasAttribute("data-leaving"));
+  for (const old of live.slice(0, Math.max(0, live.length - TOAST_MAX_VISIBLE + 1))) old.remove();
   toastRoot.appendChild(el);
   void el.offsetWidth;
   el.classList.add("toast-visible");
   window.setTimeout(() => {
     el.classList.remove("toast-visible");
+    el.setAttribute("data-leaving", "");
     window.setTimeout(() => el.remove(), 250);
   }, TOAST_DURATION_MS);
 }

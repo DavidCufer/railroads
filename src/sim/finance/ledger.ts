@@ -10,7 +10,7 @@ import {
   OPERATING_HISTORY_MONTHS,
   NET_WORTH_CONSTRUCTION_FRACTION,
   emptyLedgerPeriod,
-  ledgerOperatingProfit,
+  ledgerTradeProfit,
   type LedgerPeriod,
 } from "../../data/finance";
 import { pushNews } from "../news";
@@ -52,13 +52,19 @@ import {
 } from "../../data/economy";
 import { PASSING_LOOP_UPKEEP_MONTHLY } from "../../data/stations";
 
-type ExpenseCategory = Exclude<keyof LedgerPeriod, "passengers" | "mail" | "freight">;
+type ExpenseCategory = Exclude<keyof LedgerPeriod, "passengers" | "mail" | "freight" | "contracts">;
 
 export function addRevenue(state: GameState, cargo: CargoType, amount: number): void {
   const bucket: "passengers" | "mail" | "freight" =
     cargo === "passengers" ? "passengers" : cargo === "mail" ? "mail" : "freight";
   state.finance.thisMonth[bucket] += amount;
   state.finance.thisYear[bucket] += amount;
+}
+
+/** A contract reward (Phase 47): its own income line, not taxed (see `ledgerTradeProfit`). */
+export function addContractIncome(state: GameState, amount: number): void {
+  state.finance.thisMonth.contracts += amount;
+  state.finance.thisYear.contracts += amount;
 }
 
 export function addExpense(state: GameState, category: ExpenseCategory, amount: number): void {
@@ -231,7 +237,7 @@ function incomeTaxOn(state: GameState, taxYear: number, profit: number): number 
  * rollover trues it up, so a year's total is exactly what the old single year-end charge was. */
 function accrueIncomeTax(state: GameState): void {
   const taxYear = calendarFromTicks(state.startYear, Math.max(0, state.ticks - 1)).year;
-  const target = incomeTaxOn(state, taxYear, ledgerOperatingProfit(state.finance.thisYear));
+  const target = incomeTaxOn(state, taxYear, ledgerTradeProfit(state.finance.thisYear));
   const due = target - (state.finance.taxPaidThisYear ?? 0);
   if (due <= 0) return;
   state.finance.taxPaidThisYear = (state.finance.taxPaidThisYear ?? 0) + due;
@@ -242,7 +248,7 @@ function accrueIncomeTax(state: GameState): void {
 /** Settles income tax for the year that has just ended against what the months already set aside: the rest is
  * charged, an overpayment (a bad second half) is refunded into the closing year's ledger line. */
 function chargeIncomeTax(state: GameState, taxYear: number): void {
-  const profit = ledgerOperatingProfit(state.finance.thisYear);
+  const profit = ledgerTradeProfit(state.finance.thisYear);
   const carry = state.finance.taxLossCarry ?? 0;
   const target = incomeTaxOn(state, taxYear, profit);
   // Losses build up the carry; a profitable year uses it up.

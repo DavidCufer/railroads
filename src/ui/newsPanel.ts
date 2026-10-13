@@ -113,6 +113,8 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
       return strings.news.kinds.panic(item.name, item.months, item.fuelRise ?? 0);
     case "fewStops":
       return strings.news.kinds.fewStops(trainName(state, item.trainId));
+    case "addTrain":
+      return strings.news.kinds.addTrain(trainName(state, item.trainId), item.waiting);
     case "cityGrowth":
       return strings.news.kinds.cityGrowth(
         cityName(state, item.cityId),
@@ -190,6 +192,7 @@ const NEWS_ICONS: Record<NewsItem["kind"], { icon: IconName; tone: Tone }> = {
   undeliverable: { icon: "warning", tone: "signal" },
   stationDemolished: { icon: "trash", tone: "brass" },
   fewStops: { icon: "warning", tone: "signal" },
+  addTrain: { icon: "trains", tone: "brass" },
   forcedLoan: { icon: "coin", tone: "signal" },
   insolvent: { icon: "warning", tone: "signal" },
   loansCalled: { icon: "coin", tone: "signal" },

@@ -77,3 +77,25 @@ export function showFirstGameHints(
   render();
   container.appendChild(card);
 }
+
+/** A one-off hint card (Phase 47: "add a train"), in the first-game hints' look. Skipped while the first-game tips are
+ * on screen; returns false then so the caller can fall back to a toast. */
+export function showHintCard(container: HTMLElement, text: string): boolean {
+  if (container.querySelector(".hint-card")) return false;
+  const card = h(
+    "div",
+    { className: "hint-card", "data-testid": "hint-card" },
+    h("div", { className: "hint-card-text" }, text),
+    h(
+      "div",
+      { className: "hint-card-actions" },
+      h(
+        "button",
+        { className: "hint-card-btn hint-card-btn-next", onClick: () => card.remove() },
+        strings.hints.next,
+      ),
+    ),
+  );
+  container.appendChild(card);
+  return true;
+}

@@ -472,6 +472,7 @@ export const strings = {
       losing: "Losing money",
       noLines: "No lines yet — a line is trains that share the same stops.",
       lineTrains: (n: number) => (n === 1 ? "1 train" : `${n} trains`),
+      addTrain: (waiting: number) => `Full trains, ${waiting} waiting — add a train`,
       overServed: (n: number) => `~${n} ${n === 1 ? "train" : "trains"} would carry this demand`,
       lineThisYear: (revenue: string, costs: string) =>
         `This year: revenue ${revenue}, costs ${costs}`,
@@ -643,6 +644,8 @@ export const strings = {
     passengers: "Passengers",
     mail: "Mail",
     freight: "Freight",
+    contracts: "Contracts",
+    contractPenalty: "Contract penalty",
     expenses: "Expenses",
     trainMaintenance: "Fuel & servicing",
     crewWages: "Crew wages",
@@ -877,6 +880,8 @@ export const strings = {
         `Start-up credit ends in ${months} month${months === 1 ? "" : "s"}: limit ~${limit}`,
       overLimit: (debt: string, limit: string) =>
         `Debt ${debt}, limit ${limit}: lenders call 25 %/month`,
+      addTrain: (trainName: string, waiting: number) =>
+        `${trainName}'s line: full trains, ${waiting} waiting — add a train`,
       fewStops: (trainName: string) =>
         `${trainName} has fewer than 2 stops — tap to edit its route`,
       cityGrowth: (cityName: string, tierName: string) =>
@@ -961,7 +966,11 @@ export const strings = {
   gameOver: {
     title: "Bankrupt",
     line: (date: string) => `The lenders closed in. Final date: ${date}.`,
-    years: (n: number) => `${n} years of railroading`,
+    /** Phase 47: months under a year ("8 months"), then whole years ("1 year", "3 years"). */
+    duration: (months: number) => {
+      const unit = (n: number, word: string): string => `${n} ${word}${n === 1 ? "" : "s"}`;
+      return `${months < 12 ? unit(months, "month") : unit(Math.floor(months / 12), "year")} of railroading`;
+    },
     bestWorth: (amount: string) => `Best net worth ${amount}`,
     owed: (amount: string) => `Owed ${amount}`,
     network: (trains: number, stations: number) => `${trains} trains, ${stations} stations`,
@@ -1149,6 +1158,14 @@ export const strings = {
       easy: "Easy",
       normal: "Normal",
       hard: "Hard",
+    },
+    /** Phase 47: one line under the selector, built from the difficulty's data (`difficultyNote`). */
+    difficultyNote: {
+      noBankruptcy: "no bankruptcy",
+      grace: (months: number) => `${months} months to fix negative cash`,
+      loans: (pct: string) => `${pct} loans`,
+      riskDebt: (pct: string) => `lenders charge more when debt exceeds ${pct} of net worth`,
+      revenue: (pct: string) => `revenue ${pct}`,
     },
     startingCash: "Starting cash",
     expertStart: "Expert: few, expensive first lines",

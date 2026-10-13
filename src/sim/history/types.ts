@@ -52,6 +52,8 @@ export interface HistoryMemory {
   scenario?: string;
   recordRevenue?: number;
   panicsSurvived?: number;
+  /** Phase 47: the one-time "add a train" hint has been given. */
+  addTrainHint?: boolean;
 }
 
 export interface HistoryState {

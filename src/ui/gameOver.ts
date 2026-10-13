@@ -1,6 +1,6 @@
 /** Game-over screen (Phase 39): shown when the company goes bankrupt. A short summary, then load or start over. */
 import { netWorth } from "../sim/finance/ledger";
-import { calendarFromTicks } from "../sim/time";
+import { calendarFromTicks, DAYS_PER_MONTH, HOURS_PER_DAY } from "../sim/time";
 import type { GameState } from "../sim/state";
 import { formatDate, formatMoney } from "./format";
 import { h } from "./h";
@@ -19,7 +19,7 @@ export function openGameOver(
 ): HTMLElement {
   const t = strings.gameOver;
   const best = Math.max(netWorth(state), ...state.finance.netWorthHistory.map((s) => s.netWorth));
-  const years = Math.floor(state.ticks / (24 * 360));
+  const months = Math.floor(state.ticks / (HOURS_PER_DAY * DAYS_PER_MONTH));
   const root = h(
     "div",
     { className: "game-over" },
@@ -31,7 +31,7 @@ export function openGameOver(
       h(
         "ul",
         null,
-        h("li", null, t.years(years)),
+        h("li", null, t.duration(months)),
         h("li", null, t.bestWorth(formatMoney(best))),
         h("li", null, t.owed(formatMoney(state.finance.loans))),
         h("li", null, t.network(state.trains.length, state.stations.length)),

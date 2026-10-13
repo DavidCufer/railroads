@@ -512,3 +512,8 @@ export const REPAIR_CREW_FAR_DISPATCH_DAYS = 3;
 /** With no Engine Shed anywhere the crew comes from the nearest station and is this much slower. */
 export const REPAIR_CREW_FAR_SPEED_MULT = 0.5;
 export const REPAIR_CREW_MAX_TRAVEL_DAYS = 30;
+
+/** Phase 47: the "add a train" hint. A line shows it when its trains have run at least this full over their last
+ * ~`LOAD_SHARE_WINDOW_TILES` tiles (`Train.loadShare`) and more people or cargo wait for it than one train carries. A train
+ * needs `minAgeDays` of running before its load counts. */
+export const ADD_TRAIN_HINT = { minLoad: 0.8, minAgeDays: 30 } as const;

@@ -26,6 +26,8 @@ export type NewsPayload =
   | { kind: "undeliverable"; trainId: number; cargo: CargoType; cars: number }
   | { kind: "stationDemolished"; name: string; trains: number }
   | { kind: "fewStops"; trainId: number }
+  /** Phase 47: the first line whose full trains leave `waiting` behind (a hint card). */
+  | { kind: "addTrain"; trainId: number; waiting: number }
   | { kind: "forcedLoan"; amount: number }
   | { kind: "insolvent"; monthsLeft: number }
   | { kind: "loansCalled"; amount: number }

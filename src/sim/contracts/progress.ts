@@ -15,7 +15,7 @@ import {
   CONNECTION,
 } from "../../data/contracts";
 import { INDUSTRY_GROWTH_MULT_MAX, INDUSTRY_GROWTH_MULT_MIN } from "../../data/industries";
-import { addExpense } from "../finance/ledger";
+import { addContractIncome, addExpense } from "../finance/ledger";
 import { getOrCreateIndustryEconomy } from "../economy/processing";
 import { pushNews } from "../news";
 import { nextInt } from "../rng";
@@ -75,6 +75,7 @@ function completeContract(state: GameState, c: Contract): void {
   if (c.kind !== "connection") {
     money = c.reward;
     state.cash += money;
+    addContractIncome(state, money);
     stats.income += money;
   }
   if (c.kind === "rescue" && c.industryId !== undefined) {
@@ -93,6 +94,7 @@ function failContract(state: GameState, c: Contract): void {
   stats.failed++;
   const penalty = Math.min(Math.max(0, state.cash), Math.round(c.reward * PENALTY_SHARE));
   state.cash -= penalty;
+  addExpense(state, "contractPenalty", penalty);
   stats.penalties += penalty;
   if (c.kind === "rescue" && c.industryId !== undefined) {
     const econ = getOrCreateIndustryEconomy(state, c.industryId);

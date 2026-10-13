@@ -16,6 +16,7 @@ import { REGIONS } from "../sim/regions";
 import { REGION_IDS, type RegionId } from "../sim/regions/types";
 import type { NewGameOptions } from "../sim/state";
 import { renderRegionThumbnail } from "../render/regionThumbnail";
+import { difficultyNote } from "./difficultyNote";
 import { formatMoney } from "./format";
 import { h } from "./h";
 import { icon } from "./icons";
@@ -306,6 +307,11 @@ export function renderNewGameScreen(handlers: NewGameScreenHandlers): HTMLElemen
       screenHeader(s.title, handlers.onBack),
       tabs,
       h("div", { className: "new-game-content" }, content),
+      h(
+        "div",
+        { className: "difficulty-note", "data-testid": "difficulty-note" },
+        difficultyNote(difficulty),
+      ),
       footer,
     );
   }

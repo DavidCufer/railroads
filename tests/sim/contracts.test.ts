@@ -9,6 +9,7 @@ import {
   SUPPLY_SHARE,
   WARY_MONTHS,
 } from "../../src/data/contracts";
+import { ledgerNetProfit, ledgerRevenue, ledgerTradeProfit } from "../../src/data/finance";
 import { priceIndex } from "../../src/data/economy";
 import { acceptContract, abandonContract, declineContract } from "../../src/sim/commands";
 import { generateOffer, rewardFor } from "../../src/sim/contracts/generate";
@@ -114,6 +115,7 @@ describe("contract commands", () => {
     expect(abandonContract(state, c.id).ok).toBe(true);
     expect(state.cash).toBe(cash - Math.round(c.reward * PENALTY_SHARE));
     expect(state.contracts.stats.failed).toBe(1);
+    expect(state.finance.thisYear.contractPenalty).toBe(Math.round(c.reward * PENALTY_SHARE));
   });
 });
 
@@ -137,6 +139,12 @@ describe("contract progress", () => {
     recordContractDelivery(state, st, "goods", 20, 0);
     expect(state.contracts.active).toHaveLength(0);
     expect(state.cash).toBe(cash + 50_000);
+    // Phase 47: the reward is in the books, this year and this month, and counts as revenue
+    expect(state.finance.thisYear.contracts).toBe(50_000);
+    expect(state.finance.thisMonth.contracts).toBe(50_000);
+    expect(ledgerRevenue(state.finance.thisYear)).toBe(50_000);
+    expect(ledgerNetProfit(state.finance.thisYear)).toBe(state.cash - cash);
+    expect(ledgerTradeProfit(state.finance.thisYear)).toBe(0); // untaxed, outside the credit limit
     expect(state.contracts.stats.completed).toBe(1);
     expect(state.contracts.stats.income).toBe(50_000);
     expect(state.news.at(-1)?.kind).toBe("contract");
@@ -186,6 +194,8 @@ describe("contract progress", () => {
     expect(state.contracts.active).toHaveLength(0);
     expect(state.contracts.stats.failed).toBe(1);
     expect(state.cash).toBe(cash - Math.round(50_000 * PENALTY_SHARE));
+    expect(state.finance.thisYear.contractPenalty).toBe(Math.round(50_000 * PENALTY_SHARE));
+    expect(ledgerNetProfit(state.finance.thisYear)).toBe(state.cash - cash);
     expect(state.contracts.nextOfferTick).toBeGreaterThanOrEqual(state.ticks + WARY_MONTHS * MONTH);
     expect(state.contracts.offers).toHaveLength(0);
   });
