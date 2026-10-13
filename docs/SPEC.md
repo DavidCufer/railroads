@@ -883,6 +883,59 @@ UI: a news item and tappable toast when an offer arrives; a Contracts button (ba
 contract: Accept / Later on offers, a progress bar, reward and days left on accepted ones, Give up (two taps). Tapping a
 line looks at the town or industry. Commands: `acceptContract`, `declineContract`, `abandonContract`.
 
+### 11c. Scenarios (Phase 46)
+
+Hand-made challenges on the shipped regions (`src/data/scenarios.ts`, title screen -> Scenarios). Each fixes the region, seed,
+start year, difficulty, cash and opening debt, and has one goal and a deadline. The game is a normal game otherwise (the
+region's bronze/silver/gold goals, contracts and panics all run); `state.scenario` holds `{id, status, stars, progress}` and is
+saved with the game (no version bump). `dailyScenarioStep` ends it: bankruptcy loses at once; a year goal loses when the
+calendar passes `byYear`; a survival goal is judged on 1 January of `untilYear`.
+
+| Scenario | Region, start | Goal | Stars |
+|---|---|---|---|
+| The Semmering line | central-eu, 1850, $700k | connect Vienna and Trieste by 1857 | by 1853; net worth $550k |
+| Panic of 1873 | us-east, 1871, $400k + $2.5M of loans | survive to 1878 owing under $500k (the Panic of 1873 is in this seed) | net worth $3.5M; $4.75M |
+| Coal for Trieste | central-eu, 1858, $2.5M | deliver 6,000 t of coal to a station within 8 tiles of Trieste (its port) by 1866 | by 1863; net worth $3M |
+| Transcontinental | us-west, 1860, $900k | connect Sacramento and Salt Lake City by 1869 | by 1865; net worth $800k |
+| Silver rush | central-eu, 1880, $4M | deliver 200 t of silver bars to the Mint by 1890 | by 1887; net worth $3M |
+
+**Stars.** Finishing in time is 1 star. For a goal with a year, a second star for finishing by the early year in the table and a
+third for ending with at least the net worth shown (so a company that builds everything at once and has nothing left earns
+fewer stars than one that earned its way there). For the survival goal the second and third stars are the two net worths.
+The best stars of each scenario are kept in the player profile (`localStorage`, `railroads.profile`), not in a save.
+
+**Win/lose card.** The game-over card style: result, the scenario and date, the stars (win) or the reason (lose), net worth,
+and Keep playing (win only) / History / Try again / Scenarios. The clock stops when it shows.
+
+**Deviations from the PLAN's examples.** Cities accept no coal, and a steel mill stops accepting it once its stock is full, so
+"coal for Vienna" became coal for the Trieste docks (a Port takes coal without limit); 20,000 t is more than any mine makes in the
+time (a mine makes 60 t a month), so 6,000 t. The long-haul chain is slow and, at 94 + 139 tiles, dear: 500 t of silver bars by 1890
+was out of reach (a scripted run delivers about 250 t in ten years), so 200 t. Panic of 1873 asks for debt under $500k rather than
+$2M: the lenders call the loans in the panic, so a company that does nothing ends with none and a debt limit above what the
+amortization leaves would not be a test. No scenario starts with built track or extra towns.
+
+### 11d. Achievements and company history (Phase 46)
+
+`state.history` (saved with the game, no version bump; an older save starts its history at load and announces nothing that
+already exists) holds yearly snapshots, a timeline of key events, the achievements unlocked and the units delivered per cargo.
+`monthlyHistoryStep` only looks at the state, so history cannot change a game; `yearlyHistoryStep` adds a snapshot on 1 January
+(net worth, cash, loans, km of track, last year's revenue).
+
+**Timeline events:** first train, first line, track milestones (100 / 500 / 1,000 / 2,500 / 5,000 / 10,000 km), panics survived
+(lived through with at least one train), contracts completed and failed, goals reached, a revenue record (1.5x the last),
+bankruptcy avoided, bankruptcy, achievements, scenario result.
+
+**Achievements** (25, `src/data/achievements.ts`, checks in `src/sim/history/achievements.ts`): first train, first line, 100 /
+1,000 / 5,000 km of track, 10 / 50 trains, 20 stations, survived a panic, out of debt (had a loan, owes none), first contract, 5
+contracts, silver delivered, uranium delivered, bridge builder (10 bridge edges), electrified, metropolis served, net worth
+$1M / $10M / $100M, 100,000 passengers, 10,000 t of freight, goal reached, scenario won, hard-mode survivor (20 years on Hard
+without bankruptcy). A new one shows one toast per batch and is written to the player profile (`localStorage`,
+`railroads.profile`, with the real date), so the title-screen list is cross-game.
+
+**UI:** title screen -> Achievements; in-game menu -> Achievements and Company history; History button on the game-over and
+scenario cards. The history screen has three procedural line charts (net worth, revenue by year, track) drawn once into a cached
+bitmap per data set, and the 40 latest timeline entries.
+
 ---
 
 ## 12. Commands & determinism

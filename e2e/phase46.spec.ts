@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import "./gameWindow";
+import { lineWithTrain } from "./p30bHelpers";
 
 /** Phase 46: scenarios (the list, the scenario card in Goals, the win and lose cards), achievements and company history. */
 test.use({ deviceScaleFactor: 2 });
@@ -66,5 +67,62 @@ test.describe("Phase 46 - scenarios", () => {
     await expect(page.getByTestId("scenario-end")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId("scenario-end")).toContainText("deadline");
     await page.screenshot({ path: shot("scenario-lost") });
+  });
+});
+
+test.describe("Phase 46 - achievements and company history", () => {
+  test("the title screen lists every achievement, locked", async ({ page }) => {
+    await page.setViewportSize(PHONE_VIEWPORT);
+    await page.goto("/");
+    await page.getByRole("button", { name: "Achievements" }).click();
+    await expect(page.getByTestId("achievements-screen")).toBeVisible();
+    await expect(page.locator(".achievement-row")).toHaveCount(25);
+    await expect(page.locator(".achievement-row.unlocked")).toHaveCount(0);
+    await page.screenshot({ path: shot("achievements-locked") });
+  });
+
+  test("a running company unlocks achievements (toast, list, profile) and has a history", async ({
+    page,
+  }) => {
+    await lineWithTrain(page);
+    await page.evaluate(() => window.__game!.runDays(2.5 * 360));
+    await expect(page.locator(".toast", { hasText: "Achievement" }).first()).toBeVisible();
+    await page.screenshot({ path: shot("toast") });
+
+    await page.locator("[aria-label='Menu']").first().click();
+    await page.locator('[data-testid="menu-achievements"]').click();
+    await expect(page.getByTestId("achievement-firstTrain")).toHaveClass(/unlocked/);
+    await expect(page.getByTestId("achievement-worth100M")).toHaveClass(/locked/);
+    await page.screenshot({ path: shot("achievements") });
+    const stored = await page.evaluate(() => window.localStorage.getItem("railroads.profile"));
+    expect(JSON.parse(stored as string).achievements.firstTrain).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    await page.getByRole("button", { name: "Back" }).click();
+
+    await page.locator('[data-testid="menu-history"]').click();
+    await expect(page.getByTestId("history-screen")).toBeVisible();
+    await expect(page.locator(".history-chart")).toHaveCount(3);
+    await expect(page.locator(".history-event").first()).toBeVisible();
+    await page.screenshot({ path: shot("history") });
+    const state = await page.evaluate(() => {
+      const s = window.__game!.getState() as unknown as {
+        history: { snapshots: unknown[]; events: Array<{ kind: string }> };
+      };
+      return { snapshots: s.history.snapshots.length, kinds: s.history.events.map((e) => e.kind) };
+    });
+    expect(state.snapshots).toBeGreaterThanOrEqual(3);
+    expect(state.kinds).toContain("firstTrain");
+  });
+
+  test("the game-over card has a History button", async ({ page }) => {
+    await lineWithTrain(page);
+    await page.evaluate(() => {
+      const s = window.__game!.getState() as unknown as { finance: { bankrupt: boolean } };
+      s.finance.bankrupt = true;
+    });
+    await page.evaluate(() => window.__game!.setSpeed(1));
+    await expect(page.locator(".game-over-card")).toBeVisible({ timeout: 15_000 });
+    await page.locator(".game-over-card").getByRole("button", { name: "History" }).click();
+    await expect(page.getByTestId("history-screen")).toBeVisible();
+    await page.screenshot({ path: shot("history-bankrupt") });
   });
 });

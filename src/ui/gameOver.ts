@@ -9,6 +9,7 @@ import { strings } from "./strings";
 export interface GameOverHandlers {
   onLoadLast: () => void;
   onNewGame: () => void;
+  onHistory?: () => void;
 }
 
 export function openGameOver(
@@ -43,6 +44,13 @@ export function openGameOver(
           { className: "title-btn title-btn-primary", onClick: handlers.onLoadLast },
           t.loadLast,
         ),
+        handlers.onHistory
+          ? h(
+              "button",
+              { className: "title-btn", onClick: handlers.onHistory },
+              strings.history.button,
+            )
+          : null,
         h("button", { className: "title-btn", onClick: handlers.onNewGame }, t.newGame),
       ),
     ),

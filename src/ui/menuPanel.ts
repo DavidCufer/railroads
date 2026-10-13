@@ -43,6 +43,8 @@ export interface MenuPanelHandlers {
   onOpenSettings: () => void;
   onOpenRoster?: () => void;
   onOpenHelp?: () => void;
+  onOpenHistory?: () => void;
+  onOpenAchievements?: () => void;
 }
 
 const OVERLAY_ICONS: Record<Exclude<OverlayToggle, "miniMap">, IconName> = {
@@ -80,6 +82,24 @@ export function openMenuPanel(container: HTMLElement, handlers: MenuPanelHandler
         chevron: true,
         onClick: handlers.onOpenSettings,
       }),
+      handlers.onOpenHistory
+        ? cardRow({
+            thumb: icon("trendUp"),
+            title: strings.history.menuEntry,
+            chevron: true,
+            onClick: handlers.onOpenHistory,
+            testId: "menu-history",
+          })
+        : null,
+      handlers.onOpenAchievements
+        ? cardRow({
+            thumb: icon("trophy"),
+            title: strings.achievements.menuEntry,
+            chevron: true,
+            onClick: handlers.onOpenAchievements,
+            testId: "menu-achievements",
+          })
+        : null,
       handlers.onOpenRoster
         ? cardRow({
             thumb: icon("roster"),

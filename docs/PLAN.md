@@ -1689,4 +1689,4 @@ Owner request. Short UI, procedural graphics only, strings in strings.ts, determ
    (`state.history`), migration for old saves (history starts at load).
 4. Tests (scenario goal evaluation, achievement triggers, history snapshots), e2e + screenshots `phase-46-*.png`
    (look at them), SPEC section, PROGRESS.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+Status: [x] 1 [x] 2 [x] 3 [x] 4

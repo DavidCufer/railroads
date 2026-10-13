@@ -18,6 +18,7 @@ import { COMPETITION_NEWS_YEARS } from "../data/economy";
 import { dailyCreditWarningStep } from "./finance/warnings";
 import { monthlyFinanceStep, yearlyFinanceRollover } from "./finance/ledger";
 import { dailyScenarioStep } from "./scenario";
+import { monthlyHistoryStep, yearlyHistoryStep } from "./history";
 import { dailyContractsStep, monthlyContractsStep } from "./contracts/progress";
 import { pushNews } from "./news";
 import { monthlyStationFlowRollover, yearlyStationFlowRollover } from "./stations/flow";
@@ -67,6 +68,7 @@ export function advanceOneHour(state: GameState): void {
     monthlyFinanceStep(state);
     monthlyBreakdownStep(state);
     monthlyContractsStep(state);
+    monthlyHistoryStep(state);
   }
 
   if (isYearBoundary(state.ticks)) {
@@ -86,6 +88,7 @@ export function advanceOneHour(state: GameState): void {
     yearlyStationFlowRollover(state);
     yearlyFinanceRollover(state);
     yearlyCargoDeliveredRollover(state);
+    yearlyHistoryStep(state);
     yearlyCityFoundingStep(state);
   }
 }

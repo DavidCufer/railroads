@@ -4902,3 +4902,74 @@ select {
   flex-direction: column;
   gap: var(--gap-2);
 }
+
+/* Phase 46: company history and achievements (full-screen overlays above the game-over card) */
+.overlay-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  background: var(--ink-900);
+  color: var(--text);
+}
+.history-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--gap-3);
+}
+.history-chart-card {
+  padding: var(--gap-2) var(--gap-3);
+  border-radius: var(--radius-m);
+  background: var(--ink-800);
+}
+.history-chart-title {
+  margin-bottom: 2px;
+  color: var(--muted);
+  font: 700 var(--fs-s) var(--font-ui);
+}
+.history-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.history-section-title {
+  margin: var(--gap-4) 0 var(--gap-2);
+  color: var(--muted);
+  font: 700 var(--fs-xs) var(--font-ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.history-timeline {
+  display: flex;
+  flex-direction: column;
+}
+.history-event {
+  display: flex;
+  gap: var(--gap-3);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--ink-700);
+  font: var(--fs-s) var(--font-ui);
+}
+.history-event-date {
+  flex: 0 0 96px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.history-event-achievement .history-event-text {
+  color: var(--brass);
+}
+.history-event-bankrupt .history-event-text,
+.history-event-contractFailed .history-event-text {
+  color: var(--signal);
+}
+.history-empty {
+  padding: var(--gap-3) 0;
+  color: var(--muted);
+}
+.achievement-row.locked {
+  opacity: 0.55;
+}
+.achievement-row.unlocked .card-thumb {
+  color: var(--brass);
+}

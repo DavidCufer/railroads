@@ -5237,3 +5237,25 @@ The remaining rows were not re-run. Only Hard changed and the new rule never fir
 
 **Checks:** `npm run check` 815 tests pass, 16 new in `tests/sim/contracts.test.ts`; e2e 222 passed plus the two fixes (separate badge class, toggle position) re-run green; `e2e/phase45.spec.ts` screenshots `docs/screenshots/phase-45-{toast,offers,accepted}.png` viewed.
 
+
+## 2026-10-13 - Phase 46: Scenarios, achievements, company history (items 1-4 done)
+**What:** (1) five scenarios (`src/data/scenarios.ts`, `src/sim/scenario/`): the title screen's Scenarios list with best stars (profile in `localStorage`, `src/save/profile.ts`), a scenario card in the Goals panel, a win/lose card in the game-over style, `state.scenario` saved with the game. (2) 25 achievements (`src/data/achievements.ts`, checks in `src/sim/history/achievements.ts`): one toast per batch, a list on the title screen and in the in-game menu, kept in the profile and in `state.history`. (3) company history (`state.history`: yearly snapshots, timeline events, delivered totals): a full-screen overlay with three cached canvas charts and the timeline, from the menu and from the game-over / scenario cards. (4) tests `tests/sim/scenarios.test.ts`, `tests/sim/history.test.ts`; `e2e/phase46.spec.ts`; screenshots `docs/screenshots/phase-46-*.png` (all looked at); SPEC 11c and 11d.
+
+**Decisions (no questions asked):**
+- Stars: 1 for finishing in time; +1 for finishing by an early year and +1 for ending with a net worth (survival: two net worth levels). Without the net-worth star a company that builds a line at once would always get full marks (track is cheap).
+- Coal for Vienna became **Coal for Trieste**, 6,000 t (cities take no coal; a steel mill stops accepting it when its stock is full, so deliveries froze after the first trips; a mine makes 60 t a month). Silver rush is **200 t** by 1890, not 500 (the chain is 94+139 tiles; ten years deliver ~250 t). Panic of 1873 asks for debt **under $500k**: lenders call the loans in the panic, so an idle company paid everything off and won at $2M. No scenario starts with built track (not needed).
+- History is saved without a version bump; an older save starts its history at load and announces nothing already there. History code only reads state, so it cannot change a game.
+- Achievement date in the profile is the real date; "bridge builder" counts bridge edges; "survived a panic" needs a train when it ends.
+- Added `__game.startScenario(id)` (debug) and `SCENARIO=<id> MAXPAIRS KEEP` to `tools/bench/goodPlayer.ts`; `tools/bench/scenarioBot.ts` (CLI) / `scenarioRun.ts` (importable).
+
+**Verified beatable runs** (`npx tsx tools/bench/scenarioBot.ts <id> play`, and goodPlayer for the panic); the do-nothing run loses every scenario (a unit test):
+| Scenario | Scripted run | Result |
+|---|---|---|
+| Semmering | one direct Vienna-Trieste line (89 tiles, $519k) + 2 trains | won in Jan 1850, 2 stars (net worth $440k < $550k) |
+| Panic of 1873 | `SCENARIO=panic1873 MAXPAIRS=2 KEEP=200000` (two lines, repay all debt) | won, 3 stars, NW $4.87M; 1 line: 2 stars $4.38M; the default expanding bot goes **bankrupt in 1873** |
+| Coal for Trieste | mine 28 tiles from the port, 2-3 coal trains | won 1864, 1 star (6,031 t, NW $2.8M) |
+| Transcontinental | one direct Sacramento-Salt Lake line (124 tiles, $630k) | won Jan 1860, 2 stars (NW $585k < $800k) |
+| Silver rush | mine-smelter-mint, 2 ore + 2 bar trains, ~$2M of track | won 1888, 1 star (206 t, NW $2.7M) |
+Three stars are reachable only where measured (Panic); the others need earning before building, not run by a bot.
+
+**Checks:** `npm run check` 842 tests pass; `npm run e2e` all pass (the Jan 1 drag test failed once because a stack of achievement toasts covered the drag point: fixed by one toast per batch).

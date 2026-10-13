@@ -16,6 +16,7 @@ import type { NewsItem } from "../sim/news";
 import type { Goal } from "../sim/goals/types";
 import type { ContractsState } from "../sim/contracts/types";
 import type { ScenarioRun } from "../sim/scenario";
+import type { HistoryState } from "../sim/history";
 import type { RegionId } from "../sim/regions";
 import type { PendingCityFounding } from "../sim/regions";
 import type { TrackEdge } from "../sim/track/types";
@@ -149,6 +150,8 @@ interface SerializedGameStateBase<TTrain> {
   contracts?: ContractsState;
   /** Added in Phase 46 without a version bump: absent = not a scenario game. */
   scenario?: ScenarioRun;
+  /** Added in Phase 46 without a version bump: absent in older saves, whose history starts at load. */
+  history?: HistoryState;
 }
 
 export type SerializedGameStateV1 = SerializedGameStateBase<SerializedTrainV1>;

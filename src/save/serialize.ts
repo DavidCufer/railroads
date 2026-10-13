@@ -2,6 +2,7 @@
  * DOM-free (only `btoa`/`atob`, available in Node/vitest and every browser) — testable without
  * IndexedDB or a browser, per CLAUDE.md's "simulation code must be testable without a DOM". */
 import { createContractsState } from "../sim/contracts/types";
+import { createHistory } from "../sim/history";
 import { clampInputStocks } from "../sim/economy/processing";
 import { materializeAllJunctions } from "../sim/track/routes";
 import { emptyTrainProfit } from "../sim/trains/profit";
@@ -109,6 +110,7 @@ export function serializeGameState(state: GameState): SerializedGameStateV3 {
     cargoDeliveredBestYear: state.cargoDeliveredBestYear,
     contracts: state.contracts,
     ...(state.scenario ? { scenario: state.scenario } : {}),
+    history: state.history,
   };
 }
 
@@ -181,6 +183,7 @@ export function deserializeGameState(data: SerializedGameStateV3): GameState {
     cargoDeliveredBestYear: data.cargoDeliveredBestYear,
     contracts: data.contracts ?? createContractsState(data.seed),
     ...(data.scenario ? { scenario: data.scenario } : {}),
+    history: data.history ?? createHistory(),
   };
 
   const currentYear = calendarFromTicks(state.startYear, state.ticks).year;

@@ -165,7 +165,10 @@ import { autosave, exportSaveJson, latestSaveSlot, loadSlot } from "./save";
 import { createStatusBanner } from "./ui/statusBanner";
 import { openGameOver } from "./ui/gameOver";
 import { openScenarioEnd } from "./ui/scenarioEnd";
-import { recordScenarioStars } from "./save/profile";
+import { openHistoryScreen } from "./ui/historyScreen";
+import { openAchievementsScreen } from "./ui/achievementsScreen";
+import { achievementName } from "./ui/historyStrings";
+import { recordAchievement, recordScenarioStars, todayIso } from "./save/profile";
 import { scenarioDefOf } from "./sim/scenario";
 import { scenarioById, scenarioNewGameOptions } from "./data/scenarios";
 import { setStaleReservationReporter } from "./sim/trains";
@@ -323,6 +326,7 @@ function main(): void {
     if (state.scenario && state.scenario.status !== "won") return;
     loop.setSpeed(0);
     gameOverEl = openGameOver(ui, state, {
+      onHistory: () => openHistoryScreen(ui, state),
       onLoadLast: () => {
         void latestSaveSlot().then(async (slot) => {
           const loaded = slot ? await loadSlot(slot.slotId) : null;
@@ -341,6 +345,23 @@ function main(): void {
   }
 
   let scenarioEndShown = false;
+  /** Achievements already announced in this game (a loaded game starts with its own, announced silently). */
+  let seenAchievements = new Set<string>();
+
+  /** A new achievement (Phase 46): a one-line toast, and the profile remembers it across games. */
+  function announceAchievements(): void {
+    const fresh: string[] = [];
+    for (const id of Object.keys(state.history.achievements)) {
+      if (seenAchievements.has(id)) continue;
+      seenAchievements.add(id);
+      recordAchievement(id, todayIso());
+      fresh.push(id);
+    }
+    if (fresh.length === 0) return;
+    // One toast for the batch, so a burst of unlocks never stacks over the map.
+    const first = strings.achievements.toast(achievementName(fresh[0] as string));
+    showToast(ui, fresh.length > 1 ? strings.achievements.more(first, fresh.length - 1) : first);
+  }
 
   /** Scenario result (Phase 46): stop the clock and show the win/lose card once per game. */
   function showScenarioEndOnce(): void {
@@ -352,6 +373,7 @@ function main(): void {
     const def = scenarioDefOf(state);
     const card = openScenarioEnd(ui, state, {
       newBest,
+      onHistory: () => openHistoryScreen(ui, state),
       onRetry: () => {
         card?.remove();
         if (def) regenerate(scenarioNewGameOptions(def));
@@ -371,6 +393,8 @@ function main(): void {
   function applyState(newState: GameState): void {
     state = newState;
     scenarioEndShown = false;
+    seenAchievements = new Set(Object.keys(state.history.achievements));
+    for (const id of seenAchievements) recordAchievement(id, todayIso());
     camera.setMapSize(state.map.width, state.map.height);
     terrainRenderer.setMap(state.map, state.cities, state.industries);
     trackRenderer.setMap(state.map.width, state.map.height, state.trackGraph);
@@ -1301,6 +1325,7 @@ function main(): void {
       statusBanner.update(state);
       showGameOverOnce();
       showScenarioEndOnce();
+      announceAchievements();
 
       if (DEBUG && debugOverlay) {
         debugOverlay.textContent =
@@ -1342,6 +1367,8 @@ function main(): void {
         onOpenSettings: () => openSettingsOverlay(),
         onOpenRoster: () => openRosterSheet(ui, state),
         onOpenHelp: () => openHelpPanel(ui),
+        onOpenHistory: () => openHistoryScreen(ui, state),
+        onOpenAchievements: () => openAchievementsScreen(ui, state),
       }),
   });
   const toolbar = createToolbar(ui, (tool) => setTool(tool));

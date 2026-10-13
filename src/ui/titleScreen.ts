@@ -10,6 +10,7 @@ import { startTitleBackground, type TitleBackgroundHandle } from "../render/titl
 import { renderNewGameScreen } from "./newGameScreen";
 import { renderSaveLoadScreen } from "./saveLoadScreen";
 import { renderScenariosScreen } from "./scenariosScreen";
+import { renderAchievementsScreen } from "./achievementsScreen";
 import { renderSettingsScreen } from "./settingsScreen";
 import { h } from "./h";
 import { icon } from "./icons";
@@ -64,6 +65,7 @@ export function openTitleScreen(
       newGameBtn,
       h("button", { className: "title-btn", onClick: showScenarios }, t.scenarios),
       h("button", { className: "title-btn", onClick: showLoad }, t.loadGame),
+      h("button", { className: "title-btn", onClick: showAchievements }, t.achievements),
       h("button", { className: "title-btn", onClick: showSettings }, t.settings),
     );
 
@@ -135,6 +137,10 @@ export function openTitleScreen(
         },
       }),
     );
+  }
+
+  function showAchievements(): void {
+    root.replaceChildren(renderAchievementsScreen(showMenu));
   }
 
   function showLoad(): void {
