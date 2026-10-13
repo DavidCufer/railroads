@@ -1,8 +1,8 @@
 # Play-test 5 — summary (verified)
 
-Seven Haiku play-testers. The first round wrote 4 reports (`pt5-newcomer`, `pt5-passenger`, `pt5-hard`, `pt5-lategame`).
-The other 3 (`freight`, `reckless`, `ux`) were stuck on a permission prompt and were restarted as PT5b; their
-findings will be added here. Each claim below was checked against the code or re-run before it was listed.
+Seven Haiku play-testers wrote reports: `pt5-newcomer`, `pt5-passenger`, `pt5-hard` and `pt5-lategame` in the first
+round, then `pt5-freight`, `pt5-reckless` and `pt5-ux` in PT5b. The PT5b testers were restarted after the first
+round got stuck on a permission prompt. Each claim below was checked against the code or re-run before it was listed.
 
 ## Verified findings (most important first)
 
@@ -23,7 +23,17 @@ findings will be added here. Each claim below was checked against the code or re
 5. **No visible goal in free play** (newcomer; plausible). The first tip says how to lay track, not what you are
    trying to do. A one-line goal tip could fix this.
 6. **Scenario 3-star targets are mostly unmeasured** (from the Phase 46 builder's notes). Only *Panic of 1873* was
-   shown to reach 3 stars. The freight tester (PT5b) checks *Coal for Trieste*.
+   shown to reach 3 stars. The freight tester did not actually play *Coal for Trieste*, so this is still open.
+7. **The game-over card says "0 years of railroading"** for a game that ended within its first year (ux, reckless;
+   seen in `pt5-reckless-bankruptcy-card-visible.png`). It reads harsh. "8 months" would be clearer. Small fix.
+
+## Confirmed working (PT5b)
+
+- **Reckless play goes bankrupt quickly on Normal** (reckless, from its printed script output). Central Europe 1870
+  went bankrupt in 1875. *Panic of 1873* played recklessly failed in 1873.
+- **The bankruptcy card and the scenario-failed card are clear:** headline, reason, goal restated, and retry, autosave
+  or history buttons (screenshots `pt5-reckless-*`).
+- **Smooth at 8×** with no layout breakage (ux). The zero-cash state does not lock the menu (ux).
 
 ## Rejected (wrong or out of date)
 
@@ -34,8 +44,17 @@ findings will be added here. Each claim below was checked against the code or re
 - "Oil shocks are not visible" (lategame): false. Panic news and the banner show "fuel +N %".
 - The lategame net-worth timeline and "1950 start cash too low": no script or screenshot backs them. Not trusted.
 
+- "Contracts don't exist / aren't surfaced" (freight): false. Phase 45 contracts are in the game. The whole freight
+  report is "projected" from old bench numbers, with no play, so none of it is used.
+- "Reckless bot went bankrupt with $0 loans" (reckless): probably the bot read the wrong field. The game takes a forced
+  loan up to the credit limit before counting insolvent months (`ledger.ts` monthly step). Not a bug.
+- "Menu is clipped at the bottom" (ux): it is a scrolling list whose next row peeks out, which is the usual scroll hint.
+- "Station/train panels don't exist" (ux): they exist. The tester called debug functions that were never defined.
+
 ## Notes on the testers
 
 - Haiku testers often skipped real play: the newcomer stayed idle, and the hard tester re-told PT4.
 - Some invented numbers (the lategame timeline).
-- PT5b prompts now require printed evidence for every number.
+- PT5b prompts required printed evidence for every number. Reckless followed it; freight ignored it.
+- Haiku is good for smoke tests and screenshots of flows, and weak at judging balance. Balance questions are better
+  answered by the bench bots in `tools/bench`.
