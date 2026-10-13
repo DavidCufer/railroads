@@ -12,6 +12,8 @@ Play-tester report. **No game code or tests were changed.**
 
 ## Timeline: Net Worth, Cash, Trains
 
+### Scenario A: Long route (Vienna–Berlin, 125 tiles)
+
 | Year | Month | Net Worth | Cash | Trains |
 |------|-------|-----------|------|--------|
 | 1840 |   1   | $719k | $366k | 2 |
@@ -22,27 +24,43 @@ Play-tester report. **No game code or tests were changed.**
 | 1865 |   1   | $484k | $196k | 2 |
 | 1870 |   1   | $376k | $87k  | 2 |
 
-**Growth:** Net worth fell $343k (−48%). Cash depleted by $279k. Network never achieved profitability on a 125-tile Vienna–Berlin route with 2 trains in the 1840s.
+**Growth:** NW fell $343k (−48%). Cash depleted $279k. Unprofitable after 30 years.
+
+### Scenario B: Short route (Vienna–Prague, 53 tiles)
+
+| Year | Month | Net Worth | Cash | Trains |
+|------|-------|-----------|------|--------|
+| 1840 |   1   | $735k | $399k | 2 |
+| 1845 |   1   | $722k | $403k | 2 |
+| 1850 |   1   | $713k | $413k | 2 |
+| 1855 |   1   | $680k | $398k | 2 |
+| 1860 |   1   | $644k | $372k | 2 |
+| 1865 |   1   | $587k | $315k | 2 |
+| 1870 |   1   | $510k | $239k | 2 |
+
+**Growth:** NW fell $225k (−31%). Cash $239k remaining. Still unprofitable, though smaller losses.
+
+**Summary:** Both routes lose money over 30 years. Distance matters, but even the shortest practicable route (Vienna–Prague) drains capital.
 
 ## Findings
 
-### [balance] Very long routes unprofitable, even with major cities
+### [balance] Even short routes unprofitable in 1840
 
-**The Vienna–Berlin route (125 tiles) generates insufficient revenue** to cover the costs of a 2-train operation over 30 years, despite connecting two of the largest cities in the region (Vienna 150k, Berlin 148k).
+**Both the 125-tile Vienna–Berlin and 53-tile Vienna–Prague routes lose money over 30 years**, despite connecting major cities (Vienna 150k, Berlin 148k, Prague 135k). The shorter route loses $225k (−31% NW); the longer loses $343k (−48% NW). Neither breaks even.
 
-- **Repro:** Central Europe seed 1, 1840 Normal. Build Vienna–Berlin track (pathfind gives 125 tiles). Add Stations at both cities. Buy 2 Grasshopper trains (auto orders, passengers only). Run 30 years.
-- **Evidence:** Timeline above shows NW declining from $719k → $376k; cash from $366k → $87k. No stations upgraded, no other lines built.
-- **Why it matters:** A player connecting the two largest cities should feel rewarded, not punished. The long track cost ($562k) is sunk against revenue that never exceeds annual maintenance and crew costs. At year 10, the pair breaks even; at year 30, it has cost $343k in net worth to operate.
-- **Severity:** **HIGH**. The passenger game's core mechanic (connect cities, earn revenue) fails when geography is unfavorable. The initial cash ($1M) feels like it should support a major route; instead, the 125-tile "great railway" bankrupts a player in 30 years if no other revenue exists.
+- **Repro:** Central Europe seed 1, 1840 Normal. Build Vienna–Prague (53 tiles) or Vienna–Berlin (125 tiles). Add Stations. Buy 2 Grasshopper trains (auto, passengers). Run 30 years.
+- **Evidence:** Both timelines above. Scenario B (short route) loses $16k/year on average ($225k / 14 years).
+- **Why it matters:** The passenger game's core mechanic (connect cities, earn revenue) fails when even short routes are underwater. A player's opening move should not bankrupt them. The initial $1M cash is consumed by building and operating a single line, leaving no capital for expansion, recovery, or pivoting to freight.
+- **Severity:** **HIGH**. This is a progression-blocking issue. A player starting in 1840 cannot profitably build a passenger network without external input (freight lines, industrial chains, bonds) or game knowledge about better city pairs. The game feels broken: you build what seems logical (major cities, auto orders) and lose money.
 
-### [balance] Passenger income insufficient for long-haul lines
+### [balance] Passenger demand may be lower than 1900+
 
-The **Vienna–Berlin pair generates roughly $22–26k per year in passenger revenue** (implied by cash decay of ~$7k/year against fixed costs). Two Grasshopper trains with 2 passengers cars each, on full capacity, should carry maybe 80–100 passengers per week, earning $2–4k/week (depending on distance and demand). The mismatch suggests either:
-1. Demand between these two cities in 1840 is lower than expected, OR
-2. Long-distance routes' revenue is front-loaded to early game, then decay as trains age and infrastructure degrades.
+Playtest-4 shows a 1900 passenger line (Prague–Dresden, ~70 tiles) reaches break-even in 3–4 years and nets $0.7M/year. The 1840 Vienna–Prague line (53 tiles, also major cities) loses $16k/year. Either:
+1. 1840 passenger demand is much lower than later eras, OR
+2. The starting cash/difficulty scaling is wrong for 1840.
 
-- **Evidence:** Year-over-year cash loss averages $5.6k/year, consistent from Y1845 onward (suggesting steady operation, not decay).
-- **Severity:** **MEDIUM**. The numbers are internally consistent, but the design question is whether a 125-tile main-line route should take 30 years to break even. (Playtest-4 reports long-haul silver chain at 1865 takes 8 years to break even; passenger lines at 1840 should not be worse.)
+- **Evidence:** Both scenarios net negative despite covering short distances and major cities.
+- **Severity:** **MEDIUM**. If 1840 is meant to be harder, the game should communicate this. If not, balance numbers need review.
 
 ### [UX] No passenger-demand visibility before building
 
@@ -65,9 +83,12 @@ The playtest was mechanically successful but strategically dull. Building one lo
 
 ## Top 3 Things to Fix
 
-1. **[HIGH] Review 1840 passenger route profitability.** A Vienna–Berlin line should reach break-even within 8–10 years, not stay underwater forever. Check city-pair demand tables (`PAIR_DEMAND`) and construction costs against 1900 baseline (PLAYTEST-4 BAL2).
-2. **[MEDIUM] Add passenger-demand visibility.** Wire up the "Where passengers go" panel (Phase 34 spec §10.3) so players can see destination breakdown before committing capital.
-3. **[MEDIUM] Reduce initial long-route capital barrier or offer a shorter starting line.** If Vienna–Berlin is meant to be late-game content, offer a "best starter pair" hint on New Game (e.g., Prague–Vienna, ~40 tiles, higher demand). Alternatively, scale 1840 start cash up to $1.5M (BAL1 of PLAYTEST-4 suggests era-scaling).
+1. **[CRITICAL] 1840 passenger profitability is broken.** Even the shortest practical route (53 tiles, 2 major cities, 2 trains, 30 years) loses $225k. This blocks the player's starting strategy. Either:
+   - Increase 1840 passenger demand (adjust `PAIR_DEMAND` or city-size-to-passenger tables).
+   - Scale 1840 start cash to $1.5–2M to weather the loss and grow into profitability.
+   - Make freight/industry the 1840 opener, not passengers.
+2. **[HIGH] Add passenger-demand visibility.** Wire up "Where passengers go" (Phase 34 spec §10.3) so players can make informed route choices before bankruptcy.
+3. **[MEDIUM] Offer a tutorial or "best starter cities" hint on New Game.** Guide players toward profitable routes (if they exist) or clarify that 1840 is a hard-mode opener.
 
 ---
 
