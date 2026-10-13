@@ -44,6 +44,7 @@ import type { Station } from "../stations/types";
 import { hasImprovement, stationLoadSpeedMult, transferStorageCap } from "../stations/improvements";
 import { stationAtTile, stationCatchmentTiles } from "../stations/placement";
 import { recordContractDelivery } from "../contracts/progress";
+import { recordScenarioDelivery } from "../scenario";
 import { tileXY } from "./geometry";
 import type { Train, TrainCar, TrainOrder } from "./types";
 
@@ -398,6 +399,7 @@ function settleUnload(state: GameState, train: Train, station: Station, car: Tra
     // the same moment it earns revenue — a delivery too short to pay out doesn't count either.
     state.cargoDeliveredThisYear[cargo] = (state.cargoDeliveredThisYear[cargo] ?? 0) + carloads;
     recordContractDelivery(state, station, cargo, unitsDelivered, car.loadedTile);
+    recordScenarioDelivery(state, station, cargo, unitsDelivered);
   }
 
   if (unitsDelivered > 0)

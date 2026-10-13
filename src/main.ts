@@ -164,6 +164,10 @@ import { openTitleScreen } from "./ui/titleScreen";
 import { autosave, exportSaveJson, latestSaveSlot, loadSlot } from "./save";
 import { createStatusBanner } from "./ui/statusBanner";
 import { openGameOver } from "./ui/gameOver";
+import { openScenarioEnd } from "./ui/scenarioEnd";
+import { recordScenarioStars } from "./save/profile";
+import { scenarioDefOf } from "./sim/scenario";
+import { scenarioById, scenarioNewGameOptions } from "./data/scenarios";
 import { setStaleReservationReporter } from "./sim/trains";
 import { App } from "@capacitor/app";
 import { loadSettings, type Settings } from "./ui/settings";
@@ -315,6 +319,8 @@ function main(): void {
   /** Bankruptcy (Phase 39): stop the clock and show the game-over card once per game. */
   function showGameOverOnce(): void {
     if (gameOverEl || !state.finance.bankrupt) return;
+    // A scenario that is still running or already lost shows its own card (within a day of the bankruptcy).
+    if (state.scenario && state.scenario.status !== "won") return;
     loop.setSpeed(0);
     gameOverEl = openGameOver(ui, state, {
       onLoadLast: () => {
@@ -334,8 +340,37 @@ function main(): void {
     });
   }
 
+  let scenarioEndShown = false;
+
+  /** Scenario result (Phase 46): stop the clock and show the win/lose card once per game. */
+  function showScenarioEndOnce(): void {
+    const run = state.scenario;
+    if (scenarioEndShown || !run || run.status === "active") return;
+    scenarioEndShown = true;
+    loop.setSpeed(0);
+    const newBest = run.status === "won" && recordScenarioStars(run.id, run.stars);
+    const def = scenarioDefOf(state);
+    const card = openScenarioEnd(ui, state, {
+      newBest,
+      onRetry: () => {
+        card?.remove();
+        if (def) regenerate(scenarioNewGameOptions(def));
+      },
+      onScenarios: () => {
+        card?.remove();
+        openTitleScreen(
+          ui,
+          { onStart: (options) => regenerate(options), onLoad: (loaded) => loadGame(loaded) },
+          "scenarios",
+        );
+      },
+      onKeepPlaying: () => card?.remove(),
+    });
+  }
+
   function applyState(newState: GameState): void {
     state = newState;
+    scenarioEndShown = false;
     camera.setMapSize(state.map.width, state.map.height);
     terrainRenderer.setMap(state.map, state.cities, state.industries);
     trackRenderer.setMap(state.map.width, state.map.height, state.trackGraph);
@@ -370,13 +405,18 @@ function main(): void {
    * isn't being freshly generated, so `currentOptions` is only a best-effort guess (only used by
    * the `?debug=1`-only regenerate control, never reachable from a real loaded game). */
   function loadGame(loaded: GameState): void {
-    currentOptions = loaded.regionId
-      ? { seed: loaded.seed, region: loaded.regionId }
-      : { seed: loaded.seed, size: "medium", waterLevel: "normal", roughness: "normal" };
+    const loadedScenario = scenarioDefOf(loaded);
+    currentOptions = loadedScenario
+      ? scenarioNewGameOptions(loadedScenario)
+      : loaded.regionId
+        ? { seed: loaded.seed, region: loaded.regionId }
+        : { seed: loaded.seed, size: "medium", waterLevel: "normal", roughness: "normal" };
     // Phase 38: a save's queued news and delivery labels are old; don't replay them as toasts.
     loaded.pendingNews.length = 0;
     loaded.pendingDeliveries.length = 0;
     applyState(loaded);
+    // A finished scenario is not announced again on load.
+    if (loaded.scenario && loaded.scenario.status !== "active") scenarioEndShown = true;
     const centre = networkCentre(state);
     if (centre) focusTile({ x: Math.round(centre.x), y: Math.round(centre.y) });
   }
@@ -1260,6 +1300,7 @@ function main(): void {
       topBar.setStuckCount(stuckTrains(state).length);
       statusBanner.update(state);
       showGameOverOnce();
+      showScenarioEndOnce();
 
       if (DEBUG && debugOverlay) {
         debugOverlay.textContent =
@@ -1394,6 +1435,8 @@ function main(): void {
             region?: RegionId;
             difficulty?: Difficulty;
           }) => void;
+          /** Debug (Phase 46): starts a scenario by id. */
+          startScenario: (id: string) => void;
           camera: {
             getZoom: () => number;
             setZoom: (zoom: number) => void;
@@ -1616,6 +1659,10 @@ function main(): void {
           ? { seed: options.seed, size: "medium", waterLevel: "normal", roughness: "normal" }
           : { ...currentOptions, ...options, region: undefined };
         regenerate(base);
+      },
+      startScenario: (id) => {
+        const def = scenarioById(id);
+        if (def) regenerate(scenarioNewGameOptions(def));
       },
       camera: {
         getZoom: () => camera.zoom,

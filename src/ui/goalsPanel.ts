@@ -9,6 +9,8 @@ import { evaluateGoals } from "../sim/goals/evaluate";
 import type { Goal } from "../sim/goals/types";
 import type { GameState } from "../sim/state";
 import { describeGoal, goalTargetYear } from "./goalStrings";
+import { scenarioDefOf, scenarioProgress } from "../sim/scenario";
+import { scenarioGoalLine, scenarioName, scenarioStarsLine } from "./scenarioStrings";
 import { footerButton } from "./components/footer";
 import { emptyState } from "./components/emptyState";
 import { meter } from "./components/meter";
@@ -57,13 +59,47 @@ function goalCard(state: GameState, status: ReturnType<typeof evaluateGoals>[num
   );
 }
 
+/** The scenario's goal and progress (Phase 46), above the region's bronze/silver/gold goals. */
+function scenarioCard(state: GameState): HTMLElement | null {
+  const def = scenarioDefOf(state);
+  const progress = scenarioProgress(state);
+  const run = state.scenario;
+  if (!def || !progress || !run) return null;
+  const t = strings.scenarios;
+  const money = def.goal.type === "survive";
+  const fmt = (n: number): string =>
+    money ? formatMoney(n) : Math.round(n).toLocaleString("en-US");
+  const label = run.status === "won" ? t.stars(run.stars) : run.status === "lost" ? t.lost : "";
+  return h(
+    "div",
+    { className: "scenario-panel-card", "data-testid": "scenario-card" },
+    h("div", { className: "goal-desc" }, `${scenarioName(def.id)} · ${scenarioGoalLine(def)}`),
+    def.goal.type === "connect"
+      ? null
+      : meter(
+          progress.current,
+          progress.target,
+          def.goal.type !== "survive"
+            ? "brass"
+            : progress.current < progress.target
+              ? "go"
+              : "signal",
+          t.progress(fmt(progress.current), fmt(progress.target)),
+        ),
+    h("div", { className: "goal-sub" }, scenarioStarsLine(def), label ? ` · ${label}` : ""),
+  );
+}
+
 export function openGoalsPanel(container: HTMLElement, state: GameState): void {
   const statuses = evaluateGoals(state);
   const done = statuses.filter((s) => s.complete).length;
-  const body: Node[] =
-    statuses.length === 0
+  const scenario = scenarioCard(state);
+  const body: Node[] = [
+    ...(scenario ? [scenario] : []),
+    ...(statuses.length === 0
       ? [emptyState(strings.goals.none, "goals")]
-      : statuses.map((status) => goalCard(state, status));
+      : statuses.map((status) => goalCard(state, status))),
+  ];
   openPanel(container, {
     title: strings.goals.title,
     subtitle: statuses.length > 0 ? strings.goals.doneCount(done, statuses.length) : undefined,

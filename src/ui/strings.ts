@@ -969,8 +969,62 @@ export const strings = {
     noSave: "No earlier autosave to load.",
     newGame: "New game",
   },
+  /** Phase 46: company history. */
+  history: {
+    button: "History",
+  },
+  /** Phase 46: scenarios. */
+  scenarios: {
+    title: "Scenarios",
+    start: "Start",
+    best: (stars: number) => (stars > 0 ? "★".repeat(stars) + "☆".repeat(3 - stars) : "Not played"),
+    stars: (n: number) => "★".repeat(n) + "☆".repeat(3 - n),
+    deadline: (year: number) => `By ${year}`,
+    items: {
+      semmering: {
+        name: "The Semmering line",
+        blurb: "Connect Vienna to Trieste over the Alps by 1857.",
+      },
+      panic1873: {
+        name: "Panic of 1873",
+        blurb: "Start deep in debt and survive to 1878 with debt below $500k.",
+      },
+      coalTrieste: {
+        name: "Coal for Trieste",
+        blurb: "Deliver 6,000 t of coal to the Trieste docks by 1866.",
+      },
+      transcontinental: {
+        name: "Transcontinental",
+        blurb: "Connect Sacramento to Salt Lake City by 1869.",
+      },
+      silverRush: {
+        name: "Silver rush",
+        blurb: "Deliver 200 t of silver bars to the Mint by 1890.",
+      },
+    } as Record<string, { name: string; blurb: string }>,
+    goalLine: {
+      connect: (cities: string, year: number) => `Connect ${cities} by ${year}`,
+      survive: (year: number, debt: string) => `Survive to ${year} with debt below ${debt}`,
+      deliver: (amount: string, cargo: string, year: number) =>
+        `Deliver ${amount} of ${cargo} by ${year}`,
+    },
+    progress: (current: string, target: string) => `${current} of ${target}`,
+    panelTitle: "Scenario",
+    won: "Scenario complete",
+    lost: "Scenario failed",
+    reasons: {
+      deadline: "The deadline passed.",
+      bankrupt: "The company went bankrupt.",
+      debt: "Debt was still above the limit.",
+    },
+    newBest: "New best!",
+    keepPlaying: "Keep playing",
+    retry: "Try again",
+    toScenarios: "Scenarios",
+  },
   titleScreen: {
     gameTitle: "Railroads",
+    scenarios: "Scenarios",
     newGame: "New Game",
     continue: "Continue",
     loadGame: "Load Game",

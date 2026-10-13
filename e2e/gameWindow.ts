@@ -51,6 +51,7 @@ export interface GameWindow {
     region?: string;
     difficulty?: string;
   }) => void;
+  startScenario: (id: string) => void;
   camera: {
     getZoom: () => number;
     setZoom: (zoom: number) => void;

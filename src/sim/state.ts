@@ -20,6 +20,8 @@ import { getRegion, loadRegion, type PendingCityFounding, type RegionId } from "
 import { createGoalsForNewGame } from "./goals/generate";
 import type { Goal } from "./goals/types";
 import { createContractsState, type ContractsState } from "./contracts/types";
+import { applyScenarioStart, type ScenarioRun } from "./scenario";
+import { scenarioById } from "../data/scenarios";
 
 /** A station's waiting pile for one cargo type (SPEC §6.3). */
 export interface StationCargoPile {
@@ -155,12 +157,16 @@ export interface GameState {
   cargoDeliveredBestYear: Partial<Record<CargoType, number>>;
   /** Contract offers, accepted contracts and their stats (Phase 45, src/sim/contracts). */
   contracts: ContractsState;
+  /** The scenario this game was started from (Phase 46), if any. */
+  scenario?: ScenarioRun;
 }
 
 interface BaseNewGameOptions {
   seed: number;
   startYear?: number;
   difficulty?: Difficulty;
+  /** Phase 46: start from this scenario (src/data/scenarios.ts) - cash, opening debt and the goal come from it. */
+  scenarioId?: string;
 }
 
 /** A freshly-generated random map (SPEC §4.2). */
@@ -253,5 +259,7 @@ export function createGameState(options: NewGameOptions): GameState {
     contracts: createContractsState(options.seed),
   };
   state.goals = createGoalsForNewGame(state, regionId);
+  const scenario = options.scenarioId ? scenarioById(options.scenarioId) : undefined;
+  if (scenario) applyScenarioStart(state, scenario);
   return state;
 }

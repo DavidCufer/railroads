@@ -9,6 +9,7 @@ import { latestSaveSlot, loadSlot, OldMapScaleError } from "../save";
 import { startTitleBackground, type TitleBackgroundHandle } from "../render/titleBackground";
 import { renderNewGameScreen } from "./newGameScreen";
 import { renderSaveLoadScreen } from "./saveLoadScreen";
+import { renderScenariosScreen } from "./scenariosScreen";
 import { renderSettingsScreen } from "./settingsScreen";
 import { h } from "./h";
 import { icon } from "./icons";
@@ -29,7 +30,11 @@ function reportLoadFailure(err: unknown): void {
 
 /** Mounts the title screen into `container` and returns a function that removes it — call after
  * `onStart`/`onLoad` fires so the game underneath is visible. */
-export function openTitleScreen(container: HTMLElement, handlers: TitleScreenHandlers): void {
+export function openTitleScreen(
+  container: HTMLElement,
+  handlers: TitleScreenHandlers,
+  screen?: "scenarios",
+): void {
   const root = h("div", { className: "title-screen" });
   container.appendChild(root);
 
@@ -57,6 +62,7 @@ export function openTitleScreen(container: HTMLElement, handlers: TitleScreenHan
       "div",
       { className: "title-btn-grid" },
       newGameBtn,
+      h("button", { className: "title-btn", onClick: showScenarios }, t.scenarios),
       h("button", { className: "title-btn", onClick: showLoad }, t.loadGame),
       h("button", { className: "title-btn", onClick: showSettings }, t.settings),
     );
@@ -118,6 +124,19 @@ export function openTitleScreen(container: HTMLElement, handlers: TitleScreenHan
     );
   }
 
+  function showScenarios(): void {
+    root.replaceChildren(
+      renderScenariosScreen({
+        onBack: showMenu,
+        onStart: (options: NewGameOptions) => {
+          stopBackground();
+          handlers.onStart(options);
+          root.remove();
+        },
+      }),
+    );
+  }
+
   function showLoad(): void {
     root.replaceChildren(
       renderSaveLoadScreen({
@@ -143,4 +162,5 @@ export function openTitleScreen(container: HTMLElement, handlers: TitleScreenHan
   }
 
   showMenu();
+  if (screen === "scenarios") showScenarios();
 }

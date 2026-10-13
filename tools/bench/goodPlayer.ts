@@ -37,6 +37,7 @@ import { ERA_START_CASH_MULT } from "../../src/data/finance";
 if (process.env["ERAMULT"] === "off") (ERA_START_CASH_MULT as unknown as unknown[][]).length = 0;
 import { fixWeightBridges } from "./fixBridges";
 import { createGameState } from "../../src/sim/state";
+import { scenarioById, scenarioNewGameOptions } from "../../src/data/scenarios";
 import { advanceOneHour } from "../../src/sim/tick";
 import { findBuildPath } from "../../src/sim/track/pathfind";
 import { buyableLocomotivesIn, locomotiveById } from "../../src/data/trains";
@@ -55,11 +56,14 @@ type AnyFn = (...args: never[]) => unknown;
 const optional = (name: string): AnyFn | undefined =>
   (commands as unknown as Record<string, AnyFn>)[name];
 
-const region = (process.argv[2] ?? "central-eu") as "central-eu";
-const startYear = Number(process.argv[3] ?? 1900);
-const difficulty = (process.argv[4] ?? "normal") as "easy" | "normal" | "hard";
+// SCENARIO=<id> plays a Phase 46 scenario (its region, seed, year, cash and debt) until it ends.
+const scenarioDef = process.env["SCENARIO"] ? scenarioById(process.env["SCENARIO"]) : undefined;
+const region = (scenarioDef?.region ?? process.argv[2] ?? "central-eu") as "central-eu";
+const startYear = scenarioDef?.startYear ?? Number(process.argv[3] ?? 1900);
+const difficulty = (scenarioDef?.difficulty ?? process.argv[4] ?? "normal") as
+  "easy" | "normal" | "hard";
 const endYear = Number(process.argv[5] ?? startYear + 16);
-const seed = Number(process.argv[6] ?? 1);
+const seed = scenarioDef?.seed ?? Number(process.argv[6] ?? 1);
 
 // land prices exist from Phase 30A on; older builds have no such module
 const landPricesFn: ((s: GameState) => unknown) | undefined =
@@ -68,7 +72,9 @@ const landPricesFn: ((s: GameState) => unknown) | undefined =
     () => undefined,
   );
 
-const state = createGameState({ seed, region, startYear, difficulty });
+const state = createGameState(
+  scenarioDef ? scenarioNewGameOptions(scenarioDef) : { seed, region, startYear, difficulty },
+);
 
 const DAY = 24;
 const year = (): number => startYear + Math.floor(state.ticks / (DAY * 360));
@@ -119,7 +125,12 @@ function ensureCash(needed: number): boolean {
 function repayIfRich(): void {
   const repay = optional("repayLoan") as ((s: GameState, n: number) => unknown) | undefined;
   if (!repay) return;
-  while (state.finance.loans >= 100_000 && state.cash > state.finance.loans + 1_500_000) {
+  // KEEP=<cash> repays whenever cash is above it (a cautious scenario player); the default keeps loans + $1.5M
+  while (
+    state.finance.loans >= 100_000 &&
+    state.cash >
+      (process.env["KEEP"] ? Number(process.env["KEEP"]) : state.finance.loans + 1_500_000)
+  ) {
     if (!ok(repay(state, 100_000))) break;
   }
 }
@@ -290,8 +301,10 @@ function yearlyPlanning(): void {
     .filter((x): x is { c: City; hub: City; d: number; score: number } => x !== null && x.d <= 70)
     .sort((p, q) => q.score - p.score);
   let built = 0;
+  // MAXPAIRS=<n>: stop opening new lines once n exist (a cautious scenario player)
+  const maxPairs = Number(process.env["MAXPAIRS"] ?? Infinity);
   for (const cand of candidates) {
-    if (built >= 2) break;
+    if (built >= 2 || pairs.length >= maxPairs) break;
     const r = tryConnect(cand.c, cand.hub);
     if (r === "built") built++;
     else if (r === "failed") failedCities.add(cand.c.id);
@@ -415,9 +428,11 @@ for (let y = 1; startYear + y <= endYear; y++) {
       report.push(`BANKRUPT in ${year()}`);
       break;
     }
+    if (state.scenario && state.scenario.status !== "active") break;
   }
   if (wanted.has(y)) snapshot(`Jan ${startYear + y}`);
   if (state.finance.bankrupt) break;
+  if (state.scenario && state.scenario.status !== "active") break;
 }
 totalRevenue += ledgerRevenue(state.finance.lastYear);
 const cstats = (state as unknown as { contracts?: GameState["contracts"] }).contracts?.stats;
@@ -450,6 +465,10 @@ if (process.env["CONTRACTS"] && process.env["TRACE"]) {
       );
 }
 void STATION_TYPE_DEFS;
+if (state.scenario)
+  console.log(
+    `SCENARIO ${state.scenario.id}: ${state.scenario.status} stars ${state.scenario.stars} ${state.scenario.reason ?? ""} loans ${(state.finance.loans / 1e6).toFixed(2)}M NW ${(netWorth(state) / 1e6).toFixed(2)}M`,
+  );
 console.log(`# ${region} ${startYear} ${difficulty} seed ${seed}`);
 console.log(report.join("\n"));
 if (process.env.V) console.log(state.trains.map((t) => `${t.locoModelId}:${t.status}`).join(" "));

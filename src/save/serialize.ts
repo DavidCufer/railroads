@@ -108,6 +108,7 @@ export function serializeGameState(state: GameState): SerializedGameStateV3 {
     cargoDeliveredThisYear: state.cargoDeliveredThisYear,
     cargoDeliveredBestYear: state.cargoDeliveredBestYear,
     contracts: state.contracts,
+    ...(state.scenario ? { scenario: state.scenario } : {}),
   };
 }
 
@@ -179,6 +180,7 @@ export function deserializeGameState(data: SerializedGameStateV3): GameState {
     cargoDeliveredThisYear: data.cargoDeliveredThisYear,
     cargoDeliveredBestYear: data.cargoDeliveredBestYear,
     contracts: data.contracts ?? createContractsState(data.seed),
+    ...(data.scenario ? { scenario: data.scenario } : {}),
   };
 
   const currentYear = calendarFromTicks(state.startYear, state.ticks).year;

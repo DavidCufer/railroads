@@ -4870,3 +4870,35 @@ select {
   display: flex;
   gap: var(--gap-2);
 }
+
+/* Phase 46: scenarios */
+.scenario-stars {
+  margin-left: var(--gap-2);
+  color: var(--brass);
+  font-size: var(--fs-s);
+  letter-spacing: 1px;
+}
+.scenario-end-stars {
+  margin: 8px 0 4px;
+  color: var(--brass);
+  font: 700 28px var(--font-display);
+  letter-spacing: 4px;
+}
+.scenario-new-best {
+  display: block;
+  font: 700 var(--fs-s) var(--font-ui);
+  letter-spacing: 0;
+  color: var(--go);
+}
+.game-over-card.scenario-won h2 {
+  color: var(--go);
+}
+.scenario-panel-card {
+  padding: var(--gap-3);
+  border-radius: var(--radius-m);
+  background: var(--ink-700);
+  border: 1px solid var(--brass);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+}

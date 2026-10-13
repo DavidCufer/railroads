@@ -38,7 +38,7 @@ function connectorTiles(state: GameState, city: City): number[] {
 /** Whether every city in `cityIds` is on one mutually-reachable rail network — a BFS from any one
  * connector tile of the first city, checking every other city has a connector tile in the visited
  * set. A city not yet founded (future `foundingYear`, empty `tiles`) can never satisfy this. */
-function citiesConnectedByTrack(state: GameState, cityIds: number[]): boolean {
+export function citiesConnectedByTrack(state: GameState, cityIds: number[]): boolean {
   const cities = cityIds.map((id) => state.cities[id]).filter((c): c is City => c !== undefined);
   if (cities.length !== cityIds.length) return false;
   const connectorSets = cities.map((c) => connectorTiles(state, c));

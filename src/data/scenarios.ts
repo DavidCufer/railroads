@@ -1,0 +1,119 @@
+/**
+ * Scenarios (Phase 46, SPEC §11c): hand-made challenges on the shipped regions. Each has a fixed start (region, seed, year,
+ * difficulty, cash, opening debt), one goal and a deadline, and a 1-3 star rating. Best stars are kept in the player profile
+ * (src/save/profile.ts), outside any game save.
+ *
+ * Stars (`stars: [a, b]`): finishing in time is 1 star. For a goal with a year (connect, deliver) a second star for
+ * finishing by year `a` and a third for ending with net worth of at least `b`; for `survive` a second star for ending with
+ * net worth of at least `a` and a third for at least `b`.
+ */
+import type { CargoType } from "./cargo";
+import type { Difficulty } from "./finance";
+import type { RegionId } from "../sim/regions/types";
+
+export type ScenarioGoal =
+  | { type: "connect"; cities: string[]; byYear: number }
+  | { type: "survive"; untilYear: number; maxDebt: number }
+  | {
+      type: "deliver";
+      cargo: CargoType;
+      amount: number;
+      byYear: number;
+      /** Only deliveries at a station within `withinTiles` of this town count (its port). */
+      nearCity?: { name: string; withinTiles: number };
+    };
+
+export interface ScenarioDef {
+  id: string;
+  region: RegionId;
+  seed: number;
+  startYear: number;
+  difficulty: Difficulty;
+  /** Cash at the start; the default is the difficulty's (with the era multiple). */
+  startCash?: number;
+  /** Opening debt on top of `startCash` (the loans are paid out as cash, so net worth is unchanged). */
+  startLoans?: number;
+  goal: ScenarioGoal;
+  stars: [number, number];
+}
+
+export const SCENARIOS: readonly ScenarioDef[] = [
+  {
+    id: "semmering",
+    region: "central-eu",
+    seed: 7,
+    startYear: 1850,
+    difficulty: "normal",
+    startCash: 700_000,
+    goal: { type: "connect", cities: ["Vienna", "Trieste"], byYear: 1857 },
+    stars: [1853, 550_000],
+  },
+  {
+    id: "panic1873",
+    region: "us-east",
+    seed: 7,
+    startYear: 1871,
+    difficulty: "normal",
+    startCash: 400000,
+    startLoans: 2_500_000,
+    goal: { type: "survive", untilYear: 1878, maxDebt: 500_000 },
+    stars: [3_500_000, 4_750_000],
+  },
+  {
+    id: "coalTrieste",
+    region: "central-eu",
+    seed: 7,
+    startYear: 1858,
+    difficulty: "normal",
+    startCash: 2_500_000,
+    goal: {
+      type: "deliver",
+      cargo: "coal",
+      amount: 6_000,
+      byYear: 1866,
+      nearCity: { name: "Trieste", withinTiles: 8 },
+    },
+    stars: [1863, 3_000_000],
+  },
+  {
+    id: "transcontinental",
+    region: "us-west",
+    seed: 7,
+    startYear: 1860,
+    difficulty: "normal",
+    startCash: 900_000,
+    goal: { type: "connect", cities: ["Sacramento", "Salt Lake City"], byYear: 1869 },
+    stars: [1865, 800_000],
+  },
+  {
+    id: "silverRush",
+    region: "central-eu",
+    seed: 7,
+    startYear: 1880,
+    difficulty: "normal",
+    startCash: 4_000_000,
+    goal: { type: "deliver", cargo: "silverBars", amount: 200, byYear: 1890 },
+    stars: [1887, 3_000_000],
+  },
+];
+
+export function scenarioById(id: string): ScenarioDef | undefined {
+  return SCENARIOS.find((s) => s.id === id);
+}
+
+/** The new-game options that start `def`. */
+export function scenarioNewGameOptions(def: ScenarioDef): {
+  region: RegionId;
+  seed: number;
+  startYear: number;
+  difficulty: Difficulty;
+  scenarioId: string;
+} {
+  return {
+    region: def.region,
+    seed: def.seed,
+    startYear: def.startYear,
+    difficulty: def.difficulty,
+    scenarioId: def.id,
+  };
+}

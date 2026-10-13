@@ -17,6 +17,7 @@ import { monthlyIndustryStep } from "./economy/processing";
 import { COMPETITION_NEWS_YEARS } from "../data/economy";
 import { dailyCreditWarningStep } from "./finance/warnings";
 import { monthlyFinanceStep, yearlyFinanceRollover } from "./finance/ledger";
+import { dailyScenarioStep } from "./scenario";
 import { dailyContractsStep, monthlyContractsStep } from "./contracts/progress";
 import { pushNews } from "./news";
 import { monthlyStationFlowRollover, yearlyStationFlowRollover } from "./stations/flow";
@@ -45,6 +46,7 @@ export function advanceOneHour(state: GameState): void {
     accrueDailyCargo(state);
     dailyGoalsStep(state);
     dailyContractsStep(state);
+    dailyScenarioStep(state);
     dailyUndeliverableStep(state);
     dailyCreditWarningStep(state);
   }
