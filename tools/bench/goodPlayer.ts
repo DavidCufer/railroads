@@ -9,7 +9,6 @@
  * project is short of cash and repay when cash piles up, relay worn track, rebuild washed-out bridges.
  */
 import * as commands from "../../src/sim/commands";
-import { maxCarsOf } from "./legacyCars";
 import { PAIR_DEMAND, TRAVEL_RANGE_ANCHORS, TRIPS_PER_HEAD_ANCHORS } from "../../src/data/economy";
 
 // PAIR="distanceExponent,sizeExponent,minDistanceTiles,maxShare" overrides the passenger-destination table for tuning
@@ -141,14 +140,20 @@ function bestLoco(): string {
   // electric engines need catenary the bench never lays: a train of one sits on the platform (PLAYTEST-4)
   const all = buyableLocomotivesIn(y).filter((l) => l.type !== "electric");
   // engines of 6+ cars when the era has them, else the best that exists (1830s-40s engines pull 3-5)
-  const strong = all.filter((l) => maxCarsOf(l) >= 6);
+  const strong = all.filter((l) => l.maxCars >= 6);
   const cands = strong.length > 0 ? strong : all;
   cands.sort((p, q) => q.maxSpeedKmh - p.maxSpeedKmh || p.cost - q.cost);
   return (cands[0] ?? buyableLocomotivesIn(y)[0]!).id;
 }
 
-function consist(loco: string): CargoType[] {
-  const n = Math.min(maxCarsOf(locomotiveById(loco)!), 6);
+/** Cars a pair of towns can fill: sized by the smaller town (a half-empty long train only adds weight, crew and upkeep). */
+function carsForDemand(pair: Pair): number {
+  const pop = Math.min(pair.cityA.population, pair.cityB.population);
+  return pop < 15_000 ? 3 : pop < 30_000 ? 4 : pop < 60_000 ? 5 : 6;
+}
+
+function consist(loco: string, demandCars = 6): CargoType[] {
+  const n = Math.min(locomotiveById(loco)!.maxCars, 6, demandCars);
   // mail is ~15 % of a passenger line's fares (PLAYTEST-2 Top 10 #9): one mail car on a train of 4+, otherwise passengers only
   const mail = process.env.MAILCARS ? Number(process.env.MAILCARS) : n >= 4 ? 1 : 0;
   return Array.from({ length: n }, (_, i) => (i < n - mail ? "passengers" : "mail"));
@@ -252,7 +257,7 @@ function tryConnect(newCity: City, hub: City): "built" | "nocash" | "failed" {
 
 function addTrain(pair: Pair): boolean {
   const loco = bestLoco();
-  const cars = consist(loco);
+  const cars = consist(loco, carsForDemand(pair));
   if (!ensureCash(commands.computeBuyTrainPlan(state, loco, cars).cost + 100_000)) return false;
   const r = commands.buyTrain(state, pair.a.id, loco, cars);
   if (!ok(r)) return false;

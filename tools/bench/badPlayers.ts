@@ -7,7 +7,6 @@
  * trainSpammer: one good line, then trains on it until the credit runs out.
  * leveraged: borrows to the limit all the time, builds good lines fast with 4 trains each, never repays.
  */
-import { maxCarsOf } from "./legacyCars";
 import * as commands from "../../src/sim/commands";
 
 import { ERA_START_CASH_MULT } from "../../src/data/finance";
@@ -107,14 +106,14 @@ function bestLoco(): string {
   // electric engines need catenary the bench never lays (PLAYTEST-4)
   const all = buyableLocomotivesIn(y).filter((l) => l.type !== "electric");
   // engines of 6+ cars when the era has them, else the best that exists (1830s-40s engines pull 3-5)
-  const strong = all.filter((l) => maxCarsOf(l) >= 6);
+  const strong = all.filter((l) => l.maxCars >= 6);
   const cands = strong.length > 0 ? strong : all;
   cands.sort((p, q) => q.maxSpeedKmh - p.maxSpeedKmh || p.cost - q.cost);
   return (cands[0] ?? buyableLocomotivesIn(y)[0]!).id;
 }
 
 function consist(loco: string): CargoType[] {
-  const n = Math.min(maxCarsOf(locomotiveById(loco)!), 6);
+  const n = Math.min(locomotiveById(loco)!.maxCars, 6);
   // mail is ~15 % of a passenger line's fares (PLAYTEST-2 Top 10 #9): one mail car on a train of 4+, otherwise passengers only
   const mail = process.env.MAILCARS ? Number(process.env.MAILCARS) : n >= 4 ? 1 : 0;
   return Array.from({ length: n }, (_, i) => (i < n - mail ? "passengers" : "mail"));
