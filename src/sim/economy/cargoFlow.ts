@@ -18,6 +18,13 @@ import { DAYS_PER_MONTH } from "../time";
 import type { GameState, PassengerLot, StationCargoPile } from "../state";
 import type { PassengerRoute } from "../stations/passengerFlows";
 import type { Station } from "../stations/types";
+import {
+  serviceIntervalDays,
+  serviceKey,
+  serviceRates,
+  waitingCap,
+  type ServiceRates,
+} from "../stations/waiting";
 
 const DECAY_FLOOR = 0.05;
 
@@ -69,6 +76,7 @@ function accrueLots(
   routes: readonly PassengerRoute[],
   station: Station,
   demand: number,
+  service: ServiceRates,
 ): number {
   const lots = entry.lots ?? [];
   let lotTotal = 0;
@@ -81,10 +89,15 @@ function accrueLots(
   const fresh: PassengerLot[] = [];
   let overflow = 0;
   for (const route of [...routes].sort((a, b) => a.destination - b.destination)) {
-    const cap = route.perMonth * demand;
-    const daily = cap / DAYS_PER_MONTH;
+    // Phase 51: people wait only for the next train that carries them (data/economy.ts MIN/MAX_WAIT_DAYS).
+    const perMonth = route.perMonth * demand;
+    const cap = waitingCap(
+      perMonth,
+      serviceIntervalDays(service.get(serviceKey(station.id, route.firstLeg))),
+    );
+    const daily = perMonth / DAYS_PER_MONTH;
     const have = Math.min(own.get(route.destination) ?? 0, cap);
-    const add = Math.min(daily, cap - have);
+    const add = Math.max(0, Math.min(daily, cap - have));
     overflow += daily - add;
     if (have + add > 0)
       fresh.push({ dest: route.destination, amount: have + add, originTile: station.tile });
@@ -98,6 +111,7 @@ function accrueLots(
 
 export function accrueDailyCargo(state: GameState): void {
   const demand = panicDemandMult(state);
+  const service = serviceRates(state);
   for (const station of state.stations) {
     const economy = state.stationEconomy.get(station.id);
     if (!economy) continue;
@@ -119,7 +133,7 @@ export function accrueDailyCargo(state: GameState): void {
         const shares = cargo === "passengers" ? economy.passengerBound : undefined;
         const overflow =
           cargo === "passengers" && economy.passengerRoutes && shares
-            ? accrueLots(entry, economy.passengerRoutes, station, demand)
+            ? accrueLots(entry, economy.passengerRoutes, station, demand, service)
             : accrueLinear(entry, monthly, daily, shares);
         if (overflow > 0) recordTurnedAway(state, station.id, cargo, overflow);
         if (entry.amount > DECAY_FLOOR) entry.waitingDays++;

@@ -107,8 +107,11 @@ describe("departure spacing", () => {
   });
 
   it("four spaced trains with passing loops earn more than two trains (without, four earn less than they could)", () => {
-    const two = yearlyRevenue({ trains: 2 });
-    const four = yearlyRevenue({ trains: 4, loops: 2, gap: 1 });
+    // Phase 51: people wait only for the next train, so two trains already carry most of a 250k town's demand and a
+    // third and fourth have little left to add (+6.8 %). The question here is track capacity, so the town is big
+    // enough (400k, the Phase 35C size) that four trains have people to carry; the 1.1 bound is unchanged.
+    const two = yearlyRevenue({ trains: 2, pop: 400000 });
+    const four = yearlyRevenue({ trains: 4, loops: 2, gap: 1, pop: 400000 });
     expect(four).toBeGreaterThan(two * 1.1);
   });
 

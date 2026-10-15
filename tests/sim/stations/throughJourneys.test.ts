@@ -158,7 +158,9 @@ describe("Phase 48 changes deter travel", () => {
     }) as unknown as Train;
 
   it("a town reached direct draws more people than the same town reached with a change", () => {
-    const { map, cities, stations } = world([3, 12, 21, 30]);
+    // Phase 51: with maxShare 0.2 a handful of candidates all take 1/n whatever the distance, so six towns, all within
+    // the 15-tile minimum distance (equal gravity weight) and the rest unconnected, leave room for the change penalty.
+    const { map, cities, stations } = world([3, 8, 11, 13, 15, 17, 18]);
     const demandTo = (trains: Train[]): number =>
       computeStationEconomies(
         map,

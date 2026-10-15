@@ -1,12 +1,18 @@
 /** PLAN Phase 35 / 35C: passengers are split over reachable destinations by gravity and stored by first leg. */
 import { describe, expect, it } from "vitest";
-import { tripsPerHeadPerMonth } from "../../../src/data/economy";
+import { PAIR_DEMAND, tripsPerHeadPerMonth } from "../../../src/data/economy";
 import { accrueDailyCargo } from "../../../src/sim/economy/cargoFlow";
 import {
   boardable,
   rebucketPassengerPiles,
   takeBoarders,
 } from "../../../src/sim/stations/boarding";
+import {
+  serviceIntervalDays,
+  serviceKey,
+  serviceRates,
+  waitingCap,
+} from "../../../src/sim/stations/waiting";
 import { passengerLinks } from "../../../src/sim/stations/destinations";
 import { computeStationEconomies } from "../../../src/sim/stations/economy";
 import type { Station } from "../../../src/sim/stations/types";
@@ -142,15 +148,25 @@ describe("station economy with reachability", () => {
     expect(bound).toBeCloseTo(1, 9);
   });
 
-  it("no destination takes more than half the total unless it is the only town in range", () => {
-    // A metropolis next door and two small towns: gravity alone would give the big one ~97 %.
-    const { economies } = world([3, 20, 40, 60], [12000, 400000, 3000, 3000]);
-    const e = economies([pax(0, 1), pax(1, 2), pax(1, 3)]).get(0);
+  it("no destination takes more than maxShare of the total unless the candidates are too few for it, or it is the only town", () => {
+    // A metropolis next door and five small towns: gravity alone would give the big one ~95 %.
+    const { economies } = world([3, 10, 20, 30, 40, 50], [12000, 400000, 3000, 3000, 3000, 3000]);
+    const e = economies([pax(0, 1, 2, 3, 4, 5)]).get(0);
     const demand = e?.passengerDemand ?? 0;
     for (const r of e?.passengerRoutes ?? [])
-      expect(r.perMonth).toBeLessThanOrEqual(demand * 0.5 + 1e-9);
+      expect(r.perMonth).toBeLessThanOrEqual(demand * PAIR_DEMAND.maxShare + 1e-9);
+    expect(Math.max(...(e?.passengerRoutes ?? []).map((r) => r.perMonth))).toBeCloseTo(
+      demand * PAIR_DEMAND.maxShare,
+      6,
+    );
     const sum = (e?.passengerRoutes ?? []).reduce((s, r) => s + r.perMonth, 0);
-    expect(sum).toBeCloseTo(demand, 6);
+    expect(sum).toBeCloseTo(demand, 6); // the excess goes to the others: the shares add up to 1
+    // Three candidates cannot each stay under 20 %: they level at a third.
+    const few = world([3, 20, 40, 60], [12000, 400000, 3000, 3000])
+      .economies([pax(0, 1, 2, 3)])
+      .get(0);
+    for (const r of few?.passengerRoutes ?? [])
+      expect(r.perMonth).toBeCloseTo((few?.passengerDemand ?? 0) / 3, 6);
     // A lone partner is the whole total.
     const lone = world([3, 20])
       .economies([pax(0, 1)])
@@ -159,17 +175,32 @@ describe("station economy with reachability", () => {
   });
 
   it("of two equal towns the nearer takes more", () => {
-    const { economies } = world([3, 28, 63, 40], [12000, 12000, 12000, 12000]);
-    const e = economies([pax(0, 1), pax(0, 2), pax(0, 3)]).get(0);
+    // Four more towns in range keep the 20 % cap from levelling the two (it binds the nearer one; the farther gets less).
+    const { economies } = world(
+      [3, 28, 63, 40, 45, 50, 55],
+      [12000, 12000, 12000, 12000, 12000, 12000, 12000],
+    );
+    const e = economies([pax(0, 1), pax(0, 2)]).get(0);
     const near = e?.passengerRoutes?.find((r) => r.cityId === 1)?.perMonth ?? 0;
     const far = e?.passengerRoutes?.find((r) => r.cityId === 2)?.perMonth ?? 0;
     expect(near).toBeGreaterThan(far * 1.5);
   });
 
-  it("a pile nobody collects holds one month of supply and counts the rest as unserved (Phase 35D)", () => {
+  /** A running passenger train for the accrual tests: the waiting cap reads the trains' round trips. */
+  const running = (...ids: number[]): Train =>
+    ({
+      id: 1,
+      locoModelId: "norris-4-2-0",
+      cars: [{ cargoType: "passengers", loadedUnits: 0 }],
+      orders: ids.map((stationId) => ({ stationId, rule: "auto" })),
+    }) as unknown as Train;
+
+  it("a pile holds the people of the days until the next train and counts the rest as unserved (Phase 51)", () => {
     const { state, cities, stations } = world([3, 12, 21]);
     state.stations.push(...stations);
     state.cities.push(...cities);
+    const trains = [running(0, 1), running(0, 2)];
+    state.trains.push(...trains);
     state.stationEconomy = computeStationEconomies(
       state.map,
       state.cities,
@@ -178,16 +209,19 @@ describe("station economy with reachability", () => {
       1860,
       undefined,
       undefined,
-      passengerLinks([pax(0, 1), pax(0, 2)]),
+      passengerLinks(trains),
     );
-    const monthly = state.stationEconomy.get(0)?.supply.passengers ?? 0;
+    const routes = state.stationEconomy.get(0)?.passengerRoutes ?? [];
+    const rates = serviceRates(state);
+    let cap = 0;
+    for (const r of routes)
+      cap += waitingCap(r.perMonth, serviceIntervalDays(rates.get(serviceKey(0, r.firstLeg))));
+    expect(cap).toBeGreaterThan(0);
     for (let day = 0; day < 120; day++) {
       accrueDailyCargo(state);
-      expect(state.stationCargo.get(0)?.passengers?.amount ?? 0).toBeLessThanOrEqual(
-        monthly + 1e-9,
-      );
+      expect(state.stationCargo.get(0)?.passengers?.amount ?? 0).toBeLessThanOrEqual(cap + 1e-9);
     }
-    expect(state.stationCargo.get(0)?.passengers?.amount).toBeCloseTo(monthly, 6);
+    expect(state.stationCargo.get(0)?.passengers?.amount).toBeCloseTo(cap, 6);
     expect(state.stationFlow.get(0)?.month.passengers?.lostUnits ?? 0).toBeGreaterThan(0);
   });
 
@@ -258,8 +292,11 @@ describe("station economy with reachability", () => {
   });
 
   it("a far town beyond the radius that the network reaches takes less than a near one", () => {
-    // A third, unconnected town in range keeps the 50 % cap from levelling the two reachable ones.
-    const { economies } = world([3, 12, 120, 30], [12000, 12000, 12000, 12000]);
+    // More towns in range keep the 20 % cap from levelling the two reachable ones.
+    const { economies } = world(
+      [3, 12, 120, 30, 35, 40, 45],
+      [12000, 12000, 12000, 12000, 12000, 12000, 12000],
+    );
     const e = economies([pax(0, 1), pax(1, 2)]).get(0);
     const near = e?.passengerRoutes?.find((r) => r.cityId === 1)?.perMonth ?? 0;
     const far = e?.passengerRoutes?.find((r) => r.cityId === 2)?.perMonth ?? 0;
@@ -270,6 +307,8 @@ describe("station economy with reachability", () => {
     const { state, cities, stations } = world([3, 12, 21]);
     state.stations.push(...stations);
     state.cities.push(...cities);
+    const trains = [running(0, 1), running(0, 2)];
+    state.trains.push(...trains);
     state.stationEconomy = computeStationEconomies(
       state.map,
       state.cities,
@@ -278,7 +317,7 @@ describe("station economy with reachability", () => {
       1860,
       undefined,
       undefined,
-      passengerLinks([pax(0, 1), pax(0, 2)]),
+      passengerLinks(trains),
     );
     accrueDailyCargo(state);
     const pile = state.stationCargo.get(0)?.passengers;
@@ -289,7 +328,7 @@ describe("station economy with reachability", () => {
     const later = state.stationCargo.get(0)?.passengers;
     const sumLater = (later?.lots ?? []).reduce((s, l) => s + l.amount, 0);
     expect(sumLater).toBeCloseTo(later?.amount ?? 0, 3);
-    // a bucket holds one month of its destination's rate
+    // a bucket holds at most one month of its destination's rate (Phase 51: fewer when trains come often)
     for (const lot of later?.lots ?? []) {
       const rate = state.stationEconomy
         .get(0)

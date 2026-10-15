@@ -537,9 +537,20 @@ export const PAIR_DEMAND = {
   sizeExponent: 1,
   /** Towns nearer than this weigh as if at this distance (tiles of 5 km): stops a next-door village dominating. */
   minDistanceTiles: 15,
-  /** Largest share of the town total one destination can take (unless it is the only candidate). */
-  maxShare: 0.5,
+  /** Largest share of the town total one destination can take (unless it is the only candidate). Phase 51: 0.2 (was
+   * 0.5): real towns sent travellers to many places, so no single partner fills train after train. */
+  maxShare: 0.2,
 };
+
+/** Phase 51: people wait only for the next train. A destination's waiting pile holds `demand per day x service
+ * interval`, with the interval (days between trains that carry those people) clamped to `MIN_WAIT_DAYS`..`MAX_WAIT_DAYS`.
+ * A train less than a day apart still leaves a day of people on the platform: they arrive through the day, and a
+ * timetable is read to the day in this game. */
+export const MIN_WAIT_DAYS = 1;
+/** Never more than the old Phase 35D rule, a month of demand: a service rarer than monthly (early trains crawl: a
+ * 100 km round trip takes ~25 days) was never fed by a bigger pile, and a lower cap (14) cut the 1840s passenger
+ * line to 0.59x coal against a 0.7x bound for no mechanism but the clamp. */
+export const MAX_WAIT_DAYS = 30;
 
 /** Phase 48: tiles of effective distance added for every change of train on a journey. Changing meant a wait for the
  * connecting train (1840s timetables rarely met: an hour or more), a platform walk and the luggage; at the era's

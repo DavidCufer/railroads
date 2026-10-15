@@ -206,7 +206,10 @@ export function capShares(
       else if (v < cap - 1e-12) free += v;
     }
     if (excess <= 1e-12 || free <= 0) break;
-    for (const [id, v] of shares) shares.set(id, v > cap ? cap : v + (excess * v) / free);
+    // Only shares clearly under the cap take the excess; ones already at it (from an earlier pass) stay put, or the
+    // shares would add up to more than 1 (Phase 51: found once the cap fell to 0.2).
+    for (const [id, v] of shares)
+      shares.set(id, v > cap ? cap : v < cap - 1e-12 ? v + (excess * v) / free : v);
   }
   return shares;
 }

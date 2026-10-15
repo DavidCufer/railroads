@@ -50,8 +50,23 @@ const line: number[] = [];
 for (let i = 0; i < n; i++) line.push(buy(sv, sm, i % 2 === 1).id);
 const trieste = buy(sv, stt, false);
 const loadSum = new Map<number, [number, number]>();
+let waitDays = 0;
+const waitSum = [0, 0, 0];
+const venice = { milan: 0, trieste: 0, changed: 0 };
 for (let i = 0; i < years * DAYS_PER_YEAR * HOURS_PER_DAY; i++) {
   advanceOneHour(state);
+  if (i % HOURS_PER_DAY === 0) {
+    waitDays++;
+    [sv, sm, stt].forEach(
+      (s, j) => (waitSum[j]! += state.stationCargo.get(s.id)?.passengers?.amount ?? 0),
+    );
+    // Venice by who is waiting: new people bound for each town, and people who changed trains here (not capped)
+    for (const lot of state.stationCargo.get(sv.id)?.passengers?.lots ?? []) {
+      if (lot.tick !== undefined) venice.changed += lot.amount;
+      else if (lot.dest === sm.id) venice.milan += lot.amount;
+      else venice.trieste += lot.amount;
+    }
+  }
   // Load factor over the hours a train is between stations (what a passenger sees on board).
   for (const t of state.trains) {
     if (t.status !== "moving") continue;
@@ -124,4 +139,11 @@ console.log(
 );
 console.log(
   `Venice–Trieste train: profit/yr ${Math.round(perYear(trieste) / 1000)}k; Venice waiting ${Math.round(state.stationCargo.get(sv.id)?.passengers?.amount ?? 0)}`,
+);
+
+console.log(
+  `average waiting (people), Venice ${Math.round(waitSum[0]! / waitDays)}, Milan ${Math.round(waitSum[1]! / waitDays)}, Trieste ${Math.round(waitSum[2]! / waitDays)}`,
+);
+console.log(
+  `Venice waiting by kind: for Milan ${Math.round(venice.milan / waitDays)}, for Trieste ${Math.round(venice.trieste / waitDays)}, changed here ${Math.round(venice.changed / waitDays)}`,
 );

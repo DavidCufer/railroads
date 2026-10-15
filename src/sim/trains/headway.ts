@@ -3,8 +3,12 @@
  * departure gap that spreads `n` trains of a line evenly around it. Pure; the command that applies the gap is
  * `spaceTrainsEvenly` in src/sim/commands.ts.
  */
-import { KM_PER_TILE } from "../../data/scale";
-import { MIN_LOADING_TICKS, TICKS_PER_CAR_HANDLED, locomotiveById } from "../../data/trains";
+import {
+  MIN_LOADING_TICKS,
+  TICKS_PER_CAR_HANDLED,
+  TICKS_PER_TILE_DIVISOR,
+  locomotiveById,
+} from "../../data/trains";
 import type { GameState } from "../state";
 import { HOURS_PER_DAY } from "../time";
 import { octileTileDistance } from "./geometry";
@@ -33,7 +37,9 @@ export const GAP_STEPS: readonly (number | undefined)[] = [
 export function estimateRoundTripDays(state: GameState, train: Train): number {
   const loco = locomotiveById(train.locoModelId);
   const kmh = Math.max(10, (loco?.maxSpeedKmh ?? 40) * AVERAGE_SPEED_SHARE);
-  const tilesPerHour = kmh / KM_PER_TILE;
+  // The sim moves a train `speed / TICKS_PER_TILE_DIVISOR` tiles an hour (data/trains.ts), not its real-world km/h:
+  // Phase 51 found the old km-per-tile figure ~50x too fast (3.3-day round trip where the sim takes ~50).
+  const tilesPerHour = kmh / TICKS_PER_TILE_DIVISOR;
   const stops = train.orders.filter((o) => o.rule !== "passThrough");
   let tiles = 0;
   for (let i = 0; i < train.orders.length; i++) {
