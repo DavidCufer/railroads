@@ -3,9 +3,9 @@ import { emptyState } from "./emptyState";
 import { sparklinePoints, stackSegments, type StackPart } from "./chartMath";
 
 /** Palette for canvas drawing (canvas can't read CSS variables reliably in tests) — brass accent. */
-const BRASS = "#c9a23a";
-const BRASS_SOFT = "rgba(201, 162, 58, 0.16)";
-const GRID = "rgba(238, 231, 218, 0.08)";
+const BRASS = "#c8a04a";
+const BRASS_SOFT = "rgba(200, 160, 74, 0.16)";
+const GRID = "rgba(236, 227, 207, 0.08)";
 
 /** STYLE §8.2 sparkline: 1.5px brass line, soft area fill, dot on the last value. Draws at the
  * canvas' own pixel size (set `width`/`height` attributes; use CSS to scale it). */

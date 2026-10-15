@@ -8,12 +8,13 @@ import { carWidth, drawCar } from "./cars";
 import { drawPowerLoco, powerLayout } from "./diesel";
 import type { Pen } from "./draw";
 import { eraBucket, type EraBucket } from "./livery";
-import { drawSteamLoco, steamLayout } from "./steam";
+import { chimneyTop, drawSteamLoco, steamLayout } from "./steam";
 import { drawGround } from "./draw";
 
 export { parseWhyte, wheelArrangementGlyph } from "./whyte";
 export { eraBucket, type EraBucket } from "./livery";
 export { setArtCanvasFactory } from "./canvas";
+export { chimneyTop };
 
 /** Art units per drawing height (u = height / ART_HEIGHT_UNITS). */
 export const ART_HEIGHT_UNITS = 24;

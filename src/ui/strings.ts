@@ -1092,6 +1092,8 @@ export const strings = {
   },
   titleScreen: {
     gameTitle: "Railroads",
+    overline: "A Railway Tycoon",
+    tagline: "Build the line. Move the world.",
     scenarios: "Scenarios",
     achievements: "Achievements",
     newGame: "New Game",

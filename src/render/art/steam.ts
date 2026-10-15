@@ -50,6 +50,15 @@ export interface SteamLayout {
   pilotLen: number;
 }
 
+/** Top of the chimney in art units, relative to the locomotive canvas (for smoke emitters). */
+export function chimneyTop(def: LocomotiveDef): { x: number; y: number } {
+  const lay = steamLayout(def);
+  const smokeLen = Math.max((0 - (lay.cabFront + 0.5)) * 0.18, lay.american ? 7.4 : 5.2);
+  const chimneyX = lay.american ? -(smokeLen * 0.72) : -smokeLen * 0.52;
+  const h = lay.lv.era === 0 ? 6 : lay.lv.era === 1 ? 5 : 2.5;
+  return { x: chimneyX - lay.minX, y: lay.boilerTop - h };
+}
+
 export function whyteName(def: LocomotiveDef): string {
   return `${def.name} ${def.id}`;
 }

@@ -28,7 +28,7 @@ export function createDebugControls(
     "display:flex",
     "gap:6px",
     "align-items:center",
-    "background:rgba(24,28,34,0.82)",
+    "background:rgba(15,26,23,0.82)",
     "color:#fff",
     "padding:4px 6px",
     "border-radius:8px",

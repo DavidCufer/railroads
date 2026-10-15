@@ -388,3 +388,82 @@ in the mid-1800s: four guiding wheels for curves, four drivers for speed.").
 When a locomotive becomes available (existing news item), show a card dialog instead of only a news line: overline
 "NEW LOCOMOTIVE", the side view on a rail line, name, year, 3 key stats with icons, and buttons **Roster** /
 **OK**. Once per model; respects the existing "news popups" setting if there is one.
+
+
+---
+
+# Part 3 — "Railway Age" era theme (Phase 49)
+
+Owner feedback (2026-10-15): the dark minimalist theme works but is not thematic, menus carry too much text, the
+buy-menu engines look like toys, the start menu is dull. **This part supersedes §1 (direction), the palette and
+type tokens in §2, and the button/panel look in §3.** Everything else (layout, panel anatomy, icons, map objects)
+still holds. Implementers apply this; they do not redesign it.
+
+## 12. Direction: a dark timetable, not a dark app
+
+Think of an 1860s company timetable or share certificate seen by lamplight: bottle-green and ink grounds, cream
+paper, brass fittings, one muted red for trouble. Dark, low-glare, high contrast text; ornament is thin and
+sparse so a 800×360 phone screen never feels busy.
+
+## 13. Tokens (`src/ui/theme.css`; the only place colours are defined)
+
+| Token | Value | Use |
+|---|---|---|
+| `--ink-900` | `#0f1a17` | screen background (bottle-green black) |
+| `--ink-800` | `#16241f` | panels |
+| `--ink-750` | `#1b2b25` | cards inside panels |
+| `--ink-700` | `#20322b` | raised rows, inputs |
+| `--ink-600` | `#34493f` | borders, dividers |
+| `--oxblood` | `#4a1c22` | headers of alert cards, game-over, danger plaques |
+| `--paper` | `#f0e4c8` | titles, cream plaques |
+| `--paper-dim` | `#cbbf9f` | secondary text |
+| `--text` | `#ece3cf` | body text |
+| `--muted` | `#9aa390` | tertiary text |
+| `--brass` / `--brass-dk` | `#c8a04a` / `#8f6f28` | primary action, selection, rules |
+| `--signal` | `#b5483a` | warnings, expenses (muted red; never pure red) |
+| `--go` | `#5c9466` | profit, success |
+| `--steel` | `#6f8aa6` | info, electric |
+
+Helper tokens: `--scrim` (modal backdrop), `--glass` (translucent bar/panel ground), `--card-paper` (cream card),
+`--signal-lt` / `--go-lt` (text tones on dark), `--shadow`. **No hex or `rgb()` literal outside `:root`** in
+`theme.css`; canvas code takes colours from `src/render/palette.ts`.
+
+## 14. Type
+- **Display: Playfair Display** (OFL 1.1, bundled as three latin woff2 files in `src/assets/fonts/`, licence in
+  `src/assets/fonts/OFL-PlayfairDisplay.txt`): titles, panel titles, place names, big numbers, the date, money in the
+  top bar. A high-contrast Didone, the face of 1850s–70s railway bills. Use lining figures
+  (`font-variant-numeric: lining-nums tabular-nums`).
+- **UI: the system sans** (`system-ui`), small text, labels, buttons. No second bundled family.
+- Small-caps labels (`--fs-xs`, tracking .12em) for section names, as on a timetable heading.
+- Fonts are `font-display: swap`; canvas text uses the same stack, and must not draw before the font is ready
+  (`document.fonts.load` before the first label render).
+
+## 15. Ornament (drawn in CSS or canvas, never image files)
+- **Double rule**: a 2px + 1px `--brass` pair, 3px apart, under panel titles and the title cartouche
+  (`.rule-double`).
+- **Corner flourishes**: 10px L-shaped brass corners on plaques and cards of importance (`.plaque`), drawn with
+  `::before`/`::after` borders.
+- **Ticket-stub buttons** (`.ticket`): cream-edged rectangle with two half-circle notches cut in the left/right
+  edges (radial gradients), small caps label, brass fill when primary. Min height 44px.
+- **Plaque** (`.plaque`): `--ink-800`, 1px `--brass-dk` border, inner 1px `--line` inset, flourish corners.
+- Use at most **one** ornament per component. Panel bodies stay flat; ornaments sit on headers, buttons, cards.
+
+## 16. Less text (the rule for every panel and sheet)
+1. **Numbers and icons first.** A fact is `[icon] 12` with a tooltip/aria-label, not a sentence.
+2. **One line of explanation per section**, at most, in `--muted` `--fs-s`.
+3. **Longer explanations hide behind a small (i)** (`.info-tip`, 22px round button, opens a one-paragraph tip
+   inline). Tip text lives in `strings.ts` under `tips`.
+4. **No repeated or derivable figures** (do not show both a total and its parts when parts are visible; do not
+   repeat the title in a subtitle).
+5. **Nothing becomes unreachable.** If text moves behind (i), the feature stays in the same place.
+6. Target: ≥ 40 % fewer visible words in each busy panel than at the start of Phase 49 (counts in PROGRESS).
+
+## 17. Engine art (side views)
+- Muted period liveries (the §9.3 palette, desaturated further); no pure black outlines: outline is the body tone
+  darkened 45 %, 1px at 96px height, hairline lining in cream/brass.
+- Proportions come from the Whyte notation: driver diameter, boiler length and cab position follow the wheel
+  arrangement; 0-4-0 is short and tall-stacked, 4-4-0 long-boilered with a pilot, 2-8-0 and 4-8-2 have a long
+  wheelbase and a heavy tender, diesel/electric bodies follow their era.
+- Fine detail: boiler bands, domes, rivet dots, handrails, lining, lamp. The preview sits on a rail line over a
+  plaque ground, never on a coloured tile.
+- All drawn once into an offscreen canvas per (id, height, dpr).

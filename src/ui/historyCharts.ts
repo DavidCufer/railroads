@@ -1,10 +1,10 @@
 /** Company-history charts (Phase 46): small procedural line charts by year, drawn once into a cached bitmap per data set. */
 import { h } from "./h";
 
-const BRASS = "#c9a23a";
-const BRASS_SOFT = "rgba(201, 162, 58, 0.16)";
-const GRID = "rgba(238, 231, 218, 0.1)";
-const TEXT = "rgba(238, 231, 218, 0.7)";
+const BRASS = "#c8a04a";
+const BRASS_SOFT = "rgba(200, 160, 74, 0.16)";
+const GRID = "rgba(236, 227, 207, 0.1)";
+const TEXT = "rgba(236, 227, 207, 0.7)";
 
 export interface ChartSeries {
   key: string;

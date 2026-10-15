@@ -1,3 +1,25 @@
+@font-face {
+  font-family: "Playfair Display";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../assets/fonts/playfair-display-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Playfair Display";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../assets/fonts/playfair-display-latin-700-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Playfair Display";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../assets/fonts/playfair-display-latin-400-italic.woff2") format("woff2");
+}
+
 /**
  * Railroads visual style (docs/STYLE.md): "railway poster, modern flat" — warm, calm, legible.
  * Design tokens (STYLE §2) + every component style (STYLE §3) in one file, replacing the ad-hoc
@@ -7,19 +29,19 @@
 
 :root {
   /* surfaces */
-  --ink-900: #141a22;
-  --ink-800: #1c2430;
-  --ink-700: #26303d;
-  --ink-600: #334052;
-  --paper: #f2e8d5;
-  --paper-dim: #cfc4ae;
-  --text: #eee7da;
-  --muted: #9aa3af;
+  --ink-900: #0f1a17;
+  --ink-800: #16241f;
+  --ink-700: #20322b;
+  --ink-600: #34493f;
+  --paper: #f0e4c8;
+  --paper-dim: #cbbf9f;
+  --text: #ece3cf;
+  --muted: #9aa390;
   /* accents */
-  --brass: #c9a23a;
-  --brass-dk: #9c7c22;
-  --signal: #c2452d;
-  --go: #4e8f5a;
+  --brass: #c8a04a;
+  --brass-dk: #8f6f28;
+  --signal: #b5483a;
+  --go: #5c9466;
   --steel: #6f8aa6;
   /* shape & rhythm */
   --radius-s: 6px;
@@ -32,7 +54,8 @@
   --gap-5: 24px;
   --shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
   /* type */
-  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --font-display:
+    "Playfair Display", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
   --fs-xs: 11px;
   --fs-s: 13px;
@@ -41,13 +64,28 @@
   --fs-xl: 24px;
   --fs-hero: 44px;
   /* v2 (STYLE §8.1) */
-  --ink-750: #212a36;
+  --ink-750: #1b2b25;
   --line: rgba(238, 231, 218, 0.08);
-  --brass-soft: rgba(201, 162, 58, 0.16);
-  --go-soft: rgba(78, 143, 90, 0.18);
-  --signal-soft: rgba(194, 69, 45, 0.18);
+  --brass-soft: rgba(200, 160, 74, 0.16);
+  --go-soft: rgba(92, 148, 102, 0.18);
+  --signal-soft: rgba(181, 72, 58, 0.18);
   --steel-soft: rgba(111, 138, 166, 0.18);
   --fs-2xs: 10px;
+  /* Phase 49 (STYLE §13) */
+  --oxblood: #4a1c22;
+  --bronze: #b5793b;
+  --silver: #b9bfc7;
+  --tie: #2b2d31;
+  --rail: #8c9199;
+  --scrim: rgba(7, 12, 10, 0.62);
+  --glass: rgba(15, 26, 23, 0.92);
+  --glass-soft: rgba(15, 26, 23, 0.55);
+  --glass-panel: rgba(22, 36, 31, 0.85);
+  --card-paper: #ece4d2;
+  --card-ink: #6b6252;
+  --signal-lt: #e0907c;
+  --go-lt: #86bd8f;
+  --brass-line: rgba(200, 160, 74, 0.55);
   --panel-w: clamp(320px, 46vw, 420px);
 }
 
@@ -189,7 +227,7 @@ input {
   gap: var(--gap-3);
   padding: var(--safe-top) max(var(--gap-3), var(--safe-right)) 0
     max(var(--gap-3), var(--safe-left));
-  background: rgba(20, 26, 34, 0.92);
+  background: var(--glass);
   color: var(--text);
   font: var(--fs-s) var(--font-ui);
 }
@@ -324,7 +362,7 @@ input {
   align-items: center;
   gap: 2px;
   padding: 4px 0;
-  background: rgba(20, 26, 34, 0.92);
+  background: var(--glass);
   border-radius: var(--radius-m);
   box-sizing: border-box;
   max-height: calc(100% - 56px);
@@ -933,7 +971,7 @@ button.chip {
 }
 
 .goal-card {
-  --tier: #b5793b;
+  --tier: var(--bronze);
   display: flex;
   align-items: center;
   gap: var(--gap-3);
@@ -942,7 +980,7 @@ button.chip {
   background: var(--ink-750);
 }
 .goal-card.goal-tier-silver {
-  --tier: #b9bfc7;
+  --tier: var(--silver);
 }
 .goal-card.goal-tier-gold {
   --tier: var(--brass);
@@ -1118,7 +1156,7 @@ button.chip {
   height: 28px;
   border-radius: var(--radius-s);
   border: none;
-  background: rgba(194, 69, 45, 0.2);
+  background: var(--signal-soft);
   color: var(--text);
   display: flex;
   align-items: center;
@@ -1439,7 +1477,7 @@ button.chip {
   left: calc(68px + var(--safe-left));
   bottom: calc(8px + var(--safe-bottom));
   max-width: 46vw;
-  background: rgba(20, 26, 34, 0.85);
+  background: var(--glass-panel);
   color: var(--text);
   padding: 4px var(--gap-2);
   border-radius: var(--radius-s);
@@ -1449,7 +1487,127 @@ button.chip {
   z-index: 5;
 }
 
-/* ---------- welcome / title screen (STYLE §4) ---------- */
+/* ---------- ornaments (STYLE §15) ---------- */
+
+/* Double rule: a 2px + 1px brass pair, 3px apart. */
+.rule-double {
+  height: 6px;
+  border-top: 2px solid var(--brass);
+  border-bottom: 1px solid var(--brass);
+  opacity: 0.85;
+}
+
+/* Plaque: flat panel with a brass hairline, an inner line and two L-shaped corner flourishes. */
+.plaque {
+  position: relative;
+  background: var(--ink-800);
+  border: 1px solid var(--brass-dk);
+  box-shadow:
+    inset 0 0 0 3px var(--ink-800),
+    inset 0 0 0 4px var(--line);
+}
+.plaque::before,
+.plaque::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--brass);
+  pointer-events: none;
+}
+.plaque::before {
+  top: -2px;
+  left: -2px;
+  border-right: 0;
+  border-bottom: 0;
+}
+.plaque::after {
+  right: -2px;
+  bottom: -2px;
+  border-left: 0;
+  border-top: 0;
+}
+
+/* Ticket-stub button: notched left/right edges, perforated inner line, small-caps label. */
+.title-btn,
+.ticket {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 280px;
+  min-height: 44px;
+  padding: 0 var(--gap-4);
+  border: 1px solid var(--brass-line);
+  border-radius: 3px;
+  background: var(--glass-panel);
+  color: var(--paper);
+  font: 700 var(--fs-s) var(--font-ui);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  -webkit-mask:
+    radial-gradient(circle 6px at 0 50%, #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 6px at 100% 50%, #0000 97%, #000) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle 6px at 0 50%, #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 6px at 100% 50%, #0000 97%, #000) right / 51% 100% no-repeat;
+}
+.title-btn::after,
+.ticket::after {
+  content: "";
+  position: absolute;
+  inset: 3px 10px;
+  border: 1px dashed var(--brass-line);
+  opacity: 0.45;
+  pointer-events: none;
+}
+.title-btn:active,
+.ticket:active {
+  background: var(--ink-700);
+}
+.title-btn-primary,
+.ticket-primary {
+  background: var(--brass);
+  border-color: var(--brass-dk);
+  color: var(--ink-900);
+}
+.title-btn-primary::after,
+.ticket-primary::after {
+  border-color: var(--ink-900);
+  opacity: 0.35;
+}
+.title-btn:disabled,
+.ticket:disabled {
+  opacity: 0.4;
+}
+
+/* Small (i) that opens a one-paragraph tip (STYLE §16). */
+.info-tip-btn {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--brass-line);
+  background: transparent;
+  color: var(--brass);
+  font: italic 700 13px/20px var(--font-display);
+  text-align: center;
+}
+.info-tip-btn[aria-expanded="true"] {
+  background: var(--brass);
+  color: var(--ink-900);
+}
+.info-tip {
+  margin: var(--gap-1) 0 var(--gap-2);
+  padding: var(--gap-2) var(--gap-3);
+  border-left: 2px solid var(--brass-dk);
+  background: var(--ink-750);
+  color: var(--paper-dim);
+  font-size: var(--fs-s);
+  line-height: 1.4;
+}
+
+/* ---------- welcome / title screen (STYLE §12–15) ---------- */
 
 .title-screen {
   position: absolute;
@@ -1468,121 +1626,102 @@ button.chip {
   height: 100%;
   display: block;
 }
+/* Vignette: darkens the corners so the cartouche and tickets read. */
 .title-scrim {
   position: absolute;
   inset: 0;
-  background: rgba(20, 26, 34, 0.55);
+  background: radial-gradient(ellipse at 40% 55%, transparent 40%, var(--scrim) 100%);
+  pointer-events: none;
+}
+.title-frame {
+  position: absolute;
+  inset: calc(8px + var(--safe-top)) calc(8px + var(--safe-right)) calc(8px + var(--safe-bottom))
+    calc(8px + var(--safe-left));
+  border: 1px solid var(--brass-line);
+  pointer-events: none;
+}
+.title-frame::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1px solid var(--line);
 }
 .title-menu {
   position: relative;
   flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 250px);
+  align-items: center;
+  gap: var(--gap-4);
+  padding: calc(var(--gap-5) + var(--safe-top)) calc(var(--gap-5) + var(--safe-right))
+    calc(var(--gap-5) + var(--safe-bottom)) calc(var(--gap-5) + var(--safe-left));
+}
+.title-cartouche {
+  align-self: start;
+  justify-self: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: var(--gap-3);
-  padding: var(--gap-4);
+  gap: var(--gap-1);
+  padding: var(--gap-3) var(--gap-5);
+  background: var(--glass);
 }
 .title-overline {
-  font: 700 var(--fs-xs) var(--font-ui);
-  letter-spacing: 0.2em;
+  font: 700 var(--fs-2xs) var(--font-ui);
+  letter-spacing: 0.3em;
   text-transform: uppercase;
   color: var(--brass);
 }
 .title-game-name {
-  font: var(--fs-hero) var(--font-display);
+  font: 700 var(--fs-hero) / 1.05 var(--font-display);
   color: var(--paper);
-  letter-spacing: 0.06em;
-  margin: 2px 0 4px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
-.title-rule {
-  display: flex;
-  align-items: center;
-  gap: var(--gap-2);
-  width: 200px;
-  color: var(--brass);
-  margin-bottom: var(--gap-2);
-}
-.title-rule::before,
-.title-rule::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--brass);
-  opacity: 0.6;
+.title-cartouche .rule-double {
+  width: 100%;
 }
 .title-subtitle {
   color: var(--paper-dim);
-  font-size: var(--fs-s);
-  margin-bottom: var(--gap-3);
+  font: italic 400 var(--fs-s) var(--font-display);
   text-align: center;
 }
 .title-btn-grid {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: var(--gap-3);
-  width: 100%;
+  align-items: stretch;
+  gap: var(--gap-2);
 }
-.title-btn {
-  width: 100%;
-  max-width: 280px;
-  min-height: 44px;
-  border-radius: var(--radius-m);
-  border: 1px solid var(--ink-600);
-  background: rgba(28, 36, 48, 0.85);
-  color: var(--text);
-  font: 700 var(--fs-m) var(--font-ui);
-}
-.title-btn-primary {
-  background: var(--brass);
-  color: var(--ink-900);
-  border: none;
-}
-.title-btn:disabled {
-  opacity: 0.4;
-}
-/* Short landscape phones (e.g. 800×360): switch the button stack to a 2-column grid and shrink
-   the title/spacing so the whole menu fits with margin instead of overflowing. */
-@media (max-height: 420px) {
-  .title-menu {
-    gap: var(--gap-2);
-    padding: var(--gap-2) var(--gap-3);
-  }
-  .title-game-name {
-    font-size: 28px;
-    margin: 0 0 2px;
-  }
-  .title-rule {
-    width: 120px;
-    margin-bottom: var(--gap-1);
-  }
-  .title-subtitle {
-    margin-bottom: var(--gap-2);
-    font-size: var(--fs-xs);
-  }
-  .title-btn-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--gap-2);
-    max-width: 520px;
-  }
-  /* An odd (unpaired) last button — e.g. Settings when Continue is hidden — spans both columns
-     instead of leaving a lopsided empty cell. */
-  .title-btn-grid > *:last-child:nth-child(odd) {
-    grid-column: 1 / -1;
-  }
-  .title-btn {
-    max-width: none;
-    min-height: 38px;
-  }
+.title-btn-grid .title-btn {
+  max-width: none;
 }
 .title-version {
   position: absolute;
-  right: calc(var(--gap-3) + var(--safe-right));
-  bottom: calc(var(--gap-2) + var(--safe-bottom));
+  right: calc(var(--gap-5) + var(--safe-right));
+  bottom: calc(var(--gap-3) + var(--safe-bottom));
   color: var(--muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.1em;
+}
+/* Short landscape phones (800×360): tighter cartouche, shorter tickets. */
+@media (max-height: 420px) {
+  .title-menu {
+    padding: calc(var(--gap-4) + var(--safe-top)) calc(var(--gap-4) + var(--safe-right))
+      calc(var(--gap-3) + var(--safe-bottom)) calc(var(--gap-4) + var(--safe-left));
+    gap: var(--gap-3);
+  }
+  .title-cartouche {
+    padding: var(--gap-2) var(--gap-4);
+  }
+  .title-game-name {
+    font-size: 34px;
+  }
+  .title-btn {
+    min-height: 38px;
+  }
+  .title-btn-grid {
+    gap: 6px;
+  }
 }
 .settings-placeholder {
   flex: 1;
@@ -1706,7 +1845,7 @@ button.chip {
   align-self: flex-start;
   font: 700 var(--fs-xs) var(--font-ui);
   color: var(--brass);
-  background: rgba(201, 162, 58, 0.15);
+  background: var(--brass-soft);
   border-radius: 999px;
   padding: 1px 8px;
 }
@@ -1989,7 +2128,7 @@ button.chip {
   position: absolute;
   inset: 0;
   z-index: 999;
-  background: rgba(10, 12, 16, 0.92);
+  background: var(--glass);
   color: var(--text);
   display: flex;
   align-items: center;
@@ -2893,7 +3032,7 @@ button.card-row:disabled {
   justify-content: center;
   padding: 10px 12px 6px;
   border-radius: var(--radius-m);
-  background: #ece4d2;
+  background: var(--card-paper);
   overflow: hidden;
 }
 .hero-plate .art-canvas {
@@ -2944,7 +3083,7 @@ button.card-row:disabled {
   padding: 4px 8px;
   border-radius: var(--radius-s);
   background: var(--signal-soft);
-  color: #e58b78;
+  color: var(--signal-lt);
   font-size: var(--fs-xs);
 }
 .eng-stats {
@@ -3023,9 +3162,10 @@ button.card-row:disabled {
   width: var(--gap);
   height: 100%;
   background:
-    linear-gradient(#2b2d31, #2b2d31) 0 calc(var(--u) * 20) / 100% max(1px, calc(var(--u) * 0.5))
-      no-repeat,
-    linear-gradient(#8c9199, #8c9199) 0 calc(var(--u) * 23) / 100% calc(var(--u) * 0.6) no-repeat;
+    linear-gradient(var(--tie), var(--tie)) 0 calc(var(--u) * 20) / 100%
+      max(1px, calc(var(--u) * 0.5)) no-repeat,
+    linear-gradient(var(--rail), var(--rail)) 0 calc(var(--u) * 23) / 100% calc(var(--u) * 0.6)
+      no-repeat;
 }
 .cv-loco::after {
   display: none;
@@ -3068,7 +3208,7 @@ button.card-row:disabled {
   height: 16px;
   border-radius: 50%;
   background: var(--signal);
-  color: #fff;
+  color: var(--paper);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3128,7 +3268,7 @@ button.card-row:disabled {
   padding: 4px;
 }
 .cb-strip-host {
-  background: #ece4d2;
+  background: var(--card-paper);
   border-radius: var(--radius-m);
   padding: 8px 8px 2px;
   min-height: 70px;
@@ -3139,7 +3279,7 @@ button.card-row:disabled {
   left: 12px;
   top: 50%;
   transform: translateY(-60%);
-  color: #6b6252;
+  color: var(--card-ink);
   font-size: var(--fs-xs);
   pointer-events: none;
 }
@@ -3226,7 +3366,7 @@ button.card-row:disabled {
   gap: var(--gap-3);
 }
 .route-summary {
-  background: #ece4d2;
+  background: var(--card-paper);
   border-radius: var(--radius-m);
   padding: 6px 6px 2px;
 }
@@ -3437,7 +3577,7 @@ button.rule-chip:active {
   gap: 6px;
 }
 .train-hero {
-  background: #ece4d2;
+  background: var(--card-paper);
   border-radius: var(--radius-m);
   padding: 6px 6px 2px;
 }
@@ -3450,14 +3590,14 @@ button.rule-chip:active {
   font-size: var(--fs-s);
 }
 .train-status-line.problem .train-status-text {
-  color: #e58b78;
+  color: var(--signal-lt);
 }
 .train-status-text {
   font-weight: 600;
   min-width: 0;
 }
 .train-route-warning {
-  color: #e58b78;
+  color: var(--signal-lt);
   font-size: var(--fs-xs);
 }
 .train-consist-pending {
@@ -3580,7 +3720,7 @@ button.rule-chip:active {
   color: var(--steel);
 }
 .lane-electric .roster-lane-label {
-  color: #7fb98a;
+  color: var(--go-lt);
 }
 .roster-strip {
   display: flex;
@@ -3621,7 +3761,7 @@ button.rule-chip:active {
   justify-content: center;
   padding: 4px 6px 2px;
   border-radius: var(--radius-s);
-  background: #ece4d2;
+  background: var(--card-paper);
   overflow: hidden;
 }
 .roster-plate .art-canvas {
@@ -3741,7 +3881,7 @@ button.rule-chip:active {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 14, 20, 0.62);
+  background: var(--scrim);
 }
 /* Phase 28B: the new-engine card is not a modal — no dimming, the map stays draggable around it. */
 .new-engine-scrim {
@@ -3777,7 +3917,7 @@ button.rule-chip:active {
 .new-engine-thumb {
   flex: 0 0 auto;
   border-radius: var(--radius-s, 6px);
-  background: #ece4d2;
+  background: var(--card-paper);
 }
 .new-engine-row-main {
   display: flex;
@@ -4388,7 +4528,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 14, 20, 0.5);
+  background: var(--scrim);
 }
 .rule-picker {
   width: min(360px, calc(100vw - 32px));
@@ -4777,7 +4917,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 13, 18, 0.82);
+  background: var(--scrim);
   color: var(--text);
   font: var(--fs-s) var(--font-ui);
 }
@@ -4979,4 +5119,76 @@ select {
 }
 .achievement-row.unlocked .card-thumb {
   color: var(--brass);
+}
+
+/* ---------- Phase 49: era restyle of the title-flow screens (STYLE §12–15) ---------- */
+
+.new-game-header {
+  position: relative;
+  border-bottom: none;
+  padding-bottom: calc(var(--gap-2) + 6px);
+  font: 700 var(--fs-m) var(--font-display);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.new-game-header::after {
+  content: "";
+  position: absolute;
+  left: var(--gap-4);
+  right: var(--gap-4);
+  bottom: 2px;
+  height: 3px;
+  border-top: 2px solid var(--brass);
+  border-bottom: 1px solid var(--brass);
+  opacity: 0.8;
+}
+.new-game-tabs,
+.new-game-tab {
+  border-radius: 3px;
+}
+.new-game-tab {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.region-card,
+.save-slot-card {
+  position: relative;
+  border-radius: 3px;
+  border: 1px solid var(--brass-dk);
+  box-shadow: inset 0 0 0 3px var(--ink-800), inset 0 0 0 4px var(--line);
+}
+.region-card.selected {
+  border-color: var(--brass);
+}
+.region-card.selected::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--brass);
+  border-right: 0;
+  border-bottom: 0;
+}
+.region-card-name,
+.save-slot-name {
+  font-family: var(--font-display);
+}
+.new-game-start-btn {
+  position: relative;
+  border-radius: 3px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: var(--fs-s);
+  -webkit-mask:
+    radial-gradient(circle 6px at 0 50%, #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 6px at 100% 50%, #0000 97%, #000) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle 6px at 0 50%, #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 6px at 100% 50%, #0000 97%, #000) right / 51% 100% no-repeat;
+}
+.starting-cash {
+  font-family: var(--font-display);
+  font-variant-numeric: lining-nums tabular-nums;
 }

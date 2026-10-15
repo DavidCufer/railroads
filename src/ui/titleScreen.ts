@@ -6,14 +6,13 @@
  */
 import type { GameState, NewGameOptions } from "../sim/state";
 import { latestSaveSlot, loadSlot, OldMapScaleError } from "../save";
-import { startTitleBackground, type TitleBackgroundHandle } from "../render/titleBackground";
+import { startTitleScene, type TitleSceneHandle } from "../render/titleScene";
 import { renderNewGameScreen } from "./newGameScreen";
 import { renderSaveLoadScreen } from "./saveLoadScreen";
 import { renderScenariosScreen } from "./scenariosScreen";
 import { renderAchievementsScreen } from "./achievementsScreen";
 import { renderSettingsScreen } from "./settingsScreen";
 import { h } from "./h";
-import { icon } from "./icons";
 import { strings } from "./strings";
 
 export interface TitleScreenHandlers {
@@ -39,11 +38,11 @@ export function openTitleScreen(
   const root = h("div", { className: "title-screen" });
   container.appendChild(root);
 
-  // Full-bleed live background (STYLE §4): a panning random map + a looping decorative train,
-  // running only while the title screen (any of its sub-screens) is mounted.
+  // Full-bleed engraved scene (STYLE §12): a steam locomotive with a smoke trail, running only
+  // while the title screen (any of its sub-screens) is mounted.
   const bgCanvas = h("canvas", { className: "title-bg-canvas" });
   root.appendChild(bgCanvas);
-  let background: TitleBackgroundHandle | null = startTitleBackground(bgCanvas);
+  let background: TitleSceneHandle | null = startTitleScene(bgCanvas);
   function stopBackground(): void {
     background?.stop();
     background = null;
@@ -100,13 +99,18 @@ export function openTitleScreen(
     root.replaceChildren(
       bgCanvas,
       h("div", { className: "title-scrim" }),
+      h("div", { className: "title-frame" }),
       h(
         "div",
         { className: "title-menu" },
-        h("div", { className: "title-overline" }, "A Railway Tycoon"),
-        h("div", { className: "title-game-name" }, t.gameTitle),
-        h("div", { className: "title-rule" }, icon("trains")),
-        h("div", { className: "title-subtitle" }, "Build the line. Move the world."),
+        h(
+          "div",
+          { className: "title-cartouche plaque" },
+          h("div", { className: "title-overline" }, t.overline),
+          h("div", { className: "title-game-name" }, t.gameTitle),
+          h("div", { className: "rule-double" }),
+          h("div", { className: "title-subtitle" }, t.tagline),
+        ),
         btnGrid,
       ),
       h("div", { className: "title-version" }, `v${APP_VERSION}`),
