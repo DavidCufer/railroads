@@ -146,10 +146,10 @@ function bestLoco(): string {
   return (cands[0] ?? buyableLocomotivesIn(y)[0]!).id;
 }
 
-/** Cars a pair of towns can fill: sized by the smaller town (a half-empty long train only adds weight, crew and upkeep). */
+/** Cars a pair of towns can fill: sized by the smaller town (a half-empty long train only adds weight, crew and upkeep); thresholds found by bench, see PROGRESS Phase 48B. */
 function carsForDemand(pair: Pair): number {
   const pop = Math.min(pair.cityA.population, pair.cityB.population);
-  return pop < 15_000 ? 3 : pop < 30_000 ? 4 : pop < 60_000 ? 5 : 6;
+  return pop < 8_000 ? 4 : pop < 16_000 ? 5 : 6;
 }
 
 function consist(loco: string, demandCars = 6): CargoType[] {
