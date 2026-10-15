@@ -1816,4 +1816,4 @@ Do NOT change sim code (Phase 48 runs in parallel). Strings stay in strings.ts.
 6. Screenshots `phase-49-*.png`: title, new game, a station panel, a train panel, the buy wizard, finance, and
    before/after of two panels. LOOK at them. Update e2e selectors without weakening assertions. Record SPEC
    deviations and a PROGRESS entry with the word counts.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6 (see PROGRESS for what was and was not done in 3, 4 and 6)

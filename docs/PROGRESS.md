@@ -5272,3 +5272,31 @@ Three stars are reachable only where measured (Panic); the others need earning b
 
 **Checks:** `npm run check` 849 tests pass; e2e both shards pass (`trains.spec` "fit an 800" failed once under load in shard 2, passes alone and on main).
 
+## 2026-10-15 - Phase 49: Look & feel makeover (items 1-6)
+**What:** (1) `docs/STYLE.md` Part 3 "Railway Age": tokens in `theme.css` (bottle-green/ink grounds, oxblood, cream, brass, muted red), Playfair Display (OFL, three latin woff2 + licence in `src/assets/fonts/`; the only bundled family), double rule / plaque / ticket-stub ornaments, the "less text" rules. (2) Title screen: `src/render/titleScene.ts` replaces the map background with an engraved dusk scene (hatched sky, ringed sun, hill ridges, telegraph line, a side-view American 4-4-0 with a smoke trail), a title cartouche and ticket buttons; New Game / Scenarios / Achievements / Load restyled. (3) Declutter with a new `(i)` component (`components/infoTip.ts`, the tip is not in the DOM until opened; `section()` notes longer than 6 characters now become tips). (4) Engine art: aged-paper print plate behind every drawing, muted early livery, `?gallery=1&sheet=1` sheet (`phase-49-engines.png`). The art itself (Whyte-driven parametric steam, era diesel/electric, cars) already existed from Phases 19-22; I did not redraw it. (5) Zoom flicker fixed. (6) `e2e/phase49.spec.ts`, `e2e/phase49Words.spec.ts`, screenshots `phase-49-*.png`.
+
+**Word counts** (visible words, whole panel text incl. what needs scrolling, 1900 two-station line with towns and industries; `e2e/phase49Words.spec.ts` now fails if any exceeds 60 % of its before):
+| Panel | before | after |
+|---|---|---|
+| Buy wizard, cars step | 80 | 38 |
+| Consist editor | 66 | 33 |
+| Station (cargo tab) | 63 | 35 |
+| Buy wizard, engine step | 61 | 35 |
+| Lines | 52 | 22 |
+| Finance (overview) | 50 | 29 |
+| History | 47 | 28 |
+| Goals | 45 | 27 |
+| Train (route tab) | 39 | 22 |
+Not measured/trimmed by words: contracts, news, game-over, hint and new-engine cards. They get the new look through shared CSS only (plaques, double rule, ticket buttons); the new-engine card lost its stat captions. I did not look at each of those individually in a screenshot.
+
+**Flicker root cause:** `TerrainRenderer.draw` skipped any chunk over the per-frame bake budget (4-8 chunks), and `drawSeaBackdrop` is painted first, so every zoom-bucket change (0.5 / 0.75 / 1.4) and every cache invalidation (`refreshContent`, `setStationFootprint` cleared all chunks) showed blue holes for a few frames. Fix: a chunk over budget is drawn from its stale bake, else the same chunk at another zoom (scaled), else a one-pixel-per-tile terrain map; invalidation keeps the on-screen chunks as stale stand-ins. The e2e samples a grid of canvas pixels after every game frame while zooming at three speeds over all-land ground: old code 146 sea-coloured samples in one frame, new code 0.
+
+**Decisions / deviations (no questions asked):**
+- Played safe with e2e: where an assertion checks copy ("This year: revenue", "Borrow $100k: ... $833 a month", "Results here", "Full trains, N waiting", "N/mo · M waiting") that text stays. Only selectors changed: car tiles now `[data-cargo=...]` (names are in aria-label/title, tiles show pictogram + capacity), the Auto rule chip by `aria-label`.
+- Stat/caption words became icons with `title`/`aria-label` (touch users get no tooltip; the (i) next to engine stats lists what the icons mean). Stop numbers and the (i) glyph are CSS-drawn.
+- The buy wizard hides the engine-type filter when only one type exists, and drops the station from the step 1-2 title.
+- Rule chip shows its name only for non-default rules; the gap stepper shows "—" for Off.
+- SPEC: allowed one bundled OFL font and replaced the 10.3 UI line; STYLE Part 3 supersedes the old palette/type tokens.
+- Before/after screenshot pairs were not made; the "before" look is in git history (earlier phase screenshots such as phase-22 buy wizard).
+- Phase 48 (sim) was merged in by rebase; no src/sim changes here.
+
