@@ -5347,3 +5347,45 @@ Through wins at 4 and 6 trains, ties at 2 (small T-M demand). Munich-Innsbruck-V
 - Traffic-jam, heavy-bridge and "N trains share a single line" news texts left as they were (e2e/unit tests assert them). The game-over "of railroading" line stays (unit-tested).
 - Diesel/electric/car art got the engraved line-work but not new silhouettes or colours.
 - No src/sim changes. Scenario-end date and game-over date lines dropped.
+
+## 2026-10-15 - Phase 48B: Through journeys, survival with real train lengths (items 1-4 done; bot-only change)
+**1. The 1840 Normal seed 1 bankruptcy (bot, not game).** With the real `maxCars` the good bot bought a 6-car Norris for every line (it used to get 5) whatever the towns could fill. Revenue stayed flat (about $343k) while the fleet grew 8 -> 14 trains, so each added train cost more than it earned; the Railway mania crash of 1847 cut the credit limit ($599k -> $366k), lenders called, cash went negative three month-ends running. No game mechanism is wrong (speed already follows power, weight and grade; crew and car upkeep already scale). Fix in `tools/bench/goodPlayer.ts`: `carsForDemand` sizes the train by the smaller town (under 8k people 4 cars, under 16k 5, else 6; capped by `maxCars` and 6). First thresholds (15k/30k/60k) fixed 1840 but cut 1900 Normal NW from 25/15/24 to 9.6/9.4/10.2M (1908 revenue $1.6M vs $2.9M), so they were too stingy; 5k/10k restored 1900 but bankrupted 1840 seed 1 again. 8k/16k passes both. `tools/bench/legacyCars.ts` is deleted; all bench scripts use the engines' real `maxCars`. No src changes.
+**Decision:** 1840 Normal remains close to the edge (seed 1 min cash 0.00); the bot has no cash reserve ahead of a panic, as noted in Phase 44. Left as is.
+
+**2. Survival, real lengths, 3 seeds, 16 years (bankrupt / min cash $M / final NW $M).**
+| bot | start | diff | bankrupt | min cash | NW |
+|---|---|---|---|---|---|
+| good | 1840 | normal | 0/3 | 0 / 0.09 / 0.1 | 2.11 / 2.61 / 1.83 |
+| good | 1840 | hard | 0/3 | 0.06 / 0.07 / 0.07 | 1.85 / 1.97 / 1.93 |
+| good | 1900 | normal | 0/3 | 0.14 / 0.07 / 0.14 | 25.68 / 12 / 14.11 |
+| good | 1900 | hard | 0/3 | 0.06 / 0.07 / 0.13 | 9.21 / 7.18 / 8.45 |
+| good | 1930 | normal | 0/3 | 0.04 / 0.02 / 0 | 6.48 / 4.83 / 5.12 |
+| good | 1930 | hard | 0/3 | 0.2 / 0.17 / 0.17 | 4.52 / 4.07 / 4.08 |
+| good | 1950 | normal | 1/3 | 0.12 / 0.02 / -0.09 | 5.76 / 5.23 / 2 |
+| good | 1950 | hard | 0/3 | 0.15 / 0.15 / 0.15 | 3.36 / 3.15 / 3.05 |
+| overbuilder | 1900 | normal | 0/3 | 0.17 / 0.09 / 0.13 | 0.77 / 0.69 / 0.71 |
+| overbuilder | 1900 | hard | 3/3 | -0.44 x3 | -0.05 x3 |
+| overbuilder | 1930 | normal | 3/3 | -0.13 / -0.16 / -0.17 | 0.92 / 0.89 / 0.89 |
+| overbuilder | 1930 | hard | 3/3 | -0.05 x3 | 0.27 x3 |
+| overbuilder | 1950 | normal | 2/3 | 0 / -0.01 / -0.04 | 0.89 / 1.31 / 1.27 |
+| overbuilder | 1950 | hard | 3/3 | -0.01 x3 | 0.47 x3 |
+| trainSpammer | 1900 | normal | 3/3 | -0.05 / -0.01 / -0.06 | 0.91 / 0.94 / 1 |
+| trainSpammer | 1900 | hard | 3/3 | -0.05 / -0.06 / -0.05 | 1.3 / 1.31 / 1.34 |
+| trainSpammer | 1930 | normal | 3/3 | -0.03 / -0.03 / -0.14 | 1.53 / 1.39 / 1.5 |
+| trainSpammer | 1930 | hard | 1/3 | -0.04 / 0.12 / 0.12 | 1.81 / 1.98 / 1.81 |
+| trainSpammer | 1950 | normal | 3/3 | -0.04 / -0.05 / -0.08 | 1.84 / 1.86 / 1.87 |
+| trainSpammer | 1950 | hard | 2/3 | -0.03 / -0.02 / 0.09 | 1.68 / 1.33 / 1.73 |
+| leveraged | 1900-1950 | normal/hard | identical to trainSpammer row for row | | |
+Bad bots are identical to Phase 43B/44 (they already built at most 6 cars). Bounds, none loosened: the misses are the old ones. good Normal 1930-1950 1/6 (1950 seed 3, the Phase 43/44 recession case, unchanged); overbuilder Normal 1900 0/3; trainSpammer and leveraged Hard 1930-1950 3/6 (need 80 %). Everything else meets its bound. Not re-run: 1840 bad bots (Phase 48 addendum covers them, unchanged lengths for them).
+
+**3. Owner scenario (`tools/bench/owner.ts`, Norris x5, 2 years), real lengths:**
+| trains | line profit $k/yr | per train $k | losing trains | avg load |
+|---|---|---|---|---|
+| 2 | 64 | 32 | 0/2 | 80 % |
+| 4 | 74 | 18.5 | 0/4 | 58 % |
+| 6 | 69 | 11.5 | 1/6 | 41 % |
+| 10 | 47 | 4.7 | 3/10 | 33 % |
+| 18 | 15 | 0.8 | 9/18 | 26 % |
+Most profitable fleet: 4 trains. An overcrowded line does show individual trains losing money: 3 of 10 and 9 of 18 are in the red, and the line total falls from $74k to $15k.
+
+**Checks:** `npm run check` passes (859 tests). No src/sim change, so e2e not re-run.

@@ -1860,4 +1860,4 @@ understood.
 3. Owner scenario with the new lengths: report the most profitable fleet, and per-train profit at 2/4/6/10/18.
    An overcrowded line (10+ trains) should show individual trains losing money; say whether it does.
 4. PROGRESS entry with the tables.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+Status: [x] 1 [x] 2 [x] 3 [x] 4
