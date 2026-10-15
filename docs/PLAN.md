@@ -1817,3 +1817,47 @@ Do NOT change sim code (Phase 48 runs in parallel). Strings stay in strings.ts.
    before/after of two panels. LOOK at them. Update e2e selectors without weakening assertions. Record SPEC
    deviations and a PROGRESS entry with the word counts.
 Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6 (see PROGRESS for what was and was not done in 3, 4 and 6)
+
+## Phase 49B — Finish the makeover: redraw the engines, trim the remaining cards
+Opus review of Phase 49: the title screen and panels are good. But item 4 was not done. The engine art was not
+redrawn, only given a paper backing. The early steam engines still look like toys: big red wheels, a green boiler
+with brass bands, a cab as tall as the boiler, and Grasshopper/Planet/Norris/American drawn almost alike.
+1. **Redraw every locomotive as a believable side elevation.** Use proportions from real engines: boiler length
+   and diameter, driver size against the boiler, cab height, stack shape by era (balloon/diamond stack early,
+   straight later), domes, smokebox, running board, valve gear, tender proportions.
+   - Each early model must have its own silhouette:
+     - Grasshopper: vertical boiler, walking beams, no cab.
+     - Planet: short horizontal boiler, single large driving axle, no cab or a bare footplate.
+     - Norris: 4-2-0 with a bar frame and a bogie.
+     - American: 4-4-0 with a balloon stack and wooden cab.
+   - Colours: muted period liveries (deep green, maroon, black, Russia-iron blue-grey), with brass only as small
+     accents. Wheels dark with thin light rims, not bright red discs.
+   - Outlines: thin line-work and fine hatch shading in the engraved style of the title screen, not thick
+     cartoon outlines.
+   - Diesels and electrics: check proportions against real types (F-unit, road switcher, box-cab electric). Fix
+     the duplicate "Flatcar" names in the sheet.
+   - The same art is used everywhere: buy wizard, train panel, title scene, on the map if shared. Keep it cached.
+   - Screenshot `phase-49b-engines.png` and the title. LOOK at them next to a photo-like mental reference; if an
+     engine reads as a toy, iterate.
+2. **Trim the cards left out in Phase 49:** contracts list and offers, news, hint cards, game-over and scenario
+   cards, the new-engine card. Same rules: numbers and icons first, one short line, details behind (i). Count words
+   before and after; add them to `phase49Words.spec`.
+3. **Station waiting line:** the "2 waiting / Barbridge Crossing 2 2" text is confusing. Show it as "→ Barbridge
+   Crossing 2 · 2" rows, or as icon + number pairs.
+4. e2e, screenshots `phase-49b-*.png`, PROGRESS entry.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+
+## Phase 48B — Through journeys: finish the survival check with real train lengths
+Phase 48 left the bench bots on the old 3/4/5/6 car limits (`tools/bench/legacyCars.ts`). With the new limits, the
+good bot went bankrupt once (1840 Normal, seed 1). Real players will use the new lengths, so this must be
+understood.
+1. Run the good bot with the new `maxCars`. Find out why seed 1 went bankrupt: heavier trains too slow on grades?
+   A bad engine choice? Running costs? Fix the *bot* if it chooses badly (pick cars by demand and grade, as a good
+   player would). Fix the *game* only if a real mechanism is wrong. Then retire `legacyCars.ts`, or keep it only
+   for historical comparison tables.
+2. Run the missing survival rows with the new lengths: 1930 and 1950, all bad bots, and the 1900 bad bots, on
+   Normal and Hard. Use the Phase 42–44 bounds and never loosen them.
+3. Owner scenario with the new lengths: report the most profitable fleet, and per-train profit at 2/4/6/10/18.
+   An overcrowded line (10+ trains) should show individual trains losing money; say whether it does.
+4. PROGRESS entry with the tables.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
