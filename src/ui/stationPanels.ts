@@ -151,6 +151,13 @@ function supplyChipStack(
             { className: "waiting-row" },
             h("span", { className: "waiting-arrow", "aria-hidden": "true" }, "→"),
             h("span", { className: "waiting-dest" }, r.label),
+            r.nextDays
+              ? h(
+                  "span",
+                  { className: "waiting-next" },
+                  strings.station.nextTrain(String(r.nextDays)),
+                )
+              : null,
             h("b", { className: "waiting-n" }, String(r.n)),
           ),
         ),

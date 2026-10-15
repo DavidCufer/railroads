@@ -715,7 +715,7 @@ number on the platform must be a number the trains calling there can take. Rule 
 
 1. **The town total is population x trips per head (Phase 35C).** A town's total travel demand T (people a month who would
    ride a train *somewhere* if every town were on the network) = population x `tripsPerHeadPerMonth(year)`
-   (`TRIPS_PER_HEAD_ANCHORS`: 0.0161 a month in 1830-60, 0.0121 by 1900 (Phase 36: x1.3 on 35E to pay for dearer passenger cars; was 0.0124 / 0.0093 in 35E); a 15k town in 1840 has T = 242, about 2.0x the old §6.3
+   (`TRIPS_PER_HEAD_ANCHORS`: 0.0322 a month in 1830-60, 0.0242 by 1900 (Phase 51: x2 on Phase 36's 0.0161 / 0.0121, see `TRIPS_PER_HEAD_ANCHORS`; Phase 36 was x1.3 on 35E to pay for dearer passenger cars); a 15k town in 1840 has T = 483 (was 242 before Phase 51), about 4x the old §6.3
    figure of 118, which was what one line to one typical partner carried). T is the single passenger number everywhere: the
    town panel shows T with a line "Connected: N / month (X %)" (the part trains reach); the station draws its catchment's
    part of T (towns with several stations split it by covered tiles, §8.3) and generates only the reachable part; the
@@ -781,6 +781,25 @@ two shuttles earn and shuttles turn round faster.
    train (footplate crew) plus guards per `CARS_PER_TRAIN_STAFF` cars and an attendant per coach; engine servicing is per
    train and car upkeep per car, so a long train costs less than two short ones.
 4. **Benches** (`tools/bench/owner.ts`, `through.ts`): results in docs/PROGRESS.md "Phase 48".
+5. **People wait only for the next train (Phase 51).** Replaces "holds one month" of §9.5d-3 for destination-bound lots.
+   Real travellers come to the station for a departure; they do not camp for a month. A destination's pile at a
+   station (people bound there; those who changed trains here are already travelling and are not capped) holds
+   `demand per day x service interval`, the interval clamped to `MIN_WAIT_DAYS` (1) .. `MAX_WAIT_DAYS` (30, the old
+   month) days (`src/data/economy.ts`, `src/sim/stations/waiting.ts`). The service interval is the round trip of the
+   passenger trains that call at both the station and the first leg of the route, divided by their number (a train that
+   visits the station twice in its orders counts twice): `estimateRoundTripDays`, the estimate behind "Space trains
+   evenly". With no such train nobody waits (the cap is 0). People generated while the pile is full are the
+   unserved demand, as before; a pile above a lowered cap is cut silently. Generation stays linear. A train every
+   3 days therefore leaves about 3 days of demand on the platform. The estimate now uses the sim's real movement
+   (`speed / TICKS_PER_TILE_DIVISOR` tiles an hour): it had used real km per tile and came out ~50 times too fast.
+   The station panel's waiting rows end with "next ~N d" (the interval, whole days, at least 1).
+6. **Many small flows (Phase 51).** `PAIR_DEMAND.maxShare` is 0.2: real towns send travellers to many places, so no
+   single partner fills train after train and a train that calls at several towns fills from every pair on its route.
+   `capShares` redistributes the excess over the other candidates (it had a bug that let the shares add up to more than
+   1 once the cap bound for more than one pass: fixed). With fewer than five candidates in range the cap is 1/n, so the
+   split is equal whatever the distance: in 1842 Venice and Milan have 4 candidates (25 % each), Ljubljana 5 (20 %);
+   in 1900 Venice 10, Milan 7, Ljubljana 8 (`tools/bench/candidates.ts`).
+
 
 ### 9.6 Difficulty
 

@@ -514,13 +514,17 @@ export function goalLandGrant(tier: "bronze" | "silver" | "gold", year: number):
  * and the network, not the rate, growing. Calibrated (Phase 35E, after the one-month waiting rule of 35D lets a line carry its whole supply) so a 15k town
  * in 1840 has a total of ~2.0x its §6.3 supply (~242 a month, was 118) and the central-eu good-player bench is back on
  * the pre-Phase-34 curve: the rest comes from the gravity split, never a multiplier. Phase 36 raised it x1.3 to pay for
- * dearer passenger cars (3x a freight wagon) and their upkeep. */
+ * dearer passenger cars (3x a freight wagon) and their upkeep. Phase 51 doubled it (0.0161 -> 0.0322, 0.0121 -> 0.0242):
+ * the table counts every town in range, and with no destination above 20 % (`PAIR_DEMAND.maxShare`) and `capShares` no
+ * longer adding up to more than 1, a line to two towns gets about 40 % of a town's total where it used to get 90-160 %, so
+ * the good-player bench fell to half its Phase 35E-48B level (and Hard 1840 went bankrupt). Britain counted ~1.5 journeys
+ * per head a year by 1845: even x2 (0.39 a year here) is a quarter of that. The bench is back on its earlier curve (below). */
 export const TRIPS_PER_HEAD_ANCHORS: Anchors = [
-  [1830, 0.0161],
-  [1860, 0.0161],
-  [1900, 0.0121],
-  [1930, 0.0121],
-  [1950, 0.0121],
+  [1830, 0.0322],
+  [1860, 0.0322],
+  [1900, 0.0242],
+  [1930, 0.0242],
+  [1950, 0.0242],
 ];
 export function tripsPerHeadPerMonth(year: number): number {
   return interpolateYear(TRIPS_PER_HEAD_ANCHORS, year);

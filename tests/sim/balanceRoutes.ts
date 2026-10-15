@@ -136,6 +136,22 @@ export function buildRoute(spec: RouteSpec): { state: GameState; cars: number } 
       };
     };
     state.cities.push(mk(0, 0), mk(1, width - 2));
+    // Phase 51: a town has more than one place to go (no destination takes more than `PAIR_DEMAND.maxShare`, and a lone
+    // partner used to be the whole of a town's travel). One more town of the same size, in range and not connected,
+    // leaves the pair its half: with `TRIPS_PER_HEAD_ANCHORS` doubled the same line earns what it did before.
+    const mid = Math.floor(width / 2);
+    const tile = tileAt(map, mid, 3);
+    map.cityId[tile] = 2;
+    state.cities.push({
+      id: 2,
+      name: "C2",
+      tier: spec.tier ?? "town",
+      population: spec.population ?? 12_000,
+      anchorX: mid,
+      anchorY: 3,
+      tiles: [tile],
+      coastal: false,
+    });
   } else {
     const add = (id: number, type: IndustryType, x: number): void => {
       map.industryId[tileAt(map, x, 1)] = id;

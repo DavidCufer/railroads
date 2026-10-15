@@ -1,6 +1,7 @@
 /** Phase 43: where the people waiting at a station are going, in one short line ("Milan 40 · Trieste 540"). Pure read
  * of the passenger pile's `lots` (by destination) and older `bound` buckets; people beyond the top rows and those with no assigned destination are folded into the last "other towns" row. */
 import type { GameState } from "../sim/state";
+import { serviceIntervalDays, serviceKey, serviceRates } from "../sim/stations/waiting";
 import { strings } from "./strings";
 
 const SHOWN = 3;
@@ -9,6 +10,8 @@ export interface WaitingRow {
   /** Destination station name, or the "other towns" bucket (beyond the top rows, plus people with no destination yet). */
   label: string;
   n: number;
+  /** Days until the next train that carries these people (Phase 51: they wait only for it), when one runs. */
+  nextDays?: number;
 }
 
 /** One row per destination, biggest first ("→ Milan 40"); people with no assigned destination are the last row. */
@@ -27,9 +30,17 @@ export function waitingSplitRows(state: GameState, stationId: number): WaitingRo
     .sort((a, b) => b[1] - a[1] || a[0] - b[0]);
   const assigned = bound.reduce((sum, [, n]) => sum + n, 0);
   const anyone = Math.max(0, pile.amount - assigned);
-  const rows: WaitingRow[] = bound
-    .slice(0, SHOWN)
-    .map(([id, n]) => ({ label: nameOf(id), n: Math.round(n) }));
+  const routes = state.stationEconomy.get(stationId)?.passengerRoutes ?? [];
+  const rates = serviceRates(state);
+  const nextOf = (dest: number): number | undefined => {
+    const route = routes.find((r) => r.destination === dest);
+    const days = route && serviceIntervalDays(rates.get(serviceKey(stationId, route.firstLeg)));
+    return days === undefined ? undefined : Math.max(1, Math.round(days));
+  };
+  const rows: WaitingRow[] = bound.slice(0, SHOWN).map(([id, n]) => {
+    const nextDays = nextOf(id);
+    return { label: nameOf(id), n: Math.round(n), ...(nextDays ? { nextDays } : {}) };
+  });
   const rest = bound.slice(SHOWN).reduce((sum, [, n]) => sum + n, 0) + anyone;
   if (rest >= 0.5) rows.push({ label: strings.station.waitingElsewhere, n: Math.round(rest) });
   return bound.length > 0 ? rows : undefined;

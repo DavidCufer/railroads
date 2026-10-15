@@ -661,6 +661,10 @@ button.chip {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.waiting-next {
+  opacity: 0.8;
+  white-space: nowrap;
+}
 .waiting-n {
   color: var(--text);
   font-weight: 600;
