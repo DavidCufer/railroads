@@ -5300,3 +5300,27 @@ Not measured/trimmed by words: contracts, news, game-over, hint and new-engine c
 - Before/after screenshot pairs were not made; the "before" look is in git history (earlier phase screenshots such as phase-22 buy wizard).
 - Phase 48 (sim) was merged in by rebase; no src/sim changes here.
 
+
+
+## 2026-10-15 - Phase 48: Through journeys (items 1-5 done; survival table partial)
+**What:** (1) passengers wait and ride bound for their destination station (`PassengerLot` on piles and cars; `Router`, `upcomingStops`, `lotFate` in `src/sim/stations/boarding.ts`; `settleLots` in `loading.ts`): one fare for the whole trip on arrival, changers alight into the interchange pile keeping origin and start tick and board first, not capped. (2) `CHANGE_PENALTY_TILES = 15` (`src/data/economy.ts`), routes searched over (station, line); gravity distance + penalty x changes. (3) early `maxCars` 4/6/8/10 (was 3/4/5/6); speed cost already via power/weight/grade; crew per train + per coach, car upkeep per car. (4) benches `tools/bench/owner.ts`, new `through.ts`. (5) waiting split by destination, destinations sheet "(N changes)", SPEC 9.5e, `e2e/phase48.spec.ts`, screenshots `phase-48-*` viewed.
+
+**Decisions (no questions asked):**
+- Old first-leg piles and cars loaded before this phase keep the old rule.
+- Bench bots and `tests/sim/balanceRoutes.ts` keep 3/4/5/6 cars for the four early engines (`tools/bench/legacyCars.ts`), so tables stay comparable; the bot's engine choice otherwise shifts with `maxCars`.
+- Tests changed because the rule changed: pairDemand first-leg accrual test (now per-destination lots), middleStop property (only people bound for the stop must get off), consist "too many cars" (maxCars+1), far-town test (extra unconnected town so the 50 % cap does not level the two).
+- `through.ts` builds one direct line with the middle station on it, double track. The old branch-junction geometry made the Trieste leg a long detour and hid the effect.
+
+**Owner scenario, line profit/yr ($k), Norris x5 (per-train in brackets), before -> after:** 2 trains 66 (33) -> 64 (32); 4: 77 (19) -> 75 (19); 6: 72 (12) -> 69 (11.5); 10: 49 (4.9) -> 47 (4.7); 18: 15 (0.8) -> 15 (0.8). Demand-limited: best fleet 4 trains before and after. With 8-car trains: 2: 60; 4: 57; 6: 32; 10: 26; 18: -39 (best 2 trains).
+
+**Through line vs two shuttles (Trieste-Venice-Milan, 5 cars, 3 seeds, 2 years, profit $k/yr; shuttles split by leg length):**
+| trains | through before | shuttles before | through after | shuttles after |
+|---|---|---|---|---|
+| 2 | 103 | 92 | 99 | 99 |
+| 4 | 112 | 92 | 134 | 100 |
+| 6 | 124 | 100 | 129 | 125 |
+Through wins at 4 and 6 trains, ties at 2 (small T-M demand). Munich-Innsbruck-Venice, 4 trains, 1 seed: 159 vs 77 (was 98 vs 66).
+
+**Good-player / survival (3 seeds, 16 years, final NW $M):** good 1840 Normal 3.24 / 3.52 / 2.63 (was 2.92 / 2.91 / 2.49), Hard 2.12 / 1.86 / 2.03 (was 1.98 / 1.78 / 1.92), 1900 Normal 25.43 / 15.35 / 24.06 and Hard 11.66 / 7.01 / 8.53 (unchanged); no bankruptcies. overbuilder 1840 Normal and Hard 3/3 bankrupt (as before). **Not run:** the 1930/1950 rows, the other bad bots, and 1900 bad-bot rows; an earlier run with the bot's engine choice shifted by the new `maxCars` gave a bankruptcy (1840 Normal seed 1), which is why the bots keep the old lengths.
+
+**Checks:** `npm run check` 859 tests pass; `e2e/phase48.spec.ts` passes; full e2e shards not run in this session.

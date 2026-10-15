@@ -1768,7 +1768,7 @@ Early `maxCars` (3–6) also keeps trains short, so demand is met by adding *tra
      - a longer train is slower on a grade.
 5. Minimal UI changes only where the data shape changes: the waiting split and the destinations view. Phase 49 owns
    the visual makeover; keep strings short. SPEC §9.5d update, PROGRESS entry with bench tables.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 (survival table partial, see PROGRESS)
 
 ## Phase 49 — Look & feel makeover: era theme, less clutter, realistic engines, zoom flicker
 Owner feedback (2026-10-15): "menus are way too cluttered, too much text… trains too cartoony in the buy menu…
