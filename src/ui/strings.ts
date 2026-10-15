@@ -204,7 +204,7 @@ export const strings = {
     waitingCount: (amount: string) => `${amount} waiting`,
     waitingElsewhere: "other towns",
     /** Phase 51: a waiting row's days to the next train that carries those people. */
-    nextTrain: (days: string) => `next ~${days} d`,
+    nextTrain: (days: string) => `next ~${days}d`,
     supplies: "Supplies",
     perMonthNote: "/mo",
     /** PLAN Phase 35: the "Where passengers go" detail sheet (tap the passenger supply tile). */

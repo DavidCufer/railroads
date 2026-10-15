@@ -792,7 +792,7 @@ two shuttles earn and shuttles turn round faster.
    unserved demand, as before; a pile above a lowered cap is cut silently. Generation stays linear. A train every
    3 days therefore leaves about 3 days of demand on the platform. The estimate now uses the sim's real movement
    (`speed / TICKS_PER_TILE_DIVISOR` tiles an hour): it had used real km per tile and came out ~50 times too fast.
-   The station panel's waiting rows end with "next ~N d" (the interval, whole days, at least 1).
+   The station panel's waiting rows end with "next ~Nd" (the interval, whole days, at least 1).
 6. **Many small flows (Phase 51).** `PAIR_DEMAND.maxShare` is 0.2: real towns send travellers to many places, so no
    single partner fills train after train and a train that calls at several towns fills from every pair on its route.
    `capShares` redistributes the excess over the other candidates (it had a bug that let the shares add up to more than

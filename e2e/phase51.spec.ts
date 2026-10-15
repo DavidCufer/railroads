@@ -85,9 +85,9 @@ test("a waiting pile is cut to the days until the next train, and the row says s
 
   await page.evaluate((id) => window.__game!.debugOpenStation(id), ids.a);
   const split = page.locator('[data-testid="waiting-split"]');
-  await expect(split).toContainText(/next ~\d+ d/);
+  await expect(split).toContainText(/next ~\d+d/);
   const text = (await split.textContent()) ?? "";
-  const days = Number(/next ~(\d+) d/.exec(text)![1]);
+  const days = Number(/next ~(\d+)d/.exec(text)![1]);
   const waiting = await page.evaluate(
     (id) =>
       (

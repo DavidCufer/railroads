@@ -1941,4 +1941,4 @@ justification, deterministic sim. Phase 50 (UI and train drawing) may still be r
 4. UI only where the numbers change meaning. Station waiting rows may show "next ~3 d". Keep it one short line,
    and keep Phase 50's wording. Update SPEC §9.5d/e, add a PROGRESS entry with the tables, and add screenshots
    `phase-51-*.png` (LOOK at them).
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+Status: [x] 1 [x] 2 [x] 3 (multi-stop target not met, see PROGRESS) [x] 4
