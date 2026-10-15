@@ -1861,3 +1861,28 @@ understood.
    An overcrowded line (10+ trains) should show individual trains losing money; say whether it does.
 4. PROGRESS entry with the tables.
 Status: [x] 1 [x] 2 [x] 3 [x] 4
+
+## Phase 50 — Owner play-test fixes after 48/49 (train length on map, text put back, waiting labels)
+Owner feedback (2026-10-15, screenshots): "The trains are now way too long, extending on water. You removed too much
+text: car names and the default action on a station. What is 'any train'?"
+1. **Train length on the map.** With the Phase 48 car limits (up to 8–10 cars early), a train at Venice reaches from
+   the platform far down the line, out over the sea. A train must look like it fits the station.
+   - Draw cars shorter on the map, so a full early train is about as long as a station's platforms. Pick a visual
+     length per car so the longest train of the era fits a normal Station, with Terminals longer.
+   - Keep the sim's tail length (signalling, `CAR_LENGTH_TILES`) consistent with what is drawn. If you change it,
+     check that block and headway tests still pass and say what changed.
+   - Screenshot a full 8-car train at a station (`phase-50-train-length.png`) and LOOK at it.
+2. **Put back the text that was cut too far** (owner: too much was removed).
+   - Car tiles in the buy wizard and consist editor: show the car name under the icon ("Passenger car 40",
+     "Mail car 30", "Coal hopper 20").
+   - Train route: every stop shows its rule as a word chip, including the default ("Load & unload" or whatever
+     the default rule is called), not only non-default rules.
+   - The new-engine card: buttons get short labels again ("Details", "OK").
+   - Check the other Phase 49/49B icon-only spots. Where an icon alone is not obvious to a new player, add back a
+     one- or two-word label. Do not bring back the long sentences.
+3. **"any train" in the station waiting list** lumps two things together: passengers bound for destinations
+   beyond the top rows, and old-save passengers with no destination. Show "→ other towns N" for the first; fold the
+   second into it or show "→ no destination yet N". Never "any train".
+4. e2e (update, never weaken), screenshots `phase-50-*.png` (LOOK), PROGRESS. Do not change passenger demand or
+   waiting rules: they are being redesigned with the owner separately.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
