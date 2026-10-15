@@ -33,7 +33,7 @@ export interface SteamLivery {
   woodCab: boolean;
 }
 
-const BRASS = "#C9A23A";
+const BRASS = "#BC9A4E";
 const GRAPHITE = "#2A2D31";
 const PAPER = "#F4F1E8";
 
@@ -42,16 +42,16 @@ export function steamLivery(def: Pick<LocomotiveDef, "introYear">): SteamLivery 
   if (y <= 1860) {
     return {
       era: 0,
-      body: "#2F5D3A",
+      body: "#35563D",
       lining: BRASS,
-      wheel: "#9E2B25",
+      wheel: "#86302B",
       tyre: "#6B1A17",
       brass: BRASS,
       smokebox: GRAPHITE,
       smokeboxFront: GRAPHITE,
       cab: "#7A4A2A",
       cabRoof: "#3F2B1D",
-      tender: "#2F5D3A",
+      tender: "#35563D",
       tenderLining: BRASS,
       frame: "#2B2A28",
       coal: "#17181a",
