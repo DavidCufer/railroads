@@ -1715,3 +1715,105 @@ Short UI (one-liners), strings in strings.ts, numbers in src/data, deterministic
 5. **Game-over card duration:** under one year show months ("8 months of railroading"); 1 year exactly singular.
 6. Tests, `npm run check` + `npm run e2e`, look at screenshots, SPEC notes, PROGRESS entry.
 Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6
+
+## Phase 48 — Through journeys: fewer, longer trains; multi-stop lines worth running
+Owner feedback (2026-10-15): "Venice<->Trieste can have 10 passenger trains… it never pays to have trains going
+multiple stops, always just one city to the other. Less trains, make it worth it that trains have multiple stops,
+specially passenger trains." Real mechanisms only (owner rule): no flat multipliers. Numbers in src/data with a
+one-line historical justification. Deterministic sim.
+
+**Root cause (Opus, from the code):** passengers are bucketed by their *first leg* (`passengerFlows.ts`,
+`boarding.ts`) and paid on unloading by the distance from where they boarded (`loading.ts` `settleUnload`). A
+Venice→Milan passenger on a Trieste–Venice–Milan through train therefore gets off at the next stop and pays one hop
+only. A through train earns exactly what shuttles earn, and shuttles turn round faster, so shuttles always win.
+Early `maxCars` (3–6) also keeps trains short, so demand is met by adding *trains* instead of *cars*.
+
+1. **Passengers ride to their destination.**
+   - Waiting passengers are bound for their destination station, not their first leg. A train boards people whose
+     destination is a later stop on its orders, or whose next change station is (shortest route, as now).
+   - People who must change alight at the interchange. They join that station's waiting pile, still bound for
+     their destination, and keep their origin tile and the tick they started.
+   - The fare is paid once, on final arrival, for the whole origin→destination distance. The existing time decay
+     uses the whole journey time, including time spent waiting to change; reuse the Phase 40 origin-carrying
+     pattern (`oreOriginTile`).
+   - Interchange passengers count in the station's waiting display.
+   - Keep the waiting cap rules (one month's demand per bucket, overflow = unserved). Transferring people do not
+     create new demand.
+   - Old saves: existing first-leg piles stay as they are and are paid as now, and new demand uses the new rule
+     (keep it simple).
+2. **Changing trains deters travel** (real: railways ran through carriages because every change lost custom).
+   - The gravity weight uses an effective distance = route distance + `CHANGE_PENALTY_TILES` × changes.
+     `CHANGE_PENALTY_TILES` lives in src/data and is documented as the time lost changing.
+   - So a destination reached directly attracts more people than the same town reached with changes.
+   - Also show changes in the station's destinations view (the first-leg pie stays).
+3. **Fewer, longer trains** (real: 1840s passenger trains ran 6–12 carriages; companies lengthened trains before
+   adding paths, because each train needs its own crew and path).
+   - Raise the early locomotives' `maxCars` toward historical figures. Make extra cars cost speed by a real
+     mechanism: tractive effort / train weight, on grades especially. Use the existing locomotive data; add power
+     or weight if missing.
+   - Check that crew wages and train upkeep are charged per train, and car upkeep per car, so a longer train beats
+     another train on cost.
+   - The buy wizard and the consist editor must allow the new lengths.
+4. **Bench and targets** (tools/bench, extend `owner.ts` or add `through.ts`). Report the numbers in PROGRESS.
+   - (a) Owner scenario Venice–Milan 1842: the most profitable fleet should be ~3–5 longer trains, not 10+ short
+     ones. Report profit per train at 2/4/6/10/18 trains.
+   - (b) Trieste–Venice–Milan: one through line with N trains must earn more than two shuttles (Trieste–Venice +
+     Venice–Milan) with the same N trains and cars. Report both.
+   - (c) The good-player bench and survival tables must stay within the Phase 42–44 bounds. Never loosen a bound;
+     if one fails, find the mechanism and report it.
+   - Unit tests:
+     - a through passenger is paid once for the whole distance;
+     - a changing passenger waits at the interchange and is paid on arrival;
+     - direct demand is greater than demand that needs a change;
+     - a longer train is slower on a grade.
+5. Minimal UI changes only where the data shape changes: the waiting split and the destinations view. Phase 49 owns
+   the visual makeover; keep strings short. SPEC §9.5d update, PROGRESS entry with bench tables.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+
+## Phase 49 — Look & feel makeover: era theme, less clutter, realistic engines, zoom flicker
+Owner feedback (2026-10-15): "menus are way too cluttered, too much text… trains too cartoony in the buy menu…
+the start menu needs a makeover. The minimalist dark theme is good but not thematic, not in tune with the spirit
+of the times. Zooming in and out the screen sometimes flickers." Keep it intuitive. Procedural graphics only, no
+image files. Bundled fonts are allowed if needed, ≤ 2 families, OFL-licensed, with the licence in the repo.
+Do NOT change sim code (Phase 48 runs in parallel). Strings stay in strings.ts.
+
+1. **Style guide first** (`docs/STYLE.md`, short): a 19th-century railway look that stays dark and readable.
+   - Palette: deep green / oxblood / ink background, brass and cream accents, a muted red for warnings.
+   - Type: a serif display face for titles and numbers (timetable / engraved feel), a clean sans for small UI text.
+   - Ornaments: thin double rules, corner flourishes drawn in CSS or canvas, ticket-stub style buttons.
+   - Icons: line-art style.
+   - Define CSS tokens in `theme.css`. Apply them everywhere (no stray hard-coded colours).
+2. **Title screen makeover.**
+   - A procedural engraved-style scene: a steam locomotive in side view under a period title cartouche, with a
+     subtle animated smoke trail.
+   - Menu entries as ticket/plaque buttons: New Game, Continue/Load, Scenarios, Achievements, Settings.
+   - Restyle the New Game, Scenarios and Achievements screens to match.
+3. **Declutter every panel and sheet**:
+   - station, train, lines, finance, buy wizard, consist editor, contracts, news, goals, history and game-over
+     cards, hint cards.
+   - Rules:
+     - numbers and icons before words;
+     - at most one short line of explanation per section;
+     - long explanations move behind a small (i) that opens a one-paragraph tip;
+     - remove repeated or derivable figures.
+   - Target: at least 40 % fewer visible words per panel. Count them before and after for the 6 busiest panels and
+     list the counts in PROGRESS.
+   - Keep everything reachable: no feature may become hidden without an entry point.
+4. **Realistic locomotives and cars in the buy wizard and train panel.**
+   - Redraw the side-view previews with correct proportions per type: wheel arrangement from the model id
+     (0-4-0, 4-4-0, 2-8-0, …), boiler, dome, stack, cab, tender; diesel and electric bodies by era.
+   - Muted period liveries, fine line detail, no thick cartoon outlines or toy colours.
+   - Cache them to offscreen canvases.
+   - Passenger cars and freight wagons match the same style.
+   - Screenshot a sheet of all models (`phase-49-engines.png`).
+5. **Zoom flicker.**
+   - Reproduce it: rapid pinch/zoom in and out, in steps, at several speeds.
+   - Find the cause; likely chunk-cache rebuilds showing blank or old frames, or a canvas resize clearing the
+     backing store.
+   - Fix it so every frame draws a complete map: keep the previous cache until the new one is ready, or draw
+     scaled old chunks.
+   - Add an e2e that zooms repeatedly and asserts no frame is blank or half-drawn, by sampling pixels.
+6. Screenshots `phase-49-*.png`: title, new game, a station panel, a train panel, the buy wizard, finance, and
+   before/after of two panels. LOOK at them. Update e2e selectors without weakening assertions. Record SPEC
+   deviations and a PROGRESS entry with the word counts.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
