@@ -1886,3 +1886,59 @@ text: car names and the default action on a station. What is 'any train'?"
 4. e2e (update, never weaken), screenshots `phase-50-*.png` (LOOK), PROGRESS. Do not change passenger demand or
    waiting rules: they are being redesigned with the owner separately.
 Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+
+## Phase 51 — Passengers: wait only for the next train (A), many small flows (B)
+Owner approved (2026-10-15), after play-testing 48/49: "There are still too many passengers waiting. I have no
+incentive to make trains with multiple stops." Real mechanisms only, numbers in src/data with a one-line
+justification, deterministic sim. Phase 50 (UI and train drawing) may still be running: rebase carefully;
+`src/ui/waitingSplit.ts` may conflict, so keep its new wording.
+
+**Why today feels wrong (Opus):**
+- Each destination's waiting pile fills linearly up to one month of demand and stays there (Phase 35D). A train
+  every few days barely dents it, so every station always looks overcrowded and the player adds trains.
+- `PAIR_DEMAND.maxShare = 0.5` lets one destination take half a town's travel. Venice→Trieste alone fills shuttle
+  after shuttle, so stopping elsewhere earns nothing extra.
+
+1. **A — People wait only for the next train.**
+   - Real travellers come to the station for a departure; they do not camp for a month.
+   - Each destination bucket at a station (people bound for that destination; Phase 48 lots) is capped at
+     `demand per day × service interval`, clamped to `[MIN_WAIT_DAYS, MAX_WAIT_DAYS]` (src/data; suggest 1 and
+     14 days, each with a one-line justification).
+   - Service interval for that destination = round-trip time of the trains that carry those people (they call
+     there, or at the change station on the route) ÷ the number of such trains. The gap-rule code already computes
+     round-trip time; reuse it.
+   - No train for that destination: nobody waits for it (as now, only reachable destinations generate).
+   - Generation stays linear. Whatever goes over the cap is counted as unserved ("lost") demand, as overflow is
+     now. People changing trains at an interchange are already travelling and are not capped.
+   - Expected result: a train every 3 days means about 3 days of demand waiting, not a month.
+   - The station panel and the Lines "add a train" hint keep working. The hint triggers on full trains plus lost
+     demand, not on a big pile.
+2. **B — Many small flows instead of one big one.**
+   - Lower `PAIR_DEMAND.maxShare` to about 0.2. Real towns send travellers to many places.
+   - Check `capShares` with few candidates (cap = max(maxShare, 1/n)). Decide whether to redistribute or drop the
+     excess share and note it; the conservative choice is to keep redistributing as now.
+   - If that alone leaves central-eu towns with only 3–5 candidates (so each still gets 20–33 %), say so with the
+     numbers for Venice, Milan and Ljubljana, and stop there. Do not invent towns.
+   - A multi-stop train fills from every pair along its route (Phase 48 lots already do this). Verify that seats
+     freed at a stop are refilled there.
+3. **Bench and targets** (`tools/bench`). Report before/after in PROGRESS.
+   - (a) A multi-stop line along 4–5 central-eu towns, e.g. Milan–Venice–Trieste–Ljubljana or a better real
+     chain, versus point-to-point shuttles over the same towns with the same trains and cars. The multi-stop line
+     should earn clearly more per train (aim ≥ 25 %). Report profit per train, average load, and waiting at each
+     station.
+   - (b) Owner scenario Venice–Milan: the most profitable fleet, per-train profit at 2/4/6/10, and average
+     waiting at Venice before and after. Waiting should be days of demand, not a month.
+   - (c) Good-player and survival rows for 1840/1900 on Normal and Hard, against the Phase 42–44 bounds. If total
+     passenger income falls so far that a bound fails, find the mechanism and report it. You may recalibrate
+     `TRIPS_PER_HEAD_ANCHORS` only with a stated historical reason, as Phase 35E did, never as a flat fudge.
+     Never loosen a bound.
+   - Unit tests:
+     - the cap equals the rate × interval and is clamped;
+     - the cap is zero with no service;
+     - overflow is counted as lost;
+     - a station's top destination share is ≤ maxShare when there are enough candidates;
+     - a multi-stop train refills seats at an intermediate stop.
+4. UI only where the numbers change meaning. Station waiting rows may show "next ~3 d". Keep it one short line,
+   and keep Phase 50's wording. Update SPEC §9.5d/e, add a PROGRESS entry with the tables, and add screenshots
+   `phase-51-*.png` (LOOK at them).
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
