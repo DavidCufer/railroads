@@ -230,7 +230,7 @@ test.describe("Phase 28B — buy-train route sheet", () => {
     await page.evaluate((id) => window.__game!.debugOpenStation(id), a);
     await page.locator(".station-buy-train-btn").click();
     await page.locator(".wizard-next").click();
-    await page.locator(".train-car-add-btn", { hasText: "Passengers" }).click();
+    await page.locator(".train-car-add-btn[data-cargo='passengers']").click();
     await page.locator(".wizard-next").click();
     const sheet = page.locator(".panel.panel-bottom");
     await expect(sheet).toBeVisible();

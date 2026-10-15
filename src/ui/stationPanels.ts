@@ -472,7 +472,6 @@ function resultsSection(state: GameState, station: Station): Node[] {
         thumb: cargoIcon(cargo, "cargo-icon-lg"),
         title: CARGO[cargo].name,
         meta: parts.join(" · "),
-        trailing: b.revenue >= 1 ? formatMoney(b.revenue) : "",
       }),
     );
   }
@@ -481,15 +480,22 @@ function resultsSection(state: GameState, station: Station): Node[] {
     // A journey can take longer than a month, and fares are paid on arrival: loaded-but-not-yet-paid is "pending",
     // not "$0 earned" (Phase 35 item 6).
     revenue < 1 && sentTotal >= 0.5
-      ? statTile({ icon: "coin", value: t.pending, caption: t.revenue, tone: "go" })
-      : statTile({ icon: "coin", value: formatMoney(revenue), caption: t.revenue, tone: "go" }),
+      ? statTile({ icon: "coin", value: t.pending, caption: "", title: t.revenue, tone: "go" })
+      : statTile({
+          icon: "coin",
+          value: formatMoney(revenue),
+          caption: "",
+          title: t.revenue,
+          tone: "go",
+        }),
   ];
   if (lostUnits >= 0.5) {
     tiles.push(
       statTile({
         icon: "town",
         value: String(Math.round(lostUnits)),
-        caption: t.unservedCaption,
+        caption: "",
+        title: t.unservedCaption,
         tone: "signal",
       }),
     );

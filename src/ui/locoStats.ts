@@ -5,6 +5,7 @@ import { h } from "./h";
 import { icon, type IconName } from "./icons";
 import { formatMoney } from "./format";
 import { pips } from "./components/meter";
+import { infoTip } from "./components/infoTip";
 import { strings } from "./strings";
 import { formatSpeed, loadSettings, type Units } from "./settings";
 
@@ -43,9 +44,8 @@ interface StatRow {
 function statRow(r: StatRow): HTMLElement {
   return h(
     "div",
-    { className: "eng-stat", "data-stat": r.key },
+    { className: "eng-stat", "data-stat": r.key, title: r.label, "aria-label": r.label },
     icon(r.icon, "icon-sm eng-stat-icon"),
-    h("span", { className: "eng-stat-label" }, r.label),
     r.fraction === null
       ? h("div", { className: "eng-stat-bar" }, pips(r.pipsValue ?? 0))
       : h(
@@ -120,9 +120,12 @@ export function engineStats(
       cost: true,
     },
   ];
+  const shown = rows.filter((r) => !keys || keys.includes(r.key));
+  const legend = infoTip(strings.trains.stats.legend);
   return h(
     "div",
-    { className: "eng-stats" },
-    ...rows.filter((r) => !keys || keys.includes(r.key)).map(statRow),
+    { className: "eng-stats-wrap" },
+    h("div", { className: "eng-stats" }, ...shown.map(statRow), legend.button),
+    legend.host,
   );
 }

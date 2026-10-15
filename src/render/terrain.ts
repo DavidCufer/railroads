@@ -40,6 +40,15 @@ const HI_RES_CHUNK_CACHE_MAX = 12;
  * bucket since Phase 23A (5 km/tile), so a session that visits the whole map at several zoom levels
  * evicts least-recently-used chunks (cheap to re-bake; measured steady-state render is unchanged). */
 const TERRAIN_CHUNK_CACHE_MAX = 350;
+/** Enough for every chunk on screen at any zoom of a phone or tablet viewport. */
+const STALE_CHUNK_CACHE_MAX = 48;
+/** Buckets tried, nearest first, when a chunk has no bake at the current zoom. */
+const FALLBACK_BUCKETS: Record<ZoomBucket, readonly ZoomBucket[]> = {
+  2: [1, 0.5, 0.25],
+  1: [2, 0.5, 0.25],
+  0.5: [1, 0.25, 2],
+  0.25: [0.5, 1, 2],
+};
 
 const WATER_ID = terrainId("water");
 const RIVER_ID = terrainId("river");
@@ -310,6 +319,13 @@ interface CityCenter {
 export class TerrainRenderer {
   private cache = new ChunkCache<HTMLCanvasElement>(TERRAIN_CHUNK_CACHE_MAX);
   private hiCache = new ChunkCache<HTMLCanvasElement>(HI_RES_CHUNK_CACHE_MAX);
+  /** Chunks that were on screen when the caches were last invalidated: drawn until their re-bake is done, so a
+   * content change never blanks the map (the zoom/redraw flicker, Phase 49). */
+  private stale = new ChunkCache<HTMLCanvasElement>(STALE_CHUNK_CACHE_MAX);
+  /** Keys (and which cache holds them) of the chunks `draw` composited last frame. */
+  private lastVisible: Array<{ key: string; hi: boolean }> = [];
+  /** One pixel per tile in terrain colours: the last-resort stand-in for a chunk that has no bake at any zoom. */
+  private coarse: HTMLCanvasElement | null = null;
   private map: GameMap;
   private cities: readonly City[];
   private industries: readonly Industry[];
@@ -335,10 +351,25 @@ export class TerrainRenderer {
     this.industries = industries;
     this.cache.clear();
     this.hiCache.clear();
+    this.stale.clear();
+    this.lastVisible = [];
+    this.coarse = null;
     this.shoreDist = null;
     this.shimmerDots = [];
     this.lastShimmerUpdate = -Infinity;
     this.computeCityCenters();
+  }
+
+  /** Drops every bake but keeps what is on screen as a stand-in until each chunk is re-baked. */
+  private invalidateKeepingVisible(): void {
+    this.stale.clear();
+    for (const { key, hi } of this.lastVisible) {
+      const canvas = (hi ? this.hiCache : this.cache).get(key);
+      if (canvas) this.stale.set(key, canvas);
+    }
+    this.cache.clear();
+    this.hiCache.clear();
+    this.coarse = null;
   }
 
   /** Call after `GameState.mapContentVersion` bumps — a city's footprint grew or a new industry
@@ -348,8 +379,7 @@ export class TerrainRenderer {
    * as `setMap`, but keeps the shimmer animation state instead of resetting it. */
   refreshContent(): void {
     this.shoreDist = null;
-    this.cache.clear();
-    this.hiCache.clear();
+    this.invalidateKeepingVisible();
     this.computeCityCenters();
   }
 
@@ -366,8 +396,7 @@ export class TerrainRenderer {
       if (same) return;
     }
     this.stationFootprint = tiles;
-    this.cache.clear();
-    this.hiCache.clear();
+    this.invalidateKeepingVisible();
   }
 
   /** Number of chunk canvases currently cached (bounded by `TERRAIN_CHUNK_CACHE_MAX`) — exposed
@@ -434,19 +463,43 @@ export class TerrainRenderer {
     // Overview chunks skip decorations but share the smooth borders/coast/water, so they are budgeted too.
     let chunksRenderedThisFrame = 0;
     const CHUNK_RENDER_BUDGET = overview ? 8 : bucket === 2 ? 6 : 4;
+    const visible: Array<{ key: string; hi: boolean }> = [];
 
     for (let cy = chunkMinY; cy <= chunkMaxY; cy++) {
       for (let cx = chunkMinX; cx <= chunkMaxX; cx++) {
         const key = chunkCacheKey(cx, cy, bucket, overview);
-        let canvas = cache.get(key);
-        if (!canvas) {
-          if (chunksRenderedThisFrame >= CHUNK_RENDER_BUDGET) continue;
-          canvas = this.renderChunk(cx, cy, bucket, overview);
-          cache.set(key, canvas);
-          chunksRenderedThisFrame++;
-        }
         const tilesX = Math.min(CHUNK_TILES, this.map.width - cx * CHUNK_TILES);
         const tilesY = Math.min(CHUNK_TILES, this.map.height - cy * CHUNK_TILES);
+        const world = {
+          x0: cx * chunkWorldSize,
+          y0: cy * chunkWorldSize,
+          x1: cx * chunkWorldSize + tilesX * TILE_SIZE,
+          y1: cy * chunkWorldSize + tilesY * TILE_SIZE,
+        };
+        let canvas = cache.get(key);
+        if (!canvas) {
+          if (chunksRenderedThisFrame >= CHUNK_RENDER_BUDGET) {
+            // Over this frame's bake budget: draw a stand-in so the map is never blank (zoom flicker, Phase 49).
+            this.drawStandIn(
+              ctx,
+              camera,
+              viewportW,
+              viewportH,
+              cx,
+              cy,
+              bucket,
+              tilesX,
+              tilesY,
+              world,
+            );
+            continue;
+          }
+          canvas = this.renderChunk(cx, cy, bucket, overview);
+          cache.set(key, canvas);
+          this.stale.delete(key);
+          chunksRenderedThisFrame++;
+        }
+        visible.push({ key, hi: bucket === 2 });
         const px = TILE_SIZE * bucket;
         const pad = CHUNK_PAD_TILES;
         // Only the interior is composited (the pad just supplies neighbours' overflow), with the
@@ -458,15 +511,13 @@ export class TerrainRenderer {
           viewportH,
           canvas,
           { x: pad * px, y: pad * px, w: tilesX * px, h: tilesY * px },
-          {
-            x0: cx * chunkWorldSize,
-            y0: cy * chunkWorldSize,
-            x1: cx * chunkWorldSize + tilesX * TILE_SIZE,
-            y1: cy * chunkWorldSize + tilesY * TILE_SIZE,
-          },
+          world,
         );
       }
     }
+    // Keep a chunk we could not bake this frame in the list of what was on screen, so a later invalidation can still
+    // use it; chunks drawn only as stand-ins are not in the cache and are skipped.
+    this.lastVisible = visible;
 
     if (!overview) {
       this.drawWaterShimmer(
@@ -481,6 +532,109 @@ export class TerrainRenderer {
         chunkMaxY,
       );
     }
+  }
+
+  /** Draws something for a chunk that cannot be baked this frame: its stale bake, the same chunk baked at another
+   * zoom (scaled), else the one-pixel-per-tile terrain map. Never leaves the sea backdrop showing through. */
+  private drawStandIn(
+    ctx: CanvasRenderingContext2D,
+    camera: Camera,
+    viewportW: number,
+    viewportH: number,
+    cx: number,
+    cy: number,
+    bucket: ZoomBucket,
+    tilesX: number,
+    tilesY: number,
+    world: { x0: number; y0: number; x1: number; y1: number },
+  ): void {
+    const pad = CHUNK_PAD_TILES;
+    const stale = this.stale.get(chunkCacheKey(cx, cy, bucket, bucket === 0.25));
+    if (stale) {
+      const px = TILE_SIZE * bucket;
+      drawChunkSnapped(
+        ctx,
+        camera,
+        viewportW,
+        viewportH,
+        stale,
+        {
+          x: pad * px,
+          y: pad * px,
+          w: tilesX * px,
+          h: tilesY * px,
+        },
+        world,
+      );
+      return;
+    }
+    for (const other of FALLBACK_BUCKETS[bucket]) {
+      const key = chunkCacheKey(cx, cy, other, other === 0.25);
+      const canvas = (other === 2 ? this.hiCache : this.cache).get(key) ?? this.stale.get(key);
+      if (!canvas) continue;
+      const px = TILE_SIZE * other;
+      drawChunkSnapped(
+        ctx,
+        camera,
+        viewportW,
+        viewportH,
+        canvas,
+        {
+          x: pad * px,
+          y: pad * px,
+          w: tilesX * px,
+          h: tilesY * px,
+        },
+        world,
+      );
+      return;
+    }
+    drawChunkSnapped(
+      ctx,
+      camera,
+      viewportW,
+      viewportH,
+      this.coarseLayer(),
+      {
+        x: cx * CHUNK_TILES,
+        y: cy * CHUNK_TILES,
+        w: tilesX,
+        h: tilesY,
+      },
+      world,
+    );
+  }
+
+  /** One pixel per tile, in the terrain colours, built on first use. */
+  private coarseLayer(): HTMLCanvasElement {
+    if (this.coarse) return this.coarse;
+    const { width, height } = this.map;
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const c = canvas.getContext("2d");
+    if (c) {
+      const img = c.createImageData(width, height);
+      const rgb = new Map<string, [number, number, number]>();
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const color = renderColorFor(this.map, x, y);
+          let v = rgb.get(color);
+          if (!v) {
+            v = hexToRgb(color);
+            rgb.set(color, v);
+          }
+          const o = (y * width + x) * 4;
+          img.data[o] = v[0];
+          img.data[o + 1] = v[1];
+          img.data[o + 2] = v[2];
+          img.data[o + 3] = 255;
+        }
+      }
+      c.putImageData(img, 0, 0);
+    }
+    this.coarse = canvas;
+    return canvas;
   }
 
   private renderChunk(

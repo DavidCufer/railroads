@@ -184,6 +184,7 @@ export function consistBuilder(options: ConsistBuilderOptions): ConsistBuilder {
             className: "train-car-add-btn car-tile",
             disabled: !loco || full,
             "aria-label": t.addCar(CARGO[c].name),
+            title: `${CARGO[c].name} · ${carCapacityText(c)}`,
             "data-cargo": c,
             onClick: () => {
               options.cars.push(c);
@@ -194,13 +195,8 @@ export function consistBuilder(options: ConsistBuilderOptions): ConsistBuilder {
           h(
             "div",
             { className: "car-tile-text" },
-            h(
-              "span",
-              { className: "car-tile-name" },
-              cargoBadge(c, "cargo-icon-xs"),
-              CARGO[c].name,
-            ),
-            h("span", { className: "car-tile-cap tabular" }, carCapacityText(c)),
+            h("span", { className: "car-tile-name" }, cargoBadge(c, "cargo-icon-xs")),
+            h("span", { className: "car-tile-cap tabular" }, `${CARGO[c].capacity}`),
           ),
         ),
       ),

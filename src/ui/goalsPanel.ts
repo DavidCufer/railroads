@@ -40,14 +40,22 @@ function goalCard(state: GameState, status: ReturnType<typeof evaluateGoals>[num
       h(
         "div",
         { className: "goal-sub" },
-        h("span", { className: "goal-tier-badge" }, strings.goals.tierNames[goal.tier]),
-        h("span", { className: "goal-year" }, strings.goals.byYear(goalTargetYear(goal))),
+        h(
+          "span",
+          { className: "goal-year", title: strings.goals.byYear(goalTargetYear(goal)) },
+          icon("calendar", "icon-xs"),
+          String(goalTargetYear(goal)),
+        ),
         status.overdue ? h("span", { className: "goal-overdue" }, strings.goals.overdue) : null,
       ),
       h(
         "div",
-        { className: "goal-reward" },
-        status.complete ? strings.goals.rewardReceived : strings.goals.reward(grant),
+        {
+          className: "goal-reward",
+          title: status.complete ? strings.goals.rewardReceived : strings.goals.reward(grant),
+        },
+        icon(status.complete ? "check" : "coin", "icon-xs"),
+        status.complete ? "" : grant,
       ),
       meter(status.progress, 1, status.complete ? "go" : "brass"),
     ),

@@ -94,7 +94,7 @@ test.describe("Phase 30B", () => {
     await expect(strip).toContainText("Cash $190");
     await page.evaluate(() => window.__game!.debugSetCash(50_000_000));
     await page.locator(".wizard-next").click();
-    await page.locator(".train-car-add-btn", { hasText: "Passengers" }).click();
+    await page.locator(".train-car-add-btn[data-cargo='passengers']").click();
     await page.locator(".wizard-next").click();
     await page.locator(".rs-list-btn").click();
     await expect(page.locator(".rs-dist").first()).toContainText("km");

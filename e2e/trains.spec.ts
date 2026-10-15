@@ -242,7 +242,7 @@ test.describe("Phase 6 — Trains", () => {
     await expect(page.locator(".sheet-title")).toContainText("Buy train");
     await expect(page.locator(".train-loco-btn").first()).toBeVisible();
     await page.locator(".wizard-next").click(); // Engine → Cars
-    await page.locator(".train-car-add-btn", { hasText: "Coal" }).click();
+    await page.locator(".train-car-add-btn[data-cargo='coal']").click();
     await page.locator(".wizard-next").click(); // Cars → Route
 
     // The panel covers the right ~45% of the viewport, so re-center each target tile toward the
@@ -293,7 +293,7 @@ test.describe("Phase 6 — Trains", () => {
     // Both stops are named after the nearby city of Dunville (the second gets a "2" suffix).
     await expect(page.locator(".tl-station", { hasText: "Dunville Crossing 2" })).toBeVisible();
     await expect(page.locator(".tl-station", { hasText: /Dunville Crossing(?! 2)/ })).toBeVisible();
-    await expect(page.locator(".rule-chip", { hasText: "Auto" }).first()).toBeVisible();
+    await expect(page.locator(".rule-chip[aria-label$='Auto']").first()).toBeVisible();
     await page.screenshot({ path: "docs/screenshots/phase-6-train-panel.png" });
   });
 
@@ -326,8 +326,8 @@ test.describe("Phase 6 — Trains", () => {
     await page.locator(".train-edit-btn").click();
     await page.waitForTimeout(200);
     await expect(page.locator(".sheet-title")).toContainText("Edit Consist");
-    await page.locator(".train-car-add-btn", { hasText: "Coal" }).click();
-    await page.locator(".train-car-add-btn", { hasText: "Grain" }).click();
+    await page.locator(".train-car-add-btn[data-cargo='coal']").click();
+    await page.locator(".train-car-add-btn[data-cargo='grain']").click();
     await page.waitForTimeout(50);
     await page.screenshot({ path: "docs/screenshots/phase-15-consist-editor.png" });
     await page.locator(".edit-confirm").click();

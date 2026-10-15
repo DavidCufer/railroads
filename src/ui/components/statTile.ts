@@ -15,14 +15,17 @@ export interface StatTileOptions {
 export function statTile(options: StatTileOptions): HTMLElement {
   return h(
     "div",
-    { className: "stat-tile", ...(options.title ? { title: options.title } : {}) },
+    {
+      className: "stat-tile",
+      ...(options.title || !options.caption ? { title: options.title ?? "" } : {}),
+    },
     h(
       "div",
       { className: `stat-value${toneClass(options.tone)}` },
       options.icon ? icon(options.icon, "icon-sm") : null,
       h("span", null, options.value),
     ),
-    h("div", { className: "stat-caption" }, options.caption),
+    options.caption ? h("div", { className: "stat-caption" }, options.caption) : null,
   );
 }
 

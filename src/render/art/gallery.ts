@@ -57,8 +57,69 @@ function pair(
   return row;
 }
 
+/** `?debug=1&gallery=1&sheet=1`: every locomotive on an aged-paper print plate, with name and year, plus a row of
+ * cars: the period "builder's sheet" used for the Phase 49 review screenshot. */
+function mountEngineSheet(height: number): void {
+  document.body.style.cssText =
+    "margin:0;background:var(--ink-900);height:auto;overflow:visible;position:static";
+  document.documentElement.style.cssText = "height:auto;overflow:visible";
+  document.getElementById("app")?.remove();
+  const root = el(
+    "div",
+    "padding:10px 14px 14px;font-family:var(--font-ui);min-width:780px;max-width:1100px;color:var(--text)",
+  );
+  root.id = "gallery";
+  document.body.appendChild(root);
+  root.appendChild(
+    el(
+      "div",
+      "font:700 13px var(--font-display);letter-spacing:.2em;text-transform:uppercase;color:var(--paper);margin:0 0 8px;border-bottom:3px double var(--brass-dk);padding-bottom:6px",
+      "Rolling stock",
+    ),
+  );
+  const grid = el("div", "display:grid;grid-template-columns:repeat(4,1fr);gap:8px");
+  root.appendChild(grid);
+  const plate = (label: string, sub: string, canvas: HTMLCanvasElement | OffscreenCanvas): void => {
+    const d = el(
+      "div",
+      "background:radial-gradient(ellipse at 50% 35%,var(--card-paper-hi),var(--card-paper) 55%,var(--card-paper-edge) 130%);box-shadow:inset 0 0 0 3px var(--card-paper),inset 0 0 0 4px var(--card-rule);padding:8px 8px 4px;display:flex;flex-direction:column;align-items:center;color:#2a241a",
+    );
+    const cv = document.createElement("canvas");
+    cv.width = canvas.width;
+    cv.height = canvas.height;
+    cv.getContext("2d")?.drawImage(canvas as CanvasImageSource, 0, 0);
+    cv.style.cssText = `display:block;width:${Math.round(cv.width / (window.devicePixelRatio || 1))}px;height:${height}px;max-width:100%;object-fit:contain`;
+    d.appendChild(cv);
+    d.appendChild(el("div", "font:700 12px var(--font-display);margin-top:2px", label));
+    d.appendChild(el("div", "font:10px var(--font-ui);letter-spacing:.1em;opacity:.7", sub));
+    grid.appendChild(d);
+  };
+  for (const def of LOCOMOTIVES)
+    plate(def.name, `${def.type} · ${def.introYear}`, locoSideCanvas(def, height));
+  const cargos = [
+    "passengers",
+    "mail",
+    "coal",
+    "goods",
+    "livestock",
+    "oil",
+    "wood",
+    "steel",
+  ] as const;
+  for (const cargo of cargos)
+    plate(
+      CARGO[cargo].carLabel,
+      "mid",
+      carSideCanvas(cargo, "mid", cargo === "passengers" ? 0 : 1, height),
+    );
+}
+
 export function mountGallery(): void {
   const params = new URLSearchParams(window.location.search);
+  if (params.get("sheet")) {
+    mountEngineSheet(Number(params.get("h") ?? 64));
+    return;
+  }
   const height = Number(params.get("h") ?? 72);
   const only = params.get("only");
   document.body.style.cssText =

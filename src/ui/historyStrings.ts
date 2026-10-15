@@ -31,7 +31,7 @@ export function describeHistoryEvent(e: HistoryEvent): string {
     case "bankrupt":
       return t.bankrupt;
     case "achievement":
-      return t.achievement(achievementName(e.text ?? ""));
+      return achievementName(e.text ?? "");
     case "scenario":
       return e.text === "won" ? t.scenarioWon : t.scenarioLost;
   }

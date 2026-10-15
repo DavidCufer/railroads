@@ -63,7 +63,11 @@ export interface RouteTimelineOptions {
 
 function ruleChip(stop: TimelineStop, index: number, options: RouteTimelineOptions): HTMLElement {
   const label = strings.trains.loadingRules[stop.rule];
-  const inner = [icon(RULE_ICONS[stop.rule], "icon-xs"), h("span", null, label)];
+  // The default rule ("Auto") is icon-only; a non-default rule says its name (STYLE §16: icons first).
+  const inner = [
+    icon(RULE_ICONS[stop.rule], "icon-xs"),
+    stop.rule === "auto" ? null : h("span", null, label),
+  ];
   const title = strings.trains.ruleHint[stop.rule];
   return options.onRule
     ? h(
@@ -114,12 +118,16 @@ function gapStepper(
   return h(
     "div",
     { className: "tl-gap", "data-testid": "tl-gap", title: g.hint },
-    h("span", { className: "tl-gap-label" }, g.label),
+    h(
+      "span",
+      { className: "tl-gap-label", title: g.label, "aria-label": g.label },
+      icon("calendar", "icon-xs"),
+    ),
     miniBtn("minus", g.less, at === 0, () => step(-1)),
     h(
       "span",
       { className: "tl-gap-value tabular", "data-testid": "tl-gap-value" },
-      stop.gapDays === undefined ? g.off : g.days(stop.gapDays),
+      stop.gapDays === undefined ? "\u2014" : g.days(stop.gapDays),
     ),
     miniBtn("plus", g.more, at === GAP_STEPS.length - 1, () => step(1)),
   );
@@ -155,7 +163,11 @@ export function routeTimeline(options: RouteTimelineOptions): HTMLElement {
             "div",
             { className: "tl-between" },
             h("span", { className: "tl-marker" }, icon("trains", "icon-xs")),
-            h("span", { className: "tl-between-text" }, p.nextStop),
+            h("span", {
+              className: "tl-between-text",
+              "aria-label": p.nextStop,
+              title: p.nextStop,
+            }),
           )
         : null,
       h(
@@ -164,7 +176,7 @@ export function routeTimeline(options: RouteTimelineOptions): HTMLElement {
         h(
           "span",
           { className: "tl-dot" },
-          here ? h("span", { className: "tl-marker" }, icon("trains", "icon-xs")) : String(i + 1),
+          here ? h("span", { className: "tl-marker" }, icon("trains", "icon-xs")) : null,
         ),
         h(
           "div",

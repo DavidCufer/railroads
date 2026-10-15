@@ -100,7 +100,7 @@ test.describe("Phase 34 — live panels", () => {
     await page.evaluate((id) => window.__game!.debugOpenStation(id), a);
     await page.locator(".station-buy-train-btn").click();
     await page.locator(".wizard-next").click();
-    await page.locator(".train-car-add-btn", { hasText: "Passengers" }).click();
+    await page.locator(".train-car-add-btn[data-cargo='passengers']").click();
     await page.locator(".wizard-next").click();
     await page.evaluate((sid) => window.__game!.debugPickStation(sid), a);
     await page.evaluate(() => window.__game!.debugPickStation(window.__game!.getStations()[1]!.id));
@@ -142,7 +142,7 @@ test.describe("Phase 34 — warnings only at confirm", () => {
     await page.evaluate((id) => window.__game!.debugOpenStation(id), a);
     await page.locator(".station-buy-train-btn").click();
     await page.locator(".wizard-next").click();
-    await page.locator(".train-car-add-btn", { hasText: "Coal" }).click();
+    await page.locator(".train-car-add-btn[data-cargo='coal']").click();
     await page.locator(".wizard-next").click();
     await page.evaluate((sid) => window.__game!.debugPickStation(sid), a);
     await page.evaluate((sid) => window.__game!.debugPickStation(sid), b);

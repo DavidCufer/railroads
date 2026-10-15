@@ -18,6 +18,7 @@ import { operatingLast30Days, operatingTrailing } from "../sim/finance/operating
 import type { GameState } from "../sim/state";
 import { drawSparkline, stackedBar } from "./components/charts";
 import { costParts, incomeParts } from "./components/ledgerParts";
+import { infoTip } from "./components/infoTip";
 import { footerButton } from "./components/footer";
 import { meter } from "./components/meter";
 import { section } from "./components/section";
@@ -48,10 +49,17 @@ function operatingSection(state: GameState): HTMLElement {
   const bar = (label: string, value: number, tone: "go" | "signal"): HTMLElement =>
     h(
       "div",
-      { className: "op-bar-row" },
-      h("span", { className: "op-bar-label" }, label),
+      { className: "op-bar-row", title: label },
+      h(
+        "span",
+        { className: "op-bar-label", "aria-label": label },
+        icon(tone === "go" ? "arrowUp" : "arrowDown", "icon-sm"),
+      ),
       meter(value, scale, tone, formatMoney(value)),
     );
+  const tip = infoTip(
+    `${f.avg12(avg.months)}. ${f.last30}: ${sign(last.profit)}. ${f.investments}: ${formatMoney(avg.investments)} ${f.perMonth} (${f.investmentsNote}).`,
+  );
   return h(
     "div",
     { className: "section operating" },
@@ -60,19 +68,11 @@ function operatingSection(state: GameState): HTMLElement {
       { className: `operating-headline ${avg.profit >= 0 ? "tone-go" : "tone-signal"}` },
       h("span", { className: "panel-section-title" }, f.operatingProfit),
       h("b", { className: "operating-value" }, `${sign(avg.profit)} ${f.perMonth}`),
+      tip.button,
     ),
+    tip.host,
     bar(f.operatingIncome, avg.income, "go"),
     bar(f.operatingCosts, avg.costs, "signal"),
-    h(
-      "div",
-      { className: "operating-notes" },
-      h("span", null, `${f.avg12(avg.months)} · ${f.last30}: ${sign(last.profit)}`),
-      h(
-        "span",
-        { title: f.investmentsNote },
-        `${f.investments}: ${formatMoney(avg.investments)} ${f.perMonth}`,
-      ),
-    ),
   );
 }
 
@@ -93,18 +93,21 @@ export function openFinancePanel(container: HTMLElement, state: GameState): void
           statTile({
             icon: "coin",
             value: formatMoney(state.cash),
-            caption: strings.finance.cash,
+            caption: "",
+            title: strings.finance.cash,
             tone: state.cash < 0 ? "signal" : "brass",
           }),
           statTile({
             icon: "trendUp",
             value: formatMoney(netWorth(state)),
-            caption: strings.finance.netWorth,
+            caption: "",
+            title: strings.finance.netWorth,
           }),
           statTile({
             icon: "finance",
             value: formatMoney(loans),
-            caption: strings.finance.loans,
+            caption: "",
+            title: strings.finance.loans,
             tone: loans > 0 ? "signal" : undefined,
           }),
         ),
@@ -121,7 +124,15 @@ export function openFinancePanel(container: HTMLElement, state: GameState): void
         h(
           "div",
           { className: "credit-row", title: strings.finance.creditNote },
-          h("span", { className: "panel-section-title" }, strings.finance.creditLimit),
+          h(
+            "span",
+            {
+              className: "panel-section-title",
+              title: strings.finance.creditLimit,
+              "aria-label": strings.finance.creditLimit,
+            },
+            icon("finance", "icon-sm"),
+          ),
           meter(
             loans,
             limit,
@@ -236,7 +247,6 @@ export function openFinancePanel(container: HTMLElement, state: GameState): void
 
     openPanel(container, {
       title: strings.finance.title,
-      subtitle: strings.finance.subtitle,
       thumb: icon("finance"),
       tabs: tabs(
         [

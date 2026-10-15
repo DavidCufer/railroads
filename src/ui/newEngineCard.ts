@@ -92,13 +92,20 @@ function render(): void {
         statTile({
           icon: "gauge",
           value: formatSpeed(def.maxSpeedKmh, loadSettings().units),
-          caption: strings.trains.stats.speed,
+          caption: "",
+          title: strings.trains.stats.speed,
         }),
-        statTile({ icon: "power", value: String(def.power), caption: strings.trains.stats.power }),
+        statTile({
+          icon: "power",
+          value: String(def.power),
+          caption: "",
+          title: strings.trains.stats.power,
+        }),
         statTile({
           icon: "trains",
           value: String(def.maxCars),
-          caption: strings.trains.stats.maxCars,
+          caption: "",
+          title: strings.trains.stats.maxCars,
         }),
       ),
       actions,

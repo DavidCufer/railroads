@@ -49,6 +49,7 @@ import { lineSummaries, trainsNeeded } from "../sim/finance/lines";
 import { addTrainHint } from "../sim/finance/lineHints";
 import { booksProfit, trainProfitPerYear, trainProfitStatus } from "../sim/trains/profit";
 import type { Train, TrainCar, TrainOrder } from "../sim/trains/types";
+import { infoTip } from "./components/infoTip";
 import { cardList, cardRow } from "./components/cardRow";
 import { emptyState } from "./components/emptyState";
 import { footerButton } from "./components/footer";
@@ -927,6 +928,7 @@ function linesList(
       return fullNote
         ? h("div", { className: "line-block" }, cardList(row), fullNote)
         : cardList(row);
+    const spaceTip = infoTip(L.spaceHint);
     const needed = trainsNeeded(state, line.trainIds);
     const gap = state.trains
       .find((t) => t.id === line.trainIds[0])
@@ -963,15 +965,12 @@ function linesList(
           L.spaceEvenly,
         ),
         gap !== undefined ? h("span", { className: "line-gap-note" }, L.spaced(gap)) : null,
+        spaceTip.button,
       ),
+      spaceTip.host,
     );
   });
-  return h(
-    "div",
-    { className: "lines-list" },
-    ...rows,
-    h("div", { className: "hint line-hint" }, L.spaceHint),
-  );
+  return h("div", { className: "lines-list" }, ...rows);
 }
 
 // --- train list ----------------------------------------------------------------------------------

@@ -100,15 +100,15 @@ test.describe("Phase 22 — train screens", () => {
     await expect(page.locator(".eng-name")).toHaveText("American 4-4-0");
     await page.locator(".wizard-next").click();
     await expect(page.locator(".step.current")).toContainText("Cars");
-    await page.locator(".train-car-add-btn", { hasText: "Passengers" }).click();
-    await page.locator(".train-car-add-btn", { hasText: "Coal" }).click();
+    await page.locator(".train-car-add-btn[data-cargo='passengers']").click();
+    await page.locator(".train-car-add-btn[data-cargo='coal']").click();
     await expect(page.locator(".consist-car-btn")).toHaveCount(2);
     await noHorizontalOverflow(page, ".sheet-wizard");
     await shot(page, "buy-cars");
     // Tap a car to remove it, then add it back through the palette.
     await page.locator(".consist-car-btn").first().click();
     await expect(page.locator(".consist-car-btn")).toHaveCount(1);
-    await page.locator(".train-car-add-btn", { hasText: "Coal" }).click();
+    await page.locator(".train-car-add-btn[data-cargo='coal']").click();
     await page.locator(".wizard-next").click();
 
     // Route step: the sheet gives way to the side panel; stops come from the map-pick mode.

@@ -23,7 +23,7 @@ bottom of this file with a one-line reason.
 | Unit tests | Vitest (simulation code must be testable without a DOM) |
 | E2E / visual checks | Playwright against the Vite dev/preview server, using Chromium at `/opt/pw-browsers` |
 | Persistence | IndexedDB (via a tiny wrapper) for saves; `localStorage` only for settings |
-| Assets | **All graphics drawn procedurally in code** and cached into offscreen canvases. No sprite sheets or external images except the app icon. No external fonts required (use system sans-serif). |
+| Assets | **All graphics drawn procedurally in code** and cached into offscreen canvases. No sprite sheets or external images except the app icon. One bundled OFL display font (Playfair Display, `src/assets/fonts/`, licence alongside; Phase 49 deviation, at most two bundled families allowed); UI text uses the system sans-serif. |
 | Sound | Optional, Phase 11 only, generated with WebAudio (no audio files) |
 | Randomness | One seeded PRNG (e.g. mulberry32/sfc32) stored in the game state. Never `Math.random()` in simulation code. |
 
@@ -815,7 +815,7 @@ Keep RRT Deluxe's readable top-down map look, but cleaner:
   lines. Electrified = small catenary poles every 2 tiles.
 - Cities: clusters of small roofs (red/brown/grey), denser and taller-looking (drop shadows) at higher tiers;
   metropolis has a few taller blocks.
-- UI: flat, rounded panels (8 px radius), semi-transparent dark background, white text, cargo-colored chips.
+- UI: flat dark panels in the "Railway Age" era theme (docs/STYLE.md Part 3, Phase 49): bottle-green and ink grounds, cream and brass accents, a muted red for warnings, a display serif for titles and numbers, double rules and ticket-stub buttons; cargo-colored chips. (Replaces the earlier 8 px-radius, white-on-translucent-dark panels.)
 
 Suggested base palette (tweak freely):
 ```

@@ -81,7 +81,10 @@
   --glass: rgba(15, 26, 23, 0.92);
   --glass-soft: rgba(15, 26, 23, 0.55);
   --glass-panel: rgba(22, 36, 31, 0.85);
-  --card-paper: #ece4d2;
+  --card-paper: #dfd3b8;
+  --card-paper-edge: #b9a982;
+  --card-paper-hi: #e7dcc3;
+  --card-rule: rgba(40, 32, 20, 0.4);
   --card-ink: #6b6252;
   --signal-lt: #e0907c;
   --go-lt: #86bd8f;
@@ -3093,7 +3096,7 @@ button.card-row:disabled {
 }
 .eng-stat {
   display: grid;
-  grid-template-columns: 16px auto 1fr auto;
+  grid-template-columns: 16px 1fr auto;
   align-items: center;
   gap: 6px;
   min-width: 0;
@@ -4056,7 +4059,7 @@ button.rule-chip:active {
 }
 .operating-headline {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
@@ -4072,7 +4075,7 @@ button.rule-chip:active {
 }
 .op-bar-row {
   display: grid;
-  grid-template-columns: 84px 1fr;
+  grid-template-columns: 20px 1fr;
   align-items: center;
   gap: 8px;
   font-size: var(--fs-xs);
@@ -5193,4 +5196,141 @@ select {
 .starting-cash {
   font-family: var(--font-display);
   font-variant-numeric: lining-nums tabular-nums;
+}
+
+.tip-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+}
+.tip-row > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.eng-stats-wrap .eng-stats > .info-tip-btn {
+  justify-self: end;
+  align-self: center;
+}
+.eng-filter[hidden] {
+  display: none;
+}
+.history-more {
+  align-self: flex-start;
+  min-height: 32px;
+  margin-top: var(--gap-2);
+  padding: 0 var(--gap-3);
+  border: 1px solid var(--brass-line);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--brass);
+  font: 700 var(--fs-xs) var(--font-ui);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.goal-year,
+.goal-reward {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+/* The (i) glyph and the stop numbers are drawn by CSS: ornaments, not copy. */
+.info-tip-btn::before {
+  content: "i";
+}
+.route-timeline {
+  counter-reset: stop;
+}
+.tl-stop {
+  counter-increment: stop;
+}
+.tl-dot:empty::before {
+  content: counter(stop);
+}
+
+/* Engraved print plate (STYLE §17): aged paper with a vignette and a double ink rule, the ground every
+   locomotive and car drawing sits on (hero, train strip, roster, new-engine card). */
+.hero-plate,
+.cb-strip-host,
+.route-summary,
+.train-hero,
+.roster-plate,
+.new-engine-thumb {
+  background: radial-gradient(
+    ellipse at 50% 35%,
+    var(--card-paper-hi) 0%,
+    var(--card-paper) 55%,
+    var(--card-paper-edge) 130%
+  );
+  border-radius: 2px;
+  box-shadow:
+    inset 0 0 0 3px var(--card-paper),
+    inset 0 0 0 4px var(--card-rule);
+}
+
+/* ---------- Phase 49: era chrome (STYLE §15) ---------- */
+
+/* Top bar: a brass hairline under the bar; money, date and year in the display serif with lining figures. */
+.top-bar {
+  border-bottom: 1px solid var(--brass-line);
+}
+.top-bar .cash,
+.top-bar .era-badge {
+  font-family: var(--font-display);
+  font-variant-numeric: lining-nums tabular-nums;
+  border-radius: 3px;
+  border: 1px solid var(--brass-line);
+}
+.top-bar .date {
+  letter-spacing: 0.04em;
+  font-variant-numeric: lining-nums;
+}
+
+/* Panels and sheets: brass edge, double rule under the header, ticket-stub footer buttons. */
+.panel {
+  border-left: 1px solid var(--brass-dk);
+}
+.panel-header,
+.sheet-header {
+  border-bottom: 3px double var(--brass-dk);
+}
+.panel-header::after {
+  display: none;
+}
+.panel-section-title {
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.panel-actions button,
+.fbtn {
+  border-radius: 3px;
+  letter-spacing: 0.06em;
+  -webkit-mask:
+    radial-gradient(circle 5px at 0 50%, #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 5px at 100% 50%, #0000 97%, #000) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle 5px at 0 50%, #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 5px at 100% 50%, #0000 97%, #000) right / 51% 100% no-repeat;
+}
+.stat-value,
+.eng-stat-value,
+.operating-value {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.stat-value {
+  font-family: var(--font-display);
+}
+
+/* Cards (contracts, goals, news, hints) share the plaque ground. */
+.contract-card,
+.goal-card,
+.hint-card,
+.scenario-panel-card {
+  border-radius: 3px;
+  border: 1px solid var(--brass-dk);
+  box-shadow:
+    inset 0 0 0 3px var(--ink-750),
+    inset 0 0 0 4px var(--line);
+}
+.game-over-card {
+  border-top: 4px solid var(--oxblood);
 }

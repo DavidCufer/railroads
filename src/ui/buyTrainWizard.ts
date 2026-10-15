@@ -173,6 +173,11 @@ export function openBuyTrainPanel(
     if (cars.length > loco.maxCars) cars.length = loco.maxCars;
   }
 
+  /** "Atlantic 4-4-2" -> "Atlantic": the wheel arrangement shows in the glyph beside it. */
+  function shortName(name: string): string {
+    return name.replace(/\s+\d-\d(?:-\d)*(?:-\d)?$/, "");
+  }
+
   // ---- stepper ------------------------------------------------------------------------------
 
   function stepper(step: 1 | 2 | 3): HTMLElement {
@@ -193,7 +198,7 @@ export function openBuyTrainPanel(
             "data-step": String(n),
           },
           h("span", { className: "step-num" }, n < step ? icon("check", "icon-xs") : String(n)),
-          h("span", { className: "step-label" }, label),
+          n === step ? h("span", { className: "step-label" }, label) : null,
         ),
       ),
     );
@@ -211,7 +216,7 @@ export function openBuyTrainPanel(
     closeChrome();
     sheet = openSheet(container, {
       className: "sheet-wizard",
-      title: w.title(stationName),
+      title: w.titleShort,
       center: stepper(step),
       body,
       footer,
@@ -234,6 +239,12 @@ export function openBuyTrainPanel(
     const types = FILTER_ORDER.filter((ty) => available.some((l) => l.type === ty));
 
     function renderFilter(): void {
+      // One traction type on offer: nothing to filter.
+      if (types.length < 2) {
+        filterEl.replaceChildren();
+        filterEl.hidden = true;
+        return;
+      }
       const opts: Array<[Filter, string]> = [
         ["all", w.filterAll],
         ...types.map((ty): [Filter, string] => [ty, t.locoTypes[ty]]),
@@ -271,7 +282,7 @@ export function openBuyTrainPanel(
             title: h(
               "span",
               { className: "eng-card-title" },
-              h("span", { className: "eng-card-name" }, loco.name),
+              h("span", { className: "eng-card-name", title: loco.name }, shortName(loco.name)),
             ),
             meta: h(
               "span",
@@ -323,9 +334,12 @@ export function openBuyTrainPanel(
             ),
             h(
               "span",
-              { className: "type-chip" },
+              {
+                className: "type-chip",
+                title: t.locoTypes[loco.type],
+                "aria-label": t.locoTypes[loco.type],
+              },
               icon(tractionIcon(loco), "icon-xs"),
-              t.locoTypes[loco.type],
             ),
             glyph,
           ),
@@ -340,7 +354,13 @@ export function openBuyTrainPanel(
               ),
             ]
           : []),
-        engineStats(loco, best, priceOf(loco)),
+        engineStats(loco, best, priceOf(loco), [
+          "speed",
+          "power",
+          "cars",
+          "reliability",
+          "running",
+        ]),
       );
       nextBtn.disabled = false;
       const nextLabel = nextBtn.lastElementChild;

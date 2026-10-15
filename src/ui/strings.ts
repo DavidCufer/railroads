@@ -10,6 +10,7 @@ export const strings = {
     actions: "Actions",
     stats: "Stats",
     nothing: "Nothing yet",
+    moreInfo: "More information",
   },
   topBar: {
     pause: "Pause",
@@ -78,7 +79,7 @@ export const strings = {
     produces: "Produces",
     consumes: "Consumes",
     perMonth: "/mo",
-    perMonthNote: "per month",
+    perMonthNote: "/mo",
     availableFrom: "Available from",
     /** PLAN Phase 18 D: "Makes Goods from Steel or Lumber" / "Needs Coal and Iron ore". */
     makes: "Makes",
@@ -203,12 +204,12 @@ export const strings = {
     waitingCount: (amount: string) => `${amount} waiting`,
     waitingElsewhere: (n: number) => `any train ${n}`,
     supplies: "Supplies",
-    perMonthNote: "per month",
+    perMonthNote: "/mo",
     /** PLAN Phase 35: the "Where passengers go" detail sheet (tap the passenger supply tile). */
     destinations: {
       title: "Where passengers go",
       subtitle: (station: string) => `${station} · people per month`,
-      tapHint: "Where they go ▸",
+      tapHint: "Where to ▸",
       total: (n: string) => `About ${n} people a month want to travel from here by train.`,
       /** "Ljubljana 30 · Zagreb 15" */
       row: (name: string, count: string) => `${name} ${count}`,
@@ -291,20 +292,19 @@ export const strings = {
       /** Shown instead of "$0" when cargo was sent but the trip has not been paid yet (fares are paid on arrival). */
       pending: "paid on arrival",
       unservedCaption: "Unserved demand",
-      unservedHint: "Platform full: a month's travellers are waiting — run more trains or cars.",
-      sent: (n: number, unit: string, fares?: string) =>
-        `Sent ${n} ${unit}${fares ? ` → ${fares}` : ""}`,
-      deliveredHere: (n: number, unit: string, fares: string) =>
-        `Delivered here ${n} ${unit}${fares === "$0" ? "" : ` → ${fares}`}`,
-      unserved: (n: number, fares: string) => `${n} unserved · ${fares} in fares`,
+      unservedHint: "Platform full \u2014 run more trains.",
+      sent: (n: number, _unit: string, fares?: string) => `\u2191 ${n}${fares ? ` ${fares}` : ""}`,
+      deliveredHere: (n: number, _unit: string, fares: string) =>
+        `\u2193 ${n}${fares === "$0" ? "" : ` ${fares}`}`,
+      unserved: (n: number, fares: string) => `${n} unserved \u00b7 ${fares}`,
       lastMonthNote:
-        "Last month. Fares are credited to where cargo was loaded, when it is delivered.",
+        "Last month. \u2191 sent from here, \u2193 delivered here. Fares go to the station that loaded the cargo, paid on arrival.",
       thisMonthNote:
-        "This month so far. Fares are credited to where cargo was loaded, when it is delivered.",
+        "This month so far. \u2191 sent from here, \u2193 delivered here. Fares go to the station that loaded the cargo, paid on arrival.",
       thisYearNote:
-        "This year so far. Fares are credited to where cargo was loaded, when it is delivered.",
+        "This year so far. \u2191 sent from here, \u2193 delivered here. Fares go to the station that loaded the cargo, paid on arrival.",
       lastYearNote:
-        "Last year. Fares are credited to where cargo was loaded, when it is delivered.",
+        "Last year. \u2191 sent from here, \u2193 delivered here. Fares go to the station that loaded the cargo, paid on arrival.",
     },
     estimate: (money: string) => `≈ +${money}/yr at current traffic`,
     waterTowerBenefit: "Steam engines refill water here",
@@ -425,6 +425,7 @@ export const strings = {
     /** Buy-train wizard (STYLE §11.1). */
     wizard: {
       title: (station: string) => `Buy train · ${station}`,
+      titleShort: "Buy train",
       steps: { engine: "Engine", cars: "Cars", route: "Route" },
       next: "Next",
       back: "Back",
@@ -433,10 +434,10 @@ export const strings = {
       needsElectrification: "Needs electrified track at this station",
       steamRetired: "Steam can no longer be bought",
       chooseEngine: "Choose an engine",
-      introduced: (year: number) => `Since ${year}`,
+      introduced: (year: number) => `${year}`,
       carsUsed: (used: number, max: number) => `${used} / ${max} cars`,
       passengerMailOnly: "Passenger and mail cars only",
-      noCarsYet: "No cars yet — tap a car below to add it",
+      noCarsYet: "Tap a car to add",
       tapToRemove: "Tap a car to remove it",
       suggested: "Suggested",
       applySuggestion: "Use",
@@ -493,12 +494,14 @@ export const strings = {
       price: "Price",
       running: "Running cost",
       perYear: "/yr",
+      legend:
+        "Top speed, power, maximum cars, reliability, and running cost per year. Bars compare with the best engine on offer today.",
     },
     /** Train panel v2 (STYLE §11.2). */
     panel: {
       tabs: { route: "Route", stats: "Stats" },
       subtitle: (loco: string) => loco,
-      moving: (station: string, speed: string) => `To ${station} · ${speed}`,
+      moving: (station: string, speed: string) => `${station} · ${speed}`,
       loadingAt: (station: string, pct: number) => `Loading at ${station} · ${pct}%`,
       atStop: (station: string) => `At ${station}`,
       hereNow: "Here now",
@@ -632,11 +635,11 @@ export const strings = {
     creditLimit: "Credit",
     borrow: "Borrow",
     repay: "Repay",
-    borrowTip: "Borrow $100k",
+    borrowTip: "Borrow $100k; the monthly payment is repayment plus interest",
     repayTip: "Repay $100k",
     creditNote: "Loans come in $100k steps",
     borrowTerms: (step: string, rate: string, years: number, monthly: string) =>
-      `Borrow ${step}: ${rate} a year, ${years} years, ${monthly} a month plus interest`,
+      `Borrow ${step}: ${rate} a year, ${years} years, ${monthly} a month`,
     netWorth: "Net worth",
     thisYear: "This year",
     lastYear: "Last year",
@@ -914,7 +917,7 @@ export const strings = {
     rewardReceived: "Land grant received",
     byYear: (year: number) => `By ${year}`,
     none: "This map has no goals.",
-    doneCount: (done: number, total: number) => `${done} of ${total} reached`,
+    doneCount: (done: number, total: number) => `${done}/${total}`,
     types: {
       connect: (cities: string) => `Connect ${cities} by rail`,
       annualRevenue: (amount: string) => `Annual revenue ${amount}`,
@@ -984,6 +987,8 @@ export const strings = {
     title: "Company history",
     menuEntry: "Company history",
     timeline: "Timeline",
+    more: "More",
+    fewer: "Fewer",
     none: "Nothing yet - build a line.",
     charts: { netWorth: "Net worth", revenue: "Revenue by year", track: "Track" },
     events: {

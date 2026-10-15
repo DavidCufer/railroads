@@ -29,7 +29,15 @@ function netWorthPoints(state: GameState): YearSnapshot[] {
   return snaps;
 }
 
-const SHOWN_EVENTS = 40;
+/** Newest events shown at first; the rest sit behind "More". */
+const SHOWN_EVENTS = 4;
+const ALL_EVENTS = 40;
+
+/** "Feb 1900": the day adds nothing on a company timeline. */
+function monthYear(tick: number, startYear: number): string {
+  const c = calendarFromTicks(startYear, tick);
+  return formatDate(c).replace(/ \d+,/, "");
+}
 
 export function renderHistoryScreen(state: GameState, onBack: () => void): HTMLElement {
   const t = strings.history;
@@ -62,26 +70,45 @@ export function renderHistoryScreen(state: GameState, onBack: () => void): HTMLE
       format: km,
     },
   ].map((series) => historyChart(series));
-  const events = [...state.history.events].reverse().slice(0, SHOWN_EVENTS);
-  const timeline =
-    events.length === 0
-      ? h("div", { className: "history-empty" }, t.none)
-      : h(
-          "div",
-          { className: "history-timeline" },
-          ...events.map((e) =>
-            h(
-              "div",
-              { className: `history-event history-event-${e.kind}` },
+  const all = [...state.history.events].reverse().slice(0, ALL_EVENTS);
+  let expanded = false;
+  const timelineHost = h("div", { className: "history-timeline-host" });
+  const renderTimeline = (): void => {
+    const events = expanded ? all : all.slice(0, SHOWN_EVENTS);
+    timelineHost.replaceChildren(
+      all.length === 0
+        ? h("div", { className: "history-empty" }, t.none)
+        : h(
+            "div",
+            { className: "history-timeline" },
+            ...events.map((e) =>
               h(
-                "span",
-                { className: "history-event-date" },
-                formatDate(calendarFromTicks(state.startYear, e.tick)),
+                "div",
+                { className: `history-event history-event-${e.kind}` },
+                h("span", { className: "history-event-date" }, monthYear(e.tick, state.startYear)),
+                h("span", { className: "history-event-text" }, describeHistoryEvent(e)),
               ),
-              h("span", { className: "history-event-text" }, describeHistoryEvent(e)),
             ),
           ),
-        );
+      ...(all.length > SHOWN_EVENTS
+        ? [
+            h(
+              "button",
+              {
+                className: "history-more",
+                onClick: () => {
+                  expanded = !expanded;
+                  renderTimeline();
+                },
+              },
+              expanded ? t.fewer : t.more,
+            ),
+          ]
+        : []),
+    );
+  };
+  renderTimeline();
+  const timeline = timelineHost;
   return h(
     "div",
     { className: "save-load-screen history-screen", "data-testid": "history-screen" },
