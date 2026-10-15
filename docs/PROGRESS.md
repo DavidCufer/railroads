@@ -5326,3 +5326,24 @@ Through wins at 4 and 6 trains, ties at 2 (small T-M demand). Munich-Innsbruck-V
 **Checks:** `npm run check` 859 tests pass; `e2e/phase48.spec.ts` passes; full e2e shards not run in this session.
 
 **Phase 48 survival addendum (1840 and 1900, Normal and Hard, 3 seeds, 16 years; bots with legacy train lengths):** bankrupt counts: overbuilder 1840 N 3/3, H 3/3, 1900 N 0/3, H 3/3; trainSpammer 1840 N 3/3, H 3/3, 1900 N 3/3, H 3/3; leveraged 1840 N 3/3, H 3/3. These match the Phase 44 rows (overbuilder 1840 N/H 3/3, 1900 N 0/3, H 3/3; trainSpammer 1900 H 3/3). Still not run: leveraged 1900, all 1930/1950 rows.
+
+
+## 2026-10-15 - Phase 49B: Engines redrawn, remaining cards trimmed (items 1-4)
+**What:** (1) Steam locomotives redrawn in an engraved style: new `src/render/art/engrave.ts` (hairline ink outlines, fine diagonal hatching, dark wheels with a thin light tyre, hairline spokes), a rewritten generic steam drawer (tapered boiler, handrails, banded smokebox, thin rods) and bespoke silhouettes in `steamEarly.ts`: Grasshopper (vertical boiler, walking beam, no cab), Planet (single large driver, bare footplate, raised firebox with brass dome, wood plank frame), Norris (bar frame, bogie, haystack firebox, outside inclined cylinder). The American 4-4-0 stays on the generic drawer with the balloon stack, bell, box lamp and wooden cab. Liveries muted (Russia-iron blue-grey, maroon, bottle green, black with oxblood lining; brass only on domes/bands/cap). `draw.ts` shading (`shadePath`, `drawWheel`) switched to the same hairline + hatch look, so diesels, electrics and cars follow; their shapes and colours are unchanged. Cargo car names: Wood "Log car", Steel "Steel car" (Lumber stays "Flatcar"; SPEC 8.1 updated). (2) Trimmed: contracts (one short line, `(i)` for connection/rescue detail, `$ . days` meta), news (short lines, contract news without deadline, icon-only Clear all), game over, scenario end, first-game hints, new-engine card. (3) Station waiting: "-> Place n" rows (`waitingSplitRows`, `.waiting-rows`). (4) e2e: `phase49b.spec.ts` (sheet), `phase49bWords.spec.ts`; both e2e shards pass (122 + 122); screenshots `phase-49b-*` plus the others changed by the new art were regenerated and looked at, the rest restored.
+
+**Word counts** (`e2e/phase49bWords.spec.ts` fails above 60 % of before):
+| Card | before | after |
+|---|---|---|
+| Game over | 30 | 18 |
+| Contracts, offers | 41 | 22 |
+| Contracts, one accepted | 41 | 24 |
+| News, one contract item | 16 | 9 |
+| Scenario won | 27 | 14 |
+| First-game hints (all steps) | 101 | 59 |
+| New-engine card | 11 | 6 |
+
+**Decisions / deviations (no questions asked):**
+- Hint buttons show "OK" / "Start" / "Skip"; the old names ("Got it", "Start playing", "Skip tips", "Clear all") are aria-labels so existing tests still match. New-engine card: speed without unit (unit in the tooltip), Roster/OK icon-only.
+- Traffic-jam, heavy-bridge and "N trains share a single line" news texts left as they were (e2e/unit tests assert them). The game-over "of railroading" line stays (unit-tested).
+- Diesel/electric/car art got the engraved line-work but not new silhouettes or colours.
+- No src/sim changes. Scenario-end date and game-over date lines dropped.

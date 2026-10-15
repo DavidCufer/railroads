@@ -1845,7 +1845,7 @@ with brass bands, a cab as tall as the boiler, and Grasshopper/Planet/Norris/Ame
 3. **Station waiting line:** the "2 waiting / Barbridge Crossing 2 2" text is confusing. Show it as "→ Barbridge
    Crossing 2 · 2" rows, or as icon + number pairs.
 4. e2e, screenshots `phase-49b-*.png`, PROGRESS entry.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+Status: [x] 1 [x] 2 [x] 3 [x] 4
 
 ## Phase 48B — Through journeys: finish the survival check with real train lengths
 Phase 48 left the bench bots on the old 3/4/5/6 car limits (`tools/bench/legacyCars.ts`). With the new limits, the
