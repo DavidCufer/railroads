@@ -4,6 +4,7 @@
  * scenario ends; `"idle"` only runs the clock. The `panic1873` survival scenario is played by `goodPlayer.ts`
  * (`SCENARIO=panic1873 MAXPAIRS=2 KEEP=400000`). CLI: `tools/bench/scenarioBot.ts`.
  */
+import { maxCarsOf } from "./legacyCars";
 import {
   buildEngineShed,
   buildStation,
@@ -114,11 +115,11 @@ export function runScenario(id: string, mode: "play" | "idle"): BotResult {
     const all = buyableLocomotivesIn(year()).filter(
       (l) => l.type !== "electric" && !l.passengerMailOnly,
     );
-    const strong = all.filter((l) => l.maxCars >= 6);
+    const strong = all.filter((l) => maxCarsOf(l) >= 6);
     const pool = (strong.length > 0 ? strong : all).sort(
       (p, q) => q.maxSpeedKmh - p.maxSpeedKmh || p.cost - q.cost,
     );
-    return { id: pool[0]!.id, cars: Math.min(pool[0]!.maxCars, 6) };
+    return { id: pool[0]!.id, cars: Math.min(maxCarsOf(pool[0]!), 6) };
   }
 
   function trains(at: number, other: number, n: number, cargo: CargoType, shed = true): void {

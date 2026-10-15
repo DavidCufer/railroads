@@ -732,7 +732,7 @@ number on the platform must be a number the trains calling there can take. Rule 
    A station no passenger train calls at yet keeps one generic pile (everyone boards any train) so a new station still
    shows what it would draw. `computeStationEconomies` recomputes this with the orders (`setOrders`, `sellTrain`, removing a
    station, and monthly).
-3. **First leg only.** Each reachable destination's people are stored by **first leg**: the next station on the shortest
+3. **First leg only (superseded by Phase 48 below: people now wait and ride bound for their destination station).** Each reachable destination's people are stored by **first leg**: the next station on the shortest
    (crow-flies distance) route to it, ties to the lower station id (`StationCargoPile.bound`, keyed by first-leg station).
    Any train whose orders include that station boards them (`sim/stations/boarding.ts`). They leave the game there, paid for
    that leg only; no transfers are tracked. Through passengers on a train A–B–C stay on as before. A train therefore never
@@ -754,6 +754,33 @@ number on the platform must be a number the trains calling there can take. Rule 
    long line a month can show people sent and no fares yet; the panel says "paid on arrival", not "$0".
 7. **Saves.** Phase 34 piles stored by destination are re-bucketed by first leg on load (`rebucketPassengerPiles`).
 8. **Result.** Numbers in docs/BALANCE.md ("Pair scaling") and docs/PROGRESS.md "Phase 35".
+
+### 9.5e Phase 48: through journeys (destination-bound passengers, changes, longer trains)
+
+Replaces the first-leg rule of §9.5d-3. Owner feedback: "it never pays to have trains going multiple stops, always just
+one city to the other". Cause: people were bucketed by first leg and paid for that hop only, so a through train earned what
+two shuttles earn and shuttles turn round faster.
+
+1. **Passengers ride to their destination.** A pile holds `lots` (`PassengerLot`: destination station, amount, origin tile,
+   start tick). Each reachable destination has its own bucket, filling at its monthly rate and holding one month of it
+   (§9.5d-3 waiting rule unchanged). A train boards a lot when the next station on the cheapest route to its destination
+   is a stop the train makes before it comes back to the station it is at (`upcomingStops`). At each stop a lot aboard
+   **arrives** (it is the destination: one fare for the whole origin-to-destination distance, time decay from the start
+   of the journey), **stays** (the cheapest route goes on with this train) or **changes** (alights into that station's
+   pile, keeping origin and start tick, ahead of newly arriving people; they are not new demand and do not count against
+   the cap). Cars loaded before Phase 48, and first-leg piles from older saves, are paid and drained by the old rule.
+   Cars carry a `lots` list; a car mixing old and new loads never occurs.
+2. **Changes deter travel.** Routes are searched over (station, line) nodes; a line is one distinct stop list, so trains
+   with the same orders are one line. A change costs `CHANGE_PENALTY_TILES` (15 tiles of 5 km: about an hour and a half
+   lost at an interchange at the era's ~50 km/h; `src/data/economy.ts`). A town's gravity weight uses distance + penalty
+   x changes, so a town reached direct draws more people than the same town reached with changes. The destinations
+   sheet shows "(N changes)" and its "waiting" count includes people who changed there.
+3. **Longer early trains.** `maxCars` of the four early engines is now 4 / 6 / 8 / 10 (was 3 / 4 / 5 / 6): 1830s-50s
+   passenger trains ran 6-12 carriages and companies lengthened trains before adding paths. More cars cost speed through
+   the existing tractive-effort model (power over train weight, worse on grades, `computeTargetSpeed`). Crew wages are per
+   train (footplate crew) plus guards per `CARS_PER_TRAIN_STAFF` cars and an attendant per coach; engine servicing is per
+   train and car upkeep per car, so a long train costs less than two short ones.
+4. **Benches** (`tools/bench/owner.ts`, `through.ts`): results in docs/PROGRESS.md "Phase 48".
 
 ### 9.6 Difficulty
 
