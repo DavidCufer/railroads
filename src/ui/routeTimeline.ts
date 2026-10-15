@@ -63,11 +63,8 @@ export interface RouteTimelineOptions {
 
 function ruleChip(stop: TimelineStop, index: number, options: RouteTimelineOptions): HTMLElement {
   const label = strings.trains.loadingRules[stop.rule];
-  // The default rule ("Auto") is icon-only; a non-default rule says its name (STYLE §16: icons first).
-  const inner = [
-    icon(RULE_ICONS[stop.rule], "icon-xs"),
-    stop.rule === "auto" ? null : h("span", null, label),
-  ];
+  // Phase 50: every stop says its rule, the default included.
+  const inner = [icon(RULE_ICONS[stop.rule], "icon-xs"), h("span", null, label)];
   const title = strings.trains.ruleHint[stop.rule];
   return options.onRule
     ? h(

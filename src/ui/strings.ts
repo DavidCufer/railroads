@@ -202,7 +202,7 @@ export const strings = {
     supplyRate: (unit: string) => `${unit ? ` ${unit}` : ""} / month`,
     /** PLAN Phase 16: the station panel's "Waiting" line, e.g. "12 passengers waiting". */
     waitingCount: (amount: string) => `${amount} waiting`,
-    waitingElsewhere: "any train",
+    waitingElsewhere: "other towns",
     supplies: "Supplies",
     perMonthNote: "/mo",
     /** PLAN Phase 35: the "Where passengers go" detail sheet (tap the passenger supply tile). */
@@ -625,6 +625,7 @@ export const strings = {
     overlineMany: (n: number) => `${n} new locomotives`,
     cars: "cars",
     roster: "Roster",
+    details: "Details",
     ok: "OK",
     year: (y: number) => `${y}`,
   },

@@ -21,6 +21,7 @@ const BEFORE: Record<string, number> = {
   history: 47,
 };
 const MEASURED: Record<string, number> = {};
+const PHASE50_CEILING: Record<string, number> = { "buy-cars": 65, train: 24, consist: 60 };
 
 async function words(page: Page, selector: string): Promise<number> {
   return page.evaluate((sel) => {
@@ -56,8 +57,10 @@ async function record(page: Page, key: string, selector: string, shot?: string):
     );
   expect(n, `${key} must be open`).toBeGreaterThan(0);
   const before = BEFORE[key];
-  if (before !== undefined)
-    expect(n, `${key} words (before ${before})`).toBeLessThanOrEqual(Math.floor(before * 0.6));
+  // Phase 50: the owner asked for some text back; those cards get a fixed ceiling at the measured count (still a guard).
+  const limit =
+    PHASE50_CEILING[key] ?? (before === undefined ? undefined : Math.floor(before * 0.6));
+  if (limit !== undefined) expect(n, `${key} words (before ${before})`).toBeLessThanOrEqual(limit);
   if (shot) await page.screenshot({ path: `docs/screenshots/${shot}.png` });
 }
 

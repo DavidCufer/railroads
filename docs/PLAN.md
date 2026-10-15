@@ -1885,7 +1885,7 @@ text: car names and the default action on a station. What is 'any train'?"
    second into it or show "→ no destination yet N". Never "any train".
 4. e2e (update, never weaken), screenshots `phase-50-*.png` (LOOK), PROGRESS. Do not change passenger demand or
    waiting rules: they are being redesigned with the owner separately.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+Status: [x] 1 [x] 2 [x] 3 [x] 4
 
 ## Phase 51 — Passengers: wait only for the next train (A), many small flows (B)
 Owner approved (2026-10-15), after play-testing 48/49: "There are still too many passengers waiting. I have no

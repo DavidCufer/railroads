@@ -195,7 +195,12 @@ export function consistBuilder(options: ConsistBuilderOptions): ConsistBuilder {
           h(
             "div",
             { className: "car-tile-text" },
-            h("span", { className: "car-tile-name" }, cargoBadge(c, "cargo-icon-xs")),
+            h(
+              "span",
+              { className: "car-tile-name" },
+              cargoBadge(c, "cargo-icon-xs"),
+              CARGO[c].carLabel,
+            ),
             h("span", { className: "car-tile-cap tabular" }, `${CARGO[c].capacity}`),
           ),
         ),

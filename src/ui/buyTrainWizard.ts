@@ -340,6 +340,7 @@ export function openBuyTrainPanel(
                 "aria-label": t.locoTypes[loco.type],
               },
               icon(tractionIcon(loco), "icon-xs"),
+              t.locoTypes[loco.type],
             ),
             glyph,
           ),

@@ -1,12 +1,12 @@
 /** Phase 43: where the people waiting at a station are going, in one short line ("Milan 40 · Trieste 540"). Pure read
- * of the passenger pile's `lots` (by destination) and older `bound` buckets; people with no assigned destination board any train and are listed last. */
+ * of the passenger pile's `lots` (by destination) and older `bound` buckets; people beyond the top rows and those with no assigned destination are folded into the last "other towns" row. */
 import type { GameState } from "../sim/state";
 import { strings } from "./strings";
 
 const SHOWN = 3;
 
 export interface WaitingRow {
-  /** Destination station name, or the "any train" bucket. */
+  /** Destination station name, or the "other towns" bucket (beyond the top rows, plus people with no destination yet). */
   label: string;
   n: number;
 }

@@ -60,6 +60,7 @@ function render(): void {
     footerButton({
       kind: "secondary",
       icon: "roster",
+      label: n.details,
       ariaLabel: n.roster,
       title: n.roster,
       className: "new-engine-roster",
@@ -72,6 +73,7 @@ function render(): void {
     footerButton({
       kind: "primary",
       icon: "check",
+      label: n.ok,
       ariaLabel: n.ok,
       title: n.ok,
       className: "new-engine-ok",
