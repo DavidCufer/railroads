@@ -5324,3 +5324,5 @@ Through wins at 4 and 6 trains, ties at 2 (small T-M demand). Munich-Innsbruck-V
 **Good-player / survival (3 seeds, 16 years, final NW $M):** good 1840 Normal 3.24 / 3.52 / 2.63 (was 2.92 / 2.91 / 2.49), Hard 2.12 / 1.86 / 2.03 (was 1.98 / 1.78 / 1.92), 1900 Normal 25.43 / 15.35 / 24.06 and Hard 11.66 / 7.01 / 8.53 (unchanged); no bankruptcies. overbuilder 1840 Normal and Hard 3/3 bankrupt (as before). **Not run:** the 1930/1950 rows, the other bad bots, and 1900 bad-bot rows; an earlier run with the bot's engine choice shifted by the new `maxCars` gave a bankruptcy (1840 Normal seed 1), which is why the bots keep the old lengths.
 
 **Checks:** `npm run check` 859 tests pass; `e2e/phase48.spec.ts` passes; full e2e shards not run in this session.
+
+**Phase 48 survival addendum (1840 and 1900, Normal and Hard, 3 seeds, 16 years; bots with legacy train lengths):** bankrupt counts: overbuilder 1840 N 3/3, H 3/3, 1900 N 0/3, H 3/3; trainSpammer 1840 N 3/3, H 3/3, 1900 N 3/3, H 3/3; leveraged 1840 N 3/3, H 3/3. These match the Phase 44 rows (overbuilder 1840 N/H 3/3, 1900 N 0/3, H 3/3; trainSpammer 1900 H 3/3). Still not run: leveraged 1900, all 1930/1950 rows.
