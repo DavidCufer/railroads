@@ -1,8 +1,8 @@
 /** Game-over screen (Phase 39): shown when the company goes bankrupt. A short summary, then load or start over. */
 import { netWorth } from "../sim/finance/ledger";
-import { calendarFromTicks, DAYS_PER_MONTH, HOURS_PER_DAY } from "../sim/time";
+import { DAYS_PER_MONTH, HOURS_PER_DAY } from "../sim/time";
 import type { GameState } from "../sim/state";
-import { formatDate, formatMoney } from "./format";
+import { formatMoney } from "./format";
 import { h } from "./h";
 import { strings } from "./strings";
 
@@ -27,7 +27,6 @@ export function openGameOver(
       "div",
       { className: "game-over-card" },
       h("h2", null, t.title),
-      h("p", null, t.line(formatDate(calendarFromTicks(state.startYear, state.ticks)))),
       h(
         "ul",
         null,

@@ -10,7 +10,7 @@ import { clearAllNews } from "../sim/commands";
 import { markAllNewsRead, unreadNewsCount, type NewsItem } from "../sim/news";
 import type { GameState } from "../sim/state";
 import { describeGoal } from "./goalStrings";
-import { contractFocusTile, describeContract } from "./contractStrings";
+import { contractFocusTile, describeContractShort } from "./contractStrings";
 import { formatMoney } from "./format";
 import { calendarFromTicks } from "../sim/time";
 import { cardList, cardRow } from "./components/cardRow";
@@ -137,7 +137,7 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
     case "competition":
       return strings.news.kinds.competition[item.mode];
     case "contract": {
-      const text = describeContract(state, item.contract);
+      const text = describeContractShort(state, item.contract);
       const money = formatMoney(item.money);
       if (item.event === "offered") return strings.contracts.news.offered(text, money);
       if (item.event === "completed")
@@ -276,15 +276,16 @@ export function openNewsPanel(
   let armed = false;
   const clearBtn = footerButton({
     icon: "trash",
-    label: strings.news.clearAll,
+    ariaLabel: strings.news.clearAll,
+    title: strings.news.clearAll,
     kind: "danger",
     className: "news-clear-btn btn-danger",
     disabled: items.length === 0,
     onClick: () => {
       if (!armed) {
         armed = true;
-        const label = clearBtn.lastElementChild;
-        if (label) label.textContent = strings.news.clearAllConfirm;
+        clearBtn.classList.remove("fbtn-icon");
+        clearBtn.append(h("span", null, strings.news.clearAllConfirm));
         return;
       }
       clearAllNews(state);

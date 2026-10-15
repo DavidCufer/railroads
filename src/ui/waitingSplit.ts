@@ -5,7 +5,14 @@ import { strings } from "./strings";
 
 const SHOWN = 3;
 
-export function waitingSplitLine(state: GameState, stationId: number): string | undefined {
+export interface WaitingRow {
+  /** Destination station name, or the "any train" bucket. */
+  label: string;
+  n: number;
+}
+
+/** One row per destination, biggest first ("→ Milan 40"); people with no assigned destination are the last row. */
+export function waitingSplitRows(state: GameState, stationId: number): WaitingRow[] | undefined {
   const pile = state.stationCargo.get(stationId)?.passengers;
   if (!pile || pile.amount < 1) return undefined;
   const nameOf = (id: number): string => state.stations.find((s) => s.id === id)?.name ?? "?";
@@ -20,8 +27,10 @@ export function waitingSplitLine(state: GameState, stationId: number): string | 
     .sort((a, b) => b[1] - a[1] || a[0] - b[0]);
   const assigned = bound.reduce((sum, [, n]) => sum + n, 0);
   const anyone = Math.max(0, pile.amount - assigned);
-  const parts = bound.slice(0, SHOWN).map(([id, n]) => `${nameOf(id)} ${Math.round(n)}`);
+  const rows: WaitingRow[] = bound
+    .slice(0, SHOWN)
+    .map(([id, n]) => ({ label: nameOf(id), n: Math.round(n) }));
   const rest = bound.slice(SHOWN).reduce((sum, [, n]) => sum + n, 0) + anyone;
-  if (rest >= 0.5) parts.push(strings.station.waitingElsewhere(Math.round(rest)));
-  return parts.length > 1 || bound.length > 0 ? parts.join(" · ") : undefined;
+  if (rest >= 0.5) rows.push({ label: strings.station.waitingElsewhere, n: Math.round(rest) });
+  return bound.length > 0 ? rows : undefined;
 }

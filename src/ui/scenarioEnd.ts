@@ -1,9 +1,8 @@
 /** Scenario win/lose card (Phase 46): the game-over card style, with stars, the reason and what next. */
 import { netWorth } from "../sim/finance/ledger";
 import { scenarioDefOf } from "../sim/scenario";
-import { calendarFromTicks } from "../sim/time";
 import type { GameState } from "../sim/state";
-import { formatDate, formatMoney } from "./format";
+import { formatMoney } from "./format";
 import { h } from "./h";
 import { scenarioGoalLine, scenarioName } from "./scenarioStrings";
 import { strings } from "./strings";
@@ -28,7 +27,6 @@ export function openScenarioEnd(
   if (!run || !def || run.status === "active") return null;
   const t = strings.scenarios;
   const won = run.status === "won";
-  const date = formatDate(calendarFromTicks(state.startYear, run.endTick ?? state.ticks));
   const root = h(
     "div",
     { className: "game-over", "data-testid": "scenario-end" },
@@ -36,8 +34,8 @@ export function openScenarioEnd(
       "div",
       { className: `game-over-card${won ? " scenario-won" : ""}` },
       h("h2", null, won ? t.won : t.lost),
-      h("p", null, `${scenarioName(def.id)} · ${date}`),
-      h("p", null, scenarioGoalLine(def)),
+      h("p", null, scenarioName(def.id)),
+      won ? null : h("p", null, scenarioGoalLine(def)),
       won
         ? h(
             "div",
@@ -46,7 +44,7 @@ export function openScenarioEnd(
             handlers.newBest ? h("span", { className: "scenario-new-best" }, t.newBest) : null,
           )
         : h("p", null, run.reason ? t.reasons[run.reason] : ""),
-      h("p", null, strings.gameOver.bestWorth(formatMoney(netWorth(state)))),
+      h("p", null, t.worth(formatMoney(netWorth(state)))),
       h(
         "div",
         { className: "game-over-buttons" },

@@ -198,8 +198,8 @@ export const CARGO: Record<CargoType, CargoDef> = {
   wood: {
     id: "wood",
     name: "Wood",
-    car: "Flatcar",
-    carLabel: "Flatcar",
+    car: "Log car",
+    carLabel: "Log car",
     carCost: 2_000,
     capacity: 20,
     unit: "t",
@@ -260,8 +260,8 @@ export const CARGO: Record<CargoType, CargoDef> = {
   steel: {
     id: "steel",
     name: "Steel",
-    car: "Flatcar",
-    carLabel: "Flatcar",
+    car: "Steel car",
+    carLabel: "Steel car",
     carCost: 2_000,
     capacity: 20,
     unit: "t",

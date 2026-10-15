@@ -202,7 +202,7 @@ export const strings = {
     supplyRate: (unit: string) => `${unit ? ` ${unit}` : ""} / month`,
     /** PLAN Phase 16: the station panel's "Waiting" line, e.g. "12 passengers waiting". */
     waitingCount: (amount: string) => `${amount} waiting`,
-    waitingElsewhere: (n: number) => `any train ${n}`,
+    waitingElsewhere: "any train",
     supplies: "Supplies",
     perMonthNote: "/mo",
     /** PLAN Phase 35: the "Where passengers go" detail sheet (tap the passenger supply tile). */
@@ -848,13 +848,12 @@ export const strings = {
     clearAllConfirm: "Clear all news?",
     times: (n: number) => `×${n}`,
     kinds: {
-      newLocomotive: (locoName: string) => `New locomotive available: ${locoName}`,
-      breakdown: (trainName: string) => `${trainName} has broken down and is being repaired`,
-      washout: (nearName: string) => `A wooden bridge near ${nearName} has washed out`,
-      locoWornOut: (trainName: string) =>
-        `${trainName}'s locomotive is worn out — overhaul or replace it before it fails again`,
+      newLocomotive: (locoName: string) => `New engine: ${locoName}`,
+      breakdown: (trainName: string) => `${trainName} has broken down`,
+      washout: (nearName: string) => `Bridge near ${nearName} washed out`,
+      locoWornOut: (trainName: string) => `${trainName}: engine worn out — overhaul it`,
       slowOrders: (n: number, nearName: string) =>
-        `Worn track: slow orders on ${n} ${n === 1 ? "section" : "sections"}, worst near ${nearName} — relay it`,
+        `Worn track near ${nearName}: ${n} slow ${n === 1 ? "section" : "sections"}`,
       trafficJam: (nearName: string) =>
         `Traffic jam near ${nearName} — consider double track or more stations`,
       /** A jam where the sim can count the trains involved (Phase 30B). */
@@ -863,45 +862,42 @@ export const strings = {
           ? `${n} trains share a single line near ${nearName} — passing loop ${loopPrice}, tap to build`
           : `${n} trains share a single line near ${nearName} — add a passing loop or double track`,
       trafficJamBusy: (n: number, nearName: string) =>
-        `${n} trains queue near ${nearName} — add platforms, a second station or another line`,
+        `${n} trains queue near ${nearName} — add platforms`,
       noRoute: (trainName: string, stationName: string) =>
-        `${trainName} has no route to ${stationName}`,
+        `${trainName}: no route to ${stationName}`,
       heavyBridge: (loco: string, near: string) =>
         `${loco} is too heavy for the wooden bridge near ${near}`,
       undeliverable: (trainName: string, cars: number, cargo: string) =>
-        `${trainName} carries ${cars} ${cars === 1 ? "car" : "cars"} of ${cargo} that no stop on its route accepts`,
+        `${trainName}: ${cars} ${cars === 1 ? "car" : "cars"} of ${cargo} nobody accepts`,
       stationDemolished: (name: string, trains: number) =>
         trains === 0
-          ? `${name} was demolished`
-          : `${name} was demolished — removed from the orders of ${trains} ${trains === 1 ? "train" : "trains"}`,
+          ? `${name} demolished`
+          : `${name} demolished — ${trains} ${trains === 1 ? "train" : "trains"} re-ordered`,
       forcedLoan: (amount: string) => `Borrowed ${amount} to stay solvent`,
-      loansCalled: (amount: string) =>
-        `Lenders called ${amount}: the credit limit fell below your debt`,
+      loansCalled: (amount: string) => `Lenders called ${amount}`,
       panic: (name: string, months: number, fuelRise = 0) =>
-        `${name}: demand falls and credit tightens for about ${months} months` +
+        `${name}: weak demand, tight credit ~${months} months` +
         (fuelRise > 0 ? `; fuel +${Math.round(fuelRise * 100)} %` : ""),
       insolvent: (months: number) =>
-        `Insolvent: ${months} month${months === 1 ? "" : "s"} to recover — sell trains or raise cash`,
+        `Insolvent: ${months} month${months === 1 ? "" : "s"} to recover`,
       startupCreditEnding: (months: number, limit: string) =>
         `Start-up credit ends in ${months} month${months === 1 ? "" : "s"}: limit ~${limit}`,
       overLimit: (debt: string, limit: string) =>
         `Debt ${debt}, limit ${limit}: lenders call 25 %/month`,
       addTrain: (trainName: string, waiting: number) =>
         `${trainName}'s line: full trains, ${waiting} waiting — add a train`,
-      fewStops: (trainName: string) =>
-        `${trainName} has fewer than 2 stops — tap to edit its route`,
-      cityGrowth: (cityName: string, tierName: string) =>
-        `${cityName} has grown into a ${tierName}!`,
-      civicInvestment: (cityName: string) => `Civic Investment boosts growth in ${cityName}`,
-      cityFounded: (cityName: string) => `${cityName} has been founded!`,
+      fewStops: (trainName: string) => `${trainName}: fewer than 2 stops`,
+      cityGrowth: (cityName: string, tierName: string) => `${cityName} grew into a ${tierName}`,
+      civicInvestment: (cityName: string) => `Civic Investment in ${cityName}`,
+      cityFounded: (cityName: string) => `${cityName} founded`,
       discovery: (cargo: string, nearName: string) => `${cargo} discovered near ${nearName}`,
       goalCompleted: (tierName: string, description: string, grant?: string) =>
-        `${tierName} goal reached: ${description}${grant ? ` — ${grant} land grant` : ""}`,
+        `${tierName} goal: ${description}${grant ? ` — ${grant}` : ""}`,
       /** Economic model v2: other transport arrives (docs/SPEC.md §9). */
       competition: {
-        road: "Motor buses now compete on short routes — short passenger and mail trips lose fares",
-        truck: "Motor lorries now compete for short-haul freight — bulk cargo is less affected",
-        air: "Airlines now compete for long-distance passengers — fast trains keep more of them",
+        road: "Buses now compete on short trips",
+        truck: "Lorries now compete for short-haul freight",
+        air: "Airlines now compete for long-distance trips",
       },
     },
   },
@@ -941,28 +937,39 @@ export const strings = {
     accept: "Accept",
     decline: "Later",
     abandon: "Give up",
-    abandonConfirm: "Give up? You will be fined",
-    daysLeft: (days: number) => `${days} d left`,
-    expiresIn: (days: number) => `offer ends in ${days} d`,
-    pays: (money: string) => `Pays ${money}`,
-    paysUpTo: (money: string) => `Refunds up to ${money}`,
+    abandonConfirm: "Fine if you give up",
+    daysLeft: (days: number) => `${days}d`,
+    expiresIn: (days: number) => `${days}d`,
+    pays: (money: string) => money,
+    paysUpTo: (money: string) => `≤ ${money}`,
     connected: "Connected",
     notConnected: "Not connected yet",
     subsidyPaid: (paid: string, cap: string) => `${paid} of ${cap} refunded`,
     delivery: (city: string, amount: string, cargo: string, date: string) =>
-      `${city} needs ${amount} ${cargo} by ${date}`,
-    connection: (city: string, share: number, date: string) =>
-      `Connect ${city} by ${date} - it pays ${share} % of the track`,
+      `${city}: ${amount} ${cargo} by ${date}`,
+    connection: (city: string, date: string) => `${city}: connect by ${date}`,
+    connectionTip: (share: number) =>
+      `Refunds ${share} % of the track you lay there, up to the sum shown.`,
     service: (a: string, b: string, amount: string, date: string) =>
-      `Carry ${amount} passengers ${a} \u2194 ${b} by ${date}`,
+      `${a} \u2194 ${b}: ${amount} passengers by ${date}`,
     rescue: (industry: string, near: string, amount: string, cargo: string, date: string) =>
-      `${industry} near ${near} winds down unless you haul ${amount} ${cargo} by ${date}`,
+      `${industry} near ${near}: haul ${amount} ${cargo} by ${date}`,
+    rescueTip: "The industry winds down unless you haul this.",
+    /** The same four sentences without the deadline, for the news. */
+    short: {
+      delivery: (city: string, amount: string, cargo: string) => `${city}: ${amount} ${cargo}`,
+      connection: (city: string) => `${city}: connect`,
+      service: (a: string, b: string, amount: string) => `${a} \u2194 ${b}: ${amount} passengers`,
+      rescue: (industry: string, near: string, amount: string, cargo: string) =>
+        `${industry} near ${near}: haul ${amount} ${cargo}`,
+    },
+    offerEnds: (days: number) => `Offer ends in ${days} days`,
+    daysLeftTitle: (days: number) => `${days} days left`,
     news: {
-      offered: (text: string, money: string) => `Contract: ${text} \u2014 ${money}`,
-      completed: (text: string, money: string) =>
-        `Contract done: ${text}${money ? ` \u2014 ${money}` : ""}`,
+      offered: (text: string, money: string) => `${text} \u00b7 ${money}`,
+      completed: (text: string, money: string) => `Done: ${text}${money ? ` \u00b7 ${money}` : ""}`,
       failed: (text: string, fine: string) =>
-        `Contract failed: ${text}${fine ? ` \u2014 fined ${fine}` : ""}`,
+        `Failed: ${text}${fine ? ` \u00b7 fined ${fine}` : ""}`,
     },
   },
   celebration: {
@@ -971,16 +978,15 @@ export const strings = {
   },
   gameOver: {
     title: "Bankrupt",
-    line: (date: string) => `The lenders closed in. Final date: ${date}.`,
     /** Phase 47: months under a year ("8 months"), then whole years ("1 year", "3 years"). */
     duration: (months: number) => {
       const unit = (n: number, word: string): string => `${n} ${word}${n === 1 ? "" : "s"}`;
       return `${months < 12 ? unit(months, "month") : unit(Math.floor(months / 12), "year")} of railroading`;
     },
-    bestWorth: (amount: string) => `Best net worth ${amount}`,
+    bestWorth: (amount: string) => `Peak ${amount}`,
     owed: (amount: string) => `Owed ${amount}`,
-    network: (trains: number, stations: number) => `${trains} trains, ${stations} stations`,
-    loadLast: "Load last autosave",
+    network: (trains: number, stations: number) => `${trains} trains · ${stations} stations`,
+    loadLast: "Load autosave",
     noSave: "No earlier autosave to load.",
     newGame: "New game",
   },
@@ -1086,8 +1092,9 @@ export const strings = {
     },
     progress: (current: string, target: string) => `${current} of ${target}`,
     panelTitle: "Scenario",
-    won: "Scenario complete",
-    lost: "Scenario failed",
+    won: "Complete",
+    lost: "Failed",
+    worth: (amount: string) => `Worth ${amount}`,
     reasons: {
       deadline: "The deadline passed.",
       bankrupt: "The company went bankrupt.",
@@ -1139,18 +1146,20 @@ export const strings = {
   },
   hints: {
     steps: [
-      "Drag on the map with the Track tool to lay your first line.",
-      "Tap Station on a straight piece of track or a dead end to build a station.",
-      "Buy a train at a station with an Engine Shed (the first station you build gets one free).",
-      "Set orders — tap stations on the map — then watch the cash roll in as it delivers cargo.",
+      "Drag with the Track tool to lay a line.",
+      "Tap Station on a straight track or dead end.",
+      "Buy a train at a station with an Engine Shed.",
+      "Set orders: tap stations, then watch cash roll in.",
     ] as string[],
-    hardMoney:
-      "Hard: keep enough cash for the locomotive before you lay track. Short? Borrow in Finance (tap the cash).",
+    hardMoney: "Hard: save cash for the engine before laying track. Short? Borrow in Finance.",
     earlyEngines: (loco: { name: string; introYear: number }): string =>
-      `Early engines are weak and slow. The ${loco.name} arrives in ${loco.introYear}: until then keep lines short.`,
-    next: "Got it",
-    done: "Start playing",
-    skip: "Skip tips",
+      `Early engines are slow: keep lines short. ${loco.name} arrives in ${loco.introYear}.`,
+    next: "OK",
+    nextLabel: "Got it",
+    done: "Start",
+    doneLabel: "Start playing",
+    skip: "Skip",
+    skipLabel: "Skip tips",
   },
   loop: {
     title: "Passing loop",

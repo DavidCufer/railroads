@@ -637,6 +637,35 @@ button.chip {
   font-variant-numeric: tabular-nums;
 }
 
+/* Where the people waiting are going: one "→ Place  n" row per destination. */
+.waiting-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.waiting-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.waiting-arrow {
+  color: var(--brass);
+}
+.waiting-dest {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.waiting-n {
+  color: var(--text);
+  font-weight: 600;
+}
+
 /* ---------- action grid (STYLE §3: 2-column related-action buttons) ---------- */
 
 .action-grid {

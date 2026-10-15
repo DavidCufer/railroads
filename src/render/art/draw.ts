@@ -78,24 +78,38 @@ export function shadePath(
   const { ctx } = p;
   const hi = o.hi ?? 0.3;
   const lo = o.lo ?? 0.24;
-  ctx.save();
   ctx.fillStyle = color;
   ctx.fill();
-  ctx.clip();
-  if (hi > 0) {
-    ctx.fillStyle = lighten(color, 0.2);
-    ctx.fillRect(x - 1, y - 1, w + 2, h * hi + 1);
-  }
-  if (lo > 0) {
-    ctx.fillStyle = darken(color, 0.22);
-    ctx.fillRect(x - 1, y + h * (1 - lo), w + 2, h * lo + 1);
-  }
-  ctx.restore();
+  // The hairline outline goes first: the clip and the hatch below reuse (and then replace) the context's path.
   if (o.outline !== false) {
-    ctx.strokeStyle = darken(color, 0.6);
-    ctx.lineWidth = p.ow;
+    ctx.strokeStyle = "#18140f";
+    ctx.lineWidth = Math.max(0.2, Math.min(0.3, p.ow * 0.8));
+    ctx.lineJoin = "round";
     ctx.stroke();
   }
+  ctx.save();
+  ctx.clip();
+  // Engraved-print shading (Phase 49B): a faint pale top edge, then fine diagonal hatching on the underside
+  // instead of a solid dark band.
+  if (hi > 0) {
+    ctx.fillStyle = lighten(color, 0.12);
+    ctx.fillRect(x - 1, y - 1, w + 2, h * hi * 0.6 + 1);
+  }
+  if (lo > 0 && w > 0.8 && h > 0.8) {
+    const y0 = y + h * (1 - lo * 1.6);
+    ctx.beginPath();
+    ctx.rect(x - 1, y0, w + 2, y + h + 1 - y0);
+    ctx.clip();
+    ctx.strokeStyle = darken(color, 0.4);
+    ctx.lineWidth = 0.09;
+    ctx.beginPath();
+    for (let t = -h - 1; t < w + 1; t += 0.5) {
+      ctx.moveTo(x + t, y + h + 1);
+      ctx.lineTo(x + t + h + 1, y - 1);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 export function shadedBox(
@@ -176,46 +190,40 @@ export interface WheelStyle {
   counterweight?: number;
 }
 
-/** Spoked wheel centred at (cx, cy): dark disc, spokes in the wheel tone, tyre ring, hub. */
+/** Spoked wheel centred at (cx, cy): dark disc, hairline spokes, thin light tyre, ringed hub. */
 export function drawWheel(p: Pen, cx: number, cy: number, r: number, s: WheelStyle): void {
   const { ctx } = p;
-  const ground = darken(s.wheel, 0.68);
-  disc(p, cx, cy, r, ground);
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.clip();
+  const hair = Math.max(0.2, Math.min(0.3, p.ow * 0.8));
+  disc(p, cx, cy, r, "#24221F");
   if (s.counterweight !== undefined) {
     const a = s.counterweight + Math.PI;
     ctx.beginPath();
     ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, r * 0.82, a - 0.85, a + 0.85);
+    ctx.arc(cx, cy, r * 0.8, a - 0.85, a + 0.85);
     ctx.closePath();
-    ctx.fillStyle = s.wheel;
+    ctx.fillStyle = "#34312C";
     ctx.fill();
   }
-  ctx.strokeStyle = s.wheel;
-  ctx.lineWidth = Math.max(p.ow, r * 0.09);
+  ctx.strokeStyle = "#8E8A80";
+  ctx.lineWidth = Math.max(0.14, r * 0.05);
+  ctx.beginPath();
   for (let i = 0; i < s.spokes; i++) {
     const a = (i / s.spokes) * Math.PI * 2 + 0.2;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-    ctx.stroke();
+    ctx.moveTo(cx + Math.cos(a) * r * 0.2, cy + Math.sin(a) * r * 0.2);
+    ctx.lineTo(cx + Math.cos(a) * r * 0.86, cy + Math.sin(a) * r * 0.86);
   }
-  ctx.restore();
-  // Tyre ring.
+  ctx.stroke();
   ctx.beginPath();
-  ctx.arc(cx, cy, r - Math.max(0.2, r * 0.07), 0, Math.PI * 2);
-  ctx.strokeStyle = s.tyre;
-  ctx.lineWidth = Math.max(0.35, r * 0.13);
+  ctx.arc(cx, cy, r - Math.max(0.15, r * 0.07), 0, Math.PI * 2);
+  ctx.strokeStyle = "#C7C2B4";
+  ctx.lineWidth = Math.max(0.2, r * 0.09);
   ctx.stroke();
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.strokeStyle = darken(s.wheel, 0.75);
-  ctx.lineWidth = p.ow;
+  ctx.strokeStyle = "#18140f";
+  ctx.lineWidth = hair;
   ctx.stroke();
-  disc(p, cx, cy, Math.max(0.45, r * 0.17), s.hub, darken(s.hub, 0.5));
+  disc(p, cx, cy, Math.max(0.4, r * 0.2), "#5A564D", "#C7C2B4");
 }
 
 /** Rail head + tie row under the wheels at y = 23..24 spanning [x0, x1], and a soft shadow. */

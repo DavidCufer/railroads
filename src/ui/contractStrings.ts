@@ -45,11 +45,7 @@ export function describeContract(state: GameState, c: Contract): string {
         date,
       );
     case "connection":
-      return strings.contracts.connection(
-        cityName(state, c.cityId),
-        Math.round(CONNECTION.subsidyShare * 100),
-        date,
-      );
+      return strings.contracts.connection(cityName(state, c.cityId), date);
     case "service":
       return strings.contracts.service(
         cityName(state, c.cityId),
@@ -84,4 +80,38 @@ export function rewardText(c: Contract): string {
   return c.kind === "connection"
     ? strings.contracts.paysUpTo(formatMoney(c.reward))
     : strings.contracts.pays(formatMoney(c.reward));
+}
+
+/** The longer explanation behind a contract's (i): only some kinds need one. */
+export function contractTip(c: Contract): string | undefined {
+  if (c.kind === "connection")
+    return strings.contracts.connectionTip(Math.round(CONNECTION.subsidyShare * 100));
+  if (c.kind === "rescue") return strings.contracts.rescueTip;
+  return undefined;
+}
+
+/** `describeContract` without the deadline (the news line). */
+export function describeContractShort(state: GameState, c: Contract): string {
+  const t = strings.contracts.short;
+  switch (c.kind) {
+    case "delivery":
+      return t.delivery(
+        cityName(state, c.cityId),
+        amountText(c),
+        CARGO[c.cargo ?? "coal"].name.toLowerCase(),
+      );
+    case "connection":
+      return t.connection(cityName(state, c.cityId));
+    case "service":
+      return t.service(cityName(state, c.cityId), cityName(state, c.city2Id), amountText(c));
+    case "rescue": {
+      const industry = state.industries[c.industryId ?? -1];
+      return t.rescue(
+        industry ? INDUSTRIES[industry.type].name : strings.fallback.place,
+        industry ? nearestCity(state, industry.x, industry.y) : strings.fallback.place,
+        amountText(c),
+        CARGO[c.cargo ?? "coal"].name.toLowerCase(),
+      );
+    }
+  }
 }

@@ -10,7 +10,8 @@ import { HOURS_PER_DAY } from "../sim/time";
 import { emptyState } from "./components/emptyState";
 import { footerButton } from "./components/footer";
 import { meter } from "./components/meter";
-import { contractFocusTile, describeContract, rewardText } from "./contractStrings";
+import { contractFocusTile, contractTip, describeContract, rewardText } from "./contractStrings";
+import { tipRow } from "./components/infoTip";
 import { formatMoney } from "./format";
 import { h } from "./h";
 import { icon } from "./icons";
@@ -53,24 +54,26 @@ export function openContractsPanel(
 
   function line(c: Contract, extra: Node[]): HTMLElement {
     const at = onFocus ? contractFocusTile(state, c) : null;
+    const tip = contractTip(c);
+    const desc = h(
+      at ? "button" : "div",
+      {
+        className: `contract-desc${at ? " tappable" : ""}`,
+        ...(at && onFocus
+          ? {
+              onClick: () => {
+                closePanel();
+                onFocus(at);
+              },
+            }
+          : {}),
+      },
+      describeContract(state, c),
+    );
     return h(
       "div",
       { className: "contract-card", "data-contract": String(c.id) },
-      h(
-        at ? "button" : "div",
-        {
-          className: `contract-desc${at ? " tappable" : ""}`,
-          ...(at && onFocus
-            ? {
-                onClick: () => {
-                  closePanel();
-                  onFocus(at);
-                },
-              }
-            : {}),
-        },
-        describeContract(state, c),
-      ),
+      tip ? tipRow(desc, tip) : desc,
       ...extra,
     );
   }
@@ -83,7 +86,10 @@ export function openContractsPanel(
         line(c, [
           h(
             "div",
-            { className: "contract-meta" },
+            {
+              className: "contract-meta",
+              title: strings.contracts.offerEnds(daysUntil(state, c.expiresTick)),
+            },
             `${rewardText(c)} · ${strings.contracts.expiresIn(daysUntil(state, c.expiresTick))}`,
           ),
           h(
@@ -137,7 +143,12 @@ export function openContractsPanel(
           meter(p.fraction, 1, "brass", p.label),
           h(
             "div",
-            { className: "contract-meta" },
+            {
+              className: "contract-meta",
+              title: strings.contracts.daysLeftTitle(
+                daysUntil(state, c.deadlineTick ?? state.ticks),
+              ),
+            },
             `${rewardText(c)} · ${strings.contracts.daysLeft(daysUntil(state, c.deadlineTick ?? state.ticks))}`,
           ),
           h("div", { className: "contract-actions" }, giveUp),

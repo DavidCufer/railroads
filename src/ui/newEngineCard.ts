@@ -60,7 +60,8 @@ function render(): void {
     footerButton({
       kind: "secondary",
       icon: "roster",
-      label: n.roster,
+      ariaLabel: n.roster,
+      title: n.roster,
       className: "new-engine-roster",
       onClick: () => {
         const open = host?.onRoster;
@@ -68,14 +69,22 @@ function render(): void {
         open?.();
       },
     }),
-    footerButton({ kind: "primary", label: n.ok, className: "new-engine-ok", onClick: close }),
+    footerButton({
+      kind: "primary",
+      icon: "check",
+      ariaLabel: n.ok,
+      title: n.ok,
+      className: "new-engine-ok",
+      onClick: close,
+    }),
   );
   const overline = h(
     "div",
     { className: "new-engine-overline" },
     icon(tractionIcon(defs[0] as LocomotiveDef), "icon-sm"),
-    defs.length === 1 ? n.overline : n.overlineMany(defs.length),
+    defs.length === 1 ? null : String(defs.length),
   );
+  overline.title = defs.length === 1 ? n.overline : n.overlineMany(defs.length);
   const card = h("div", { className: "new-engine-card", role: "dialog", "aria-label": n.overline });
   if (defs.length === 1) {
     const def = defs[0] as LocomotiveDef;
@@ -91,9 +100,9 @@ function render(): void {
       statRow(
         statTile({
           icon: "gauge",
-          value: formatSpeed(def.maxSpeedKmh, loadSettings().units),
+          value: formatSpeed(def.maxSpeedKmh, loadSettings().units).replace(/ [a-z/]+$/, ""),
           caption: "",
-          title: strings.trains.stats.speed,
+          title: `${strings.trains.stats.speed}: ${formatSpeed(def.maxSpeedKmh, loadSettings().units)}`,
         }),
         statTile({
           icon: "power",

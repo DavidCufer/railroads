@@ -278,7 +278,7 @@ Monthly: $10 per edge single, $16 double, +$5 electrified. Bridges: +$50 wood, +
 - A train = 1 locomotive (optionally 2 = double-heading, from 1850, doubles power and cost/maint)
   + up to N cars, where N ≤ locomotive max cars.
 - Car types: Passenger, Mail, Coal, Ore, Grain (hopper), Livestock, Boxcar (goods, food, lumber, steel),
-  Tanker (oil, fuel), Flatcar (steel, lumber) — see cargo table §8.1 for which car carries what.
+  Tanker (oil, fuel), Log car (wood), Steel car (steel), Flatcar (lumber) — see cargo table §8.1 for which car carries what.
   Car cost $2k–$6k each (see cargo table), bought with the train.
 - Each car carries 1 "carload" = 20 units of its cargo (passengers: 40 people per car = 1 carload).
 
@@ -439,11 +439,11 @@ Costs and maintenance in $ at introduction year (era inflation applies to later 
 | Mail | Mail | $6k | $4,000 | 2 | red | two-way from cities |
 | Coal | Coal hopper | $2k | $1,200 | 30 | black | |
 | Iron Ore | Ore hopper | $2k | $1,100 | 30 | rust | |
-| Wood | Flatcar | $2k | $1,000 | 30 | brown | logs |
+| Wood | Log car | $2k | $1,000 | 30 | brown | logs |
 | Grain | Grain hopper | $2k | $1,300 | 20 | gold | |
 | Livestock | Livestock | $3k | $2,000 | 6 | tan | needs Livestock Pens to load |
 | Oil (1860+) | Tanker | $3k | $1,600 | 30 | dark green | |
-| Steel | Flatcar | $2k | $1,800 | 30 | steel blue | processed |
+| Steel | Steel car | $2k | $1,800 | 30 | steel blue | processed |
 | Lumber | Flatcar | $2k | $1,500 | 30 | light brown | processed |
 | Food | Boxcar | $3k | $2,200 | 8 | orange | processed; cold storage helps |
 | Goods | Boxcar | $3k | $2,600 | 15 | purple | processed |

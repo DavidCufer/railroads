@@ -5,7 +5,7 @@
  * - `openStationPanel` — tapping a built station (Station or Info mode): name + rename, type +
  *   upgrade, supplies/accepts, a waiting-cargo placeholder (Phase 7 does real cargo flow).
  */
-import { waitingSplitLine } from "./waitingSplit";
+import { waitingSplitRows, type WaitingRow } from "./waitingSplit";
 import { CARGO, CARGO_TYPES, type CargoType } from "../data/cargo";
 import {
   STATION_IMPROVEMENT_TYPES,
@@ -105,7 +105,7 @@ function supplyChipStack(
   onTap?: () => void,
   trend?: string,
   pileFull?: string,
-  split?: string,
+  split?: WaitingRow[],
 ): HTMLElement {
   const children: Node[] = [
     cargoChip(
@@ -142,7 +142,19 @@ function supplyChipStack(
   }
   if (split)
     children.push(
-      h("span", { className: "cargo-waiting-label", "data-testid": "waiting-split" }, split),
+      h(
+        "div",
+        { className: "waiting-rows", "data-testid": "waiting-split" },
+        ...split.map((r) =>
+          h(
+            "div",
+            { className: "waiting-row" },
+            h("span", { className: "waiting-arrow", "aria-hidden": "true" }, "→"),
+            h("span", { className: "waiting-dest" }, r.label),
+            h("b", { className: "waiting-n" }, String(r.n)),
+          ),
+        ),
+      ),
     );
   if (trend) children.push(h("span", { className: "cargo-waiting-label supply-trend" }, trend));
   if (pileFull)
@@ -272,7 +284,7 @@ function economyBody(
                   trends[i],
                   pileFullFor(cargo),
                   cargo === "passengers" && state && station
-                    ? waitingSplitLine(state, station.id)
+                    ? waitingSplitRows(state, station.id)
                     : undefined,
                 ),
               ),
@@ -289,7 +301,7 @@ function economyBody(
                   undefined,
                   undefined,
                   cargo === "passengers" && state && station
-                    ? waitingSplitLine(state, station.id)
+                    ? waitingSplitRows(state, station.id)
                     : undefined,
                 ),
               ),

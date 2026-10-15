@@ -49,11 +49,20 @@ export function showFirstGameHints(
       h(
         "div",
         { className: "hint-card-actions" },
-        h("button", { className: "hint-card-btn hint-card-btn-skip", onClick: finish }, s.skip),
+        h(
+          "button",
+          {
+            className: "hint-card-btn hint-card-btn-skip",
+            "aria-label": s.skipLabel,
+            onClick: finish,
+          },
+          s.skip,
+        ),
         h(
           "button",
           {
             className: "hint-card-btn hint-card-btn-next",
+            "aria-label": isLast ? s.doneLabel : s.nextLabel,
             onClick: () => {
               if (isLast) {
                 finish();
@@ -91,7 +100,11 @@ export function showHintCard(container: HTMLElement, text: string): boolean {
       { className: "hint-card-actions" },
       h(
         "button",
-        { className: "hint-card-btn hint-card-btn-next", onClick: () => card.remove() },
+        {
+          className: "hint-card-btn hint-card-btn-next",
+          "aria-label": strings.hints.nextLabel,
+          onClick: () => card.remove(),
+        },
         strings.hints.next,
       ),
     ),
