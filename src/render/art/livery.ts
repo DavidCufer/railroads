@@ -33,29 +33,39 @@ export interface SteamLivery {
   woodCab: boolean;
 }
 
-const BRASS = "#BC9A4E";
+const BRASS = "#A68A4A";
 const GRAPHITE = "#2A2D31";
 const PAPER = "#F4F1E8";
+const GLASS = "#252B31";
 
-export function steamLivery(def: Pick<LocomotiveDef, "introYear">): SteamLivery {
+/** Muted period body colours of the pioneer engines (Phase 49B): Russia-iron blue-grey, maroon, bottle green. */
+const EARLY_BODY: Record<string, string> = {
+  "grasshopper-0-4-0": "#4A5662",
+  "planet-2-2-0": "#5C2B28",
+  "norris-4-2-0": "#2F4A3A",
+  "american-4-4-0": "#2B3C32",
+};
+
+export function steamLivery(def: Pick<LocomotiveDef, "introYear"> & { id?: string }): SteamLivery {
   const y = def.introYear;
   if (y <= 1860) {
+    const body = (def.id && EARLY_BODY[def.id]) || "#2F4A3A";
     return {
       era: 0,
-      body: "#35563D",
+      body,
       lining: BRASS,
-      wheel: "#86302B",
-      tyre: "#6B1A17",
+      wheel: "#2A2824",
+      tyre: "#B8B09A",
       brass: BRASS,
       smokebox: GRAPHITE,
       smokeboxFront: GRAPHITE,
-      cab: "#7A4A2A",
-      cabRoof: "#3F2B1D",
-      tender: "#35563D",
+      cab: "#6A4A30",
+      cabRoof: "#3A2B20",
+      tender: body,
       tenderLining: BRASS,
       frame: "#2B2A28",
       coal: "#17181a",
-      glass: PAPER,
+      glass: GLASS,
       brassDomes: true,
       woodCab: true,
     };
@@ -64,19 +74,19 @@ export function steamLivery(def: Pick<LocomotiveDef, "introYear">): SteamLivery 
     return {
       era: 1,
       body: "#1F2226",
-      lining: "#B0362D",
-      wheel: "#565C64",
-      tyre: "#E9E4D8",
+      lining: "#8C3A2E",
+      wheel: "#2A2824",
+      tyre: "#C9C3B2",
       brass: BRASS,
       smokebox: GRAPHITE,
       smokeboxFront: GRAPHITE,
       cab: "#1F2226",
       cabRoof: "#15171a",
       tender: "#1F2226",
-      tenderLining: "#B0362D",
+      tenderLining: "#8C3A2E",
       frame: "#1A1C1F",
       coal: "#131416",
-      glass: PAPER,
+      glass: GLASS,
       brassDomes: y < 1900,
       woodCab: false,
     };
@@ -84,9 +94,9 @@ export function steamLivery(def: Pick<LocomotiveDef, "introYear">): SteamLivery 
   return {
     era: 2,
     body: "#1F2226",
-    lining: "#B0362D",
-    wheel: "#5B6169",
-    tyre: "#F4F1E8",
+    lining: "#8C3A2E",
+    wheel: "#2A2824",
+    tyre: "#D3CDBD",
     brass: BRASS,
     smokebox: "#20232a",
     smokeboxFront: "#9AA3AF",
@@ -96,7 +106,7 @@ export function steamLivery(def: Pick<LocomotiveDef, "introYear">): SteamLivery 
     tenderLining: "#9AA3AF",
     frame: "#1A1C1F",
     coal: "#131416",
-    glass: PAPER,
+    glass: GLASS,
     brassDomes: false,
     woodCab: false,
   };

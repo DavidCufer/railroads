@@ -2,24 +2,13 @@
  * else at negative x; the caller shifts by `-layout.minX`. Units: u = height / 24, rail top y = 23. */
 
 import type { LocomotiveDef } from "../../data/trains";
-import {
-  darken,
-  disc,
-  drawWheel,
-  hash01,
-  lighten,
-  line,
-  polyPath,
-  rrectPath,
-  shadedBox,
-  shadedPoly,
-  type Pen,
-} from "./draw";
+import { darken, hash01, lighten, type Pen } from "./draw";
+import { INK, box, hair, ink, pin, poly, rivets, rod, wheel, engrave } from "./engrave";
+import { drawEarlySteam, earlyChimneyTop, isBespoke } from "./steamEarly";
 import { steamLivery, type SteamLivery } from "./livery";
 import { parseWhyte, type Whyte } from "./whyte";
 
-const STEEL = "#B9BEC5";
-const STEEL_DARK = "#4C5158";
+const STEEL = "#9A9E9F";
 const RAIL_Y = 23;
 
 const FREIGHT = new Set(["2-6-0", "2-8-0", "2-8-2", "4-8-8-4"]);
@@ -53,6 +42,7 @@ export interface SteamLayout {
 /** Top of the chimney in art units, relative to the locomotive canvas (for smoke emitters). */
 export function chimneyTop(def: LocomotiveDef): { x: number; y: number } {
   const lay = steamLayout(def);
+  if (isBespoke(def)) return earlyChimneyTop(def, lay);
   const smokeLen = Math.max((0 - (lay.cabFront + 0.5)) * 0.18, lay.american ? 7.4 : 5.2);
   const chimneyX = lay.american ? -(smokeLen * 0.72) : -smokeLen * 0.52;
   const h = lay.lv.era === 0 ? 6 : lay.lv.era === 1 ? 5 : 2.5;
@@ -152,13 +142,22 @@ export function steamLayout(def: LocomotiveDef): SteamLayout {
 
 // --- pieces --------------------------------------------------------------------------------------
 
-function smallWheel(p: Pen, lay: SteamLayout, cx: number, r = 2): void {
-  drawWheel(p, cx, RAIL_Y - r, r, {
-    wheel: lay.lv.era === 0 ? lay.lv.wheel : "#3B4047",
-    tyre: lay.lv.era === 0 ? lay.lv.tyre : lay.lv.tyre,
-    spokes: 8,
-    hub: STEEL,
-  });
+/** Barrel top is a little higher at the firebox than at the smokebox (a tapered boiler). */
+const TAPER = 0.6;
+
+function smokeLength(lay: SteamLayout): number {
+  const rear = lay.cabFront + 0.5;
+  return Math.max((0 - rear) * 0.18, lay.american ? 7.4 : 5.2);
+}
+
+function topAt(lay: SteamLayout, x: number): number {
+  const rear = lay.cabFront + 0.5;
+  const t = Math.max(0, Math.min(1, (x - rear) / (0 - rear)));
+  return lay.boilerTop + TAPER * t;
+}
+
+function smallWheel(p: Pen, _lay: SteamLayout, cx: number, r = 2): void {
+  wheel(p, cx, RAIL_Y - r, r, { spokes: 8 });
 }
 
 function drawTender(p: Pen, lay: SteamLayout): void {
@@ -167,7 +166,6 @@ function drawTender(p: Pen, lay: SteamLayout): void {
   const len = f - r;
   const top = rb + (lv.era === 2 ? -1.2 : 0.6);
   const bottom = 18.2;
-  // Bogies / axles first (behind the body's lower edge).
   const axles: number[] = [];
   if (lay.tenderKind === "single") axles.push(r + len * 0.25, r + len * 0.75);
   else {
@@ -178,54 +176,46 @@ function drawTender(p: Pen, lay: SteamLayout): void {
       f - len * 0.22 - (per === 3 ? 2.4 : 0.6),
     ]) {
       for (let i = 0; i < per; i++) axles.push(c + (i - (per - 1) / 2) * step);
-      shadedBox(
-        p,
-        c - ((per - 1) * step) / 2 - 2.6,
-        18.6,
-        (per - 1) * step + 5.2,
-        1.6,
-        0.5,
-        lv.frame,
-        { hi: 0.2, lo: 0 },
-      );
+      box(p, c - ((per - 1) * step) / 2 - 2.6, 18.6, (per - 1) * step + 5.2, 1.4, lv.frame, {
+        hatch: 0,
+      });
     }
   }
-  if (lay.tenderKind === "single")
-    shadedBox(p, r + 1, 18.4, len - 2, 1.4, 0.4, lv.frame, { hi: 0.2, lo: 0 });
+  if (lay.tenderKind === "single") box(p, r + 1, 18.4, len - 2, 1.3, lv.frame, { hatch: 0 });
   axles.forEach((x) => smallWheel(p, lay, x, 2));
-  // Coal heap (behind the front wall so the body overlaps its base).
-  const heapTop = top - 2.4;
+  // Coal heap, drawn first so the body overlaps its base.
   ctx.beginPath();
   ctx.moveTo(r + 1.2, top + 0.2);
-  const pts = 9;
+  const pts = 11;
   for (let i = 0; i <= pts; i++) {
     const t = i / pts;
-    const yy = top - 0.4 - Math.sin(t * Math.PI) * 2.0 - hash01(i + 3) * 0.5;
-    ctx.lineTo(r + 1.2 + t * (len - 4.6), yy);
+    ctx.lineTo(
+      r + 1.2 + t * (len - 4.6),
+      top - 0.3 - Math.sin(t * Math.PI) * 1.9 - hash01(i + 3) * 0.5,
+    );
   }
   ctx.lineTo(f - 3.4, top + 0.2);
   ctx.closePath();
   ctx.fillStyle = lv.coal;
   ctx.fill();
-  for (let i = 0; i < 14; i++) {
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = hair(p);
+  ctx.stroke();
+  ctx.fillStyle = "#5A5D63";
+  for (let i = 0; i < 16; i++) {
     const t = hash01(i * 3.1);
     const xx = r + 2.2 + t * (len - 7);
-    const peak = Math.sin(((xx - (r + 1.2)) / (len - 4.6)) * Math.PI) * 1.7;
-    ctx.fillStyle = "#4b4f56";
-    ctx.fillRect(xx, top - 0.6 - hash01(i + 9) * peak, 0.5, 0.4);
+    const peak = Math.sin(((xx - (r + 1.2)) / (len - 4.6)) * Math.PI) * 1.6;
+    ctx.fillRect(xx, top - 0.5 - hash01(i + 9) * peak, 0.3, 0.2);
   }
-  void heapTop;
-  // Body.
-  shadedBox(p, r, top, len, bottom - top, 0.7, lv.tender, { hi: 0.22, lo: 0.22 });
-  // Livery panel + lining.
+  box(p, r, top, len, bottom - top, lv.tender);
   ctx.strokeStyle = lv.tenderLining;
-  ctx.lineWidth = 0.32;
+  ctx.lineWidth = hair(p, 0.8);
   ctx.strokeRect(r + 1.2, top + 1.3, len - 2.4, bottom - top - 2.5);
-  // Water hatch and rear buffer beam.
-  shadedBox(p, r + 0.8, top - 0.5, 2.6, 0.7, 0.3, darken(lv.tender, 0.3), { hi: 0, lo: 0 });
-  shadedBox(p, r - 0.6, bottom - 1.6, 0.9, 1.6, 0.3, lv.frame, { hi: 0, lo: 0 });
-  // Drawbar to the cab.
-  line(p, f, lay.rb + 2.4, f + 1.7, lay.rb + 2.4, lv.frame, 0.7);
+  rivets(p, r + 0.8, f - 0.6, top + 0.5, lighten(lv.tender, 0.35));
+  box(p, r + 0.8, top - 0.5, 2.4, 0.6, darken(lv.tender, 0.25), { hatch: 0 });
+  box(p, r - 0.6, bottom - 1.6, 0.9, 1.6, lv.frame, { hatch: 0 });
+  ink(p, f, lay.rb + 2.4, f + 1.7, lay.rb + 2.4, 1.6);
 }
 
 function drawCab(p: Pen, lay: SteamLayout): void {
@@ -233,239 +223,214 @@ function drawCab(p: Pen, lay: SteamLayout): void {
   const { lv, cabFront: f, cabRear: r, rb, boilerTop } = lay;
   const roofY = boilerTop - 1.4;
   const floor = rb + 1.6;
-  const color = lv.cab;
-  shadedBox(p, r + 0.4, roofY, f - r - 0.4, floor - roofY, 0.3, color, { hi: 0.2, lo: 0.18 });
+  box(p, r + 0.4, roofY, f - r - 0.4, floor - roofY, lv.cab, { hatch: lv.woodCab ? 0.45 : 0.55 });
   if (lv.woodCab) {
-    ctx.strokeStyle = darken(color, 0.35);
-    ctx.lineWidth = 0.18;
-    for (let x = r + 1.4; x < f - 0.4; x += 1.1) {
-      ctx.beginPath();
-      ctx.moveTo(x, roofY + 0.6);
+    ctx.strokeStyle = darken(lv.cab, 0.45);
+    ctx.lineWidth = hair(p, 0.5);
+    ctx.beginPath();
+    for (let x = r + 1.4; x < f - 0.4; x += 1.0) {
+      ctx.moveTo(x, roofY + 0.7);
       ctx.lineTo(x, floor - 0.4);
-      ctx.stroke();
     }
+    ctx.stroke();
   }
-  // Window(s).
   const wy = roofY + 1.5;
-  const wh = 2.9;
-  const ww = 2.6;
+  const wh = 2.7;
+  const ww = 2.4;
   const windows = lay.D >= 8 && f - r > 8.6 ? 2 : 1;
   for (let i = 0; i < windows; i++) {
     const wx = r + 1.6 + i * (ww + 1.1);
-    shadedBox(p, wx, wy, ww, wh, 0.3, lv.glass, { hi: 0, lo: 0, outline: false });
-    ctx.strokeStyle = darken(color, 0.55);
-    ctx.lineWidth = 0.4;
-    rrectPath(ctx, wx, wy, ww, wh, 0.3);
-    ctx.stroke();
+    box(p, wx, wy, ww, wh, lv.glass, { hatch: 0, ink: 1.2 });
+    ink(p, wx + 0.2, wy + 0.3, wx + ww * 0.55, wy + 0.3, 0.6, "#7B8590");
+    ctx.strokeStyle = lighten(lv.cab, 0.18);
+    ctx.lineWidth = hair(p, 0.7);
+    ctx.strokeRect(wx - 0.25, wy - 0.25, ww + 0.5, wh + 0.5);
   }
   // Overhanging roof, gently curved.
   ctx.beginPath();
   ctx.moveTo(r - 0.9, roofY + 0.5);
-  ctx.quadraticCurveTo((r + f) / 2, roofY - 1.5, f + 0.9, roofY + 0.5);
-  ctx.lineTo(f + 0.9, roofY + 1.0);
-  ctx.lineTo(r - 0.9, roofY + 1.0);
+  ctx.quadraticCurveTo((r + f) / 2, roofY - 1.4, f + 0.9, roofY + 0.5);
+  ctx.lineTo(f + 0.9, roofY + 0.95);
+  ctx.lineTo(r - 0.9, roofY + 0.95);
   ctx.closePath();
   ctx.fillStyle = lv.cabRoof;
   ctx.fill();
-  ctx.strokeStyle = darken(lv.cabRoof, 0.5);
-  ctx.lineWidth = p.ow;
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = hair(p);
   ctx.stroke();
-  // Cab floor skirt.
-  shadedBox(p, r + 0.2, floor - 0.2, f - r + 0.2, 1.1, 0.3, lv.frame, { hi: 0, lo: 0 });
+  box(p, r + 0.2, floor - 0.2, f - r + 0.2, 1.1, lv.frame, { hatch: 0 });
 }
 
 function drawStack(p: Pen, lay: SteamLayout, x: number): void {
   const { ctx } = p;
-  const { lv, boilerTop } = lay;
-  const base = boilerTop + 0.5;
-  const dark = lv.era === 0 ? "#1B1C1E" : "#141517";
+  const { lv } = lay;
+  const bt = topAt(lay, x);
+  const base = bt + 0.6;
+  const dark = lv.era === 0 ? "#222123" : "#1A1B1D";
+  let pts: Array<[number, number]>;
+  let capY: number;
   if (lv.era === 0) {
-    // Balloon / diamond stack: flared base, narrow neck, wide funnel top, 6u tall.
-    const top = boilerTop - 5.6;
-    ctx.beginPath();
-    ctx.moveTo(x - 1.5, base);
-    ctx.lineTo(x - 0.75, boilerTop - 0.9);
-    ctx.lineTo(x - 0.8, boilerTop - 2.2);
-    ctx.lineTo(x - 2.5, top);
-    ctx.lineTo(x + 2.5, top);
-    ctx.lineTo(x + 0.8, boilerTop - 2.2);
-    ctx.lineTo(x + 0.75, boilerTop - 0.9);
-    ctx.lineTo(x + 1.5, base);
-    ctx.closePath();
-    ctx.fillStyle = dark;
-    ctx.fill();
-    ctx.strokeStyle = "#000";
-    ctx.lineWidth = p.ow;
-    ctx.stroke();
-    line(p, x - 2.5, top, x + 2.5, top, lv.brass, 0.5);
-    line(p, x - 2.0, top + 0.9, x + 2.0, top + 0.9, "#3d3f44", 0.3);
+    // Balloon / diamond stack: flared base, narrow neck, wide funnel top.
+    const top = bt - 5.6;
+    capY = top;
+    pts = [
+      [x - 1.5, base],
+      [x - 0.8, bt - 0.9],
+      [x - 0.8, bt - 2.0],
+      [x - 2.4, bt - 3.6],
+      [x - 2.5, top],
+      [x + 2.5, top],
+      [x + 2.4, bt - 3.6],
+      [x + 0.8, bt - 2.0],
+      [x + 0.8, bt - 0.9],
+      [x + 1.5, base],
+    ];
   } else if (lv.era === 1 && lay.w.groups[0]! <= 8) {
-    // Tall straight stack with a flared cap, 5u.
-    const top = boilerTop - 4.4;
-    ctx.beginPath();
-    ctx.moveTo(x - 1.6, base);
-    ctx.lineTo(x - 0.95, boilerTop - 0.8);
-    ctx.lineTo(x - 0.95, top + 0.5);
-    ctx.lineTo(x - 1.5, top);
-    ctx.lineTo(x + 1.5, top);
-    ctx.lineTo(x + 0.95, top + 0.5);
-    ctx.lineTo(x + 0.95, boilerTop - 0.8);
-    ctx.lineTo(x + 1.6, base);
-    ctx.closePath();
-    ctx.fillStyle = dark;
-    ctx.fill();
-    ctx.strokeStyle = "#000";
-    ctx.lineWidth = p.ow;
-    ctx.stroke();
-    line(p, x - 1.5, top + 0.15, x + 1.5, top + 0.15, "#3d3f44", 0.35);
+    const top = bt - 4.4;
+    capY = top;
+    pts = [
+      [x - 1.6, base],
+      [x - 0.95, bt - 0.8],
+      [x - 0.95, top + 0.5],
+      [x - 1.5, top],
+      [x + 1.5, top],
+      [x + 0.95, top + 0.5],
+      [x + 0.95, bt - 0.8],
+      [x + 1.6, base],
+    ];
   } else {
-    // Short stack, 2.5u.
-    const top = boilerTop - 2.2;
-    ctx.beginPath();
-    ctx.moveTo(x - 1.8, base);
-    ctx.lineTo(x - 1.2, boilerTop - 0.4);
-    ctx.lineTo(x - 1.2, top + 0.5);
-    ctx.lineTo(x - 1.7, top);
-    ctx.lineTo(x + 1.7, top);
-    ctx.lineTo(x + 1.2, top + 0.5);
-    ctx.lineTo(x + 1.2, boilerTop - 0.4);
-    ctx.lineTo(x + 1.8, base);
-    ctx.closePath();
-    ctx.fillStyle = dark;
-    ctx.fill();
-    ctx.strokeStyle = "#000";
-    ctx.lineWidth = p.ow;
-    ctx.stroke();
-    line(p, x - 1.7, top + 0.15, x + 1.7, top + 0.15, "#3d3f44", 0.35);
+    const top = bt - 2.2;
+    capY = top;
+    pts = [
+      [x - 1.8, base],
+      [x - 1.2, bt - 0.4],
+      [x - 1.2, top + 0.5],
+      [x - 1.7, top],
+      [x + 1.7, top],
+      [x + 1.2, top + 0.5],
+      [x + 1.2, bt - 0.4],
+      [x + 1.8, base],
+    ];
   }
+  poly(p, pts, dark);
+  ink(p, x - 2.2, capY + 0.9, x + 2.2, capY + 0.9, 0.7, "#5B5C60");
+  if (lv.era === 0) ink(p, x - 2.5, capY, x + 2.5, capY, 1.4, lv.brass);
+  void ctx;
 }
 
 function drawDome(p: Pen, lay: SteamLayout, x: number, wdt: number, hgt: number): void {
   const { ctx } = p;
-  const { lv, boilerTop } = lay;
+  const { lv } = lay;
+  const bt = topAt(lay, x);
   const col = lv.brassDomes ? lv.brass : lv.body;
-  const top = boilerTop - hgt;
-  ctx.beginPath();
-  ctx.moveTo(x - wdt / 2 - 0.4, boilerTop + 0.5);
-  ctx.lineTo(x - wdt / 2, boilerTop - 0.4);
-  ctx.lineTo(x - wdt / 2, top + wdt * 0.35);
-  ctx.quadraticCurveTo(x - wdt / 2, top, x - wdt * 0.15, top);
-  ctx.lineTo(x + wdt * 0.15, top);
-  ctx.quadraticCurveTo(x + wdt / 2, top, x + wdt / 2, top + wdt * 0.35);
-  ctx.lineTo(x + wdt / 2, boilerTop - 0.4);
-  ctx.lineTo(x + wdt / 2 + 0.4, boilerTop + 0.5);
-  ctx.closePath();
-  ctx.fillStyle = col;
-  ctx.fill();
-  ctx.save();
-  ctx.clip();
-  ctx.fillStyle = lighten(col, 0.28);
-  ctx.fillRect(x - wdt / 2, top, wdt * 0.4, hgt);
-  ctx.fillStyle = darken(col, 0.25);
-  ctx.fillRect(x + wdt * 0.2, top, wdt * 0.4, hgt);
-  ctx.restore();
-  ctx.strokeStyle = darken(col, 0.6);
-  ctx.lineWidth = p.ow;
-  ctx.stroke();
-  // Base ring.
-  line(
+  const top = bt - hgt;
+  const outline = (): void => {
+    ctx.beginPath();
+    ctx.moveTo(x - wdt / 2 - 0.4, bt + 0.6);
+    ctx.lineTo(x - wdt / 2, bt - 0.3);
+    ctx.lineTo(x - wdt / 2, top + wdt * 0.35);
+    ctx.quadraticCurveTo(x - wdt / 2, top, x - wdt * 0.15, top);
+    ctx.lineTo(x + wdt * 0.15, top);
+    ctx.quadraticCurveTo(x + wdt / 2, top, x + wdt / 2, top + wdt * 0.35);
+    ctx.lineTo(x + wdt / 2, bt - 0.3);
+    ctx.lineTo(x + wdt / 2 + 0.4, bt + 0.6);
+  };
+  engrave(
     p,
-    x - wdt / 2 - 0.4,
-    boilerTop + 0.1,
-    x + wdt / 2 + 0.4,
-    boilerTop + 0.1,
-    darken(col, 0.4),
-    0.4,
+    col,
+    [x - wdt / 2, top, wdt, hgt + 0.6],
+    () => {
+      outline();
+      ctx.closePath();
+    },
+    { noInk: true, hatch: 0.4 },
   );
+  outline();
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = hair(p);
+  ctx.stroke();
+  ink(p, x - wdt / 2 - 0.3, bt - 0.1, x + wdt / 2 + 0.3, bt - 0.1, 0.8, darken(col, 0.45));
 }
 
 function drawBoiler(p: Pen, lay: SteamLayout): void {
   const { ctx } = p;
   const { lv, boilerTop: bt, boilerBottom: bb, B } = lay;
-  const front = 0;
   const rear = lay.cabFront + 0.5;
-  const len = front - rear;
-  const smokeLen = Math.max(len * 0.18, lay.american ? 7.4 : 5.2);
-  const sx = front - smokeLen;
-  // Barrel.
-  shadedBox(p, rear, bt, sx - rear + 0.6, B, 0.9, lv.body, { hi: 0.3, lo: 0.26 });
-  // Boiler bands + lining.
-  ctx.lineWidth = 0.32;
-  const bands = lv.era === 0 ? lv.brass : darken(lv.body, 0.45);
+  const sl = smokeLength(lay);
+  const sx = -sl;
+  // Tapered barrel.
+  poly(
+    p,
+    [
+      [rear, bt],
+      [sx + 0.2, bt + TAPER],
+      [sx + 0.2, bb],
+      [rear, bb],
+    ],
+    lv.body,
+  );
+  // Bands (brass hairlines on the early engines) and a lining stripe.
   const nb = 4;
   for (let i = 1; i <= nb; i++) {
     const x = sx - ((sx - rear) * i) / (nb + 1);
-    ctx.strokeStyle = bands;
-    ctx.beginPath();
-    ctx.moveTo(x, bt + 0.2);
-    ctx.lineTo(x, bb - 0.2);
-    ctx.stroke();
+    const t = topAt(lay, x);
+    ink(p, x, t + 0.1, x, bb - 0.1, 0.8, lv.era === 0 ? lv.brass : darken(lv.body, 0.5));
+    ink(p, x + 0.35, t + 0.1, x + 0.35, bb - 0.1, 0.45, lighten(lv.body, 0.25));
   }
-  ctx.strokeStyle = lv.lining;
-  ctx.lineWidth = 0.28;
-  ctx.beginPath();
-  ctx.moveTo(rear + 0.5, bt + B * 0.66);
-  ctx.lineTo(sx, bt + B * 0.66);
-  ctx.stroke();
+  ink(p, rear + 0.4, bt + B * 0.68, sx, bt + B * 0.68, 0.8, lv.lining);
+  // Handrail on posts.
+  const hy = bt + B * 0.3;
+  ink(p, rear + 1.5, hy, sx - 0.5, hy, 0.7, lv.era === 0 ? lv.brass : "#B8B3A0");
+  for (let x = rear + 2; x < sx - 0.5; x += 5.5) ink(p, x, hy, x, hy + 0.9, 0.6, "#B8B3A0");
   // Smokebox.
-  shadedBox(p, sx, bt + 0.05, smokeLen, B - 0.1, 0.6, lv.smokebox, { hi: 0.3, lo: 0.28 });
+  box(p, sx, bt + TAPER, sl, bb - bt - TAPER, lv.smokebox);
   if (lv.smokeboxFront !== lv.smokebox) {
-    // Late steam: silver-grey smokebox front.
-    rrectPath(ctx, front - 1.6, bt + 0.05, 1.6, B - 0.1, 0.4);
-    ctx.fillStyle = lv.smokeboxFront;
-    ctx.fill();
-    ctx.strokeStyle = darken(lv.smokeboxFront, 0.5);
-    ctx.lineWidth = p.ow;
-    ctx.stroke();
+    box(p, -1.6, bt + TAPER, 1.6, bb - bt - TAPER, lv.smokeboxFront, { hatch: 0.5 });
   }
-  // Door ring on the front face.
-  shadedBox(p, front - 0.5, bt + 0.9, 0.9, B - 1.8, 0.3, darken(lv.smokebox, 0.25), {
-    hi: 0.4,
-    lo: 0,
-  });
-  // Smokebox / boiler joint ring.
-  line(p, sx, bt + 0.1, sx, bb - 0.1, lv.era === 0 ? lv.brass : "#555b63", 0.4);
+  ink(p, -0.8, bt + TAPER + 0.4, -0.8, bb - 0.4, 0.8, "#6A6C70");
+  ink(p, sx, bt + TAPER, sx, bb, 1.1, lv.era === 0 ? lv.brass : "#6A6C70");
+  void ctx;
 }
 
 function drawAmericanKit(p: Pen, lay: SteamLayout, chimneyX: number): void {
   const { ctx } = p;
-  const { lv, boilerTop: bt } = lay;
-  // Big box headlamp on the smokebox top, bracket, glass front.
+  const { lv } = lay;
+  const bt = topAt(lay, -4);
+  // Box headlamp with a conical roof, on a bracket.
   const lx = -4.4;
-  const lw = 3.6;
-  const lh = 3.8;
-  const ly = bt - lh + 0.2;
-  shadedBox(p, lx, bt - 0.4, lw - 0.2, 0.6, 0.2, "#25272b", { hi: 0, lo: 0 });
-  polyPath(ctx, [
-    [lx - 0.2, ly + 0.8],
-    [lx + lw * 0.5, ly - 0.7],
-    [lx + lw + 0.2, ly + 0.8],
-  ]);
-  ctx.fillStyle = "#1c1d20";
-  ctx.fill();
-  ctx.strokeStyle = "#000";
-  ctx.lineWidth = p.ow;
-  ctx.stroke();
-  shadedBox(p, lx, ly + 0.8, lw, lh - 1.0, 0.25, lv.era === 0 ? lv.brass : "#30343a", {
-    hi: 0.3,
-    lo: 0.2,
-  });
-  ctx.fillStyle = "#F7E7A6";
-  ctx.fillRect(lx + lw - 1.2, ly + 1.4, 0.9, lh - 2.2);
+  const lw = 3.2;
+  const lh = 3.6;
+  const ly = bt + TAPER - lh;
+  box(p, lx + 0.4, bt + TAPER - 0.4, lw - 0.8, 0.6, "#25272B", { hatch: 0 });
+  box(p, lx, ly + 0.9, lw, lh - 1.1, "#2C2B28", { hatch: 0.45 });
+  poly(
+    p,
+    [
+      [lx - 0.2, ly + 0.9],
+      [lx + lw * 0.5, ly - 0.2],
+      [lx + lw + 0.2, ly + 0.9],
+    ],
+    "#1E1D1B",
+    { hatch: 0 },
+  );
+  ctx.fillStyle = "#E4D9AE";
+  ctx.fillRect(lx + lw - 1.1, ly + 1.6, 0.8, lh - 2.3);
+  ink(p, lx, ly + 0.9, lx + lw, ly + 0.9, 0.9, lv.brass);
   // Bell on a yoke between stack and domes.
   const bx = chimneyX - 5.6;
-  line(p, bx - 1.1, bt + 0.2, bx - 1.1, bt - 1.6, "#2b2c30", 0.5);
-  line(p, bx + 1.1, bt + 0.2, bx + 1.1, bt - 1.6, "#2b2c30", 0.5);
-  line(p, bx - 1.1, bt - 1.5, bx + 1.1, bt - 1.5, "#2b2c30", 0.5);
+  const by = topAt(lay, bx);
+  ink(p, bx - 1.0, by + 0.3, bx - 1.0, by - 1.6, 1.2);
+  ink(p, bx + 1.0, by + 0.3, bx + 1.0, by - 1.6, 1.2);
+  ink(p, bx - 1.0, by - 1.5, bx + 1.0, by - 1.5, 1.2);
   ctx.beginPath();
-  ctx.moveTo(bx - 1.0, bt - 0.4);
-  ctx.quadraticCurveTo(bx - 0.9, bt - 2.6, bx, bt - 2.7);
-  ctx.quadraticCurveTo(bx + 0.9, bt - 2.6, bx + 1.0, bt - 0.4);
+  ctx.moveTo(bx - 1.0, by - 0.3);
+  ctx.quadraticCurveTo(bx - 0.9, by - 2.5, bx, by - 2.6);
+  ctx.quadraticCurveTo(bx + 0.9, by - 2.5, bx + 1.0, by - 0.3);
   ctx.closePath();
   ctx.fillStyle = lv.brass;
   ctx.fill();
-  ctx.strokeStyle = darken(lv.brass, 0.5);
-  ctx.lineWidth = p.ow;
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = hair(p);
   ctx.stroke();
 }
 
@@ -476,44 +441,37 @@ function drawPilot(p: Pen, lay: SteamLayout): void {
   if (lay.american) {
     // Cowcatcher: slanted bars from the buffer beam down to just above the rail.
     const front = lay.pilotLen;
-    polyPath(ctx, [
-      [-0.8, beamTop],
-      [front, RAIL_Y - 1.2],
-      [front, RAIL_Y - 0.6],
-      [-0.8, RAIL_Y - 0.6],
-    ]);
-    ctx.fillStyle = "#1c1d20";
-    ctx.fill();
-    ctx.strokeStyle = lighten(lv.frame, 0.5);
-    ctx.lineWidth = 0.32;
-    const bars = 6;
-    for (let i = 0; i <= bars; i++) {
-      const t = i / bars;
-      const x0 = -0.5 + t * (front + 0.5);
-      const yTop = beamTop + (RAIL_Y - 1.2 - beamTop) * t;
-      ctx.beginPath();
-      ctx.moveTo(x0, yTop + 0.3);
-      ctx.lineTo(x0, RAIL_Y - 0.7);
-      ctx.stroke();
-    }
+    poly(
+      p,
+      [
+        [-0.8, beamTop],
+        [front, RAIL_Y - 1.2],
+        [front, RAIL_Y - 0.6],
+        [-0.8, RAIL_Y - 0.6],
+      ],
+      "#232220",
+      { hatch: 0 },
+    );
+    ctx.strokeStyle = "#8E897C";
+    ctx.lineWidth = hair(p, 0.7);
     ctx.beginPath();
-    ctx.moveTo(-0.8, beamTop);
-    ctx.lineTo(front, RAIL_Y - 1.2);
-    ctx.strokeStyle = lighten(lv.frame, 0.55);
-    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 6; i++) {
+      const t = i / 6;
+      const x0 = -0.5 + t * (front + 0.5);
+      ctx.moveTo(x0, beamTop + (RAIL_Y - 1.2 - beamTop) * t + 0.3);
+      ctx.lineTo(x0, RAIL_Y - 0.7);
+    }
     ctx.stroke();
-    shadedBox(p, -1.4, beamTop - 0.2, 1.6, 1.2, 0.3, lv.frame, { hi: 0.3, lo: 0 });
+    box(p, -1.4, beamTop - 0.2, 1.6, 1.2, lv.frame, { hatch: 0 });
   } else {
-    // Buffer beam, two buffers and a step.
-    shadedBox(p, -1.0, beamTop - 0.3, 1.4, 2.2, 0.3, lv.frame, { hi: 0.3, lo: 0.1 });
-    disc(p, 0.8, beamTop + 0.5, 0.55, "#c8ccd2", "#333");
-    shadedBox(p, -0.9, beamTop + 2.0, 1.2, 0.5, 0.15, lv.frame, { hi: 0, lo: 0 });
+    box(p, -1.0, beamTop - 0.3, 1.4, 2.2, lv.frame, { hatch: 0 });
+    pin(p, 0.8, beamTop + 0.5, 0.55);
+    box(p, -0.9, beamTop + 2.0, 1.2, 0.5, lv.frame, { hatch: 0 });
   }
 }
 
 function drawMotion(p: Pen, lay: SteamLayout): void {
-  const { ctx } = p;
-  const { hubY, D } = lay;
+  const { hubY, D, lv } = lay;
   const r = D * 0.17;
   const theta = Math.PI * 1.12;
   const pinOf = (cx: number): [number, number] => [
@@ -522,156 +480,123 @@ function drawMotion(p: Pen, lay: SteamLayout): void {
   ];
   lay.drivers.forEach((xs, gi) => {
     const cyl = lay.cylinders[gi] as SteamLayout["cylinders"][number];
-    // Cylinder block, steam chest and brass head.
-    shadedBox(p, cyl.back, hubY - 2.0, 4.4, 3.4, 0.7, lay.lv.frame, { hi: 0.35, lo: 0.25 });
-    shadedBox(p, cyl.back + 0.6, hubY - 2.7, 3.2, 1.0, 0.4, darken(lay.lv.body, 0.05), {
-      hi: 0.3,
-      lo: 0.2,
+    box(p, cyl.back, hubY - 2.0, 4.4, 3.4, lv.frame, { hatch: 0.45 });
+    box(p, cyl.back + 0.6, hubY - 2.7, 3.2, 0.9, darken(lv.body, 0.1), { hatch: 0.4 });
+    box(p, cyl.front - 0.2, hubY - 1.2, 0.8, 2.0, lv.era === 0 ? lv.brass : "#6F7276", {
+      hatch: 0,
     });
-    shadedBox(p, cyl.front - 0.2, hubY - 1.2, 0.9, 2.0, 0.3, lay.lv.brass, { hi: 0.3, lo: 0.2 });
-    // Piston rod, guide bars and crosshead.
-    line(p, cyl.crosshead, hubY - 0.15, cyl.back, hubY - 0.15, STEEL, 0.5);
-    line(p, cyl.crosshead - 0.4, hubY - 1.0, cyl.back + 0.2, hubY - 1.0, STEEL_DARK, 0.35);
-    line(p, cyl.crosshead - 0.4, hubY + 0.75, cyl.back + 0.2, hubY + 0.75, STEEL_DARK, 0.35);
-    shadedBox(p, cyl.crosshead - 0.5, hubY - 0.95, 1.4, 1.75, 0.2, "#8E949C", { hi: 0.3, lo: 0.2 });
-    // Main (connecting) rod: crosshead → crank pin of the main driver.
+    // Piston rod, guide bars, crosshead.
+    ink(p, cyl.crosshead, hubY - 0.15, cyl.back, hubY - 0.15, 1.3, "#9A9E9F");
+    ink(p, cyl.crosshead - 0.4, hubY - 1.0, cyl.back + 0.2, hubY - 1.0, 1.0);
+    ink(p, cyl.crosshead - 0.4, hubY + 0.75, cyl.back + 0.2, hubY + 0.75, 1.0);
+    box(p, cyl.crosshead - 0.5, hubY - 0.95, 1.3, 1.7, "#7C8084", { hatch: 0 });
     const main = xs[Math.min(cyl.main, xs.length - 1)] as number;
     const [px, py] = pinOf(main);
-    line(p, cyl.crosshead + 0.2, hubY - 0.1, px, py, STEEL_DARK, 1.15);
-    line(p, cyl.crosshead + 0.2, hubY - 0.1, px, py, STEEL, 0.7);
-    // Walschaerts-style valve gear: radius rod from the expansion link to the valve stem, and a
-    // combination lever dropping to the crosshead.
+    rod(p, cyl.crosshead + 0.2, hubY - 0.1, px, py, 0.55);
+    // Valve gear: radius rod, combination lever, expansion link.
     const linkX = main + D * 0.22;
     const linkY = hubY - D * 0.34;
-    line(p, linkX, linkY, cyl.back + 2.2, hubY - 2.4, STEEL_DARK, 0.45);
-    line(p, cyl.crosshead + 0.2, hubY - 0.9, cyl.crosshead + 0.5, hubY - 2.2, STEEL_DARK, 0.4);
-    line(p, cyl.crosshead + 0.5, hubY - 2.2, linkX, linkY, STEEL_DARK, 0.3);
-    disc(p, linkX, linkY, 0.65, "#8E949C", "#333");
-    // Coupling rod across the group.
+    rod(p, linkX, linkY, cyl.back + 2.2, hubY - 2.4, 0.22);
+    rod(p, cyl.crosshead + 0.2, hubY - 0.9, cyl.crosshead + 0.5, hubY - 2.2, 0.2);
+    rod(p, cyl.crosshead + 0.5, hubY - 2.2, linkX, linkY, 0.16);
+    pin(p, linkX, linkY, 0.6);
     const [ax, ay] = pinOf(xs[0] as number);
     const [bx, by] = pinOf(xs[xs.length - 1] as number);
-    if (xs.length > 1) {
-      line(p, ax, ay, bx, by, STEEL_DARK, 1.15);
-      line(p, ax, ay, bx, by, STEEL, 0.7);
-    }
+    if (xs.length > 1) rod(p, ax, ay, bx, by, 0.55);
     for (const cx of xs) {
       const [qx, qy] = pinOf(cx);
-      disc(p, qx, qy, 0.5, "#D5D9DE", "#333");
+      pin(p, qx, qy, 0.5);
     }
   });
-  void ctx;
 }
 
 function drawDrivers(p: Pen, lay: SteamLayout): void {
+  const { ctx } = p;
   const { lv, D, hubY } = lay;
   const theta = Math.PI * 1.12;
-  // Splashers (wheel guards) above each driver.
   for (const xs of lay.drivers) {
     for (const cx of xs) {
-      p.ctx.beginPath();
-      p.ctx.arc(cx, hubY, D / 2 + 0.75, Math.PI * 1.02, Math.PI * 1.98);
-      p.ctx.strokeStyle = lv.frame;
-      p.ctx.lineWidth = 0.7;
-      p.ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx, hubY, D / 2 + 0.75, Math.PI * 1.02, Math.PI * 1.98);
+      ctx.strokeStyle = lv.frame;
+      ctx.lineWidth = 0.7;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx, hubY, D / 2 + 1.1, Math.PI * 1.02, Math.PI * 1.98);
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = hair(p, 0.8);
+      ctx.stroke();
     }
   }
   for (const xs of lay.drivers) {
-    for (const cx of xs) {
-      drawWheel(p, cx, hubY, D / 2, {
-        wheel: lv.wheel,
-        tyre: lv.era === 0 ? lv.tyre : lv.tyre,
-        spokes: 12,
-        hub: "#C5C9CF",
-        counterweight: theta,
-      });
-    }
+    for (const cx of xs) wheel(p, cx, hubY, D / 2, { counterweight: theta, spokes: 14 });
   }
 }
 
-/** Paints a steam engine + tender into `p` (already scaled); returns nothing — see `steamLayout`. */
+/** Paints a steam engine + tender into `p` (already scaled); see `steamLayout`. */
 export function drawSteamLoco(p: Pen, def: LocomotiveDef, lay: SteamLayout): void {
-  const { ctx } = p;
+  if (isBespoke(def)) {
+    drawEarlySteam(p, def, lay);
+    return;
+  }
   const { lv, rb, hubY } = lay;
   drawTender(p, lay);
   drawCab(p, lay);
-  // Frame bar and lead/trail trucks.
   const frameRear =
     (lay.trailAxles.at(-1) ?? (lay.drivers.at(-1)!.at(-1) as number) - lay.D / 2) - 2.4;
   const frameFront = -0.4;
-  shadedBox(
-    p,
-    frameRear,
-    rb + 1.5,
-    frameFront - frameRear,
-    hubY + 1.0 - (rb + 1.5),
-    0.3,
-    lv.frame,
-    { hi: 0.3, lo: 0 },
-  );
+  box(p, frameRear, rb + 1.5, frameFront - frameRear, hubY + 1.0 - (rb + 1.5), lv.frame, {
+    hatch: 0,
+  });
   for (const x of lay.trailAxles) smallWheel(p, lay, x, 2);
   for (const x of lay.leadAxles) smallWheel(p, lay, x, 2);
   if (lay.leadAxles.length > 1) {
-    shadedBox(
+    box(
       p,
       (lay.leadAxles.at(-1) as number) - 2.4,
       18.4,
       (lay.leadAxles[0] as number) - (lay.leadAxles.at(-1) as number) + 4.8,
-      1.2,
-      0.4,
+      1.1,
       lv.frame,
-      { hi: 0.2, lo: 0 },
+      { hatch: 0 },
     );
   }
   // Running board with a lining stripe.
   const rbFront = lay.american ? 1.0 : 0.2;
-  shadedBox(p, lay.cabFront - 0.5, rb, rbFront - (lay.cabFront - 0.5), 0.9, 0.2, lv.frame, {
-    hi: 0.4,
-    lo: 0,
-  });
-  line(
+  box(p, lay.cabFront - 0.5, rb, rbFront - (lay.cabFront - 0.5), 0.9, lv.frame, { hatch: 0 });
+  ink(
     p,
     lay.cabFront - 0.4,
-    rb + 0.15,
+    rb + 0.45,
     rbFront - 0.2,
-    rb + 0.15,
+    rb + 0.45,
+    0.6,
     lv.era === 0 ? lv.brass : lv.lining,
-    0.22,
   );
   drawBoiler(p, lay);
-  const smokeLen = Math.max((0 - (lay.cabFront + 0.5)) * 0.18, lay.american ? 7.4 : 5.2);
+  const smokeLen = smokeLength(lay);
   const chimneyX = lay.american ? -(smokeLen * 0.72) : -smokeLen * 0.52;
   const domeSteam = lay.cabFront + (lay.w.groups[0]! >= 6 ? 8 : 6.2) + (lay.american ? 1.5 : 0);
   const domeSand = (domeSteam + chimneyX) / 2 + (lay.american ? 0.5 : 0.8);
   if (lv.era === 2) {
-    // Late steam: one low merged dome pair under a shroud.
     drawDome(p, lay, domeSand, 3.6, 1.5);
     drawDome(p, lay, domeSteam, 3.6, 1.7);
-    // Pipes along the boiler top.
-    line(
-      p,
-      domeSand + 1.7,
-      lay.boilerTop - 0.1,
-      domeSteam - 1.7,
-      lay.boilerTop - 0.1,
-      darken(lv.body, 0.4),
-      0.4,
-    );
+    const t = topAt(lay, domeSteam);
+    ink(p, domeSand + 1.7, t - 0.1, domeSteam - 1.7, t - 0.1, 1.2, "#5B5C60");
   } else {
-    drawDome(p, lay, domeSand, lv.era === 0 ? 2.6 : 2.9, lv.era === 0 ? 3.0 : 2.6);
-    drawDome(p, lay, domeSteam, lv.era === 0 ? 3.2 : 3.4, lv.era === 0 ? 3.4 : 2.9);
+    drawDome(p, lay, domeSand, lv.era === 0 ? 2.4 : 2.9, lv.era === 0 ? 2.8 : 2.6);
+    drawDome(p, lay, domeSteam, lv.era === 0 ? 3.0 : 3.4, lv.era === 0 ? 3.2 : 2.9);
   }
   drawStack(p, lay, chimneyX);
   if (lay.american) drawAmericanKit(p, lay, chimneyX);
   else {
-    // Small round headlamp on the smokebox front + a sand-pipe/steps hint.
-    disc(p, -0.4, lay.boilerTop + lay.B * 0.5, 1.3, "#F7E7A6", "#222");
-    shadedBox(p, -1.0, lay.boilerBottom - 0.2, 1.5, 0.7, 0.2, lv.frame, { hi: 0.3, lo: 0 });
+    // Small box lamp on the smokebox front.
+    box(p, -2.2, lay.boilerTop + TAPER - 1.9, 1.7, 1.9, "#2C2B28", { hatch: 0 });
+    box(p, -1.0, lay.boilerBottom - 0.2, 1.5, 0.7, lv.frame, { hatch: 0 });
   }
-  // Cylinders, motion, drivers, pilot.
   drawDrivers(p, lay);
   drawMotion(p, lay);
   drawPilot(p, lay);
-  void ctx;
   void def;
-  void shadedPoly;
+  void STEEL;
 }
