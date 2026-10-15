@@ -25,6 +25,16 @@ import { createHistory, startHistory, type HistoryState } from "./history";
 import { scenarioById } from "../data/scenarios";
 
 /** A station's waiting pile for one cargo type (SPEC §6.3). */
+/** Phase 48: passengers bound for a destination *station*, wherever they board or change. They keep where the journey
+ * began (`originTile`) and when (`tick`, set at first boarding), so the one fare for the whole trip is paid on
+ * arrival and the time decay counts the wait to change. A pile's own-origin lots have no `tick` yet. */
+export interface PassengerLot {
+  dest: number;
+  amount: number;
+  originTile: number;
+  tick?: number;
+}
+
 export interface StationCargoPile {
   amount: number;
   /** Consecutive in-game days this pile has gone without any of it being picked up — the decay
@@ -35,6 +45,9 @@ export interface StationCargoPile {
    * only those bound for stops on its route; `amount` minus the sum of these (people from before the station had a
    * service, or whose destination lost its service) board any train. Absent = everyone boards any train. */
   bound?: Record<number, number>;
+  /** Passengers only (Phase 48): people bound for their destination station, new demand and people who changed here.
+   * Part of `amount`; `bound` (the older first-leg piles) is the rest. */
+  lots?: PassengerLot[];
 }
 
 /** A delivery just paid out (SPEC §8.1's floating `+$` label) — pushed by

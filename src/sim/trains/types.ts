@@ -3,6 +3,7 @@
  * read it. */
 import type { RepairCrew } from "./repairCrew";
 import type { CargoType } from "../../data/cargo";
+import type { PassengerLot } from "../state";
 
 /** Per-stop loading rule (SPEC §7.2). Real load/unload behavior is Phase 7 — this phase only
  * stores the choice. */
@@ -41,6 +42,9 @@ export interface TrainCar {
    * loaded at. The delivery pays by the distance from here, not from where the bars were loaded. Absent for every
    * other cargo and when the processor never learned an origin. */
   oreOriginTile?: number;
+  /** Passengers (Phase 48): who is aboard, by destination station, each with where and when the journey began. They
+   * sum to `loadedUnits`. Absent for other cargo and for passengers loaded before Phase 48 (paid by the old rule). */
+  lots?: PassengerLot[];
 }
 
 /** A block reserved as part of the train's current station-to-station section reservation (SPEC

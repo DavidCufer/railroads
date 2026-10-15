@@ -32,14 +32,22 @@ import {
 } from "../../data/trains";
 import { handlingCost } from "../finance/costs";
 import { addExpense, addRevenue } from "../finance/ledger";
-import { boardable, takeBoarders } from "../stations/boarding";
+import {
+  addLot,
+  boardable,
+  legacyBoardable,
+  lotFate,
+  Router,
+  takeBoarders,
+  takeLots,
+} from "../stations/boarding";
 import { recordDelivered, recordLoadedRevenue, recordSent } from "../stations/flow";
 import { recordTrainRevenue, recordTrainRunning } from "./profit";
 import { accrueCityGrowthScore } from "../economy/cityGrowth";
 import { cityTileAcceptance } from "../economy/cityStats";
 import { getOrCreateIndustryEconomy, inputFull } from "../economy/processing";
 import { calendarFromTicks, HOURS_PER_DAY } from "../time";
-import type { DeliveryEvent, GameState, StationCargoPile } from "../state";
+import type { DeliveryEvent, GameState, PassengerLot, StationCargoPile } from "../state";
 import type { Station } from "../stations/types";
 import { hasImprovement, stationLoadSpeedMult, transferStorageCap } from "../stations/improvements";
 import { stationAtTile, stationCatchmentTiles } from "../stations/placement";
@@ -142,11 +150,30 @@ function acceptedOnRoute(
   return false;
 }
 
+/** Whether anyone aboard a lots car leaves it at this stop: arrives, or changes trains (Phase 48). */
+function lotsLeaveHere(
+  state: GameState,
+  router: Router,
+  train: Train,
+  station: Station,
+  car: TrainCar,
+): boolean {
+  return (car.lots ?? []).some((lot) => {
+    const fate = lotFate(lot, router, train, station.id);
+    return (
+      fate === "arrive" ||
+      fate === "change" ||
+      (fate === "stranded" && accepts(state, station.id, "passengers"))
+    );
+  });
+}
+
 function planLoadUnload(
   state: GameState,
   train: Train,
   station: Station,
   order: TrainOrder,
+  router: Router,
 ): LoadPlan {
   const unload: number[] = [];
   const transfer: number[] = [];
@@ -159,6 +186,10 @@ function planLoadUnload(
   const firstPass = train.loadExtraWaitDays === 0 && !train.headwayHold;
   train.cars.forEach((car, i) => {
     if (car.loadedUnits <= 0 || !firstPass) return;
+    if (car.lots) {
+      if (lotsLeaveHere(state, router, train, station, car)) unload.push(i);
+      return;
+    }
     if (car.loadedTile === station.tile) return;
     const demanded = accepts(state, station.id, car.cargoType);
     // Warehouse hub (PLAN Phase 18 C): a car goes into transfer stock when the stop is set to
@@ -179,6 +210,7 @@ function planLoadUnload(
       // unloads first), so it can be refilled at the same stop — otherwise every two-way route
       // (passenger/mail shuttles) left each station with the just-emptied cars running empty.
       const loadedAfterUnload = unload.includes(i) || transfer.includes(i) ? 0 : car.loadedUnits;
+      const legacyCar = loadedAfterUnload > 0 && !car.lots;
       // "Wait for full load" re-runs this plan on each extra wait day, so a partially loaded car
       // keeps topping up until it's full or the stop gives up (SPEC §7.2).
       if (loadedAfterUnload >= CARGO[car.cargoType].capacity) return;
@@ -187,8 +219,11 @@ function planLoadUnload(
       if (car.cargoType === "livestock" && !hasImprovement(station, "livestockPens")) return;
       const waiting = pile?.[car.cargoType];
       const available =
-        (waiting ? boardable(waiting, train, station.id) : 0) +
-        loadableTransfer(state, train, station, car.cargoType);
+        (waiting
+          ? legacyCar
+            ? legacyBoardable(waiting, train, station.id)
+            : boardable(waiting, train, station.id, router)
+          : 0) + loadableTransfer(state, train, station, car.cargoType);
       // PLAN Phase 16 ("partial loading"): Auto loads whatever is waiting, not just a full carload
       // — a small town's trickle of supply used to never reach a full car and always left empty
       // (see PROGRESS.md's Phase 16 entry).
@@ -288,6 +323,7 @@ function clearLoad(car: TrainCar): void {
   delete car.loadedTile;
   delete car.loadedTick;
   delete car.oreOriginTile;
+  delete car.lots;
 }
 
 /** Industries in `station`'s catchment that consume `cargo` (SPEC §8.2: delivered inputs feed
@@ -338,13 +374,45 @@ function settleUnload(state: GameState, train: Train, station: Station, car: Tra
   // Phase 40: a chain's final cargo pays by the distance from its ore's origin; its ore (the intermediate leg) pays
   // nothing and only hands its origin on to the processor.
   const origin = car.oreOriginTile ?? car.loadedTile;
-  const distanceTiles =
-    origin !== undefined ? tileDistance(state.map.width, origin, station.tile) : 0;
   const pays = CARGO[cargo].chainLeg !== "intermediate";
 
+  const deliveredRevenue = pays
+    ? payDelivery(
+        state,
+        train,
+        station,
+        cargo,
+        unitsDelivered,
+        origin,
+        car.loadedTick,
+        car.loadedTile,
+      )
+    : 0;
+
+  if (unitsDelivered > 0)
+    recordDelivered(state, station.id, cargo, unitsDelivered, deliveredRevenue);
+
+  clearLoad(car);
+  settleIndustries(state, station, cargo, unitsDelivered, pays, origin);
+}
+
+/** Pays for `unitsDelivered` units of `cargo` that began their journey at `origin` (tile) at `loadedTick` and were
+ * loaded at `loadedTile`; returns the revenue (0 when the trip is too short to pay). */
+function payDelivery(
+  state: GameState,
+  train: Train,
+  station: Station,
+  cargo: CargoType,
+  unitsDelivered: number,
+  origin: number | undefined,
+  loadedTick: number | undefined,
+  loadedTile: number | undefined,
+): number {
+  const distanceTiles =
+    origin !== undefined ? tileDistance(state.map.width, origin, station.tile) : 0;
   let deliveredRevenue = 0;
-  if (pays && distanceTiles >= MIN_REVENUE_DISTANCE_TILES && unitsDelivered > 0) {
-    const days = (state.ticks - (car.loadedTick ?? state.ticks)) / HOURS_PER_DAY;
+  if (distanceTiles >= MIN_REVENUE_DISTANCE_TILES && unitsDelivered > 0) {
+    const days = (state.ticks - (loadedTick ?? state.ticks)) / HOURS_PER_DAY;
     // `computeRevenue` is still "per full carload" (SPEC §8.1's `base` rate) — PLAN Phase 16 pays
     // per unit instead, i.e. that same per-carload figure scaled by the fraction of a car actually
     // delivered (1.0 for a full car, same result as before real per-cargo capacities existed).
@@ -361,7 +429,7 @@ function settleUnload(state: GameState, train: Train, station: Station, car: Tra
     // Post Office/Cold Storage (SPEC §6.2): bonus depends on where the cargo was *loaded*, not
     // where it's being delivered.
     const loadedStation =
-      car.loadedTile !== undefined ? stationAtTile(state.stations, car.loadedTile) : undefined;
+      loadedTile !== undefined ? stationAtTile(state.stations, loadedTile) : undefined;
     if (cargo === "mail" && loadedStation && hasImprovement(loadedStation, "postOffice")) {
       revenue *= POST_OFFICE_MAIL_REVENUE_MULT;
     }
@@ -399,16 +467,22 @@ function settleUnload(state: GameState, train: Train, station: Station, car: Tra
     // SPEC §11's `delivered` goal ("Deliver 1,000 carloads of coal in a year") counts a carload
     // the same moment it earns revenue — a delivery too short to pay out doesn't count either.
     state.cargoDeliveredThisYear[cargo] = (state.cargoDeliveredThisYear[cargo] ?? 0) + carloads;
-    recordContractDelivery(state, station, cargo, unitsDelivered, car.loadedTile);
+    recordContractDelivery(state, station, cargo, unitsDelivered, loadedTile);
     recordScenarioDelivery(state, station, cargo, unitsDelivered);
     recordHistoryDelivery(state, cargo, unitsDelivered);
   }
+  return deliveredRevenue;
+}
 
-  if (unitsDelivered > 0)
-    recordDelivered(state, station.id, cargo, unitsDelivered, deliveredRevenue);
-
-  clearLoad(car);
-
+/** Hands delivered inputs to the industries in the station's catchment (SPEC §8.2). */
+function settleIndustries(
+  state: GameState,
+  station: Station,
+  cargo: CargoType,
+  unitsDelivered: number,
+  pays: boolean,
+  origin: number | undefined,
+): void {
   for (const industryId of industriesConsuming(state, station, cargo)) {
     const econ = getOrCreateIndustryEconomy(state, industryId);
     if (!pays && unitsDelivered > 0 && origin !== undefined) econ.oreOriginTile = origin;
@@ -420,10 +494,56 @@ function settleUnload(state: GameState, train: Train, station: Station, car: Tra
   }
 }
 
-function applyUnload(state: GameState, train: Train, station: Station, carIndex: number): void {
+/** Phase 48: unloads a car of passengers bound for destinations. Those at their destination are paid, once, for the
+ * whole trip from where they began; those who must change join the station's waiting people (keeping where and
+ * when they began); the rest stay aboard. Without a `router` (a car removed from the consist) everyone is paid here. */
+function settleLots(
+  state: GameState,
+  train: Train,
+  station: Station,
+  car: TrainCar,
+  router: Router | undefined,
+): void {
+  const stay: PassengerLot[] = [];
+  for (const lot of car.lots ?? []) {
+    const fate = router ? lotFate(lot, router, train, station.id) : "arrive";
+    if (fate === "arrive" || (fate === "stranded" && accepts(state, station.id, "passengers"))) {
+      const revenue = payDelivery(
+        state,
+        train,
+        station,
+        "passengers",
+        lot.amount,
+        lot.originTile,
+        lot.tick,
+        lot.originTile,
+      );
+      recordDelivered(state, station.id, "passengers", lot.amount, revenue);
+    } else if (fate === "change") {
+      const pile = state.stationCargo.get(station.id) ?? {};
+      state.stationCargo.set(station.id, pile);
+      const entry = (pile.passengers ??= { amount: 0, waitingDays: 0 });
+      entry.lots ??= [];
+      addLot(entry.lots, lot);
+      entry.amount += lot.amount;
+    } else stay.push(lot);
+  }
+  car.loadedUnits = stay.reduce((sum, l) => sum + l.amount, 0);
+  if (stay.length > 0) car.lots = stay;
+  else clearLoad(car);
+}
+
+function applyUnload(
+  state: GameState,
+  train: Train,
+  station: Station,
+  carIndex: number,
+  router: Router,
+): void {
   const car = train.cars[carIndex];
   if (!car) return;
-  settleUnload(state, train, station, car);
+  if (car.lots) settleLots(state, train, station, car, router);
+  else settleUnload(state, train, station, car);
 }
 
 /** Moves (as much as fits of) a car's cargo into the station's transfer stock. No revenue: the trip
@@ -507,7 +627,8 @@ export function dropCarCargo(
 ): void {
   if (car.loadedUnits <= 0) return;
   if (accepts(state, station.id, car.cargoType)) {
-    settleUnload(state, train, station, car);
+    if (car.lots) settleLots(state, train, station, car, undefined);
+    else settleUnload(state, train, station, car);
   } else {
     clearLoad(car);
   }
@@ -527,7 +648,13 @@ export function applyPendingConsist(state: GameState, train: Train, station: Sta
 /** PLAN Phase 16: loads whatever is waiting, up to however much room is left in the car — not just
  * a full carload — so a station whose supply never piles up to a full car (a small town's trickle
  * of passengers, say) still gets picked up instead of leaving the car empty forever. */
-function applyLoad(state: GameState, train: Train, station: Station, carIndex: number): void {
+function applyLoad(
+  state: GameState,
+  train: Train,
+  station: Station,
+  carIndex: number,
+  router: Router,
+): void {
   const car = train.cars[carIndex];
   if (!car) return;
   loadFromTransfer(state, train, station, car);
@@ -538,7 +665,30 @@ function applyLoad(state: GameState, train: Train, station: Station, carIndex: n
   const entry: StationCargoPile | undefined = pile?.[car.cargoType];
   if (!entry || entry.amount <= 0) return;
 
-  const amount = Math.min(boardable(entry, train, station.id), room);
+  // Passengers bound for a destination (Phase 48) ride on a car that holds only such people; an older load keeps
+  // its single origin and is topped up from the older piles only.
+  if (car.cargoType === "passengers" && (car.lots || car.loadedUnits === 0)) {
+    const taken = takeLots(entry, router, train, station.id, room, state.ticks);
+    if (taken.length > 0) {
+      const lots = (car.lots ??= []);
+      for (const lot of taken) addLot(lots, lot);
+      if (car.loadedUnits === 0) {
+        car.loadedTile = taken[0]?.originTile as number;
+        car.loadedTick = state.ticks;
+        delete car.oreOriginTile;
+      }
+      const units = taken.reduce((sum, l) => sum + l.amount, 0);
+      car.loadedUnits += units;
+      entry.waitingDays = 0;
+      const own = taken
+        .filter((l) => l.originTile === station.tile)
+        .reduce((sum, l) => sum + l.amount, 0);
+      if (own > 0) recordSent(state, station.id, "passengers", own);
+      return;
+    }
+    if (car.lots) return;
+  }
+  const amount = Math.min(legacyBoardable(entry, train, station.id), room);
   if (amount <= 0) return;
   takeBoarders(entry, train, station.id, amount);
   entry.waitingDays = 0;
@@ -561,9 +711,8 @@ function applyLoad(state: GameState, train: Train, station: Station, carIndex: n
 export function stepLoading(state: GameState, train: Train, station: Station): boolean {
   const order = train.orders[train.currentOrderIndex];
   if (!order || order.rule === "passThrough") return true;
-
   if (train.loadTicksLeft < 0) {
-    const plan = planLoadUnload(state, train, station, order);
+    const plan = planLoadUnload(state, train, station, order, new Router(state));
     train.loadTicksLeft =
       computeDwellTicks(state, train, station, plan) +
       (train.servicePending ? SERVICE_DELAY_TICKS : 0);
@@ -574,8 +723,9 @@ export function stepLoading(state: GameState, train: Train, station: Station): b
     return false;
   }
 
-  const plan = planLoadUnload(state, train, station, order);
-  for (const i of plan.unload) applyUnload(state, train, station, i);
+  const router = new Router(state);
+  const plan = planLoadUnload(state, train, station, order, router);
+  for (const i of plan.unload) applyUnload(state, train, station, i, router);
   for (const i of plan.transfer) applyTransfer(state, train, station, i);
 
   // Departure spacing (Phase 30A): hold the train — already unloaded, not yet loaded, so the people keep
@@ -599,7 +749,7 @@ export function stepLoading(state: GameState, train: Train, station: Station): b
   delete train.headwayHold;
   delete train.headwayWaitTicks;
 
-  for (const i of plan.load) applyLoad(state, train, station, i);
+  for (const i of plan.load) applyLoad(state, train, station, i, router);
 
   if (order.rule === "fullLoad") {
     const allFull = train.cars.every((c) => c.loadedUnits >= CARGO[c.cargoType].capacity);

@@ -1,5 +1,5 @@
 /** Phase 43: where the people waiting at a station are going, in one short line ("Milan 40 · Trieste 540"). Pure read
- * of the passenger pile's `bound` buckets; people with no assigned destination board any train and are listed last. */
+ * of the passenger pile's `lots` (by destination) and older `bound` buckets; people with no assigned destination board any train and are listed last. */
 import type { GameState } from "../sim/state";
 import { strings } from "./strings";
 
@@ -9,8 +9,13 @@ export function waitingSplitLine(state: GameState, stationId: number): string | 
   const pile = state.stationCargo.get(stationId)?.passengers;
   if (!pile || pile.amount < 1) return undefined;
   const nameOf = (id: number): string => state.stations.find((s) => s.id === id)?.name ?? "?";
-  const bound = Object.entries(pile.bound ?? {})
-    .map(([id, n]) => [Number(id), n] as const)
+  // Phase 48: people wait bound for their destination station (those who changed here included); older piles by first leg.
+  const byStation = new Map<number, number>();
+  for (const lot of pile.lots ?? [])
+    byStation.set(lot.dest, (byStation.get(lot.dest) ?? 0) + lot.amount);
+  for (const [id, n] of Object.entries(pile.bound ?? {}))
+    byStation.set(Number(id), (byStation.get(Number(id)) ?? 0) + n);
+  const bound = [...byStation]
     .filter(([, n]) => n >= 0.5)
     .sort((a, b) => b[1] - a[1] || a[0] - b[0]);
   const assigned = bound.reduce((sum, [, n]) => sum + n, 0);

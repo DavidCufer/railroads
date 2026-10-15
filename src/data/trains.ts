@@ -13,6 +13,10 @@ export interface LocomotiveDef {
   introYear: number;
   maxSpeedKmh: number;
   power: number;
+  /** Most cars it can haul. Phase 48: early engines raised to the historical train lengths (1830s-50s passenger
+   * trains ran 6-12 carriages: companies lengthened trains before adding paths, as every train needs its own crew
+   * and path). More cars cost speed through the tractive-effort model in `computeTargetSpeed` (power over train weight,
+   * worse on grades), so a long train is slow on a hill, not free. */
   maxCars: number;
   weightClass: WeightClass;
   /** 1 (worst) – 5 (best). */
@@ -32,7 +36,7 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     introYear: 1830,
     maxSpeedKmh: 25,
     power: 2,
-    maxCars: 3,
+    maxCars: 4,
     weightClass: "light",
     reliability: 2,
     cost: 20_000,
@@ -45,7 +49,7 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     introYear: 1832,
     maxSpeedKmh: 35,
     power: 3,
-    maxCars: 4,
+    maxCars: 6,
     weightClass: "light",
     reliability: 2,
     cost: 28_000,
@@ -58,7 +62,7 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     introYear: 1838,
     maxSpeedKmh: 45,
     power: 4,
-    maxCars: 5,
+    maxCars: 8,
     weightClass: "light",
     reliability: 3,
     cost: 34_000,
@@ -71,7 +75,7 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     introYear: 1848,
     maxSpeedKmh: 60,
     power: 6,
-    maxCars: 6,
+    maxCars: 10,
     weightClass: "medium",
     reliability: 3,
     cost: 45_000,

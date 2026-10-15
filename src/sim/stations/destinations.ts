@@ -31,28 +31,48 @@ export function destinationCounts(trains: readonly Train[]): Map<number, number>
   return counts;
 }
 
-/** station id -> the stations it is linked to by a passenger/mail train: consecutive stops of the orders' cycle, in
- * both directions (Phase 35 item 2). The graph that decides which destinations are reachable. */
-export function passengerLinks(trains: readonly Train[]): Map<number, Set<number>> {
-  const links = new Map<number, Set<number>>();
-  const link = (a: number, b: number): void => {
+/** The stations' links (a plain map: station -> linked stations) that also remembers which train *lines* serve each
+ * link, so the route search can count changes of train (Phase 48). A line is one distinct list of stops. */
+export class PassengerNetwork extends Map<number, Set<number>> {
+  /** "a>b" -> the lines running a to b (links are symmetric, so "b>a" holds the same). */
+  readonly edgeLines = new Map<string, Set<number>>();
+  /** A line's stops joined by commas -> its id. */
+  readonly lineIds = new Map<string, number>();
+
+  link(a: number, b: number, line: number): void {
     if (a === b) return;
     for (const [x, y] of [
       [a, b],
       [b, a],
     ] as const) {
-      let set = links.get(x);
-      if (!set) links.set(x, (set = new Set()));
+      let set = this.get(x);
+      if (!set) this.set(x, (set = new Set()));
       set.add(y);
+      const key = `${x}>${y}`;
+      let lines = this.edgeLines.get(key);
+      if (!lines) this.edgeLines.set(key, (lines = new Set()));
+      lines.add(line);
     }
-  };
+  }
+}
+
+/** station id -> the stations it is linked to by a passenger/mail train: consecutive stops of the orders' cycle, in
+ * both directions (Phase 35 item 2). The graph that decides which destinations are reachable. */
+export function passengerLinks(trains: readonly Train[]): PassengerNetwork {
+  const links = new PassengerNetwork();
+  const lineIds = links.lineIds;
   for (const train of trains) {
     if (!train.cars.some((c) => c.cargoType === "passengers")) continue;
+    // Trains with the same stops in the same order run one line: no change between them (Phase 48).
+    const key = train.orders.map((o) => o.stationId).join(",");
+    let line = lineIds.get(key);
+    if (line === undefined) lineIds.set(key, (line = lineIds.size));
     const n = train.orders.length;
     for (let i = 0; i < n; i++)
-      link(
+      links.link(
         (train.orders[i] as { stationId: number }).stationId,
         (train.orders[(i + 1) % n] as { stationId: number }).stationId,
+        line,
       );
   }
   return links;

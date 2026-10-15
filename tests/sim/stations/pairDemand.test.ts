@@ -258,14 +258,15 @@ describe("station economy with reachability", () => {
   });
 
   it("a far town beyond the radius that the network reaches takes less than a near one", () => {
-    const { economies } = world([3, 12, 120], [12000, 12000, 12000]);
+    // A third, unconnected town in range keeps the 50 % cap from levelling the two reachable ones.
+    const { economies } = world([3, 12, 120, 30], [12000, 12000, 12000, 12000]);
     const e = economies([pax(0, 1), pax(1, 2)]).get(0);
     const near = e?.passengerRoutes?.find((r) => r.cityId === 1)?.perMonth ?? 0;
     const far = e?.passengerRoutes?.find((r) => r.cityId === 2)?.perMonth ?? 0;
     expect(near).toBeGreaterThan(far);
   });
 
-  it("a daily accrual stores people by first leg and giving up shrinks every bucket alike", () => {
+  it("a daily accrual stores people by destination station and fills each bucket alike", () => {
     const { state, cities, stations } = world([3, 12, 21]);
     state.stations.push(...stations);
     state.cities.push(...cities);
@@ -281,13 +282,20 @@ describe("station economy with reachability", () => {
     );
     accrueDailyCargo(state);
     const pile = state.stationCargo.get(0)?.passengers;
-    expect(pile?.bound).toBeDefined();
-    const sum = Object.values(pile?.bound ?? {}).reduce((s, v) => s + v, 0);
+    expect(pile?.lots?.map((l) => l.dest)).toEqual([1, 2]);
+    const sum = (pile?.lots ?? []).reduce((s, l) => s + l.amount, 0);
     expect(sum).toBeCloseTo(pile?.amount ?? 0, 5);
     for (let day = 0; day < 40; day++) accrueDailyCargo(state);
     const later = state.stationCargo.get(0)?.passengers;
-    const sumLater = Object.values(later?.bound ?? {}).reduce((s, v) => s + v, 0);
+    const sumLater = (later?.lots ?? []).reduce((s, l) => s + l.amount, 0);
     expect(sumLater).toBeCloseTo(later?.amount ?? 0, 3);
+    // a bucket holds one month of its destination's rate
+    for (const lot of later?.lots ?? []) {
+      const rate = state.stationEconomy
+        .get(0)
+        ?.passengerRoutes?.find((r) => r.destination === lot.dest);
+      expect(lot.amount).toBeLessThanOrEqual((rate?.perMonth ?? 0) + 1e-6);
+    }
   });
 
   it("a train boards everyone waiting for its stops and is deterministic", () => {

@@ -541,6 +541,12 @@ export const PAIR_DEMAND = {
   maxShare: 0.5,
 };
 
+/** Phase 48: tiles of effective distance added for every change of train on a journey. Changing meant a wait for the
+ * connecting train (1840s timetables rarely met: an hour or more), a platform walk and the luggage; at the era's
+ * ~50 km/h an hour and a half is about 75 km = 15 tiles. This is why railways ran through carriages: every change
+ * lost custom. */
+export const CHANGE_PENALTY_TILES = 15;
+
 /** The radius of the destinations a town's people know of, in tiles (5 km each), by year: 300 km in 1830, growing
  * with faster trains, cheaper fares, newspapers and timetables. */
 export const TRAVEL_RANGE_ANCHORS: Anchors = [

@@ -34,6 +34,14 @@ export function openDestinationsSheet(
   const max = Math.max(1, ...rows.map((r) => r.total));
   const total = rows.reduce((s, r) => s + r.total, 0);
 
+  /** People waiting here for these destinations (Phase 48: by destination; older piles by first leg). */
+  const waitingFor = (destinations: readonly number[], firstLeg: number): number => {
+    const pile = state.stationCargo.get(station.id)?.passengers;
+    let sum = pile?.bound?.[firstLeg] ?? 0;
+    for (const lot of pile?.lots ?? []) if (destinations.includes(lot.dest)) sum += lot.amount;
+    return sum;
+  };
+
   const body = h("div", { className: "dest-sheet" });
   const render = (): void => {
     const nodes: Node[] = [];
@@ -78,7 +86,10 @@ export function openDestinationsSheet(
               t.rowCount(
                 round(row.total),
                 Math.round(
-                  state.stationCargo.get(station.id)?.passengers?.bound?.[row.firstLeg] ?? 0,
+                  waitingFor(
+                    row.list.map((r) => r.destination),
+                    row.firstLeg,
+                  ),
                 ),
               ),
             ),
@@ -87,7 +98,13 @@ export function openDestinationsSheet(
             ? h(
                 "div",
                 { className: "dest-final" },
-                row.list.map((r) => t.row(cityName(r.cityId), round(r.perMonth))).join(" · "),
+                row.list
+                  .map((r) =>
+                    r.changes > 0
+                      ? t.rowChanges(cityName(r.cityId), round(r.perMonth), r.changes)
+                      : t.row(cityName(r.cityId), round(r.perMonth)),
+                  )
+                  .join(" · "),
               )
             : null,
         ),

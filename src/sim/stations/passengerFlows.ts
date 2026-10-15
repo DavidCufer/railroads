@@ -7,10 +7,11 @@
  * **first leg**: the next station on the shortest route there, so the waiting number always equals what the trains
  * calling at the station can take.
  */
-import { PAIR_DEMAND, travelRangeTiles } from "../../data/economy";
+import { CHANGE_PENALTY_TILES, PAIR_DEMAND, travelRangeTiles } from "../../data/economy";
 import type { City } from "../economy/types";
 import type { GameMap } from "../map/types";
 import { octileTileDistance } from "../trains/geometry";
+import { PassengerNetwork } from "./destinations";
 
 export interface PassengerRoute {
   /** The next station on the shortest route: the bucket the people wait in. */
@@ -20,6 +21,8 @@ export interface PassengerRoute {
   cityId: number;
   /** People a month, of the station's final (reachable) supply. */
   perMonth: number;
+  /** Changes of train on the best route (Phase 48). */
+  changes: number;
 }
 
 export interface PassengerFlows {
@@ -80,6 +83,108 @@ export function shortestFirstLegs(
   return best;
 }
 
+export interface Route {
+  /** Tiles along the route (crow-flies hop by hop). */
+  dist: number;
+  /** Distance plus the change penalty: what the route search minimises. */
+  cost: number;
+  changes: number;
+  firstLeg: number;
+}
+
+/** Cheapest route from `source` to every station, where each change of train line costs `CHANGE_PENALTY_TILES`
+ * (Phase 48). `startLine` is the line the traveller is already on (-1 = none yet: boarding is free). Without line
+ * information on `links` every link is one line and nothing is a change. Ties go to the lower first leg, then the
+ * lower station id, so the result is deterministic. */
+export function routesFrom(
+  source: number,
+  links: ReadonlyMap<number, ReadonlySet<number>>,
+  tileOf: ReadonlyMap<number, number>,
+  mapWidth: number,
+  startLine = -1,
+): Map<number, Route> {
+  const edgeLines = links instanceof PassengerNetwork ? links.edgeLines : undefined;
+  const linesOf = (a: number, b: number): number[] =>
+    edgeLines ? [...(edgeLines.get(`${a}>${b}`) ?? [])].sort((x, y) => x - y) : [0];
+  interface Node extends Route {
+    station: number;
+    line: number;
+    done: boolean;
+  }
+  const nodes = new Map<string, Node>();
+  const keyOf = (station: number, line: number): string => `${station}:${line}`;
+  const start: Node = {
+    station: source,
+    line: startLine,
+    dist: 0,
+    cost: 0,
+    changes: 0,
+    firstLeg: source,
+    done: false,
+  };
+  nodes.set(keyOf(source, startLine), start);
+  for (;;) {
+    let current: Node | undefined;
+    for (const node of nodes.values()) {
+      if (node.done) continue;
+      if (
+        !current ||
+        node.cost < current.cost - 1e-9 ||
+        (Math.abs(node.cost - current.cost) <= 1e-9 &&
+          (node.station < current.station ||
+            (node.station === current.station && node.line < current.line)))
+      )
+        current = node;
+    }
+    if (!current) break;
+    current.done = true;
+    const a = tileOf.get(current.station);
+    for (const next of [...(links.get(current.station) ?? [])].sort((x, y) => x - y)) {
+      const b = tileOf.get(next);
+      if (a === undefined || b === undefined) continue;
+      const hop = octileTileDistance(a, b, mapWidth);
+      for (const line of linesOf(current.station, next)) {
+        const change = current.line >= 0 && line !== current.line ? 1 : 0;
+        const cost = current.cost + hop + change * CHANGE_PENALTY_TILES;
+        const firstLeg = current.station === source ? next : current.firstLeg;
+        const known = nodes.get(keyOf(next, line));
+        if (known && known.done) continue;
+        if (
+          !known ||
+          cost < known.cost - 1e-9 ||
+          (Math.abs(cost - known.cost) <= 1e-9 && firstLeg < known.firstLeg)
+        )
+          nodes.set(keyOf(next, line), {
+            station: next,
+            line,
+            dist: current.dist + hop,
+            cost,
+            changes: current.changes + change,
+            firstLeg,
+            done: false,
+          });
+      }
+    }
+  }
+  const best = new Map<number, Route>();
+  for (const node of nodes.values()) {
+    if (node.station === source) continue;
+    const known = best.get(node.station);
+    if (
+      !known ||
+      node.cost < known.cost - 1e-9 ||
+      (Math.abs(node.cost - known.cost) <= 1e-9 && node.firstLeg < known.firstLeg)
+    )
+      best.set(node.station, {
+        dist: node.dist,
+        cost: node.cost,
+        changes: node.changes,
+        firstLeg: node.firstLeg,
+      });
+  }
+  return best;
+}
+
 /** Share of the town total each candidate takes: gravity weights normalised to 1, no one above `maxShare` unless the
  * only candidate (the excess is handed to the others in proportion, repeated until it settles). */
 export function capShares(
@@ -119,32 +224,43 @@ export function computePassengerFlows(
   if (demand <= 0) return undefined;
   const range = travelRangeTiles(year);
   const tileOf = new Map(stations.map((s) => [s.id, s.tile]));
-  const reach = shortestFirstLegs(source.id, links, tileOf, map.width);
+  const reach = routesFrom(source.id, links, tileOf, map.width);
 
   // Gravity weight: destination population / distance (real decay, clamped so a next-door village does not dominate).
   const distToCity = (city: City): number =>
     octileTileDistance(source.tile, city.anchorY * map.width + city.anchorX, map.width);
-  const gravity = (city: City): number =>
+  // Effective distance = the way there + the time lost at each change of train (Phase 48): a town reached direct draws
+  // more people than the same town reached with changes.
+  const gravity = (city: City, changes: number): number =>
     Math.pow(city.population, PAIR_DEMAND.sizeExponent) /
     Math.pow(
-      Math.max(PAIR_DEMAND.minDistanceTiles, distToCity(city)),
+      Math.max(PAIR_DEMAND.minDistanceTiles, distToCity(city) + CHANGE_PENALTY_TILES * changes),
       PAIR_DEMAND.distanceExponent,
     );
 
   // The best (nearest by route) reachable station of each town.
-  const target = new Map<number, { station: number; dist: number; firstLeg: number }>();
+  const target = new Map<
+    number,
+    { station: number; dist: number; firstLeg: number; changes: number }
+  >();
   for (const s of stations) {
     const r = reach.get(s.id);
     if (!r || s.cityId < 0 || s.cityId === source.cityId) continue;
     const known = target.get(s.cityId);
     if (!known || r.dist < known.dist || (r.dist === known.dist && s.id < known.station))
-      target.set(s.cityId, { station: s.id, dist: r.dist, firstLeg: r.firstLeg });
+      target.set(s.cityId, {
+        station: s.id,
+        dist: r.cost,
+        firstLeg: r.firstLeg,
+        changes: r.changes,
+      });
   }
   // Candidates: towns within the known-destination radius, plus any town the network reaches.
   const weight = new Map<number, number>(); // cityId -> gravity weight
   for (const city of cities) {
     if (city.id === source.cityId) continue;
-    if (distToCity(city) <= range || target.has(city.id)) weight.set(city.id, gravity(city));
+    if (distToCity(city) <= range || target.has(city.id))
+      weight.set(city.id, gravity(city, target.get(city.id)?.changes ?? 0));
   }
   const shares = capShares(weight, PAIR_DEMAND.maxShare);
   if (shares.size === 0) return undefined;
@@ -160,6 +276,7 @@ export function computePassengerFlows(
         destination: t.station,
         cityId,
         perMonth: demand * share,
+        changes: t.changes,
       });
     } else unconnected.push({ cityId, perMonth: demand * share });
   }

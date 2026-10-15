@@ -46,7 +46,7 @@ export function lineWithStops(n: number, gap: number, year: number, pop = 60_000
 
 interface Snap {
   tick: number;
-  cars: Array<{ units: number; tile?: number; at?: number }>;
+  cars: Array<{ units: number; tile?: number; at?: number; dests?: number[] }>;
   order: number;
 }
 
@@ -68,6 +68,7 @@ export function missedUnloads(state: GameState, days: number): string[] {
             units: c.loadedUnits,
             ...(c.loadedTile !== undefined ? { tile: c.loadedTile } : {}),
             ...(c.loadedTick !== undefined ? { at: c.loadedTick } : {}),
+            ...(c.lots ? { dests: c.lots.map((l) => l.dest) } : {}),
           })),
         });
       }
@@ -81,6 +82,8 @@ export function missedUnloads(state: GameState, days: number): string[] {
           const car = t.cars[k]!;
           if (c.units <= 0 || c.tile === st.tile || order.rule !== "auto") return;
           if (!acc.includes(car.cargoType)) return;
+          // Phase 48: passengers ride on to their destination; only someone bound for this stop must get off here.
+          if (c.dests && !(car.lots ?? []).some((l) => l.dest === st.id)) return;
           if (car.loadedUnits > 0 && car.loadedTick === c.at)
             bad.push(
               `tick ${state.ticks} train ${t.id} stop ${snap.order} (st${st.id}) car ${k} ${car.cargoType} kept ${c.units}`,

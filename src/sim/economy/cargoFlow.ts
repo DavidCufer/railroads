@@ -15,7 +15,9 @@ import { cargoDecayExempt, stationStorageCap } from "../stations/improvements";
 import { recordPileFull, recordTurnedAway } from "../stations/flow";
 import { panicDemandMult } from "../finance/panics";
 import { DAYS_PER_MONTH } from "../time";
-import type { GameState, StationCargoPile } from "../state";
+import type { GameState, PassengerLot, StationCargoPile } from "../state";
+import type { PassengerRoute } from "../stations/passengerFlows";
+import type { Station } from "../stations/types";
 
 const DECAY_FLOOR = 0.05;
 
@@ -30,6 +32,7 @@ function accrueLinear(
   if (!shares || shares.length === 0) {
     // One generic pile (mail, or a station no passenger train calls at): people of old buckets are unassigned now.
     delete entry.bound;
+    delete entry.lots;
     const total = Math.min(entry.amount, monthly);
     const room = monthly - total;
     const add = Math.min(daily, room);
@@ -58,6 +61,41 @@ function accrueLinear(
   return overflow;
 }
 
+/** Phase 48: passengers wait bound for their destination station. Each reachable destination's bucket fills linearly
+ * at its monthly rate and holds one month of it; people who changed trains here (lots with a start tick) are not new
+ * demand and do not count against the cap. Older first-leg piles are left as they are and drain as trains take them. */
+function accrueLots(
+  entry: StationCargoPile,
+  routes: readonly PassengerRoute[],
+  station: Station,
+  demand: number,
+): number {
+  const lots = entry.lots ?? [];
+  let lotTotal = 0;
+  for (const l of lots) lotTotal += l.amount;
+  const legacy = Math.max(0, entry.amount - lotTotal);
+  const arrived = lots.filter((l) => l.tick !== undefined);
+  const own = new Map<number, number>();
+  for (const l of lots)
+    if (l.tick === undefined) own.set(l.dest, (own.get(l.dest) ?? 0) + l.amount);
+  const fresh: PassengerLot[] = [];
+  let overflow = 0;
+  for (const route of [...routes].sort((a, b) => a.destination - b.destination)) {
+    const cap = route.perMonth * demand;
+    const daily = cap / DAYS_PER_MONTH;
+    const have = Math.min(own.get(route.destination) ?? 0, cap);
+    const add = Math.min(daily, cap - have);
+    overflow += daily - add;
+    if (have + add > 0)
+      fresh.push({ dest: route.destination, amount: have + add, originTile: station.tile });
+  }
+  entry.lots = [...arrived, ...fresh]; // people who changed here have waited longest: first on
+  if (entry.lots.length === 0) delete entry.lots;
+  entry.amount =
+    legacy + fresh.reduce((n, l) => n + l.amount, 0) + arrived.reduce((n, l) => n + l.amount, 0);
+  return overflow;
+}
+
 export function accrueDailyCargo(state: GameState): void {
   const demand = panicDemandMult(state);
   for (const station of state.stations) {
@@ -79,13 +117,17 @@ export function accrueDailyCargo(state: GameState): void {
         // People and post (Phase 30A, 35D): no storage cap; linear fill to one month per bucket, overflow is the
         // "unserved demand" the station panel shows. Passengers are stored by first leg (Phase 35).
         const shares = cargo === "passengers" ? economy.passengerBound : undefined;
-        const overflow = accrueLinear(entry, monthly, daily, shares);
+        const overflow =
+          cargo === "passengers" && economy.passengerRoutes && shares
+            ? accrueLots(entry, economy.passengerRoutes, station, demand)
+            : accrueLinear(entry, monthly, daily, shares);
         if (overflow > 0) recordTurnedAway(state, station.id, cargo, overflow);
         if (entry.amount > DECAY_FLOOR) entry.waitingDays++;
         else {
           entry.amount = 0;
           entry.waitingDays = 0;
           delete entry.bound;
+          delete entry.lots;
         }
         pile[cargo] = entry;
         continue;

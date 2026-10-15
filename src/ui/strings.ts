@@ -213,6 +213,9 @@ export const strings = {
       total: (n: string) => `About ${n} people a month want to travel from here by train.`,
       /** "Ljubljana 30 · Zagreb 15" */
       row: (name: string, count: string) => `${name} ${count}`,
+      /** "Zagreb 15 (1 change)": fewer people travel when they must change trains */
+      rowChanges: (name: string, count: string, changes: number) =>
+        `${name} ${count} (${changes} change${changes === 1 ? "" : "s"})`,
       /** "540/mo · 120 waiting" */
       rowCount: (perMonth: string, waiting: number) =>
         waiting >= 1 ? `${perMonth}/mo · ${waiting} waiting` : `${perMonth}/mo`,

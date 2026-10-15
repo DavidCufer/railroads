@@ -13,7 +13,7 @@ import {
   editConsist,
   setOrders,
 } from "../../../src/sim/commands";
-import { CONSIST_EDIT_REFUND_FRACTION } from "../../../src/data/trains";
+import { CONSIST_EDIT_REFUND_FRACTION, locomotiveById } from "../../../src/data/trains";
 import { CARGO } from "../../../src/data/cargo";
 import { stepLoading } from "../../../src/sim/trains/loading";
 import { stepTrains } from "../../../src/sim/trains";
@@ -80,7 +80,9 @@ describe("computeEditConsistPlan", () => {
     expect(bought.ok).toBe(true);
     const train = state.trains[0] as Train;
 
-    const plan = computeEditConsistPlan(state, train.id, ["coal", "coal", "coal", "coal"]);
+    const loco = locomotiveById(LOCO) as { maxCars: number };
+    const tooMany = Array.from({ length: loco.maxCars + 1 }, () => "coal" as const);
+    const plan = computeEditConsistPlan(state, train.id, tooMany);
     expect(plan.valid).toBe(false);
   });
 

@@ -86,11 +86,21 @@ export function tickDays(state: GameState, days: number): void {
   for (let i = 0; i < days * 24; i++) advanceHour(state);
 }
 
+/** The archetype consist of the four early engines as before Phase 48 raised their `maxCars` (3/4/5/6 to 4/6/8/10):
+ * the balance tables measure the same train, so they stay comparable across phases. A route that wants longer trains
+ * passes `cars` (tools/bench/owner.ts, through.ts). */
+const ARCHETYPE_CARS: Record<string, number> = {
+  "grasshopper-0-4-0": 3,
+  "planet-2-2-0": 4,
+  "norris-4-2-0": 5,
+  "american-4-4-0": 6,
+};
+
 export function buildRoute(spec: RouteSpec): { state: GameState; cars: number } {
   const tiles = Math.round(spec.km / KM_PER_TILE);
   const loco = locomotiveById(spec.loco);
   if (!loco) throw new Error(`no loco ${spec.loco}`);
-  const cars = spec.cars ?? Math.min(loco.maxCars, 8);
+  const cars = spec.cars ?? ARCHETYPE_CARS[loco.id] ?? Math.min(loco.maxCars, 8);
   const isCity = spec.cargo === "passengers" || spec.cargo === "mail";
   const width = tiles + 3;
   const rows = Array.from({ length: 4 }, () => Array.from({ length: width }, () => "p").join(""));
