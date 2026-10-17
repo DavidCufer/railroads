@@ -452,14 +452,30 @@ Costs and maintenance in $ at introduction year (era inflation applies to later 
 **Revenue on delivery (per carload):**
 ```
 distanceTiles = straight-line (Euclidean) distance between the station where it was loaded and destination
-days          = in-game days since loaded
-timeFactor    = days <= expected ? 1.0 + 0.25*(1 - days/expected) : max(0.2, 1 - (days-expected)/(decayDays*2))
-                where expected = distanceTiles / 2 × urgency + 2   (days; 2 tiles/day ≈ a 60 km/h train, +2 days for loading)
-                urgency: passengers 1.0, mail 0.8, livestock 1.2, food 1.3, goods 1.6, all other freight 2.5
+days          = in-game days since loaded (for passengers: since the journey began, waiting at an interchange included)
+freight and mail (urgent cargo):
+  timeFactor  = days <= expected ? 1.0 + 0.25*(1 - days/expected) : max(0.2, 1 - (days-expected)/(decayDays*2))
+                where expected = distanceTiles / speed × urgency + 2   (days; +2 days for loading)
+                speed: 2 tiles/day (≈ a 60 km/h train) for freight; for mail the era's typical train,
+                       `eraReferenceTilesPerDay(year)` (Phase 53, `ERA_TRAIN_KMH_ANCHORS` x `TRIP_SPEED_EFFICIENCY`)
+                urgency: mail 0.8, livestock 1.2, food 1.3, goods 1.6, all other freight 2.5
                 (revised in Phase 5 review so expected times match the compressed movement scale in §7.4;
-                 decayDays now only controls how fast revenue falls after `expected`)
+                 decayDays only controls how fast revenue falls after `expected`)
+passengers (Phase 53): timeFactor = passengerSpeedFactor = clamp(sqrt(distanceTiles / days / eraReferenceTilesPerDay(year)),
+                0.9, 1.15)  -- they pay by distance at the era's tariff; a slow trip (a change, a stop on the way) pays
+                at least 0.9 of the per-distance fare, a fast one at most 1.15 (`PASSENGER_SPEED_FACTOR_MIN/MAX`)
 revenue       = base × (distanceTiles / 10) × timeFactor × stationBonuses × eraInflation × difficultyRevenueMult
+                (passengers: × partySize(year), below)
 ```
+**Passenger fares per distance (Phase 53).** Real fares were per mile or per km: Britain's 1844 Act set 1d a mile on the
+"Parliamentary" trains, the continental railways charged per-km tariffs; the old lateness collapse (20 % of the fare once a
+trip was 6 days late) made every long or multi-stop trip nearly worthless. `competitionLoss` stays. **One game passenger
+stands for a party of travellers** (`PARTY_SIZE_ANCHORS`, `partySize(year)` in `src/data/economy.ts`): a game month of
+train running compresses many real departures, a car seats 40 game passengers, and towns are demand-bound with few
+travellers (a big 1840s pair fills one to two early trains a month, not twenty), so each game passenger pays a party's
+fare. It is a scale, not a bonus: 0.25 in 1830, 0.7 in 1840-50, 2.1 in 1860, 2.7 from 1900 (British journeys: 30 million
+in 1845, 163 million in 1860, 1.1 billion in 1900 while the game's trips-per-head table stays flat, so the growth is carried
+here, compressed). Mail is not scaled by it. Calibrated on the good-player bench and the pax/coal fixtures (PROGRESS Phase 53).
 Minimum distance for revenue: 3 tiles (shorter pays 0, warns once). Show a floating `+$12k` above the
 station on each delivery (color = cargo color), and add to the train's lifetime/yearly revenue.
 
@@ -715,7 +731,7 @@ number on the platform must be a number the trains calling there can take. Rule 
 
 1. **The town total is population x trips per head (Phase 35C).** A town's total travel demand T (people a month who would
    ride a train *somewhere* if every town were on the network) = population x `tripsPerHeadPerMonth(year)`
-   (`TRIPS_PER_HEAD_ANCHORS`: 0.0322 a month in 1830-60, 0.0242 by 1900 (Phase 51: x2 on Phase 36's 0.0161 / 0.0121, see `TRIPS_PER_HEAD_ANCHORS`; Phase 36 was x1.3 on 35E to pay for dearer passenger cars); a 15k town in 1840 has T = 483 (was 242 before Phase 51), about 4x the old §6.3
+   (`TRIPS_PER_HEAD_ANCHORS`: 0.0161 a month in 1830-60, 0.0121 by 1900 (Phase 53 undid Phase 51's x2; Phase 36 was x1.3 on 35E to pay for dearer passenger cars); a 15k town in 1840 has T = 242 (483 in Phase 51), about 4x the old §6.3
    figure of 118, which was what one line to one typical partner carried). T is the single passenger number everywhere: the
    town panel shows T with a line "Connected: N / month (X %)" (the part trains reach); the station draws its catchment's
    part of T (towns with several stations split it by covered tiles, §8.3) and generates only the reachable part; the
@@ -799,6 +815,15 @@ two shuttles earn and shuttles turn round faster.
    1 once the cap bound for more than one pass: fixed). With fewer than five candidates in range the cap is 1/n, so the
    split is equal whatever the distance: in 1842 Venice and Milan have 4 candidates (25 % each), Ljubljana 5 (20 %);
    in 1900 Venice 10, Milan 7, Ljubljana 8 (`tools/bench/candidates.ts`).
+7. **Fair shares and fewer travellers (Phase 53).** The cap is never raised to 1/n: `capShares` cuts every destination to
+   `maxShare` and spreads the excess over the candidates still below it; when every candidate is at the cap the rest is
+   **not generated** (water-filling in at most one pass per candidate). A town with few neighbours in range makes fewer
+   trips, which is real: fewer places to go, less travel. Gravity (size, distance) and the Phase 48 change penalty decide
+   the split again (before, four candidates were equal shares whatever their size or distance). Two candidates take 40 %
+   of a town's total, one 20 %. `TRIPS_PER_HEAD_ANCHORS` is back to 0.0161 / 0.0121 (Phase 51's x2 undone), so a big pair
+   such as Venice-Milan in 1842 offers about one to two full early trains a month in each direction, and each game
+   passenger pays a party's fare (§8.1). Regional gold goals follow the richer economy: gb gold net worth $24M by 1870
+   (was $20M), random-map gold net worth 72x the starting cash (was 60x), as in Phase 30A.
 
 
 ### 9.6 Difficulty
