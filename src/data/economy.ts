@@ -14,7 +14,7 @@
  */
 import type { CargoType } from "./cargo";
 import { eraInflation } from "./finance";
-import type { LocomotiveDef } from "./trains";
+import { KMH_PER_TILE_PER_DAY, type LocomotiveDef } from "./trains";
 
 type Anchors = ReadonlyArray<readonly [year: number, value: number]>;
 
@@ -85,6 +85,63 @@ export const FREIGHT_REAL_RATE_ANCHORS: Anchors = [
   [2030, 0.7],
 ];
 
+/** Typical top speed (km/h) of the passenger trains of the day, the yardstick a trip's speed is judged against
+ * (Phase 53): the Rocket class of the 1830s ran 30-40, the 1850s expresses 55-65, the 1880s 75-90, 1900 about 100,
+ * the 1930s streamliners and railcars 120-140, the 1960s electrics 140-160, high-speed sets 200+ from the 1980s. */
+export const ERA_TRAIN_KMH_ANCHORS: Anchors = [
+  [1830, 35],
+  [1850, 55],
+  [1880, 80],
+  [1900, 100],
+  [1930, 130],
+  [1960, 150],
+  [1990, 200],
+  [2030, 220],
+];
+/** Share of a train's top speed a real trip averages once grades, curves, signals and stops are paid for. */
+export const TRIP_SPEED_EFFICIENCY = 0.75;
+
+/** Tiles per day the era's typical train covers on a trip (top speed x efficiency, at the sim's movement scale). */
+export function eraReferenceTilesPerDay(year: number): number {
+  return (
+    (interpolateYear(ERA_TRAIN_KMH_ANCHORS, year) / KMH_PER_TILE_PER_DAY) * TRIP_SPEED_EFFICIENCY
+  );
+}
+
+/** Passengers pay by distance at the era's tariff (Britain's 1844 Act: a penny a mile; the continental railways
+ * charged per-km tariffs). Speed only nudges the fare: a faster trip than the era's typical train pays up to this
+ * much more (first-class and express supplements), a slower one down to this much less. Waiting at an interchange or
+ * dwelling at intermediate stops can never cut a fare further than the floor. */
+export const PASSENGER_SPEED_FACTOR_MIN = 0.9;
+export const PASSENGER_SPEED_FACTOR_MAX = 1.15;
+
+/** Fare multiplier (`PASSENGER_SPEED_FACTOR_MIN`..`MAX`) for a trip of `distanceTiles` that took `days`, against the
+ * era's reference train (the square root keeps the effect small: twice as fast pays ~1.15, not 2). */
+export function passengerSpeedFactor(year: number, distanceTiles: number, days: number): number {
+  if (days <= 0) return PASSENGER_SPEED_FACTOR_MAX;
+  const ratio = distanceTiles / days / eraReferenceTilesPerDay(year);
+  return Math.min(
+    PASSENGER_SPEED_FACTOR_MAX,
+    Math.max(PASSENGER_SPEED_FACTOR_MIN, Math.sqrt(ratio)),
+  );
+}
+
+/** Travellers one game passenger stands for (Phase 53). Towns here are demand-bound with few travellers (a big 1840s
+ * pair fills one to two trains a month, not twenty), so each game passenger is a party: a game month of train running
+ * compresses many real departures, and a car seats 40 game passengers. It is a scale, not a bonus. The party grows with
+ * mass travel: British railways carried 30 million journeys in 1845, 163 million in 1860 (Gladstone's 1844 Act forced
+ * a third-class "Parliamentary" train on every line) and 1.1 billion in 1900, while the game's trips-per-head table
+ * (`TRIPS_PER_HEAD_ANCHORS`) stays flat, so the growth is carried here, compressed (x6 from 1845 to 1900, not x35).
+ * Calibrated on the 12,000-town / coal fixtures of `tests/sim/balancePassengers.test.ts` (`tools/bench/paxcoal.ts`). */
+export const PARTY_SIZE_ANCHORS: Anchors = [
+  [1830, 0.25],
+  [1840, 0.7],
+  [1850, 0.7],
+  [1860, 2.1],
+  [1900, 2.7],
+  [2030, 2.7],
+];
+
 /** Nominal fare/rate multiplier on `CargoDef.baseRate` (which is quoted at 1830 prices). */
 export function fareIndex(year: number, cargo: CargoType): number {
   const real =
@@ -92,6 +149,11 @@ export function fareIndex(year: number, cargo: CargoType): number {
       ? interpolateYear(PASSENGER_REAL_FARE_ANCHORS, year)
       : interpolateYear(FREIGHT_REAL_RATE_ANCHORS, year);
   return priceIndex(year) * real;
+}
+
+/** Travellers one game passenger stands for in `year` (`PARTY_SIZE_ANCHORS`); multiplies the passenger fare. */
+export function partySize(year: number): number {
+  return interpolateYear(PARTY_SIZE_ANCHORS, year);
 }
 
 /** Crew on the footplate by locomotive: steam needs a driver and a fireman (a second fireman on the big
@@ -110,7 +172,7 @@ export const CARS_PER_TRAIN_STAFF = 4;
  * carriages, so a thin 1840s train could still pay its way at a low load; by 1900 shift crews, attendants, station
  * staff and bought-in fuel put the break-even at about 45 % full. Everything below blends between the two ends by this. */
 export const COST_REALISM_ANCHORS: Anchors = [
-  [1830, 0.2],
+  [1830, 0.21],
   [1870, 0.2],
   [1900, 0.05],
   [1930, 0.12],
@@ -471,7 +533,7 @@ export const LAND_DENSITY_EXPONENT = 1.2;
  * city (offices, shops, suburbs and the railway itself), so the first railways bought cheap and the great termini
  * of 1900 paid dear (and kept rising faster than prices after). Multiplies the density term of the land multiplier. */
 export const URBAN_LAND_PREMIUM_ANCHORS: Anchors = [
-  [1830, 0.15],
+  [1830, 0.21],
   [1860, 0.8],
   [1900, 2.4],
   [1960, 3.4],
@@ -518,13 +580,15 @@ export function goalLandGrant(tier: "bronze" | "silver" | "gold", year: number):
  * the table counts every town in range, and with no destination above 20 % (`PAIR_DEMAND.maxShare`) and `capShares` no
  * longer adding up to more than 1, a line to two towns gets about 40 % of a town's total where it used to get 90-160 %, so
  * the good-player bench fell to half its Phase 35E-48B level (and Hard 1840 went bankrupt). Britain counted ~1.5 journeys
- * per head a year by 1845: even x2 (0.39 a year here) is a quarter of that. The bench is back on its earlier curve (below). */
+ * per head a year by 1845: even x2 (0.39 a year here) is a quarter of that. The bench is back on its earlier curve (below).
+ * Phase 53 undid the x2 (0.0322 -> 0.0161, 0.0242 -> 0.0121): towns are demand-bound, a big 1840s pair fills one to two
+ * trains a month, and each game passenger pays a party's fare (`PARTY_SIZE_ANCHORS`). */
 export const TRIPS_PER_HEAD_ANCHORS: Anchors = [
-  [1830, 0.0322],
-  [1860, 0.0322],
-  [1900, 0.0242],
-  [1930, 0.0242],
-  [1950, 0.0242],
+  [1830, 0.0161],
+  [1860, 0.0161],
+  [1900, 0.0121],
+  [1930, 0.0121],
+  [1950, 0.0121],
 ];
 export function tripsPerHeadPerMonth(year: number): number {
   return interpolateYear(TRIPS_PER_HEAD_ANCHORS, year);

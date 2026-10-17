@@ -107,8 +107,12 @@ describe("departure spacing", () => {
   });
 
   it("four spaced trains with passing loops earn more than two trains (without, four earn less than they could)", () => {
-    const two = yearlyRevenue({ trains: 2 });
-    const four = yearlyRevenue({ trains: 4, loops: 2, gap: 1 });
+    // Phase 53: a pair now gets at most 20 % of one town's trips (and a game passenger pays more, so fewer travel): a
+    // 250k town fills two trains and four add nothing. A great capital of 1900 (Vienna 1.7M, Berlin 1.9M, Paris 2.7M)
+    // is what gives four trains something to carry.
+    const pop = 1_500_000;
+    const two = yearlyRevenue({ trains: 2, pop });
+    const four = yearlyRevenue({ trains: 4, loops: 2, gap: 1, pop });
     expect(four).toBeGreaterThan(two * 1.1);
   });
 

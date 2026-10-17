@@ -9,7 +9,12 @@
  * project is short of cash and repay when cash piles up, relay worn track, rebuild washed-out bridges.
  */
 import * as commands from "../../src/sim/commands";
-import { PAIR_DEMAND, TRAVEL_RANGE_ANCHORS, TRIPS_PER_HEAD_ANCHORS } from "../../src/data/economy";
+import {
+  PAIR_DEMAND,
+  PARTY_SIZE_ANCHORS,
+  TRAVEL_RANGE_ANCHORS,
+  TRIPS_PER_HEAD_ANCHORS,
+} from "../../src/data/economy";
 
 // PAIR="distanceExponent,sizeExponent,minDistanceTiles,maxShare" overrides the passenger-destination table for tuning
 // runs; TRIPS=<factor> scales the trips-per-head table; RANGE=<factor> scales the travel range.
@@ -23,6 +28,16 @@ if (process.env["PAIR"]) {
     minDistanceTiles: minDist ?? PAIR_DEMAND.minDistanceTiles,
     maxShare: maxShare ?? PAIR_DEMAND.maxShare,
   });
+}
+// PARTY=<factor> scales the passenger-party table before 1900 (Phase 53 tuning).
+// PARTY_LATE=<factor> scales it from 1900.
+for (const [name, late] of [
+  ["PARTY", false],
+  ["PARTY_LATE", true],
+] as const) {
+  const f = Number(process.env[name] ?? 1);
+  for (const anchor of PARTY_SIZE_ANCHORS as unknown as Array<[number, number]>)
+    if (anchor[0] >= 1900 === late) anchor[1] *= f;
 }
 if (process.env["TRIPS"]) {
   const f = Number(process.env["TRIPS"]);
@@ -204,7 +219,12 @@ function tryConnect(newCity: City, hub: City): "built" | "nocash" | "failed" {
       const wantDouble = year() >= 1870 && state.cash > 2_500_000;
       const dbl = wantDouble ? plan.cost * 0.7 : 0;
       const total = plan.cost + stationBudget + trainCost + dbl + 60_000;
-      if (!ensureCash(total + 50_000)) {
+      // Phase 53: a good player keeps a reserve against a crash or a lean year: a share of last year's takings.
+      // OLDTRAINS=1 keeps the earlier flat $50k.
+      const reserve = process.env["OLDTRAINS"]
+        ? 50_000
+        : 50_000 + 0.4 * ledgerRevenue(state.finance.lastYear);
+      if (!ensureCash(total + reserve)) {
         if (process.env.V)
           console.log(
             "nocash",
@@ -319,7 +339,19 @@ function yearlyPlanning(): void {
 
   // 3. more trains on pairs, improvements in big cities
   for (const pair of pairs) {
-    while (pair.trains.length < 4 && state.cash > 1_500_000 + state.finance.loans) {
+    // Phase 53: towns are demand-bound, so a good player adds a train only when people are piling up at the
+    // platforms (more than one train-load across the pair's two stations), not just because there is cash.
+    // OLDTRAINS=1 keeps the earlier rule (4 trains per pair whenever cash allows).
+    const backlog = (): number =>
+      [pair.a, pair.b].reduce(
+        (sum, st) => sum + (state.stationCargo.get(st.id)?.passengers?.amount ?? 0),
+        0,
+      );
+    while (
+      pair.trains.length < 4 &&
+      state.cash > 1_500_000 + state.finance.loans &&
+      (process.env["OLDTRAINS"] || backlog() > 40 * consist(bestLoco(), carsForDemand(pair)).length)
+    ) {
       if (!addTrain(pair)) break;
     }
     for (const [st, city] of [

@@ -26,7 +26,9 @@ describe("early-era balance", () => {
       km: 50,
       year: 1840,
       loco: "norris-4-2-0",
-      population: 12_000,
+      // Phase 53: a pair takes at most 20 % of one town's trips, and the line a player builds first joins the biggest
+      // towns around (26,000: the same fixture town as tests/sim/balancePassengers.test.ts), not the smallest.
+      population: 26_000,
       tier: "town",
     });
     expect(r.profit / r.price).toBeGreaterThanOrEqual(0.25);

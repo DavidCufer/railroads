@@ -185,8 +185,9 @@ export function routesFrom(
   return best;
 }
 
-/** Share of the town total each candidate takes: gravity weights normalised to 1, no one above `maxShare` unless the
- * only candidate (the excess is handed to the others in proportion, repeated until it settles). */
+/** Share of the town total each candidate takes: gravity weights normalised to 1, no one above `maxShare` (Phase 53).
+ * The excess goes to candidates still under the cap, in proportion; when all are capped it is not generated: a town
+ * with few places to go makes fewer trips, so the shares may add up to less than 1. */
 export function capShares(
   weights: ReadonlyMap<number, number>,
   maxShare: number,
@@ -196,21 +197,24 @@ export function capShares(
   for (const w of weights.values()) total += w;
   if (total <= 0) return shares;
   for (const [id, w] of weights) shares.set(id, w / total);
-  if (weights.size < 2) return shares;
-  const cap = Math.max(maxShare, 1 / weights.size);
-  for (let pass = 0; pass < 8; pass++) {
+  const cap = maxShare;
+  // Water-filling: shares over the cap are cut to it and the excess is spread, in proportion, over the shares still
+  // below it; that can lift some of those over the cap, so repeat (at most once per candidate). Whatever cannot be
+  // placed (every candidate at the cap) is simply not generated.
+  for (let pass = 0; pass <= weights.size; pass++) {
     let excess = 0;
     let free = 0;
     for (const v of shares.values()) {
       if (v > cap + 1e-12) excess += v - cap;
       else if (v < cap - 1e-12) free += v;
     }
-    if (excess <= 1e-12 || free <= 0) break;
-    // Only shares clearly under the cap take the excess; ones already at it (from an earlier pass) stay put, or the
-    // shares would add up to more than 1 (Phase 51: found once the cap fell to 0.2).
-    for (const [id, v] of shares)
-      shares.set(id, v > cap ? cap : v < cap - 1e-12 ? v + (excess * v) / free : v);
+    if (excess <= 1e-12) break;
+    for (const [id, v] of shares) {
+      if (v > cap) shares.set(id, cap);
+      else if (v < cap - 1e-12 && free > 0) shares.set(id, v + (excess * v) / free);
+    }
   }
+  for (const [id, v] of shares) if (v > cap) shares.set(id, cap);
   return shares;
 }
 

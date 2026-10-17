@@ -5,11 +5,18 @@ import {
   buyTrain,
   setOrders as setOrdersCommand,
 } from "../../../src/sim/commands";
-import { computeRevenue, stepLoading } from "../../../src/sim/trains/loading";
-import { CARGO } from "../../../src/data/cargo";
+import { computeRevenue, expectedTransitDays, stepLoading } from "../../../src/sim/trains/loading";
+import { CARGO, REVENUE_DISTANCE_TILES } from "../../../src/data/cargo";
 import { KM_PER_TILE, WORLD_SCALE } from "../../../src/data/scale";
 import { DIFFICULTY } from "../../../src/data/finance";
-import { competitionLoss, fareIndex } from "../../../src/data/economy";
+import {
+  competitionLoss,
+  eraReferenceTilesPerDay,
+  fareIndex,
+  partySize,
+  PASSENGER_SPEED_FACTOR_MAX,
+  PASSENGER_SPEED_FACTOR_MIN,
+} from "../../../src/data/economy";
 import { makeTestMap, makeTestState, tileAt } from "../track/helpers";
 import type { GameState } from "../../../src/sim/state";
 import type { Station } from "../../../src/sim/stations/types";
@@ -89,13 +96,20 @@ describe("computeRevenue", () => {
       days: 500,
       expected: 1200 * 0.8 * 0.2 * F("coal"),
     },
-    // Passengers: urgency 1.0. expected = (20/2)*1+2 = 12 days.
-    // (× the 1830 fare level.)
+    // Passengers (Phase 53): the per-distance fare times a speed factor kept inside PASSENGER_SPEED_FACTOR_MIN..MAX.
+    // 40 tiles in 12 days is 3.3 tiles a day against the 1830 train's 1.75: faster than typical, the top of the range.
     {
       cargo: "passengers",
       distanceTiles: 20 * WORLD_SCALE,
       days: 12,
-      expected: 1650 * 2 * 1.0 * F("passengers"),
+      expected: 1650 * 2 * PASSENGER_SPEED_FACTOR_MAX * F("passengers") * partySize(1830),
+    },
+    // A slow trip (long wait at an interchange, stops on the way) still pays at least 0.9 of the per-distance fare.
+    {
+      cargo: "passengers",
+      distanceTiles: 20 * WORLD_SCALE,
+      days: 120,
+      expected: 1650 * 2 * PASSENGER_SPEED_FACTOR_MIN * F("passengers") * partySize(1830),
     },
   ];
 
@@ -116,7 +130,8 @@ describe("computeRevenue", () => {
     state.startYear = 1830;
     const oldTiles = 12;
     const km = oldTiles * 10;
-    for (const cargo of ["coal", "passengers", "mail"] as const) {
+    // (passengers have paid by distance since Phase 53, and mail is measured against the era's train: own tests)
+    for (const cargo of ["coal"] as const) {
       for (const days of [3, 9, 30]) {
         const def = CARGO[cargo];
         const expected = (oldTiles / 2) * def.urgency + 2;
@@ -128,6 +143,37 @@ describe("computeRevenue", () => {
         expect(computeRevenue(state, cargo, km / KM_PER_TILE, days)).toBeCloseTo(before, 6);
       }
     }
+  });
+
+  it("passengers pay by distance: a slow multi-stop trip pays >= 0.9x the per-distance fare, a fast one <= 1.15x", () => {
+    const map = makeTestMap(["p"]);
+    const state = makeTestState(map);
+    for (const year of [1840, 1900, 1950]) {
+      state.startYear = year;
+      const perDistance = (days: number): number =>
+        computeRevenue(state, "passengers", 40 * WORLD_SCALE, days) /
+        (CARGO.passengers.baseRate *
+          ((40 * WORLD_SCALE) / REVENUE_DISTANCE_TILES) *
+          fareIndex(year, "passengers") *
+          partySize(year) *
+          (1 - competitionLoss(year, "passengers", 40 * WORLD_SCALE * KM_PER_TILE, 0)));
+      expect(perDistance(10_000)).toBeGreaterThanOrEqual(PASSENGER_SPEED_FACTOR_MIN - 1e-9);
+      expect(perDistance(1)).toBeLessThanOrEqual(PASSENGER_SPEED_FACTOR_MAX + 1e-9);
+      // a trip twice as long as the era's reference schedule pays at least 0.9x what the reference trip does
+      const reference = (40 * WORLD_SCALE) / eraReferenceTilesPerDay(year);
+      expect(perDistance(reference * 2)).toBeGreaterThanOrEqual(
+        0.9 * perDistance(reference) - 1e-9,
+      );
+    }
+  });
+
+  it("mail is judged against the era's typical train, not a fixed 60 km/h", () => {
+    const early = expectedTransitDays("mail", 40 * WORLD_SCALE, 1840);
+    const late = expectedTransitDays("mail", 40 * WORLD_SCALE, 1950);
+    expect(late).toBeLessThan(early);
+    expect(expectedTransitDays("coal", 40 * WORLD_SCALE, 1950)).toBe(
+      expectedTransitDays("coal", 40 * WORLD_SCALE, 1840),
+    );
   });
 
   it("scales with era inflation and difficulty revenue multiplier", () => {

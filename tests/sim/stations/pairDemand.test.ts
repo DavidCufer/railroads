@@ -143,12 +143,16 @@ describe("station economy with reachability", () => {
     const routes = (e?.passengerRoutes ?? []).reduce((s, r) => s + r.perMonth, 0);
     expect(e?.supply.passengers).toBeCloseTo(routes, 9);
     const unconnected = (e?.passengerUnconnected ?? []).reduce((s, u) => s + u.perMonth, 0);
-    expect(routes + unconnected).toBeCloseTo(e?.passengerDemand ?? 0, 6);
+    // Phase 53: two towns in range take at most 2 x maxShare of the total; the rest is not generated.
+    expect(routes + unconnected).toBeCloseTo(
+      (e?.passengerDemand ?? 0) * 2 * PAIR_DEMAND.maxShare,
+      6,
+    );
     const bound = (e?.passengerBound ?? []).reduce((s, b) => s + b.share, 0);
     expect(bound).toBeCloseTo(1, 9);
   });
 
-  it("no destination takes more than maxShare of the total unless the candidates are too few for it, or it is the only town", () => {
+  it("no destination takes more than maxShare of the total, and a town with few places to go generates fewer trips", () => {
     // A metropolis next door and five small towns: gravity alone would give the big one ~95 %.
     const { economies } = world([3, 10, 20, 30, 40, 50], [12000, 400000, 3000, 3000, 3000, 3000]);
     const e = economies([pax(0, 1, 2, 3, 4, 5)]).get(0);
@@ -161,17 +165,33 @@ describe("station economy with reachability", () => {
     );
     const sum = (e?.passengerRoutes ?? []).reduce((s, r) => s + r.perMonth, 0);
     expect(sum).toBeCloseTo(demand, 6); // the excess goes to the others: the shares add up to 1
-    // Three candidates cannot each stay under 20 %: they level at a third.
+    // Phase 53: three candidates stay at 20 % each; the other 40 % is not generated (fewer places to go, less travel).
     const few = world([3, 20, 40, 60], [12000, 400000, 3000, 3000])
       .economies([pax(0, 1, 2, 3)])
       .get(0);
     for (const r of few?.passengerRoutes ?? [])
-      expect(r.perMonth).toBeCloseTo((few?.passengerDemand ?? 0) / 3, 6);
-    // A lone partner is the whole total.
+      expect(r.perMonth).toBeLessThanOrEqual(
+        (few?.passengerDemand ?? 0) * PAIR_DEMAND.maxShare + 1e-9,
+      );
+    const fewSum = (few?.passengerRoutes ?? []).reduce((s, r) => s + r.perMonth, 0);
+    expect(fewSum).toBeCloseTo((few?.passengerDemand ?? 0) * 3 * PAIR_DEMAND.maxShare, 6);
+    expect(fewSum).toBeLessThan((few?.passengerDemand ?? 0) - 1);
+    // Two candidates: each at most maxShare, and the town's total falls.
+    const two = world([3, 20, 40], [12000, 400000, 3000])
+      .economies([pax(0, 1, 2)])
+      .get(0);
+    for (const r of two?.passengerRoutes ?? [])
+      expect(r.perMonth).toBeLessThanOrEqual(
+        (two?.passengerDemand ?? 0) * PAIR_DEMAND.maxShare + 1e-9,
+      );
+    // A lone partner is capped like any other.
     const lone = world([3, 20])
       .economies([pax(0, 1)])
       .get(0);
-    expect(lone?.passengerRoutes?.[0]?.perMonth).toBeCloseTo(lone?.passengerDemand ?? 0, 9);
+    expect(lone?.passengerRoutes?.[0]?.perMonth).toBeCloseTo(
+      (lone?.passengerDemand ?? 0) * PAIR_DEMAND.maxShare,
+      9,
+    );
   });
 
   it("of two equal towns the nearer takes more", () => {

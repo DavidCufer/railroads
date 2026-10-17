@@ -13,7 +13,13 @@ import {
   type CargoType,
 } from "../../data/cargo";
 import { DIFFICULTY } from "../../data/finance";
-import { competitionLoss, fareIndex } from "../../data/economy";
+import {
+  competitionLoss,
+  eraReferenceTilesPerDay,
+  fareIndex,
+  partySize,
+  passengerSpeedFactor,
+} from "../../data/economy";
 import { KM_PER_TILE } from "../../data/scale";
 import { INDUSTRIES, inputStorageCap } from "../../data/industries";
 import {
@@ -267,8 +273,15 @@ function computeDwellTicks(
 
 /** Transit days after which a delivery of `cargo` over `distanceTiles` still gets its full fare (no time bonus or
  * penalty), as `computeRevenue` reckons it. */
-export function expectedTransitDays(cargo: CargoType, distanceTiles: number): number {
-  return (distanceTiles / EXPECTED_TILES_PER_DAY) * CARGO[cargo].urgency + 2;
+export function expectedTransitDays(
+  cargo: CargoType,
+  distanceTiles: number,
+  /** Mail is measured against the era's typical train (Phase 53); freight keeps the fixed 60 km/h reference. */
+  year?: number,
+): number {
+  const tilesPerDay =
+    cargo === "mail" && year !== undefined ? eraReferenceTilesPerDay(year) : EXPECTED_TILES_PER_DAY;
+  return (distanceTiles / tilesPerDay) * CARGO[cargo].urgency + 2;
 }
 
 export function computeRevenue(
@@ -280,17 +293,26 @@ export function computeRevenue(
   trainKmh = 0,
 ): number {
   const def = CARGO[cargo];
-  const expected = expectedTransitDays(cargo, distanceTiles);
-  const timeFactor =
-    days <= expected
-      ? 1 + 0.25 * (1 - days / expected)
-      : Math.max(0.2, 1 - (days - expected) / (def.decayDays * 2));
   const year = calendarFromTicks(state.startYear, state.ticks).year;
+  // Phase 53: passengers pay the era's per-distance tariff with a small speed effect; there is no lateness collapse
+  // (a change at an interchange or a stop on the way does not cut the fare). Mail keeps its urgency decay, against
+  // the era's typical train. Freight is as before.
+  let timeFactor: number;
+  if (cargo === "passengers") {
+    timeFactor = passengerSpeedFactor(year, distanceTiles, days);
+  } else {
+    const expected = expectedTransitDays(cargo, distanceTiles, year);
+    timeFactor =
+      days <= expected
+        ? 1 + 0.25 * (1 - days / expected)
+        : Math.max(0.2, 1 - (days - expected) / (def.decayDays * 2));
+  }
   return (
     def.baseRate *
     (distanceTiles / REVENUE_DISTANCE_TILES) *
     timeFactor *
     fareIndex(year, cargo) *
+    (cargo === "passengers" ? partySize(year) : 1) *
     (1 - competitionLoss(year, cargo, distanceTiles * KM_PER_TILE, trainKmh)) *
     DIFFICULTY[state.difficulty].revenueMult
   );

@@ -103,7 +103,7 @@ export function generateRandomGoals(state: GameState): Goal[] {
     goals.push({
       id: "random-gold",
       tier: "gold",
-      def: { type: "netWorth", amount: startingCash * 60, byYear: goldByYear },
+      def: { type: "netWorth", amount: startingCash * 72, byYear: goldByYear },
     });
   } else {
     goals.push({

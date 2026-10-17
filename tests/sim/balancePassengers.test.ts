@@ -8,6 +8,12 @@ import { destinationCounts, destinationSupplyMult } from "../../src/sim/stations
 
 const measureRoute = measureMean;
 
+/** The passenger fixture's towns. Phase 53: towns are demand-bound (a pair gets at most `PAIR_DEMAND.maxShare` of a
+ * town's trips), and the line a player builds first joins the biggest towns around, not the smallest; 26,000 is the
+ * upper end of the "town" tier. A 12,000 town would be a poorer line than the coal fixture's mine for no reason but
+ * its size. */
+const PAX_TOWN = 26_000;
+
 const ERA = { year: 1900, loco: "atlantic-4-4-2" };
 
 describe("Phase 26A passenger & mail balance", () => {
@@ -27,7 +33,7 @@ describe("Phase 26A passenger & mail balance", () => {
       km: 100,
       year,
       loco,
-      population: 12_000,
+      population: PAX_TOWN,
       tier: "town",
     });
     return pax.revenue / coal.revenue;
@@ -53,17 +59,26 @@ describe("Phase 26A passenger & mail balance", () => {
     expect(ratio).toBeLessThan(2.6);
   });
 
-  it("by 1880 a coal line whose mine grew with its served share earns >= 0.9x a comparable passenger line (simulated 1840-1880)", () => {
+  it("by 1880 a coal line whose mine grew with its served share earns >= 0.9x a comparable passenger line (simulated 1860-1880)", () => {
     // Same fixture, one Norris on each line from 1840 for forty years, the real industry-growth mechanism
     // (Phase 36): the mine reaches ~2.4x its output; measured coal/pax 1.45x (1860: 1.4x, 1840: 1.0x).
     const revenueIn1880 = (cargo: "coal" | "passengers"): { revenue: number; growth: number } => {
-      const base = { km: 100, year: 1840, loco: "norris-4-2-0" };
+      // Phase 53: from 1860 with the American 4-4-0 (to 1880), not forty years of the 1840 Norris. Fares no longer fall
+      // with a slow trip, so a Norris still running in 1880 stays a rich passenger line next to its coal twin for no
+      // reason a player would keep it: the fixture follows the engines a company would own.
+      const base = { km: 100, year: 1860, loco: "american-4-4-0" };
       const { state } = buildRoute(
         cargo === "coal"
           ? { ...base, cargo, producer: "coalMine", acceptor: "steelMill" }
           : { ...base, cargo, population: 12_000, tier: "town" },
       );
-      for (let y = 0; y < 40; y++) tickDays(state, 360);
+      const sizes = state.cities.map((c) => c.population);
+      for (let y = 0; y < 20; y++) {
+        tickDays(state, 360);
+        // The question is what the mine's growth does to coal against passengers. Phase 53: towns are demand-bound, so a
+        // town that tripled would triple its line's takings; hold the towns at their starting size to compare like with like.
+        state.cities.forEach((c, i) => (c.population = sizes[i]!));
+      }
       return {
         revenue: ledgerRevenue(state.finance.lastYear),
         growth: state.industryEconomy.get(0)?.growthMult ?? 1,
@@ -82,10 +97,16 @@ describe("Phase 26A passenger & mail balance", () => {
       cargo: "passengers",
       km: 100,
       ...ERA,
-      population: 12_000,
+      population: PAX_TOWN,
       tier: "town",
     });
-    const mail = measureRoute({ cargo: "mail", km: 100, ...ERA, population: 12_000, tier: "town" });
+    const mail = measureRoute({
+      cargo: "mail",
+      km: 100,
+      ...ERA,
+      population: PAX_TOWN,
+      tier: "town",
+    });
     // Measured 0.063 (a mail car is a small load next to a full passenger train); mail is a side line, not 15 % of one.
     expect(mail.revenue / pax.revenue).toBeGreaterThan(0.05);
     expect(mail.revenue / pax.revenue).toBeLessThan(0.35);
