@@ -1975,3 +1975,59 @@ Opus diagnosis from the code:
 5. e2e (never weaken; the word-count spec limits stay), screenshots `phase-52-*.png` (LOOK), PROGRESS. Do not
    change demand, fares or caps: those wait for the owner.
 Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+
+## Phase 53 — Passengers: per-distance fares, fewer travellers each paying more, fair shares
+Owner approved (2026-10-17). Goal (owner, repeated since Phase 48): fewer trains, small crowds, and a real reason to
+run multi-stop passenger trains. Real mechanisms only, numbers in src/data with a one-line justification, sim
+deterministic. Phase 52 (display, old-save pile) may still be in flight and edits `cargoFlow.ts` and
+`waitingSplit.ts`. Fetch main often and rebase carefully; keep its changes.
+
+**Diagnosis (Phase 51 PROGRESS + Opus):**
+- Multi-stop trains earn ~$6k/train/yr against ~$26k for shuttles, for two reasons.
+- (1) `computeRevenue` time factor: passengers pay 20 % once a trip is 6 days later than a 60 km/h reference
+  train. Early engines and intermediate stops make every long trip "late".
+- (2) Towns are capacity-bound: unserved 30k+ a year against 2–4k carried. Any single pair fills every train, so a
+  stop elsewhere gains nothing. Phase 51 doubled `TRIPS_PER_HEAD_ANCHORS`, which made (2) worse.
+- (3) `capShares` raises the cap to 1/n when a town has few candidates, so all destinations get equal shares. Size,
+  distance and the Phase 48 change penalty stop mattering (Ljubljana: Trieste 94 = Venice 94).
+
+1. **Per-distance passenger fares.**
+   - Passengers pay by distance at the era's tariff. Real fares were per mile or per km: Britain's 1844 Act set
+     1d a mile on the "Parliamentary" trains, and continental railways charged per-km tariffs.
+   - No lateness collapse for passengers. Waiting at an interchange and dwelling at intermediate stops do not cut
+     the fare.
+   - Keep a *small* speed effect relative to the era's typical train, not a fixed 60 km/h: e.g. 0.9–1.15× by trip
+     time against the era's reference. Name and document the bounds in src/data. `competitionLoss` stays.
+   - Mail keeps its urgency decay, but measured against the era's reference speed.
+   - Freight is unchanged.
+2. **Fewer travellers, each paying more.**
+   - Undo the Phase 51 ×2 on `TRIPS_PER_HEAD_ANCHORS`. Set the volume so towns are *demand-bound*: for a big 1840s
+     pair like Venice–Milan, one direction's monthly demand should be about 1–2 full early trains (5–8 cars × 40
+     seats), not 20.
+   - Then set the passenger fare (`baseRate` and/or the era tariff) so a typical company stays viable: a full
+     train earns at least what it does now.
+   - Write the reasoning in SPEC: one game passenger stands for a party of travellers, because a game month of
+     train running compresses many real departures. Say this plainly; it is a scale, not a bonus.
+3. **Fair shares.**
+   - `capShares` caps each destination at `maxShare` and does **not** raise the cap to 1/n. A town with few
+     neighbours in range generates fewer trips; the excess is not generated. That is real: fewer places to go,
+     less travel.
+   - Gravity (size / distance) and the change penalty then decide the split again.
+4. **Bench targets** (report before and after in PROGRESS; extend `multistop.ts`, `owner.ts`, `through.ts`):
+   - (a) Multi-stop vs shuttles on Milan–Venice–Trieste–Ljubljana and Frankfurt–Nuremberg–Munich–Salzburg, at
+     4 and 6 trains: multi-stop per-train profit ≥ 1.25× shuttles.
+   - (b) Owner scenario Venice–Milan 1842: most profitable fleet 1–3 trains. Average waiting at Venice per
+     destination ≤ about one train-load. Report profit per train at 1/2/4/6.
+   - (c) Good bot and bad bots, 1840/1900, Normal and Hard, 3 seeds: every Phase 42–44 bound holds; never loosen.
+     The good bot may be improved the way a good player would play (e.g. extend lines through towns instead of
+     only pairs); document it. Also run 1930/1950 good rows.
+   - (d) Balance tests (pax/coal, mail/pax, goalCalibration…): hold without loosening. Fixture changes only with a
+     stated real-map reason, as in Phase 51.
+   - Unit tests:
+     - a slow multi-stop trip pays at least 0.9× the per-distance fare;
+     - shares with 2 candidates are each ≤ maxShare (and the town total falls);
+     - a direct destination draws more than the same town via a change;
+     - Venice-type demand per direction ≈ 1–2 trains a month.
+5. UI: none needed beyond what changes meaning. SPEC §8.1 and §9.5d/e, PROGRESS with all tables, screenshots
+   `phase-53-*.png` of a station after a few months (LOOK at them).
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
