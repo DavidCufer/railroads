@@ -1942,3 +1942,36 @@ justification, deterministic sim. Phase 50 (UI and train drawing) may still be r
    and keep Phase 50's wording. Update SPEC §9.5d/e, add a PROGRESS entry with the tables, and add screenshots
    `phase-51-*.png` (LOOK at them).
 Status: [x] 1 [x] 2 [x] 3 (multi-stop target not met, see PROGRESS) [x] 4
+
+## Phase 52 — Passenger display and old-save fixes (owner play-test of Phase 51)
+Owner screenshots (2026-10-17), on a game started in 1840 before Phase 48:
+- Ljubljana shows "→ Trieste next ~28d 94 / → Venice next ~28d 94", and a train arrives 5 days later and takes both
+  groups. Owner: "don't really understand… a train going to Trieste takes both groups, is this ok?"
+- Venice shows "→ other towns 2409", which never changes.
+- A train waits for a full load, leaves full, and the station still looks crowded.
+
+Opus diagnosis from the code:
+- (a) "other towns" 2409 is the pre-Phase-48 pile. `accrueLots` keeps `legacy = amount − lots` untouched and
+  uncapped forever. Lots board first and fill the train, so the legacy people never get a seat.
+- (b) "next ~28d" is the *average* interval (round trip ÷ trains), not a countdown, so it reads as wrong.
+- (c) The Venice-bound people at Ljubljana are correct: they ride to Trieste and change there. The screen does
+  not say so.
+
+1. **Old-save passengers.** On the next accrual, convert a station's legacy amount into destination lots by the
+   station's current route shares (origin = this station), then apply the Phase 51 caps. Whatever goes over a cap
+   is counted as lost, once, without a news flood. With no routes the legacy amount drops to 0. Test it with a
+   save-shaped fixture. After one day no station has an "other towns" row made of legacy people.
+2. **Interval wording.** Show "every ~28 d" instead of "next ~28 d"; it is the average gap. Keep it short.
+3. **Show the change.**
+   - A waiting row whose route needs a change shows the first leg in the name: "→ Trieste → Venice 94", no extra
+     words.
+   - In the train panel, the cargo line shows, for a train's passengers, how many change at the next stop, if
+     cheap to compute. Otherwise skip it and note that in PROGRESS.
+4. Leftovers from Phase 50:
+   - two different cars are both named "Boxcar", and two "Ore hopper". Give each its real name (e.g. "Goods van",
+     "Ore wagon"), checking the cargo each one carries;
+   - an 8-car train still overhangs a Station's platform. Make the platform or the drawn car length fit, keeping
+     sim length consistent.
+5. e2e (never weaken; the word-count spec limits stay), screenshots `phase-52-*.png` (LOOK), PROGRESS. Do not
+   change demand, fares or caps: those wait for the owner.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
