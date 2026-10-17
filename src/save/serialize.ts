@@ -12,7 +12,7 @@ import type { GameMap } from "../sim/map/types";
 import { TrackGraph } from "../sim/track/graph";
 import { rebucketPassengerPiles } from "../sim/stations/boarding";
 import { computeStationEconomies } from "../sim/stations/economy";
-import { destinationSets, passengerLinks } from "../sim/stations/destinations";
+import { destinationSets, passengerNetwork } from "../sim/stations/destinations";
 import { emptyLedgerPeriod, type LedgerPeriod } from "../data/finance";
 import type {
   SerializedFinanceStateV1,
@@ -187,7 +187,7 @@ export function deserializeGameState(data: SerializedGameStateV3): GameState {
   };
 
   const currentYear = calendarFromTicks(state.startYear, state.ticks).year;
-  const links = passengerLinks(state.trains);
+  const links = passengerNetwork(state);
   state.stationEconomy = computeStationEconomies(
     state.map,
     state.cities,

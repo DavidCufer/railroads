@@ -126,21 +126,10 @@ export function passengerSpeedFactor(year: number, distanceTiles: number, days: 
   );
 }
 
-/** Travellers one game passenger stands for (Phase 53). Towns here are demand-bound with few travellers (a big 1840s
- * pair fills one to two trains a month, not twenty), so each game passenger is a party: a game month of train running
- * compresses many real departures, and a car seats 40 game passengers. It is a scale, not a bonus. The party grows with
- * mass travel: British railways carried 30 million journeys in 1845, 163 million in 1860 (Gladstone's 1844 Act forced
- * a third-class "Parliamentary" train on every line) and 1.1 billion in 1900, while the game's trips-per-head table
- * (`TRIPS_PER_HEAD_ANCHORS`) stays flat, so the growth is carried here, compressed (x6 from 1845 to 1900, not x35).
- * Calibrated on the 12,000-town / coal fixtures of `tests/sim/balancePassengers.test.ts` (`tools/bench/paxcoal.ts`). */
-export const PARTY_SIZE_ANCHORS: Anchors = [
-  [1830, 0.25],
-  [1840, 0.7],
-  [1850, 0.7],
-  [1860, 2.1],
-  [1900, 2.7],
-  [2030, 2.7],
-];
+/** Travellers one game passenger stands for (Phase 53B). One: a game passenger is one seated traveller (a car seats 40,
+ * a real 1840s carriage 24-40), paying the era's real per-distance fare (`PASSENGER_REAL_FARE_ANCHORS`). The game's
+ * compression is not hidden in the fare: it sits in how many journeys a head makes (`TRIPS_PER_HEAD_ANCHORS`). */
+export const PARTY_SIZE = 1;
 
 /** Nominal fare/rate multiplier on `CargoDef.baseRate` (which is quoted at 1830 prices). */
 export function fareIndex(year: number, cargo: CargoType): number {
@@ -149,11 +138,6 @@ export function fareIndex(year: number, cargo: CargoType): number {
       ? interpolateYear(PASSENGER_REAL_FARE_ANCHORS, year)
       : interpolateYear(FREIGHT_REAL_RATE_ANCHORS, year);
   return priceIndex(year) * real;
-}
-
-/** Travellers one game passenger stands for in `year` (`PARTY_SIZE_ANCHORS`); multiplies the passenger fare. */
-export function partySize(year: number): number {
-  return interpolateYear(PARTY_SIZE_ANCHORS, year);
 }
 
 /** Crew on the footplate by locomotive: steam needs a driver and a fireman (a second fireman on the big
@@ -581,14 +565,19 @@ export function goalLandGrant(tier: "bronze" | "silver" | "gold", year: number):
  * longer adding up to more than 1, a line to two towns gets about 40 % of a town's total where it used to get 90-160 %, so
  * the good-player bench fell to half its Phase 35E-48B level (and Hard 1840 went bankrupt). Britain counted ~1.5 journeys
  * per head a year by 1845: even x2 (0.39 a year here) is a quarter of that. The bench is back on its earlier curve (below).
- * Phase 53 undid the x2 (0.0322 -> 0.0161, 0.0242 -> 0.0121): towns are demand-bound, a big 1840s pair fills one to two
- * trains a month, and each game passenger pays a party's fare (`PARTY_SIZE_ANCHORS`). */
+ * Phase 53 undid the x2 and put a party-size table on the fare. Phase 53B removed that table (`PARTY_SIZE` is 1) and
+ * carries the real growth of rail travel here, so each game passenger pays one traveller's real fare. Real journeys per
+ * head a year: ~1.5 in 1845 (30 million journeys, 27 million people), ~5.6 in 1860 (163 million, 29 million), ~28 in
+ * 1900 (1.1 billion, 37 million; Mitchell, British Historical Statistics). The game table is 0.14 / 0.41 / 0.39 a year,
+ * the same income per head as Phase 53's party-times-trips product (0.0113 / 0.0338 / 0.0327 a month), so it is
+ * compressed about 11x in 1845, 14x in 1860 and 70x in 1900: game towns are small and demand-bound, and from 1860 the
+ * longer and faster trains carry each head further instead of the head travelling more often. */
 export const TRIPS_PER_HEAD_ANCHORS: Anchors = [
-  [1830, 0.0161],
-  [1860, 0.0161],
-  [1900, 0.0121],
-  [1930, 0.0121],
-  [1950, 0.0121],
+  [1830, 0.0113],
+  [1850, 0.0113],
+  [1860, 0.0338],
+  [1900, 0.0327],
+  [1950, 0.0327],
 ];
 export function tripsPerHeadPerMonth(year: number): number {
   return interpolateYear(TRIPS_PER_HEAD_ANCHORS, year);
@@ -620,11 +609,11 @@ export const MIN_WAIT_DAYS = 1;
  * line to 0.59x coal against a 0.7x bound for no mechanism but the clamp. */
 export const MAX_WAIT_DAYS = 30;
 
-/** Phase 48: tiles of effective distance added for every change of train on a journey. Changing meant a wait for the
- * connecting train (1840s timetables rarely met: an hour or more), a platform walk and the luggage; at the era's
- * ~50 km/h an hour and a half is about 75 km = 15 tiles. This is why railways ran through carriages: every change
- * lost custom. */
-export const CHANGE_PENALTY_TILES = 15;
+/** Phase 48/53B: least tiles of effective distance a change of train adds: the platform walk and the luggage (an hour
+ * and a half at the era's ~50 km/h is about 75 km = 15 tiles). A change costs at least this, and otherwise the wait for
+ * the onward train: half its service interval x the era's reference tiles a day (`changeTiles` in waiting.ts). This is
+ * why railways ran through carriages: every change lost custom. */
+export const CHANGE_MIN_TILES = 15;
 
 /** The radius of the destinations a town's people know of, in tiles (5 km each), by year: 300 km in 1830, growing
  * with faster trains, cheaper fares, newspapers and timetables. */

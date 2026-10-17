@@ -1,7 +1,7 @@
 /** PLAN Phase 51 item 3(a), geometry fixed in Phase 53: a multi-stop line along a chain of towns against point-to-point shuttles over the same
  * towns, with the same trains and cars. Prints profit per train, average load while moving and average waiting
  * at each station. `npx tsx tools/bench/multistop.ts [trains=6] [years=2] [start=1842]`;
- * env `TOWNS` (comma list, default Milan,Venice,Trieste,Ljubljana), `LOCO`, `CARS`, `SEEDS`. */
+ * env `SPACE` (space trains evenly), `DIAG`, `TOWNS` (comma list, default Milan,Venice,Trieste,Ljubljana), `LOCO`, `CARS`, `SEEDS`. */
 import * as commands from "../../src/sim/commands";
 import { createGameState } from "../../src/sim/state";
 import { advanceOneHour } from "../../src/sim/tick";
@@ -21,6 +21,7 @@ interface Result {
   profitPerTrain: number;
   revenue: number;
   load: number;
+  moving: number;
   waiting: number[];
   lost: number;
   delivered: number;
@@ -121,6 +122,16 @@ function run(mode: "multi" | "shuttles", seed: number): Result {
     for (let leg = 0; leg < k - 1; leg++)
       for (let i = 0; i < per[leg]!; i++) buy(stations[leg]!, [stations[leg]!, stations[leg + 1]!]);
   }
+  // SPACE=1: the player's "Space trains evenly" on every line of two or more trains (multi: the whole fleet; shuttles: each leg)
+  if (process.env["SPACE"]) {
+    const groups = new Map<string, number[]>();
+    for (const id of ids) {
+      const t = state.trains.find((x) => x.id === id)!;
+      const key = [...t.orders.map((o) => o.stationId)].sort((a, b) => a - b).join(",");
+      groups.set(key, [...(groups.get(key) ?? []), id]);
+    }
+    for (const g of groups.values()) if (g.length > 1) commands.spaceTrainsEvenly(state, g);
+  }
   const waitSum = stations.map(() => 0);
   let days = 0;
   const loadSum = new Map<number, [number, number]>();
@@ -151,9 +162,20 @@ function run(mode: "multi" | "shuttles", seed: number): Result {
     deliveredRevenue += p?.deliveredRevenue ?? 0;
     lost += p?.lostUnits ?? 0;
   }
+  if (process.env["DIAG"] && seed === 1)
+    for (const st of stations) {
+      const e = state.stationEconomy.get(st.id);
+      const routes = e?.passengerRoutes ?? [];
+      const by = (c: number) =>
+        Math.round(routes.filter((r) => r.changes === c).reduce((a, r) => a + r.perMonth, 0));
+      console.log(
+        `  ${mode} ${st.name}: demand ${Math.round(e?.passengerDemand ?? 0)} generated ${Math.round(e?.supply.passengers ?? 0)} a month; by changes 0/1/2/3: ${by(0)}/${by(1)}/${by(2)}/${by(3)}`,
+      );
+    }
   let profit = 0;
   let revenue = 0;
   let load = 0;
+  let moving = 0;
   for (const id of ids) {
     const t = state.trains.find((x) => x.id === id)!;
     const yrs = Math.max(0.25, (state.ticks - t.purchaseTick) / HOURS_PER_DAY / DAYS_PER_YEAR);
@@ -161,11 +183,13 @@ function run(mode: "multi" | "shuttles", seed: number): Result {
     revenue += t.profit.lifetime.revenue / yrs;
     const e = loadSum.get(id);
     load += e && e[1] ? e[0] / e[1] : 0;
+    moving += e ? e[1] / (years * DAYS_PER_YEAR * HOURS_PER_DAY) : 0;
   }
   return {
     profitPerTrain: profit / ids.length,
     revenue,
     load: load / ids.length,
+    moving: moving / ids.length,
     waiting: waitSum.map((x) => x / Math.max(1, days)),
     lost,
     delivered,
@@ -178,6 +202,6 @@ for (const mode of ["multi", "shuttles"] as const) {
   const runs = SEEDS.map((s) => run(mode, s));
   const avg = (f: (r: Result) => number) => runs.reduce((a, r) => a + f(r), 0) / runs.length;
   console.log(
-    `${startYear} ${TOWNS.join("-")} ${n} ${LOCO} x${NCARS} ${mode}: profit/train/yr ${Math.round(avg((r) => r.profitPerTrain) / 1000)}k, revenue/yr ${Math.round(avg((r) => r.revenue) / 1000)}k, avg load ${Math.round(avg((r) => r.load) * 100)} %, delivered/yr ${Math.round(avg((r) => r.delivered))} at $${Math.round(avg((r) => r.fare))} each, unserved/yr ${Math.round(avg((r) => r.lost))}, avg waiting ${TOWNS.map((t, j) => `${t} ${Math.round(avg((r) => r.waiting[j]!))}`).join(", ")}`,
+    `${startYear} ${TOWNS.join("-")} ${n} ${LOCO} x${NCARS} ${mode}: profit/train/yr ${Math.round(avg((r) => r.profitPerTrain) / 1000)}k, revenue/yr ${Math.round(avg((r) => r.revenue) / 1000)}k, avg load ${Math.round(avg((r) => r.load) * 100)} %, moving ${Math.round(avg((r) => r.moving) * 100)} % of the time, delivered/yr ${Math.round(avg((r) => r.delivered))} at $${Math.round(avg((r) => r.fare))} each, unserved/yr ${Math.round(avg((r) => r.lost))}, avg waiting ${TOWNS.map((t, j) => `${t} ${Math.round(avg((r) => r.waiting[j]!))}`).join(", ")}`,
   );
 }

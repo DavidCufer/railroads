@@ -465,17 +465,15 @@ passengers (Phase 53): timeFactor = passengerSpeedFactor = clamp(sqrt(distanceTi
                 0.9, 1.15)  -- they pay by distance at the era's tariff; a slow trip (a change, a stop on the way) pays
                 at least 0.9 of the per-distance fare, a fast one at most 1.15 (`PASSENGER_SPEED_FACTOR_MIN/MAX`)
 revenue       = base × (distanceTiles / 10) × timeFactor × stationBonuses × eraInflation × difficultyRevenueMult
-                (passengers: × partySize(year), below)
+                (passengers: × PARTY_SIZE, below)
 ```
 **Passenger fares per distance (Phase 53).** Real fares were per mile or per km: Britain's 1844 Act set 1d a mile on the
 "Parliamentary" trains, the continental railways charged per-km tariffs; the old lateness collapse (20 % of the fare once a
 trip was 6 days late) made every long or multi-stop trip nearly worthless. `competitionLoss` stays. **One game passenger
-stands for a party of travellers** (`PARTY_SIZE_ANCHORS`, `partySize(year)` in `src/data/economy.ts`): a game month of
-train running compresses many real departures, a car seats 40 game passengers, and towns are demand-bound with few
-travellers (a big 1840s pair fills one to two early trains a month, not twenty), so each game passenger pays a party's
-fare. It is a scale, not a bonus: 0.25 in 1830, 0.7 in 1840-50, 2.1 in 1860, 2.7 from 1900 (British journeys: 30 million
-in 1845, 163 million in 1860, 1.1 billion in 1900 while the game's trips-per-head table stays flat, so the growth is carried
-here, compressed). Mail is not scaled by it. Calibrated on the good-player bench and the pax/coal fixtures (PROGRESS Phase 53).
+stands for one traveller** (`PARTY_SIZE` = 1 in `src/data/economy.ts`; Phase 53 had a party-size table by era, which was a
+calibration scale with no real basis and is gone): a car seats 40 game passengers, a real 1840s carriage 24-40, and each
+pays the era's real per-distance fare. The game's compression is stated where it lives, in journeys per head
+(`TRIPS_PER_HEAD_ANCHORS`, §9.5d-1). Mail is not scaled.
 Minimum distance for revenue: 3 tiles (shorter pays 0, warns once). Show a floating `+$12k` above the
 station on each delivery (color = cargo color), and add to the train's lifetime/yearly revenue.
 
@@ -731,8 +729,7 @@ number on the platform must be a number the trains calling there can take. Rule 
 
 1. **The town total is population x trips per head (Phase 35C).** A town's total travel demand T (people a month who would
    ride a train *somewhere* if every town were on the network) = population x `tripsPerHeadPerMonth(year)`
-   (`TRIPS_PER_HEAD_ANCHORS`: 0.0161 a month in 1830-60, 0.0121 by 1900 (Phase 53 undid Phase 51's x2; Phase 36 was x1.3 on 35E to pay for dearer passenger cars); a 15k town in 1840 has T = 242 (483 in Phase 51), about 4x the old §6.3
-   figure of 118, which was what one line to one typical partner carried). T is the single passenger number everywhere: the
+   (`TRIPS_PER_HEAD_ANCHORS`: 0.0113 a month in 1830-50, 0.0338 in 1860, 0.0327 from 1900; Phase 53B moved the era growth of rail travel here from the party-size table: real journeys per head rose from ~1.5 a year in 1845 to ~5.6 in 1860 and ~28 in 1900, the game table is compressed about 11x, 14x and 70x, because game towns are small and demand-bound and the later, longer and faster trains carry each head further; a 15k town in 1840 has T = 169). T is the single passenger number everywhere: the
    town panel shows T with a line "Connected: N / month (X %)" (the part trains reach); the station draws its catchment's
    part of T (towns with several stations split it by covered tiles, §8.3) and generates only the reachable part; the
    "Where passengers go" header is that same station figure. T is split over **every town within the era's known-destination
@@ -787,9 +784,13 @@ two shuttles earn and shuttles turn round faster.
    the cap). Cars loaded before Phase 48, and first-leg piles from older saves, are paid and drained by the old rule.
    Cars carry a `lots` list; a car mixing old and new loads never occurs.
 2. **Changes deter travel.** Routes are searched over (station, line) nodes; a line is one distinct stop list, so trains
-   with the same orders are one line. A change costs `CHANGE_PENALTY_TILES` (15 tiles of 5 km: about an hour and a half
-   lost at an interchange at the era's ~50 km/h; `src/data/economy.ts`). A town's gravity weight uses distance + penalty
-   x changes, so a town reached direct draws more people than the same town reached with changes. The destinations
+   with the same orders are one line. A change costs the real wait (Phase 53B): `max(CHANGE_MIN_TILES, expected wait x
+   the era's reference tiles a day)`, `CHANGE_MIN_TILES` = 15 (the platform walk and luggage), the expected wait half the
+   onward service interval (Phase 51's `serviceIntervalDays` for the change station and the next station, clamped to
+   `MIN_WAIT_DAYS`..`MAX_WAIT_DAYS`; a traveller arrives at a random moment) and `eraReferenceTilesPerDay(year)` turning
+   days into tiles (`changeTilesFor` in `src/sim/stations/waiting.ts`). Route choice and a town's gravity weight use the
+   distance plus these tiles for every change, so a town behind a change with a 20-day onward interval (a 10-day wait)
+   draws clearly less than the same town on a through train. The destinations
    sheet shows "(N changes)" and its "waiting" count includes people who changed there.
 3. **Longer early trains.** `maxCars` of the four early engines is now 4 / 6 / 8 / 10 (was 3 / 4 / 5 / 6): 1830s-50s
    passenger trains ran 6-12 carriages and companies lengthened trains before adding paths. More cars cost speed through
@@ -820,10 +821,11 @@ two shuttles earn and shuttles turn round faster.
    **not generated** (water-filling in at most one pass per candidate). A town with few neighbours in range makes fewer
    trips, which is real: fewer places to go, less travel. Gravity (size, distance) and the Phase 48 change penalty decide
    the split again (before, four candidates were equal shares whatever their size or distance). Two candidates take 40 %
-   of a town's total, one 20 %. `TRIPS_PER_HEAD_ANCHORS` is back to 0.0161 / 0.0121 (Phase 51's x2 undone), so a big pair
+   of a town's total, one 20 %. Trips per head are back near the Phase 35E level (Phase 51's x2 undone), so a big pair
    such as Venice-Milan in 1842 offers about one to two full early trains a month in each direction, and each game
-   passenger pays a party's fare (§8.1). Regional gold goals follow the richer economy: gb gold net worth $24M by 1870
-   (was $20M), random-map gold net worth 72x the starting cash (was 60x), as in Phase 30A.
+   passenger pays one traveller's real fare (§8.1, Phase 53B). Regional gold goals follow the richer economy: gb gold net worth $25M by 1870
+   (was $20M, $24M in Phase 53), random-map gold net worth 77x the starting cash (was 60x, 72x in Phase 53), as in Phase 30A
+   (Phase 53B: the reference operator earns more once the era growth sits in trips per head, so `goalCalibration` needs it).
 
 
 ### 9.6 Difficulty

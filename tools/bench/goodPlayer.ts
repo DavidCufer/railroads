@@ -9,12 +9,7 @@
  * project is short of cash and repay when cash piles up, relay worn track, rebuild washed-out bridges.
  */
 import * as commands from "../../src/sim/commands";
-import {
-  PAIR_DEMAND,
-  PARTY_SIZE_ANCHORS,
-  TRAVEL_RANGE_ANCHORS,
-  TRIPS_PER_HEAD_ANCHORS,
-} from "../../src/data/economy";
+import { PAIR_DEMAND, TRAVEL_RANGE_ANCHORS, TRIPS_PER_HEAD_ANCHORS } from "../../src/data/economy";
 
 // PAIR="distanceExponent,sizeExponent,minDistanceTiles,maxShare" overrides the passenger-destination table for tuning
 // runs; TRIPS=<factor> scales the trips-per-head table; RANGE=<factor> scales the travel range.
@@ -28,16 +23,6 @@ if (process.env["PAIR"]) {
     minDistanceTiles: minDist ?? PAIR_DEMAND.minDistanceTiles,
     maxShare: maxShare ?? PAIR_DEMAND.maxShare,
   });
-}
-// PARTY=<factor> scales the passenger-party table before 1900 (Phase 53 tuning).
-// PARTY_LATE=<factor> scales it from 1900.
-for (const [name, late] of [
-  ["PARTY", false],
-  ["PARTY_LATE", true],
-] as const) {
-  const f = Number(process.env[name] ?? 1);
-  for (const anchor of PARTY_SIZE_ANCHORS as unknown as Array<[number, number]>)
-    if (anchor[0] >= 1900 === late) anchor[1] *= f;
 }
 if (process.env["TRIPS"]) {
   const f = Number(process.env["TRIPS"]);

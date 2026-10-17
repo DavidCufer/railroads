@@ -1502,6 +1502,7 @@ function main(): void {
           } | null;
           runDays: (n: number) => void;
           buildTrackPath: (path: number[]) => { ok: boolean; reason?: string };
+          findBuildPath: (from: number, to: number) => number[] | null;
           setNodeRoute: (
             node: number,
             legA: number,
@@ -1752,6 +1753,7 @@ function main(): void {
       },
       getNodeRoutes: (node) =>
         routesAt(state.trackGraph, node).map(([a, b]) => [a, b] as [number, number]),
+      findBuildPath: (from, to) => findBuildPath(state.map, from, to, currentYear(), {}),
       buildTrackPath: (path) => {
         const result = buildTrack(state, path);
         if (result.ok) invalidateAlongPath(path);

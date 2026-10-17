@@ -5,7 +5,7 @@
  */
 import type { GameState, PassengerLot, StationCargoPile } from "../state";
 import { routesFrom, shortestFirstLegs, type Route } from "./passengerFlows";
-import { passengerLinks, type PassengerNetwork } from "./destinations";
+import { passengerNetwork, type PassengerNetwork } from "./destinations";
 import type { Train } from "../trains/types";
 
 /** Phase 48: answers "which way to their destination?" for people at a station, from the trains' current orders.
@@ -16,8 +16,8 @@ export class Router {
   private readonly width: number;
   private readonly cache = new Map<string, Map<number, Route>>();
 
-  constructor(state: Pick<GameState, "trains" | "stations" | "map">) {
-    this.links = passengerLinks(state.trains);
+  constructor(state: GameState) {
+    this.links = passengerNetwork(state);
     this.tileOf = new Map(state.stations.map((s) => [s.id, s.tile]));
     this.width = state.map.width;
   }

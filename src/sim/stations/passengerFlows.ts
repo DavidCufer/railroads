@@ -7,7 +7,7 @@
  * **first leg**: the next station on the shortest route there, so the waiting number always equals what the trains
  * calling at the station can take.
  */
-import { CHANGE_PENALTY_TILES, PAIR_DEMAND, travelRangeTiles } from "../../data/economy";
+import { CHANGE_MIN_TILES, PAIR_DEMAND, travelRangeTiles } from "../../data/economy";
 import type { City } from "../economy/types";
 import type { GameMap } from "../map/types";
 import { octileTileDistance } from "../trains/geometry";
@@ -92,8 +92,8 @@ export interface Route {
   firstLeg: number;
 }
 
-/** Cheapest route from `source` to every station, where each change of train line costs `CHANGE_PENALTY_TILES`
- * (Phase 48). `startLine` is the line the traveller is already on (-1 = none yet: boarding is free). Without line
+/** Cheapest route from `source` to every station, where each change of train line costs `links.changeTiles` (the wait
+ * for the onward train, at least `CHANGE_MIN_TILES`; Phase 48/53B). `startLine` is the line the traveller is already on (-1 = none yet: boarding is free). Without line
  * information on `links` every link is one line and nothing is a change. Ties go to the lower first leg, then the
  * lower station id, so the result is deterministic. */
 export function routesFrom(
@@ -104,6 +104,7 @@ export function routesFrom(
   startLine = -1,
 ): Map<number, Route> {
   const edgeLines = links instanceof PassengerNetwork ? links.edgeLines : undefined;
+  const changeTiles = links instanceof PassengerNetwork ? links.changeTiles : undefined;
   const linesOf = (a: number, b: number): number[] =>
     edgeLines ? [...(edgeLines.get(`${a}>${b}`) ?? [])].sort((x, y) => x - y) : [0];
   interface Node extends Route {
@@ -145,7 +146,10 @@ export function routesFrom(
       const hop = octileTileDistance(a, b, mapWidth);
       for (const line of linesOf(current.station, next)) {
         const change = current.line >= 0 && line !== current.line ? 1 : 0;
-        const cost = current.cost + hop + change * CHANGE_PENALTY_TILES;
+        const cost =
+          current.cost +
+          hop +
+          (change ? (changeTiles ? changeTiles(current.station, next) : CHANGE_MIN_TILES) : 0);
         const firstLeg = current.station === source ? next : current.firstLeg;
         const known = nodes.get(keyOf(next, line));
         if (known && known.done) continue;
@@ -236,30 +240,31 @@ export function computePassengerFlows(
   // Gravity weight: destination population / distance (real decay, clamped so a next-door village does not dominate).
   const distToCity = (city: City): number =>
     octileTileDistance(source.tile, city.anchorY * map.width + city.anchorX, map.width);
-  // Effective distance = the way there + the time lost at each change of train (Phase 48): a town reached direct draws
+  // Effective distance = the way there + the wait at each change of train (Phase 48/53B): a town reached direct draws
   // more people than the same town reached with changes.
-  const gravity = (city: City, changes: number): number =>
+  const gravity = (city: City, changeTiles: number): number =>
     Math.pow(city.population, PAIR_DEMAND.sizeExponent) /
     Math.pow(
-      Math.max(PAIR_DEMAND.minDistanceTiles, distToCity(city) + CHANGE_PENALTY_TILES * changes),
+      Math.max(PAIR_DEMAND.minDistanceTiles, distToCity(city) + changeTiles),
       PAIR_DEMAND.distanceExponent,
     );
 
   // The best (nearest by route) reachable station of each town.
   const target = new Map<
     number,
-    { station: number; dist: number; firstLeg: number; changes: number }
+    { station: number; dist: number; firstLeg: number; changes: number; changeTiles: number }
   >();
   for (const s of stations) {
     const r = reach.get(s.id);
     if (!r || s.cityId < 0 || s.cityId === source.cityId) continue;
     const known = target.get(s.cityId);
-    if (!known || r.dist < known.dist || (r.dist === known.dist && s.id < known.station))
+    if (!known || r.cost < known.dist || (r.cost === known.dist && s.id < known.station))
       target.set(s.cityId, {
         station: s.id,
         dist: r.cost,
         firstLeg: r.firstLeg,
         changes: r.changes,
+        changeTiles: r.cost - r.dist,
       });
   }
   // Candidates: towns within the known-destination radius, plus any town the network reaches.
@@ -267,7 +272,7 @@ export function computePassengerFlows(
   for (const city of cities) {
     if (city.id === source.cityId) continue;
     if (distToCity(city) <= range || target.has(city.id))
-      weight.set(city.id, gravity(city, target.get(city.id)?.changes ?? 0));
+      weight.set(city.id, gravity(city, target.get(city.id)?.changeTiles ?? 0));
   }
   const shares = capShares(weight, PAIR_DEMAND.maxShare);
   if (shares.size === 0) return undefined;

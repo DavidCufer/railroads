@@ -1,7 +1,9 @@
 /** Destination bonus (Phase 26A): how many distinct other stations a station's passenger/mail
  * trains reach. Pure; recomputed with the station economy. */
 import { DESTINATION_BONUS_MAX, DESTINATION_BONUS_PER_STOP } from "../../data/cities";
+import type { GameState } from "../state";
 import type { Train } from "../trains/types";
+import { changeTilesFor, type ChangeTiles } from "./waiting";
 
 function carriesPeople(train: Train): boolean {
   return train.cars.some((c) => c.cargoType === "passengers" || c.cargoType === "mail");
@@ -38,6 +40,8 @@ export class PassengerNetwork extends Map<number, Set<number>> {
   readonly edgeLines = new Map<string, Set<number>>();
   /** A line's stops joined by commas -> its id. */
   readonly lineIds = new Map<string, number>();
+  /** What a change at a station towards a neighbour costs in tiles (Phase 53B); absent = `CHANGE_MIN_TILES`. */
+  changeTiles?: ChangeTiles;
 
   link(a: number, b: number, line: number): void {
     if (a === b) return;
@@ -58,8 +62,12 @@ export class PassengerNetwork extends Map<number, Set<number>> {
 
 /** station id -> the stations it is linked to by a passenger/mail train: consecutive stops of the orders' cycle, in
  * both directions (Phase 35 item 2). The graph that decides which destinations are reachable. */
-export function passengerLinks(trains: readonly Train[]): PassengerNetwork {
+export function passengerLinks(
+  trains: readonly Train[],
+  changeTiles?: ChangeTiles,
+): PassengerNetwork {
   const links = new PassengerNetwork();
+  if (changeTiles) links.changeTiles = changeTiles;
   const lineIds = links.lineIds;
   for (const train of trains) {
     if (!train.cars.some((c) => c.cargoType === "passengers")) continue;
@@ -76,6 +84,11 @@ export function passengerLinks(trains: readonly Train[]): PassengerNetwork {
       );
   }
   return links;
+}
+
+/** The passenger network of a game, with changes costed by the wait for the onward train. */
+export function passengerNetwork(state: GameState): PassengerNetwork {
+  return passengerLinks(state.trains, changeTilesFor(state));
 }
 
 /** Supply multiplier for a station with `destinations` distinct destinations: 1 for none or one. */

@@ -103,13 +103,13 @@ export function generateRandomGoals(state: GameState): Goal[] {
     goals.push({
       id: "random-gold",
       tier: "gold",
-      def: { type: "netWorth", amount: startingCash * 72, byYear: goldByYear },
+      def: { type: "netWorth", amount: startingCash * 77, byYear: goldByYear },
     });
   } else {
     goals.push({
       id: "random-gold",
       tier: "gold",
-      def: { type: "annualRevenue", amount: startingCash * 4.5, byYear: goldByYear },
+      def: { type: "annualRevenue", amount: startingCash * 4.6, byYear: goldByYear },
     });
   }
 

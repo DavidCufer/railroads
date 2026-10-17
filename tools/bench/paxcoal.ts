@@ -1,14 +1,11 @@
 /** Phase 53: pax/coal and mail/pax revenue ratios on the balance fixtures for a passenger fare multiplier K
  * (`npx tsx tools/bench/paxcoal.ts 1.5 2`). Mutates CARGO in-process only. */
 import { CARGO } from "../../src/data/cargo";
-import { PARTY_SIZE_ANCHORS } from "../../src/data/economy";
 import { measureMean } from "../../tests/sim/balanceRoutes";
 
-// POP=<people> sets the town size (default 12000); PARTY1=1 sets the party table to 1 so K is the whole factor.
+// POP=<people> sets the town size (default 12000).
 const POP = Number(process.env["POP"] ?? 12_000);
 const TIER = "town";
-if (process.env["PARTY1"])
-  for (const a of PARTY_SIZE_ANCHORS as unknown as Array<[number, number]>) a[1] = 1;
 const ks = process.argv.slice(2).map(Number);
 const basePax = CARGO.passengers.baseRate;
 const baseMail = CARGO.mail.baseRate;

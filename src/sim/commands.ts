@@ -61,7 +61,7 @@ import { landPrices, passingLoopLandCost, stationLandCost } from "./economy/land
 import { passingLoopCost, stationCost, stationUpgradeCost } from "./stations/cost";
 import { defaultStationName } from "./stations/naming";
 import { computeStationEconomies } from "./stations/economy";
-import { destinationSets, passengerLinks } from "./stations/destinations";
+import { destinationSets, passengerNetwork } from "./stations/destinations";
 import type { Station } from "./stations/types";
 import { CARGO, type CargoType } from "../data/cargo";
 import {
@@ -729,7 +729,7 @@ export function refreshStationEconomy(state: GameState): void {
     year,
     state.industryEconomy,
     destinationSets(state.trains),
-    passengerLinks(state.trains),
+    passengerNetwork(state),
   );
 }
 

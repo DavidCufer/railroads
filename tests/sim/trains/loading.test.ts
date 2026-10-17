@@ -13,7 +13,7 @@ import {
   competitionLoss,
   eraReferenceTilesPerDay,
   fareIndex,
-  partySize,
+  PARTY_SIZE,
   PASSENGER_SPEED_FACTOR_MAX,
   PASSENGER_SPEED_FACTOR_MIN,
 } from "../../../src/data/economy";
@@ -102,14 +102,14 @@ describe("computeRevenue", () => {
       cargo: "passengers",
       distanceTiles: 20 * WORLD_SCALE,
       days: 12,
-      expected: 1650 * 2 * PASSENGER_SPEED_FACTOR_MAX * F("passengers") * partySize(1830),
+      expected: 1650 * 2 * PASSENGER_SPEED_FACTOR_MAX * F("passengers") * PARTY_SIZE,
     },
     // A slow trip (long wait at an interchange, stops on the way) still pays at least 0.9 of the per-distance fare.
     {
       cargo: "passengers",
       distanceTiles: 20 * WORLD_SCALE,
       days: 120,
-      expected: 1650 * 2 * PASSENGER_SPEED_FACTOR_MIN * F("passengers") * partySize(1830),
+      expected: 1650 * 2 * PASSENGER_SPEED_FACTOR_MIN * F("passengers") * PARTY_SIZE,
     },
   ];
 
@@ -155,7 +155,7 @@ describe("computeRevenue", () => {
         (CARGO.passengers.baseRate *
           ((40 * WORLD_SCALE) / REVENUE_DISTANCE_TILES) *
           fareIndex(year, "passengers") *
-          partySize(year) *
+          PARTY_SIZE *
           (1 - competitionLoss(year, "passengers", 40 * WORLD_SCALE * KM_PER_TILE, 0)));
       expect(perDistance(10_000)).toBeGreaterThanOrEqual(PASSENGER_SPEED_FACTOR_MIN - 1e-9);
       expect(perDistance(1)).toBeLessThanOrEqual(PASSENGER_SPEED_FACTOR_MAX + 1e-9);

@@ -17,7 +17,7 @@ import {
   competitionLoss,
   eraReferenceTilesPerDay,
   fareIndex,
-  partySize,
+  PARTY_SIZE,
   passengerSpeedFactor,
 } from "../../data/economy";
 import { KM_PER_TILE } from "../../data/scale";
@@ -312,7 +312,7 @@ export function computeRevenue(
     (distanceTiles / REVENUE_DISTANCE_TILES) *
     timeFactor *
     fareIndex(year, cargo) *
-    (cargo === "passengers" ? partySize(year) : 1) *
+    (cargo === "passengers" ? PARTY_SIZE : 1) *
     (1 - competitionLoss(year, cargo, distanceTiles * KM_PER_TILE, trainKmh)) *
     DIFFICULTY[state.difficulty].revenueMult
   );

@@ -88,6 +88,7 @@ export interface GameWindow {
   } | null;
   runDays: (n: number) => void;
   buildTrackPath: (path: number[]) => { ok: boolean; reason?: string };
+  findBuildPath: (from: number, to: number) => number[] | null;
   setNodeRoute: (
     node: number,
     legA: number,
