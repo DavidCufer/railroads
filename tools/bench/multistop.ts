@@ -1,4 +1,4 @@
-/** PLAN Phase 51 item 3(a): a multi-stop line along a chain of towns against point-to-point shuttles over the same
+/** PLAN Phase 51 item 3(a), geometry fixed in Phase 53: a multi-stop line along a chain of towns against point-to-point shuttles over the same
  * towns, with the same trains and cars. Prints profit per train, average load while moving and average waiting
  * at each station. `npx tsx tools/bench/multistop.ts [trains=6] [years=2] [start=1842]`;
  * env `TOWNS` (comma list, default Milan,Venice,Trieste,Ljubljana), `LOCO`, `CARS`, `SEEDS`. */
@@ -39,6 +39,9 @@ function run(mode: "multi" | "shuttles", seed: number): Result {
   });
   const ctr = (c: { anchorX: number; anchorY: number }) => c.anchorY * w + c.anchorX;
   const legLen: number[] = [];
+  const lineTiles: number[] = [];
+  /** Town index -> tiles a station of that town may use when the next leg branches off short of the town. */
+  const beforeJunction = new Map<number, number[]>();
   let prev: number[] | undefined;
   for (let i = 0; i + 1 < cities.length; i++) {
     let p: number[] | undefined;
@@ -46,20 +49,47 @@ function run(mode: "multi" | "shuttles", seed: number): Result {
       p = findBuildPath(state.map, ctr(cities[0]!), ctr(cities[1]!), startYear, {}) ?? undefined;
       if (!p || !ok(commands.buildTrack(state, p))) throw new Error("track 0");
     } else {
-      // join the next leg to the previous one a few tiles short of the town (a sharp turn at the platform is refused)
-      for (let k = prev.length - 4; k >= 3 && !p; k--) {
-        const q = findBuildPath(state.map, ctr(cities[i + 1]!), prev[k]!, startYear, {});
-        if (q && ok(commands.buildTrack(state, q))) p = q;
+      // Phase 53: the next leg continues from the previous town's tile, so that town's station stands ON the line (a
+      // through station). The Phase 51 version joined the leg a few tiles short of the town, which left Venice on a
+      // spur: a train had to run to the end of the line to turn round before it could go on to Trieste, and through
+      // passengers rode 3-5x their distance (see PROGRESS Phase 53).
+      p =
+        findBuildPath(state.map, ctr(cities[i]!), ctr(cities[i + 1]!), startYear, {}) ?? undefined;
+      if (!p || !ok(commands.buildTrack(state, p))) {
+        // a sharp turn at the platform is refused: leave the old line a few tiles short of the town, as before
+        p = undefined;
+        for (let k = prev.length - 4; k >= 3 && !p; k--) {
+          const q = findBuildPath(state.map, ctr(cities[i + 1]!), prev[k]!, startYear, {});
+          if (q && ok(commands.buildTrack(state, q))) {
+            p = q;
+            // the town's station must stand before the junction, or a train arriving from behind would have to
+            // run on to the end of the line to turn round before it could take the branch
+            beforeJunction.set(i, prev.slice(0, k + 1));
+          }
+        }
       }
       if (!p) throw new Error("track " + i);
     }
     if (!ok(commands.upgradeTrack(state, p))) throw new Error("double " + i);
     legLen.push(p.length);
+    lineTiles.push(...p);
     prev = p;
   }
-  for (const c of cities)
-    if (!ok(commands.buildStation(state, ctr(c), "station"))) throw new Error("station " + c.name);
-  const stations = cities.map((c) => state.stations.find((s) => s.tile === ctr(c))!);
+  // Phase 53: a town's station stands on the line, on the straight tile nearest its centre (a bend cannot take one).
+  const stationTile = new Map<string, number>();
+  for (const [ci, c] of cities.entries()) {
+    const near = [...new Set(beforeJunction.get(ci) ?? [ctr(c), ...lineTiles])].sort(
+      (a, b) =>
+        Math.hypot((a % w) - c.anchorX, Math.floor(a / w) - c.anchorY) -
+        Math.hypot((b % w) - c.anchorX, Math.floor(b / w) - c.anchorY),
+    );
+    const tile = near.find((t) => ok(commands.buildStation(state, t, "station")));
+    if (tile === undefined) throw new Error("station " + c.name);
+    stationTile.set(c.name, tile);
+  }
+  const stations = cities.map((c) =>
+    state.stations.find((s) => s.tile === stationTile.get(c.name))!,
+  );
   for (const s of stations) commands.buildEngineShed(state, s.id);
   const cars = Array.from({ length: NCARS }, () => "passengers" as const);
   const ids: number[] = [];
