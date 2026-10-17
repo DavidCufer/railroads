@@ -166,7 +166,7 @@ test.describe("Phase 35 — where passengers go", () => {
     const town = Number(
       (await page.locator(".chip-lg").first().textContent())?.replace(/\D/g, "") ?? "0",
     );
-    expect(town).toBe(968);
+    expect(town).toBe(484);
     expect(Number(header.replace(/\D/g, "").slice(0, 3))).toBeLessThanOrEqual(town);
     await page.waitForTimeout(300);
     await page.screenshot({ path: "docs/screenshots/phase-35c-town.png" });

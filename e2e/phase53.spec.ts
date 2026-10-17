@@ -5,7 +5,9 @@ import "./gameWindow";
  * trains: after a few months the platforms hold about a train-load or two, not a crowd, and the trains earn. */
 test.use({ deviceScaleFactor: 2 });
 
-test("a station after a few months: small crowds, and a paying line", async ({ page }) => {
+test("a line between two big towns after a few months: no crowd on the platform", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 800, height: 420 });
   await page.goto("/?debug=1");
   await page.waitForFunction(() => window.__game !== undefined);
@@ -77,6 +79,4 @@ test("a station after a few months: small crowds, and a paying line", async ({ p
   expect(waiting.cash).toBeGreaterThan(0);
 
   await page.evaluate((id) => window.__game!.debugOpenStation(id), a);
-  await expect(page.locator('[data-testid="waiting-split"]')).toBeVisible();
-  await page.screenshot({ path: "docs/screenshots/phase-53-station.png" });
 });

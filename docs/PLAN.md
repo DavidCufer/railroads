@@ -2030,4 +2030,4 @@ deterministic. Phase 52 (display, old-save pile) may still be in flight and edit
      - Venice-type demand per direction ≈ 1–2 trains a month.
 5. UI: none needed beyond what changes meaning. SPEC §8.1 and §9.5d/e, PROGRESS with all tables, screenshots
    `phase-53-*.png` of a station after a few months (LOOK at them).
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [x] 3 [~] 4 (a: multi-stop >= 1.25x shuttles NOT met; c: bad-bot bounds missed on some rows, see PROGRESS) [~] 5 (SPEC and PROGRESS done; no phase-53 screenshot: the e2e patch has no real towns to fill a platform)
