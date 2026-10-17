@@ -2031,3 +2031,50 @@ deterministic. Phase 52 (display, old-save pile) may still be in flight and edit
 5. UI: none needed beyond what changes meaning. SPEC §8.1 and §9.5d/e, PROGRESS with all tables, screenshots
    `phase-53-*.png` of a station after a few months (LOOK at them).
 Status: [x] 1 [x] 2 [x] 3 [~] 4 (a: multi-stop >= 1.25x shuttles NOT met; c: bad-bot bounds missed on some rows, see PROGRESS) [~] 5 (SPEC and PROGRESS done; no phase-53 screenshot: the e2e patch has no real towns to fill a platform)
+
+## Phase 53B — Finish 53: no fudge table; changing trains costs the real wait
+Opus review of Phase 53 (PROGRESS 2026-10-17): per-distance fares, smaller volume and fair shares are in, and the
+owner fleet is good (best 2 trains). Three things are not acceptable:
+- `PARTY_SIZE_ANCHORS` (0.25 → 2.7 by era) is a calibration table that the builder admits has no real basis. That
+  breaks the owner's rule: no fudge factors.
+- Multi-stop still earns less than shuttles: Frankfurt chain 0.67× / 0.76×, target ≥ 1.25×.
+- Bad-bot bounds are missed: overbuilder 1840 Normal 1/3, trainSpammer and leveraged Hard 1900 1/3.
+
+**Opus diagnosis of multi-stop:** shuttles plus changes serve the same journeys as a through train, at the same fare,
+with better load per leg. A change costs a passenger only `CHANGE_PENALTY_TILES` = 15 tiles in the gravity weight.
+Since Phase 53 removed lateness from fares, the wait at the interchange costs nothing either. In the game's own
+timescale the onward train comes every 10–30 days, and in reality a missed connection meant hours or a night in a
+town. A change should cost what it really costs: the wait.
+
+1. **Party size is one constant.**
+   - Replace `PARTY_SIZE_ANCHORS` with a single `PARTY_SIZE` (the unit scale: one game passenger stands for N
+     travellers, because game time is compressed). Justify it once in SPEC.
+   - Real growth of rail travel over the eras belongs in `TRIPS_PER_HEAD_ANCHORS` (journeys per head per year
+     really rose many-fold from 1845 to 1900). Put that growth there, compressed if needed, with sources and the
+     compression stated. Later eras' longer and faster trains carry it.
+   - If an era then falls out of balance, find the mechanism (costs, fares, train capacity) and report it. Do not
+     add another era table.
+2. **A change costs the expected wait.**
+   - The effective distance used for gravity and route choice becomes: route distance + for each change,
+     `max(CHANGE_MIN_TILES, expected wait at the change station × era reference tiles/day)`.
+   - Expected wait = half the onward service interval, from the same service data as Phase 51
+     (`serviceIntervalDays`), clamped by `MIN/MAX_WAIT_DAYS`. Keep 15 tiles as `CHANGE_MIN_TILES` (the platform
+     walk and luggage).
+   - Through trains have no change, so a direct multi-stop line draws more travellers than shuttles with changes.
+   - Unit test: a destination behind a change with a 20-day onward interval draws clearly less than the same town
+     on a through train.
+3. **Re-run and report**, before and after, with the same benches as 53:
+   - multistop (clean Frankfurt chain; target ≥ 1.25× per train);
+   - `owner.ts` (best fleet 1–3);
+   - `through.ts`;
+   - good and bad bots for 1840/1900/1930/1950, Normal and Hard, 3 seeds.
+
+   Every Phase 42–44 bound must hold. Never loosen one. If Hard 1900 dumb bots still survive, find the real
+   reason. For example: do they now earn because the per-distance fare no longer punishes their slow, overloaded
+   trains? A real fix could be crowding (a full train turns people away to competitors) or running costs. Propose
+   it in PROGRESS; implement it only if it is clearly a real mechanism.
+4. The good bot's new policy (add a train only on a backlog; keep a 40 % reserve) is fine as good-player behaviour.
+   Keep it documented. Keep the raised goal amounts only if `goalCalibration` still needs them after items 1–3.
+5. SPEC §8.1 and §9.5d updates, PROGRESS with all tables, and one `phase-53b-*.png` of a real station with a pile.
+   Use a central-eu city, not the debug patch, and LOOK at it.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
