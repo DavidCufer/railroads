@@ -292,8 +292,8 @@ export const CARGO: Record<CargoType, CargoDef> = {
   food: {
     id: "food",
     name: "Food",
-    car: "Boxcar",
-    carLabel: "Boxcar",
+    car: "Reefer",
+    carLabel: "Reefer",
     carCost: 3_000,
     capacity: 20,
     unit: "crates",
@@ -340,8 +340,8 @@ export const CARGO: Record<CargoType, CargoDef> = {
   silverOre: {
     id: "silverOre",
     name: "Silver Ore",
-    car: "Ore hopper",
-    carLabel: "Ore hopper",
+    car: "Ore wagon",
+    carLabel: "Ore wagon",
     carCost: 2_000,
     capacity: 20,
     unit: "t",
@@ -375,8 +375,8 @@ export const CARGO: Record<CargoType, CargoDef> = {
   uraniumOre: {
     id: "uraniumOre",
     name: "Uranium Ore",
-    car: "Ore hopper",
-    carLabel: "Ore hopper",
+    car: "Uranium hopper",
+    carLabel: "Uranium hopper",
     carCost: 2_000,
     capacity: 20,
     unit: "t",

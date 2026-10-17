@@ -39,7 +39,10 @@ export function waitingSplitRows(state: GameState, stationId: number): WaitingRo
   };
   const rows: WaitingRow[] = bound.slice(0, SHOWN).map(([id, n]) => {
     const nextDays = nextOf(id);
-    return { label: nameOf(id), n: Math.round(n), ...(nextDays ? { nextDays } : {}) };
+    // Phase 52: a route that needs a change names its first leg ("Trieste → Venice").
+    const leg = routes.find((r) => r.destination === id)?.firstLeg;
+    const label = leg !== undefined && leg !== id ? `${nameOf(leg)} → ${nameOf(id)}` : nameOf(id);
+    return { label, n: Math.round(n), ...(nextDays ? { nextDays } : {}) };
   });
   const rest = bound.slice(SHOWN).reduce((sum, [, n]) => sum + n, 0) + anyone;
   if (rest >= 0.5) rows.push({ label: strings.station.waitingElsewhere, n: Math.round(rest) });

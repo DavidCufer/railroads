@@ -7,7 +7,8 @@
  * "art frame" where the main building stands on the -y side; when the free space is on the other side
  * the layout says `side = 1` and the art is mirrored (art y = -local y).
  */
-import type { StationImprovementType, StationType } from "../data/stations";
+import { STATION_TYPE_DEFS, type StationImprovementType, type StationType } from "../data/stations";
+import { CAR_LENGTH_TILES, LOCO_LENGTH_TILES } from "../data/trains";
 
 export type StationMarkerType = StationImprovementType | "engineShed" | "waterTower";
 
@@ -71,7 +72,21 @@ export interface StationLayout {
 }
 
 /** Platform length in tiles, centred on the station tile (clipped by the straight track available). */
-export const PLATFORM_LENGTH: Record<StationType, number> = { depot: 2, station: 3, terminal: 4 };
+/** Phase 52: a train stops with its head at the station tile and its tail trailing behind, in either direction, and the
+ * platform is centred on that tile, so it is twice the length of the longest train drawn here (engine plus up to
+ * `PLATFORM_CARS` cars, or fewer where the station takes fewer). */
+const PLATFORM_CARS = 8;
+const platformFor = (t: StationType): number =>
+  Math.ceil(
+    2 *
+      (LOCO_LENGTH_TILES +
+        Math.min(PLATFORM_CARS, STATION_TYPE_DEFS[t].maxTrainLength) * CAR_LENGTH_TILES),
+  );
+export const PLATFORM_LENGTH: Record<StationType, number> = {
+  depot: platformFor("depot"),
+  station: platformFor("station"),
+  terminal: platformFor("terminal"),
+};
 
 /** Improvements are drawn a bit larger than their layout boxes so they read at zoom 1. */
 export const IMPROVEMENT_SCALE = 1.3;

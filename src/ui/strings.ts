@@ -203,8 +203,8 @@ export const strings = {
     /** PLAN Phase 16: the station panel's "Waiting" line, e.g. "12 passengers waiting". */
     waitingCount: (amount: string) => `${amount} waiting`,
     waitingElsewhere: "other towns",
-    /** Phase 51: a waiting row's days to the next train that carries those people. */
-    nextTrain: (days: string) => `next ~${days}d`,
+    /** Phase 51: a waiting row's average gap between trains that carry those people. */
+    nextTrain: (days: string) => `every ~${days}d`,
     supplies: "Supplies",
     perMonthNote: "/mo",
     /** PLAN Phase 35: the "Where passengers go" detail sheet (tap the passenger supply tile). */

@@ -1974,7 +1974,7 @@ Opus diagnosis from the code:
      sim length consistent.
 5. e2e (never weaken; the word-count spec limits stay), screenshots `phase-52-*.png` (LOOK), PROGRESS. Do not
    change demand, fares or caps: those wait for the owner.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [x] 3 (train-panel change count skipped, see PROGRESS) [x] 4 [x] 5
 
 ## Phase 53 — Passengers: per-distance fares, fewer travellers each paying more, fair shares
 Owner approved (2026-10-17). Goal (owner, repeated since Phase 48): fewer trains, small crowds, and a real reason to

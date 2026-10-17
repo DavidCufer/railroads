@@ -87,6 +87,7 @@ function accrueLots(
   for (const l of lots)
     if (l.tick === undefined) own.set(l.dest, (own.get(l.dest) ?? 0) + l.amount);
   const fresh: PassengerLot[] = [];
+  const room = new Map<number, number>();
   let overflow = 0;
   for (const route of [...routes].sort((a, b) => a.destination - b.destination)) {
     // Phase 51: people wait only for the next train that carries them (data/economy.ts MIN/MAX_WAIT_DAYS).
@@ -99,13 +100,33 @@ function accrueLots(
     const have = Math.min(own.get(route.destination) ?? 0, cap);
     const add = Math.max(0, Math.min(daily, cap - have));
     overflow += daily - add;
+    room.set(route.destination, cap - have - add);
     if (have + add > 0)
       fresh.push({ dest: route.destination, amount: have + add, originTile: station.tile });
   }
+  // Phase 52: people of a pre-Phase-48 pile (no destination) are turned into destination lots by the route shares,
+  // within the caps; what does not fit is counted lost once. With no routes they are all lost.
+  if (legacy > 0) {
+    let weight = 0;
+    for (const route of routes) weight += route.perMonth;
+    let placed = 0;
+    if (weight > 0) {
+      for (const route of [...routes].sort((a, b) => a.destination - b.destination)) {
+        const put = Math.min(legacy * (route.perMonth / weight), room.get(route.destination) ?? 0);
+        if (put <= 0) continue;
+        placed += put;
+        const lot = fresh.find((l) => l.dest === route.destination);
+        if (lot) lot.amount += put;
+        else fresh.push({ dest: route.destination, amount: put, originTile: station.tile });
+      }
+    }
+    overflow += legacy - placed;
+  }
   entry.lots = [...arrived, ...fresh]; // people who changed here have waited longest: first on
   if (entry.lots.length === 0) delete entry.lots;
+  delete entry.bound;
   entry.amount =
-    legacy + fresh.reduce((n, l) => n + l.amount, 0) + arrived.reduce((n, l) => n + l.amount, 0);
+    fresh.reduce((n, l) => n + l.amount, 0) + arrived.reduce((n, l) => n + l.amount, 0);
   return overflow;
 }
 
