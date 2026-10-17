@@ -2077,4 +2077,4 @@ town. A change should cost what it really costs: the wait.
    Keep it documented. Keep the raised goal amounts only if `goalCalibration` still needs them after items 1–3.
 5. SPEC §8.1 and §9.5d updates, PROGRESS with all tables, and one `phase-53b-*.png` of a real station with a pile.
    Use a central-eu city, not the debug patch, and LOOK at it.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [~] 3 (benches run; multi-stop 1.25x, bad-bot and 1900 Normal/Hard bounds NOT met, see PROGRESS) [x] 4 [x] 5
