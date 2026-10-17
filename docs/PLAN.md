@@ -2078,3 +2078,56 @@ town. A change should cost what it really costs: the wait.
 5. SPEC §8.1 and §9.5d updates, PROGRESS with all tables, and one `phase-53b-*.png` of a real station with a pile.
    Use a central-eu city, not the debug patch, and LOOK at it.
 Status: [x] 1 [x] 2 [~] 3 (benches run; multi-stop 1.25x, bad-bot and 1900 Normal/Hard bounds NOT met, see PROGRESS) [x] 4 [x] 5
+
+## Phase 53C — Make through trains win for real reasons; restore the era and difficulty balance
+Opus review of Phase 53B: the fudge table is gone and the owner fleet is right (best 2). Still missing:
+- multi-stop per train is 0.66× / 0.86× of shuttles (target ≥ 1.25×);
+- bad bots survive on Normal (overbuilder 0/3) and on Hard (1/3–2/3);
+- 1900 Normal good bot is $10–17M against its $20–34M bound, and the Hard gap in 1900 is gone;
+- 1840 is now very rich: good bot $10.6M, where the old target was ~$4M.
+
+The builder's diagnosis is accepted:
+- (i) The pile cap uses the *estimated* interval. Bunched multi-stop trains hit the cap and run 39 % full, turning
+  7,400 people a year away.
+- (ii) One 40-seat car for every era leaves 1900+ trains poor per seat once the party table went into trips.
+
+Opus adds a third cause:
+- (iii) Shuttles turn round at every town for free. Real steam engines had to be turned (turntable or wye) or run
+  round their train, and coaled and watered, at every terminus: about an hour in 19th-century practice, against a
+  2–3 hour run. A through train turns only at the two ends. In the game's own time scale (a 60 km/h train covers
+  one real hour of running in several game days), one real hour of turnaround is several game days. That is a real
+  and large cost of the shuttle pattern.
+
+All three are real mechanisms. Build them in this order and measure after each.
+1. **People wait for the actual next train.** Replace the estimated-interval cap with the observed one.
+   - A destination pile fills linearly from the moment the last train that carries those people left (a
+     per-(station, next stop) departure stamp, saved; old saves default to "now"), up to `MAX_WAIT_DAYS` of demand.
+   - What a departing train cannot take stays, up to that cap. Overflow is lost as before. Keep "every ~N d" on
+     the UI as the observed average.
+   - Unit tests: bunched trains lose no one under the cap; a long gap loses only the part above MAX_WAIT_DAYS.
+2. **Terminus turnaround.**
+   - When a train reverses direction at a stop, i.e. the stop is the end of its run or its orders send it back the
+     way it came, it spends `TURNAROUND_HOURS` by traction type before it can leave. Steam: turning or running
+     round, plus coal and water, about 1 real hour. Diesel and electric: about ½ hour for running round. Double-
+     ended or multiple-unit later types: less, if the data says the type has cabs at both ends.
+   - Convert real hours to game time with the same compression the game uses for running time (tiles per game day
+     at the era's speed, `eraReferenceTilesPerDay`). Keep the numbers in src/data with the justification.
+   - Intermediate stops keep their normal dwell. The train panel shows the turnaround as a state ("Turning").
+   - Freight is affected too. That is realistic; report the freight bench change.
+3. **Passenger car seats by era**, following the existing art era buckets (early / mid / modern):
+   - 4-wheel and 6-wheel compartment carriages ~40 (keep);
+   - bogie coaches from the 1880s ~60;
+   - steel coaches from the 1920s ~80.
+   - Price and upkeep per car follow from the existing rules: say what changes. A car keeps the seats of its era
+     when bought.
+4. **Re-run** multistop (clean Frankfurt chain, target ≥ 1.25×), owner (best fleet 1–3), through, and survival,
+   good and bad, 1840/1900/1930/1950, Normal and Hard, 3 seeds, after each of items 1–3.
+   - Every Phase 41–44 bound must hold, including good 1900 Normal $20–34M and Hard ≥ 40 % below Normal. Never
+     loosen one.
+   - If bad bots still survive after 1–3, pick the *real* mechanism from the 53B proposals that explains it (thin
+     long lines: track upkeep per km actually charged; loan limit following earnings). Build it only if it is a
+     plain real rule. Otherwise report.
+   - If 1840 stays far above its old target, say why.
+5. SPEC, PROGRESS with every table (before and after each item), screenshots `phase-53c-*.png`: a train "Turning"
+   and a Venice station. LOOK at them.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
