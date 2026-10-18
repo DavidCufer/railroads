@@ -77,7 +77,9 @@ export function showToast(
     });
   }
   // Phase 47: at most TOAST_MAX_VISIBLE on screen; the oldest goes when a newer one arrives.
-  const live = [...toastRoot.children].filter((c) => !c.hasAttribute("data-leaving"));
+  const live = [...toastRoot.children].filter(
+    (c) => !c.hasAttribute("data-leaving") && !c.hasAttribute("data-explain"),
+  );
   for (const old of live.slice(0, Math.max(0, live.length - TOAST_MAX_VISIBLE + 1))) old.remove();
   toastRoot.appendChild(el);
   void el.offsetWidth;
@@ -87,4 +89,39 @@ export function showToast(
     el.setAttribute("data-leaving", "");
     window.setTimeout(() => el.remove(), 250);
   }, TOAST_DURATION_MS);
+}
+
+/** Phase 55: text the player asked for (a cargo chip's name and amount, why a demand is unmet). It stays until it is
+ * tapped, the panel closes or the next explanation replaces it, and news toasts never push it out. */
+export function showExplanation(
+  container: HTMLElement,
+  message: string,
+  kind: ToastKind = "info",
+): void {
+  dismissExplanation();
+  const toastRoot = ensureContainer(container);
+  syncInset(toastRoot);
+  watchInset(toastRoot);
+  const el = h(
+    "div",
+    {
+      className: `toast toast-${kind} toast-explain`,
+      "data-explain": "",
+      "data-testid": "explanation",
+    },
+    message,
+  );
+  el.addEventListener("click", () => el.remove());
+  toastRoot.appendChild(el);
+  void el.offsetWidth;
+  el.classList.add("toast-visible");
+}
+
+/** Removes the explanation on screen, if any (the panel it belongs to closed). */
+export function dismissExplanation(): void {
+  toastRoot()?.querySelector("[data-explain]")?.remove();
+}
+
+function toastRoot(): HTMLElement | null {
+  return toastContainer && toastContainer.isConnected ? toastContainer : null;
 }

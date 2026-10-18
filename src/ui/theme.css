@@ -4479,7 +4479,8 @@ button.rule-chip:active {
   flex-direction: column;
 }
 
-.toast.toast-tappable {
+.toast.toast-tappable,
+.toast.toast-explain {
   pointer-events: auto;
   cursor: pointer;
 }

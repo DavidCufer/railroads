@@ -240,6 +240,8 @@ test.describe("Phase 20 — UI v2 panels", () => {
     await page.getByRole("button", { name: "Station", exact: true }).click();
     const p = await page.evaluate(({ y }) => window.__game!.tileScreenPoint(76, y), { y: ROW_Y });
     await page.mouse.click(p.x, p.y);
+    // Phase 55: plain straight track offers Station / Passing loop first.
+    await page.locator(".chooser-item", { hasText: "Station" }).click();
     await expect(page.locator(".panel-title")).toHaveText("New Station");
     await panelLayoutOk(page);
     await shot(page, "station-placement");

@@ -41,6 +41,8 @@ export interface MenuPanelHandlers {
   onSetHeatmapCargo: (cargo: CargoType) => void;
   onSaveGame: () => void;
   onOpenSettings: () => void;
+  /** Phase 55: autosave, then show the title screen. */
+  onMainMenu?: () => void;
   onOpenRoster?: () => void;
   onOpenHelp?: () => void;
   onOpenHistory?: () => void;
@@ -82,6 +84,15 @@ export function openMenuPanel(container: HTMLElement, handlers: MenuPanelHandler
         chevron: true,
         onClick: handlers.onOpenSettings,
       }),
+      handlers.onMainMenu
+        ? cardRow({
+            thumb: icon("quit"),
+            title: strings.menu.mainMenu,
+            chevron: true,
+            onClick: handlers.onMainMenu,
+            testId: "menu-main",
+          })
+        : null,
       handlers.onOpenHistory
         ? cardRow({
             thumb: icon("trendUp"),

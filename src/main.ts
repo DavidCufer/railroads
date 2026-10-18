@@ -82,6 +82,7 @@ import {
 import {
   buildImprovement,
   buildStation,
+  computePassingLoopPlan,
   buildTrack,
   setNodeRoute,
   bulldoze,
@@ -446,6 +447,28 @@ function main(): void {
     if (centre) focusTile({ x: Math.round(centre.x), y: Math.round(centre.y) });
   }
 
+  /** Phase 55: the ☰ menu's "Main menu": autosaves (never under `?debug=1`), pauses, and shows the title screen. Continue
+   * loads that autosave; starting or loading something else replaces this game, and the speed it had comes back. */
+  function openMainMenu(): void {
+    closePanel();
+    const speed = loop.getSpeed();
+    loop.setSpeed(0);
+    // The save finishes first, so the title screen's Continue finds it.
+    const saved = DEBUG ? Promise.resolve() : autosave(state).catch(() => {});
+    void saved.then(() =>
+      openTitleScreen(ui, {
+        onStart: (options) => {
+          regenerate(options);
+          loop.setSpeed(speed);
+        },
+        onLoad: (loaded) => {
+          loadGame(loaded);
+          loop.setSpeed(speed);
+        },
+      }),
+    );
+  }
+
   function startStationPlacement(tile: number): void {
     stationPlacementOpen = true;
     openStationPlacementPanel(ui, state, tile, {
@@ -676,7 +699,27 @@ function main(): void {
       if (station) {
         openStationById(station.id);
       } else if (inMap && canPlaceStationAt(state.map, state.trackGraph, idx)) {
-        startStationPlacement(idx);
+        // Phase 55: on plain straight track the tap offers a passing loop as well as a station.
+        const loopPlan = computePassingLoopPlan(state, idx);
+        if (loopPlan.valid) {
+          showChooser(
+            ui,
+            canvasX,
+            canvasY,
+            [
+              { kind: "station", id: 0, name: strings.station.choiceStation },
+              {
+                kind: "station",
+                id: 1,
+                name: strings.station.choiceLoop(formatMoney(loopPlan.cost)),
+              },
+            ],
+            (pick) => {
+              if (pick.id === 0) startStationPlacement(idx);
+              else openPassingLoopPanel(ui, state, idx);
+            },
+          );
+        } else startStationPlacement(idx);
       } else if (inMap) {
         showToast(ui, strings.station.tapTrackTile, "warn");
       }
@@ -1368,6 +1411,7 @@ function main(): void {
         },
         onSaveGame: () => openSaveScreen(),
         onOpenSettings: () => openSettingsOverlay(),
+        onMainMenu: () => openMainMenu(),
         onOpenRoster: () => openRosterSheet(ui, state),
         onOpenHelp: () => openHelpPanel(ui),
         onOpenHistory: () => openHistoryScreen(ui, state),

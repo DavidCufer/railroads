@@ -29,7 +29,7 @@ import { cardList, cardRow } from "./components/cardRow";
 import { section } from "./components/section";
 import { emptyState } from "./components/emptyState";
 import { openPanel } from "./panel";
-import { showToast } from "./toast";
+import { showExplanation, showToast } from "./toast";
 import { strings } from "./strings";
 import { formatMoney, formatPopulation } from "./format";
 
@@ -94,7 +94,8 @@ export function cargoChip(
     {
       className: `chip${large ? " chip-lg" : ""}${dimmed ? " chip-dim" : ""}`,
       "aria-label": def.name,
-      onClick: onTap ?? (() => showToast(container, `${def.name}: ${amount}${suffix}`, "info")),
+      onClick:
+        onTap ?? (() => showExplanation(container, `${def.name}: ${amount}${suffix}`, "info")),
     },
     cargoIcon(cargo, large ? "cargo-icon-lg" : "cargo-icon-sm"),
     String(amount),
@@ -121,7 +122,7 @@ export function cargoDemandTile(
       className: `chip${large ? " chip-lg" : ""}${met ? "" : " chip-dim"}${source?.badge ? " chip-badged" : ""}`,
       "aria-label": def.name,
       onClick: () =>
-        showToast(
+        showExplanation(
           container,
           met
             ? source

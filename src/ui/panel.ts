@@ -6,6 +6,7 @@
 import { h } from "./h";
 import { pushBackHandler } from "./backButton";
 import { panelHeader } from "./components/panelHeader";
+import { dismissExplanation } from "./toast";
 
 let currentPanel: {
   root: HTMLElement;
@@ -145,6 +146,7 @@ export function closePanel(replacing = false): void {
   if (replacing) {
     root.remove();
   } else {
+    dismissExplanation();
     root.classList.remove("panel-open");
     window.setTimeout(() => root.remove(), 220);
   }

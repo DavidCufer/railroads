@@ -24,6 +24,7 @@ export const strings = {
     game: "Game",
     saveGame: "Save Game",
     settings: "Settings",
+    mainMenu: "Main menu",
     roster: "Roster",
     overlays: "Overlays",
     overlayNames: {
@@ -188,6 +189,9 @@ export const strings = {
     terminalRecommended: (trains: number, platforms: number) =>
       `Terminal recommended — ${trains} trains call here but it has ${platforms} platforms`,
     type: "Type",
+    /** Phase 55: the Station tool's choice on plain straight track. */
+    choiceStation: "Station",
+    choiceLoop: (price: string) => `Passing loop · ${price}`,
     tapTrackTile: "Tap a straight or dead-end track tile to place a station",
     catchment: "Catchment",
     maxTrainLength: "Max cars",
@@ -1166,7 +1170,7 @@ export const strings = {
   },
   loop: {
     title: "Passing loop",
-    line: "A short double section where two trains can meet.",
+    line: "A short double section where two trains can meet, or a fast train can pass a slow one.",
     build: "Build",
     built: (cost: string) => `Passing loop built · ${cost}`,
   },

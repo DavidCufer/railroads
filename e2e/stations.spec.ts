@@ -77,6 +77,8 @@ async function buildStationAt(
   await centerOn(page, tile.x, tile.y, 1.5);
   const p = await tileScreenPoint(page, tile.x, tile.y);
   await page.mouse.click(p.x, p.y);
+  // Phase 55: plain straight track offers Station / Passing loop first.
+  await page.locator(".chooser-item", { hasText: "Station" }).click();
   await expect(page.locator(".panel-title")).toHaveText("New Station");
   if (type) {
     await page.locator(".station-type-btn", { hasText: type }).click();
@@ -110,6 +112,8 @@ test.describe("Phase 5 — stations", () => {
     await centerOn(page, 67, ROW_Y, 1.5);
     const p = await tileScreenPoint(page, 67, ROW_Y); // a Dunville footprint tile
     await page.mouse.click(p.x, p.y);
+    // Phase 55: plain straight track offers Station / Passing loop first.
+    await page.locator(".chooser-item", { hasText: "Station" }).click();
     // Let the panel's slide-in transition finish before screenshotting or measuring positions.
     await page.waitForTimeout(300);
 

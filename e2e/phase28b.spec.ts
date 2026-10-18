@@ -368,6 +368,8 @@ test.describe("Phase 28B — station tool", () => {
     await page.getByRole("button", { name: "Station", exact: true }).click();
     const p = await page.evaluate(() => window.__game!.tileScreenPoint(56, 35));
     await page.mouse.click(p.x, p.y);
+    // Phase 55: plain straight track offers Station / Passing loop first.
+    await page.locator(".chooser-item", { hasText: "Station" }).click();
     await expect(page.locator(".station-type-btn.active")).toContainText("Station");
     await expect(page.locator(".station-type-btn .type-platforms")).toHaveCount(3);
     await expect(page.locator(".station-type-btn", { hasText: "Terminal" })).toContainText("5");
@@ -379,6 +381,7 @@ test.describe("Phase 28B — station tool", () => {
     // The next placement opens on Terminal.
     const q = await page.evaluate(() => window.__game!.tileScreenPoint(61, 35));
     await page.mouse.click(q.x, q.y);
+    await page.locator(".chooser-item", { hasText: "Station" }).click();
     await expect(page.locator(".station-type-btn.active")).toContainText("Terminal");
     await page.locator(".panel-action-cancel").click();
   });
