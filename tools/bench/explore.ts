@@ -6,7 +6,7 @@
  * env `TURN=0` turns terminus turnaround off, `CONFIGS=a,b` runs only those, `KS=1,2,3` car counts, `JSON=1` one JSON line per config.
  * Prints, per configuration and car count, totals over the line's trains, averaged over the seeds. */
 import { partyOf, type PassengerModel } from "../../src/data/passengerModels";
-import { DOUBLE_ENDED_TURNAROUND_HOURS, TURNAROUND_HOURS } from "../../src/data/trains";
+import { TURNAROUND_HOURS } from "../../src/data/trains";
 import * as commands from "../../src/sim/commands";
 import type { City } from "../../src/sim/economy/types";
 import { advanceOneHour } from "../../src/sim/tick";
@@ -27,7 +27,6 @@ const LOCO = startYear < 1880 ? "norris-4-2-0" : "atlantic-4-4-2";
 const CAPITAL_CHARGE = 0.05;
 if (process.env["TURN"] === "0") {
   for (const k of Object.keys(TURNAROUND_HOURS) as Array<keyof typeof TURNAROUND_HOURS>) TURNAROUND_HOURS[k] = 0;
-  (DOUBLE_ENDED_TURNAROUND_HOURS as number) = 0;
 }
 
 /** Small deterministic generator for the bench's own map layout (not the sim's). */
