@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
 import "./gameWindow";
+import { addTowns } from "./addTowns";
 
-/** Phase 43: load and waiting made visible — "load N %" in the train list, the waiting split at a station, the
- * destinations sheet rows ("N/mo · M waiting") and the over-served hint in Lines. */
+/** Phase 43/54: load and waiting made visible — "load N %" in the train list, the waiting line and the towns reached at a
+ * station, the destinations sheet rows ("N/mo · share") and the over-served hint in Lines. */
 test.use({ deviceScaleFactor: 2 });
 
 type Page = import("@playwright/test").Page;
@@ -57,22 +58,19 @@ async function overservedLine(page: Page): Promise<{ a: number; b: number; c: nu
   });
 }
 
-test("train list shows load, station shows who waits where, Lines says when trains are surplus", async ({
+test("train list shows load, station shows who waits and where trains reach, Lines says when trains are surplus", async ({
   page,
 }) => {
   const ids = await overservedLine(page);
   await page.evaluate(() => window.__game!.runDays(120));
-  // A pile bound for two stops, as at Venice: a few for Milan, hundreds for Trieste.
+  // A town at each station (the bare patch has none) and a pile of 58 passengers waiting at the first (Phase 54: one pile).
+  await addTowns(page, [ids.a, ids.b], ["Venice", "Milan"]);
   await page.evaluate((id) => {
     const state = window.__game!.getState() as {
-      stationCargo: Map<
-        number,
-        { passengers?: { amount: number; bound?: Record<number, number> } }
-      >;
-      stations: Array<{ id: number }>;
+      stationCargo: Map<number, { passengers?: { amount: number; waitingDays: number } }>;
     };
     const entry = state.stationCargo.get(id.a) ?? {};
-    entry.passengers = { amount: 580, bound: { [id.b]: 540, [id.c]: 40 } } as never;
+    entry.passengers = { amount: 58, waitingDays: 1 };
     state.stationCargo.set(id.a, entry);
   }, ids);
 
@@ -86,22 +84,11 @@ test("train list shows load, station shows who waits where, Lines says when trai
   );
   await page.screenshot({ path: "docs/screenshots/phase-43-lines-hint.png" });
 
-  await page.evaluate((id) => {
-    const state = window.__game!.getState() as {
-      stationEconomy: Map<
-        number,
-        {
-          supply: Record<string, number>;
-          passengerRoutes?: Array<{ firstLeg: number; cityId: number; perMonth: number }>;
-        }
-      >;
-    };
-    const eco = state.stationEconomy.get(id.a)!;
-    eco.supply["passengers"] = 580;
-    eco.passengerRoutes = [{ firstLeg: id.b, cityId: 0, perMonth: 580 }];
-  }, ids);
   await page.evaluate((id) => window.__game!.debugOpenStation(id), ids.a);
-  await expect(page.locator('[data-testid="waiting-split"]')).toContainText(/\d+/);
+  await expect(page.locator('[data-testid="waiting-split"]')).toContainText(/Waiting \d+/);
+  await expect(page.locator('[data-testid="waiting-split"]')).toContainText(
+    "Trains here reach: Milan",
+  );
   await page.screenshot({ path: "docs/screenshots/phase-43-station-split.png" });
 
   await page.locator(".dest-link").click();

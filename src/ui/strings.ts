@@ -202,9 +202,9 @@ export const strings = {
     supplyRate: (unit: string) => `${unit ? ` ${unit}` : ""} / month`,
     /** PLAN Phase 16: the station panel's "Waiting" line, e.g. "12 passengers waiting". */
     waitingCount: (amount: string) => `${amount} waiting`,
-    /** "Waiting 41 · next train ~6 d" */
+    /** "Waiting 41 · next train ~6d" */
     waitingLine: (n: number, days?: number) =>
-      days === undefined ? `Waiting ${n}` : `Waiting ${n} · next train ~${days} d`,
+      days === undefined ? `Waiting ${n}` : `Waiting ${n} · next train ~${days}d`,
     /** "Trains here reach: Milan, Padua" */
     reachLine: (towns: string) => `Trains here reach: ${towns}`,
     reachMore: (n: number) => `+${n} more`,
@@ -286,7 +286,7 @@ export const strings = {
       livestockPens: "Needed to load livestock here",
     },
     results: {
-      title: "Results here",
+      title: "Results",
       none: "Nothing sent from or delivered to this station yet — run a train that loads here.",
       revenue: "Fares earned",
       /** Shown instead of "$0" when cargo was sent but the trip has not been paid yet (fares are paid on arrival). */
@@ -506,7 +506,7 @@ export const strings = {
       moving: (station: string, speed: string) => `${station} · ${speed}`,
       loadingAt: (station: string, pct: number) => `Loading at ${station} · ${pct}%`,
       atStop: (station: string) => `At ${station}`,
-      turning: (station: string) => `Turning at ${station}`,
+      turning: () => "Turning",
       hereNow: "Here now",
       nextStop: "Next stop",
       addStop: "Add stop",

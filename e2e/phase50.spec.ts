@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import "./gameWindow";
+import { addTowns } from "./addTowns";
 
 /** Phase 50: a full early train fits a Station's platforms; cars are named; the waiting list never says "any train". */
 test.use({ deviceScaleFactor: 2 });
@@ -52,28 +53,18 @@ test("a full 8-car train sits within its station's platforms", async ({ page }) 
   expect(train.cars).toHaveLength(8);
   expect(info.y).toBeGreaterThan(0);
 
-  // Item 3: people beyond the top rows and people with no destination fold into "other towns", never "any train".
+  // Item 3 (Phase 54): one pile, one number; the station never says "any train" or lists destinations.
+  const ends = await page.evaluate(() => window.__game!.getStations().map((s) => s.id));
+  await addTowns(page, ends, ["Venice", "Milan"]);
   await page.evaluate((id) => {
     const state = window.__game!.getState() as {
       stationCargo: Map<number, Record<string, unknown>>;
-      stations: Array<{ id: number; tile: number }>;
     };
-    const tile = state.stations.find((st) => st.id === id)!.tile;
-    const entry = state.stationCargo.get(id) ?? {};
-    entry["passengers"] = {
-      amount: 200,
-      waitingDays: 1,
-      lots: [101, 102, 103, 104, 105].map((dest, i) => ({
-        dest,
-        amount: 30 - i,
-        originTile: tile,
-      })),
-    };
-    state.stationCargo.set(id, entry);
+    state.stationCargo.set(id, { passengers: { amount: 66, waitingDays: 1 } });
     window.__game!.debugOpenStation(id);
   }, info.a);
   const split = page.locator('[data-testid="waiting-split"]');
-  await expect(split).toContainText("other towns");
+  await expect(split).toContainText("Waiting 66");
   await expect(split).not.toContainText("any train");
   await page.screenshot({ path: "docs/screenshots/phase-50-waiting.png" });
 });

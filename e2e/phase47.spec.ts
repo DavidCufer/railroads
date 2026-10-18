@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import "./gameWindow";
 import { lineWithTrain } from "./p30bHelpers";
+import { addTowns } from "./addTowns";
 
 /** Phase 47: play-test 5 fixes - the toast cap, the difficulty line, the "add a train" hint, the game-over duration. */
 test.use({ deviceScaleFactor: 2 });
@@ -39,6 +40,11 @@ test("full trains with a crowd waiting get an add-a-train hint, in a card and on
   page,
 }) => {
   const { a, trainId } = await lineWithTrain(page);
+  // A town at each end, so the waiting people have somewhere to go (Phase 54).
+  await addTowns(
+    page,
+    (await page.evaluate(() => window.__game!.getStations())).map((s) => s.id),
+  );
   await page.evaluate(() => window.__game!.runDays(40));
   // The station's supply caps what piles up, and a bare test patch has none: set the two signals by hand.
   // (The monthly step that raises the news is unit-tested in tests/sim/finance/lineHints.test.ts.)
@@ -74,6 +80,10 @@ test("full trains with a crowd waiting get an add-a-train hint, in a card and on
   await page.getByTestId("hint-card").getByRole("button").click();
   await page.locator(".train-list-button").click();
   await page.locator('[data-testid="list-sort-lines"]').click();
-  await expect(page.getByTestId("line-add-train")).toContainText("Full trains, 240 waiting");
+  // The 240 set by hand plus what the other end's town sent meanwhile (Phase 54: both ends have towns now).
+  const hint = page.getByTestId("line-add-train");
+  await expect(hint).toContainText(/Full trains, \d+ waiting/);
+  const waiting = Number(/Full trains, (\d+) waiting/.exec((await hint.textContent()) ?? "")![1]);
+  expect(waiting).toBeGreaterThanOrEqual(240);
   await page.screenshot({ path: shot("add-train") });
 });

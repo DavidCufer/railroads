@@ -76,8 +76,10 @@ test("word counts of the busiest panels", async ({ page }) => {
       x + (y - 1) * w,
       x + 1 + (y - 1) * w,
     ];
-    g.debugPlaceCity(block(49, 35), 24_000);
-    g.debugPlaceCity(block(66, 35), 9_000);
+    // One-word names, as real towns have (the debug name "Test City 24" would count as three words in the station panel).
+    const state = g.getState() as unknown as { cities: Array<{ name: string }> };
+    state.cities[g.debugPlaceCity(block(49, 35), 24_000)]!.name = "Brno";
+    state.cities[g.debugPlaceCity(block(66, 35), 9_000)]!.name = "Linz";
     g.debugPlaceIndustry(32 * w + 57, "coalMine");
     g.debugPlaceIndustry(38 * w + 59, "steelMill");
   });

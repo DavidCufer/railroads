@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
 import "./gameWindow";
+import { addTowns } from "./addTowns";
 
-/** Phase 48: people wait bound for their destination station (people who changed here included), and the
- * destinations sheet says how many changes a far town needs. */
+/** Phase 48/54: the station says who waits and which towns its trains reach (a town a change away is not one of them);
+ * the destinations sheet lists the towns called at and the ones nobody serves. */
 test.use({ deviceScaleFactor: 2 });
 
-test("waiting split names destination stations; destinations show the changes", async ({
+test("the waiting line names the towns the trains reach; the sheet lists them and the unserved ones", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 800, height: 420 });
@@ -55,39 +56,28 @@ test("waiting split names destination stations; destinations show the changes", 
   });
   await page.evaluate(() => window.__game!.runDays(20));
 
-  // The bare test patch has no towns to draw demand, so the station's routes and its waiting pile are set by hand
-  // (the sim path is covered by tests/sim/stations/throughJourneys.test.ts): people for the far station and the middle one.
+  // A town at each station (the bare patch has none), and a pile of 53 passengers waiting at the first stop (Phase 54:
+  // one pile; this station's trains call at the middle station only, the third is a change away).
+  await addTowns(page, [ids.a, ids.c, ids.b], ["Venice", "Padua", "Milan"]);
   await page.evaluate((id) => {
     const state = window.__game!.getState() as {
-      stationEconomy: Map<number, { supply: Record<string, number>; passengerRoutes?: unknown[] }>;
       stationCargo: Map<number, Record<string, unknown>>;
-      stations: Array<{ id: number; tile: number }>;
     };
-    const eco = state.stationEconomy.get(id.a)!;
-    eco.supply["passengers"] = 400;
-    eco.passengerRoutes = [
-      { firstLeg: id.c, destination: id.b, cityId: 1, perMonth: 300, changes: 1 },
-      { firstLeg: id.c, destination: id.c, cityId: 2, perMonth: 100, changes: 0 },
-    ];
-    const entry = state.stationCargo.get(id.a) ?? {};
-    const tile = state.stations.find((s) => s.id === id.a)!.tile;
-    entry["passengers"] = {
-      amount: 160,
-      waitingDays: 1,
-      lots: [
-        { dest: id.b, amount: 120, originTile: tile },
-        { dest: id.c, amount: 40, originTile: tile },
-      ],
-    };
-    state.stationCargo.set(id.a, entry);
+    state.stationCargo.set(id.a, { passengers: { amount: 53, waitingDays: 1 } });
   }, ids);
 
   await page.evaluate((id) => window.__game!.debugOpenStation(id), ids.a);
-  await expect(page.locator('[data-testid="waiting-split"]')).toContainText("120");
+  await expect(page.locator('[data-testid="waiting-split"]')).toContainText("Waiting 53");
+  await expect(page.locator('[data-testid="waiting-split"]')).toContainText(
+    "Trains here reach: Padua",
+  );
+  await expect(page.locator('[data-testid="waiting-split"]')).not.toContainText("Milan");
   await page.screenshot({ path: "docs/screenshots/phase-48-station-split.png" });
 
   await page.locator(".dest-link").click();
-  await page.locator(".dest-row-head").first().click();
-  await expect(page.locator(".dest-final").first()).toContainText("1 change");
+  // Only Padua is called at directly; Milan (a change away) is a town no train from here serves.
+  await expect(page.locator(".dest-row")).toHaveCount(1);
+  await expect(page.locator(".dest-row")).toContainText("Padua");
+  await expect(page.locator(".dest-unconnected")).toContainText("Milan");
   await page.screenshot({ path: "docs/screenshots/phase-48-destinations.png" });
 });

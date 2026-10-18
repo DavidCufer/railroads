@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
 import "./gameWindow";
+import { addTowns } from "./addTowns";
 
 /** Phase 51: people wait only for the next train. A destination's pile holds the demand of the days until the next
  * train that carries them, and the waiting row says how many days that is. */
 test.use({ deviceScaleFactor: 2 });
 
-test("a waiting pile is cut to the days until the next train, and the row says so", async ({
+test("a waiting pile is cut to a month of demand, and the station says when the next train comes", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 800, height: 420 });
@@ -51,55 +52,38 @@ test("a waiting pile is cut to the days until the next train, and the row says s
     return { a: a!, b: b! };
   });
 
-  // The bare test patch has no towns to draw demand, so the route and a month-old pile are set by hand (the sim path
-  // is covered by tests/sim/stations/waitingForNextTrain.test.ts).
+  // The bare test patch has no towns to draw demand, so a town at each end is added and a month-old pile set by hand
+  // (the sim path is covered by tests/sim/stations/waitingForNextTrain.test.ts).
+  await addTowns(page, [ids.a, ids.b], ["Venice", "Milan"]);
   await page.evaluate((id) => {
     const state = window.__game!.getState() as {
-      stationEconomy: Map<
-        number,
-        {
-          supply: Record<string, number>;
-          passengerRoutes?: unknown[];
-          passengerBound?: unknown[];
-        }
-      >;
       stationCargo: Map<number, Record<string, unknown>>;
-      stations: Array<{ id: number; tile: number }>;
     };
-    const eco = state.stationEconomy.get(id.a)!;
-    eco.supply["passengers"] = 300;
-    eco.passengerRoutes = [
-      { firstLeg: id.b, destination: id.b, cityId: 1, perMonth: 300, changes: 0 },
-    ];
-    eco.passengerBound = [{ stationId: id.b, share: 1 }];
-    const entry = state.stationCargo.get(id.a) ?? {};
-    const tile = state.stations.find((s) => s.id === id.a)!.tile;
-    entry["passengers"] = {
-      amount: 300,
-      waitingDays: 1,
-      lots: [{ dest: id.b, amount: 300, originTile: tile }],
-    };
-    state.stationCargo.set(id.a, entry);
+    state.stationCargo.set(id.a, { passengers: { amount: 300, waitingDays: 1 } });
   }, ids);
   await page.evaluate(() => window.__game!.runDays(1));
 
   await page.evaluate((id) => window.__game!.debugOpenStation(id), ids.a);
   const split = page.locator('[data-testid="waiting-split"]');
-  await expect(split).toContainText(/every ~\d+d/);
+  await expect(split).toContainText(/next train ~\d+d/);
   const text = (await split.textContent()) ?? "";
-  const days = Number(/every ~(\d+)d/.exec(text)![1]);
-  const waiting = await page.evaluate(
-    (id) =>
-      (
-        window.__game!.getState() as {
-          stationCargo: Map<number, { passengers?: { amount: number } }>;
-        }
-      ).stationCargo.get(id.a)?.passengers?.amount ?? 0,
-    ids,
-  );
-  // 300 a month = 10 a day: at most the days to the next train (rounded to a day) of people, never the month
+  const days = Number(/next train ~(\d+)d/.exec(text)![1]);
+  const { waiting, pool } = await page.evaluate((id) => {
+    const state = window.__game!.getState() as unknown as {
+      stationCargo: Map<number, { passengers?: { amount: number } }>;
+      stationEconomy: Map<number, { passengerPool?: number }>;
+    };
+    return {
+      waiting: state.stationCargo.get(id.a)?.passengers?.amount ?? 0,
+      pool: state.stationEconomy.get(id.a)?.passengerPool ?? 0,
+    };
+  }, ids);
+  // A pile holds at most MAX_WAIT_DAYS (30) of the station's demand (a month), never the 300 set by hand; and the line
+  // says when the next train comes, a whole number of days.
+  expect(pool).toBeGreaterThan(0);
+  expect(pool).toBeLessThan(300);
   expect(waiting).toBeGreaterThan(0);
-  expect(waiting).toBeLessThanOrEqual(10 * (days + 1));
-  expect(waiting).toBeLessThan(300);
+  expect(waiting).toBeLessThanOrEqual(pool + 1e-6);
+  expect(days).toBeGreaterThanOrEqual(1);
   await page.screenshot({ path: "docs/screenshots/phase-51-waiting.png" });
 });

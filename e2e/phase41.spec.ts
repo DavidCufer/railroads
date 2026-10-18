@@ -188,7 +188,7 @@ test("a single-track jam toast gives the passing-loop price and taps into buildi
 }) => {
   await freshGame(page, 1860);
   const { mid } = await singleTrackPair(page);
-  await page.evaluate(() => window.__game!.runDays(6)); // both trains are under way: their routes cross the mid tile
+  await page.evaluate(() => window.__game!.runDays(2)); // both trains are under way: their routes cross the mid tile (Phase 53C: a train that has reached its end is turning, with no route)
   await page.evaluate((tile) => {
     const state = window.__game!.getState() as {
       ticks: number;

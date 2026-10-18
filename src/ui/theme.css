@@ -4849,7 +4849,7 @@ select {
 }
 .dest-row-head {
   display: grid;
-  grid-template-columns: 16px minmax(70px, 1.2fr) 1fr auto;
+  grid-template-columns: minmax(70px, 1.2fr) 1fr auto;
   align-items: center;
   gap: 8px;
   width: 100%;

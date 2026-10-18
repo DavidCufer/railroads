@@ -147,7 +147,7 @@ test.describe("Phase 30B", () => {
       };
       window.__game!.debugOpenStation(id);
     }, a);
-    await expect(page.getByText("Results here")).toBeVisible();
+    await expect(page.getByText("Results", { exact: true })).toBeVisible();
     await expect(page.getByText(/18 unserved/)).toBeVisible();
     await page.locator(".panel-body").evaluate((el) => (el.scrollTop = el.scrollHeight));
     await page.waitForTimeout(300);

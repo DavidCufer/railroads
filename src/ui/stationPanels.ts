@@ -161,11 +161,18 @@ function supplyChipStack(
           strings.station.waitingLine(split.waiting, split.nextDays),
         ),
         split.reach.length > 0
-          ? h(
-              "div",
-              { className: "waiting-row waiting-reach" },
-              strings.station.reachLine(split.reach.join(", ")),
-            )
+          ? onTap
+            ? // The line is the way into the "Where to" sheet (no separate button: fewer words).
+              h(
+                "button",
+                { className: "waiting-row waiting-reach dest-link", onClick: onTap },
+                `${strings.station.reachLine(split.reach.join(", "))} ▸`,
+              )
+            : h(
+                "div",
+                { className: "waiting-row waiting-reach" },
+                strings.station.reachLine(split.reach.join(", ")),
+              )
           : null,
       ),
     );
@@ -178,7 +185,7 @@ function supplyChipStack(
         pileFull,
       ),
     );
-  if (onTap)
+  if (onTap && !(split && split.reach.length > 0))
     children.push(
       h("button", { className: "dest-link", onClick: onTap }, strings.station.destinations.tapHint),
     );

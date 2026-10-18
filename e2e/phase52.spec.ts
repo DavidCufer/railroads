@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
 import "./gameWindow";
+import { addTowns } from "./addTowns";
 
-/** Phase 52: an old save's undirected pile is turned into destination lots, a row that needs a change names its
- * first leg, and an 8-car train fits its Station's platform. */
+/** Phase 52/54: an old save's undirected pile is cut to a month of demand and shown as one number with the towns the
+ * trains reach, and an 8-car train fits its Station's platform. */
 test.use({ deviceScaleFactor: 2 });
 
 async function setup(page: import("@playwright/test").Page, cars: number) {
@@ -54,24 +55,14 @@ async function setup(page: import("@playwright/test").Page, cars: number) {
   }, cars);
 }
 
-test("an old pile becomes destination rows and a change is named", async ({ page }) => {
+test("an old pile is one number, and the towns reached are named", async ({ page }) => {
   const ids = await setup(page, 2);
+  await addTowns(page, [ids.a, ids.b, ids.c], ["Venice", "Padua", "Milan"]);
+  // a pre-Phase-48 pile: 2409 people with no destination (far more than a month of this station's demand)
   await page.evaluate((id) => {
     const state = window.__game!.getState() as {
-      stationEconomy: Map<
-        number,
-        { supply: Record<string, number>; passengerRoutes?: unknown[]; passengerBound?: unknown[] }
-      >;
       stationCargo: Map<number, Record<string, unknown>>;
     };
-    const eco = state.stationEconomy.get(id.a)!;
-    eco.supply["passengers"] = 600;
-    eco.passengerRoutes = [
-      { firstLeg: id.b, destination: id.b, cityId: 1, perMonth: 400, changes: 0 },
-      { firstLeg: id.b, destination: id.c, cityId: 2, perMonth: 200, changes: 1 },
-    ];
-    eco.passengerBound = [{ stationId: id.b, share: 1 }];
-    // a pre-Phase-48 pile: 2409 people with no destination
     state.stationCargo.set(id.a, { passengers: { amount: 2409, waitingDays: 90 } });
   }, ids);
   await page.evaluate(() => window.__game!.runDays(1));
@@ -79,9 +70,12 @@ test("an old pile becomes destination rows and a change is named", async ({ page
   const split = page.locator('[data-testid="waiting-split"]');
   await expect(split).toBeVisible();
   const text = (await split.textContent()) ?? "";
+  expect(text).toMatch(/Waiting \d+ · next train ~\d+d/);
+  expect(text).toContain("Trains here reach: Padua");
   expect(text).not.toContain("other towns");
-  expect(text).toMatch(/every ~\d+d/);
-  expect(text).toMatch(/→[^→]+→[^→]+/); // first leg, then the destination
+  // cut to a month of demand: nowhere near 2409
+  const waiting = Number(/Waiting (\d+)/.exec(text)![1]);
+  expect(waiting).toBeLessThan(500);
   await page.screenshot({ path: "docs/screenshots/phase-52-waiting.png" });
 });
 

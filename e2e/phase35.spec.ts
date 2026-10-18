@@ -88,7 +88,7 @@ const TOWNS = [
 ];
 
 test.describe("Phase 35 — where passengers go", () => {
-  test("the passenger tile opens a sheet with first-stop bars, an expandable row and the unconnected towns", async ({
+  test("the passenger tile opens a sheet with one bar per town the trains call at, and the towns no train serves", async ({
     page,
   }) => {
     await setup(page);
@@ -144,13 +144,13 @@ test.describe("Phase 35 — where passengers go", () => {
     await page.locator(".dest-link").click();
     const sheet = page.locator(".sheet-destinations");
     await expect(sheet).toBeVisible();
-    // One bucket: everything leaves via the Ljubljana stop; Zagreb is behind it.
+    // Phase 54: only the towns the station's trains call at directly: Ljubljana. Zagreb is behind it (a change away),
+    // so it is a town no train from here serves, like Padua.
     await expect(sheet.locator(".dest-row")).toHaveCount(1);
-    await expect(sheet.locator(".dest-final")).toHaveCount(0);
-    await sheet.locator(".dest-row-head").click();
-    await expect(sheet.locator(".dest-final")).toContainText("Ljubljana");
-    await expect(sheet.locator(".dest-final")).toContainText("Zagreb");
+    await expect(sheet.locator(".dest-row")).toContainText("Ljubljana");
+    await expect(sheet.locator(".dest-row")).toContainText("100 %");
     await expect(sheet.locator(".dest-unconnected")).toContainText("Padua");
+    await expect(sheet.locator(".dest-unconnected")).toContainText("Zagreb");
     await page.waitForTimeout(300);
     await page.screenshot({ path: shot("destinations") });
 
