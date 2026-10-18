@@ -17,12 +17,22 @@ export const PASSENGER_PARTY_PEOPLE = 3;
 /** Most changes of train a journey may need for its town to count towards a station's demand (m3). m2 is 0. */
 export const M3_MAX_CHANGES = 1;
 
-export const maxChangesOf = (model: PassengerModel): number =>
-  model === "m2" ? 0 : model === "m3" ? M3_MAX_CHANGES : Infinity;
+/** Model used where a game has none set (tests build states by hand). Only the test setup changes it, to list the tests
+ * a model breaks: `PASSENGER_MODEL=m2 npx vitest run`. */
+let defaultModel: PassengerModel = "m0";
+export function setDefaultPassengerModel(model: PassengerModel): void {
+  defaultModel = model;
+}
+
+export const maxChangesOf = (model: PassengerModel | undefined): number => {
+  const m = model ?? defaultModel;
+  return m === "m2" ? 0 : m === "m3" ? M3_MAX_CHANGES : Infinity;
+};
 
 /** People per game passenger under `model` (1 for the reference model). */
 export const partyOf = (model: PassengerModel | undefined): number =>
-  model === undefined || model === "m0" ? 1 : PASSENGER_PARTY_PEOPLE;
+  (model ?? defaultModel) === "m0" ? 1 : PASSENGER_PARTY_PEOPLE;
 
 /** Whether people wait in one pile per station and choose a destination among the train's later stops (m2, m3). */
-export const usesPool = (model: PassengerModel | undefined): boolean => model === "m2" || model === "m3";
+export const usesPool = (model: PassengerModel | undefined): boolean =>
+  (model ?? defaultModel) === "m2" || (model ?? defaultModel) === "m3";

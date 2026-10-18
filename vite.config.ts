@@ -16,6 +16,7 @@ export default defineConfig({
     sourcemap: false,
   },
   test: {
+    setupFiles: ["tests/setupModel.ts"],
     environment: "node",
     include: ["tests/**/*.test.ts"],
   },
