@@ -5842,3 +5842,428 @@ Electric engines were electrified on the whole line by the bench (cost not count
 **7. Docs and screenshots.** SPEC 5.3, 7.5, 10.1 and the passing-loop entry updated, changelog line added. Screenshots `docs/screenshots/phase-55-*.png`: `overtake` (the local's panel "Waiting for Train 2 to pass" at the loop), `loop-choice` (Station / Passing loop popup), `info-stays` (an explanation with four news toasts under it), `main-menu-row`, `title-from-game`. I opened all of them.
 **Decisions and deviations (no questions asked).** The hold rule is one rule for stations and loops (loops hold trains at speed, stations only trains that stand in them). The cap is one real hour. The speed estimate uses `computeTargetSpeed` on the next edge, i.e. it includes the current load and grade but not later hills. The e2e for the overtake screenshot polls the local's `waitingOn` day by day. The Info-text fix covers the chips and demand tiles (what the Info tool's station panel offers), not the "Where to" sheet, which is a sheet and already stays.
 **Not done / for the owner:** the S4 composition target of Phase 54 (1 express + 1-2 locals best) is unchanged by this phase; overtaking mainly helps when the express is genuinely faster; engines of equal speed behave as before.
+
+## 2026-10-18 - Phase 56: engine price and upkeep from real size (items 1-3 and 5 done; item 4 stopped by the 1900 Normal bound, see below)
+
+**State: `npm run check` has ONE failing balance test (`balanceLongHaul` 1930 silver, a bound I did not loosen; details under "Test miss"); both e2e shards green (128 + 128).** No Buy Train payback line was added (owner declined).
+
+**1. Price from the engine's real size.** `LocomotiveDef.weightTonnes` (engine + tender, tonnes, of the real type it stands for; one-line source note on each engine in `src/data/trains.ts`). `cost` and `maintenancePerYear` are now *derived* from it at module load (`LOCOMOTIVES = LOCOMOTIVE_SPECS.map(...)`), so every consumer (buy plan, trade-in, overhaul, breakdown parts, contracts, UI bars) reads the same fields as before. Price = weight x `LOCO_PRICE_PER_TONNE` (steam $900/t: a 50 t 4-4-0 keeps its old $45k; electric $1,350/t and diesel $1,800/t, the 1.5x and 2x per-tonne premium of electrical and diesel equipment: GG1 about $1,070/t, EMD E7 about $1,640/t against $600-800/t for late steam), rounded to $500. The era scaling is the existing `eraInflation` at purchase. **The gross-weight model is replaced, not kept beside**: `LOCO_TONS` (18/45/90 t by class) is gone; the fuel ratio (`fuelUnitsPerTile`, `fuelCostPerYearEstimate`) and the track-wear model (`wearUnitsPerTile`) use `weightTonnes`; `AXLE_LOAD_FACTOR` by class stays (how the weight sits on the rail).
+
+**2. Upkeep from size and distance run.** (a) Fixed per year: `maintenancePerYear` = weight x `LOCO_UPKEEP_PER_TONNE` (steam $100, diesel $75, electric $50 a year at 1830 prices; steam needed about twice a diesel's shed labour), flowing through the existing servicing share (`locoRunningCostPerYear`) and the existing fuel budget (which is proportional to it). (b) New running part per tile: `repairUnitsPerTile` = engine tonnes, priced by `repairCostPerUnit` = `LOCO_REPAIR_PER_TONNE_TILE` (steam $0.04, diesel $0.03, electric $0.02 per tonne-tile at 1830 prices, US steam repairs were booked per locomotive-mile and grew with size) x the existing early-to-mature running-cost share x obsolescence x age x price level. `Train.repairUnits` (optional; old saves load with it absent) accumulates tonne-tiles in `stepTrain`, the monthly ledger and `lines.ts` book it with the train's running cost. No new era table, no flat multiplier.
+
+New price / weight / upkeep table (1830 prices; the yearly figure is the fixed part, repairs per tile and fuel come on top):
+| engine | type | weight t | old price | new price | x | old upkeep/yr | new upkeep/yr | x |
+|---|---|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | steam | 8 | $20k | $7k | 0.35 | $2k | $0.8k | 0.40 |
+| Planet 2-2-0 | steam | 12 | $28k | $11k | 0.39 | $2.5k | $1.2k | 0.48 |
+| Norris 4-2-0 | steam | 20 | $34k | $18k | 0.53 | $3k | $2k | 0.67 |
+| American 4-4-0 | steam | 50 | $45k | $45k | 1.00 | $4k | $5k | 1.25 |
+| Mogul 2-6-0 | steam | 60 | $55k | $54k | 0.98 | $5k | $6k | 1.20 |
+| Consolidation 2-8-0 | steam | 85 | $70k | $76.5k | 1.09 | $6k | $8.5k | 1.42 |
+| Ten-Wheeler 4-6-0 | steam | 75 | $70k | $67.5k | 0.96 | $6k | $7.5k | 1.25 |
+| Atlantic 4-4-2 | steam | 105 | $85k | $94.5k | 1.11 | $7k | $10.5k | 1.50 |
+| Pacific 4-6-2 | steam | 150 | $110k | $135k | 1.23 | $9k | $15k | 1.67 |
+| Mikado 2-8-2 | steam | 180 | $120k | $162k | 1.35 | $10k | $18k | 1.80 |
+| Hudson 4-6-4 | steam | 250 | $150k | $225k | 1.50 | $12k | $25k | 2.08 |
+| Articulated 4-8-8-4 | steam | 540 | $250k | $486k | 1.94 | $22k | $54k | 2.45 |
+| Early Electric | electric | 90 | $120k | $121.5k | 1.01 | $4.2k | $4.5k | 1.07 |
+| Streamliner Diesel | diesel | 130 | $180k | $234k | 1.30 | $12k | $9.75k | 0.81 |
+| E-Unit Electric | electric | 210 | $200k | $283.5k | 1.42 | $10k | $10.5k | 1.05 |
+| Cab Unit Diesel | diesel | 105 | $170k | $189k | 1.11 | $11k | $7.9k | 0.72 |
+| Road Switcher Diesel | diesel | 115 | $160k | $207k | 1.29 | $9k | $8.65k | 0.96 |
+| Modern Electric | electric | 90 | $300k | $121.5k | 0.41 | $12k | $4.5k | 0.38 |
+| High-Horsepower Diesel | diesel | 180 | $280k | $324k | 1.16 | $15k | $13.5k | 0.90 |
+| Heavy Diesel | diesel | 195 | $350k | $351k | 1.00 | $17k | $14.65k | 0.86 |
+| High-Speed Trainset | electric | 136 | $600k | $183.5k | 0.31 | $25k | $6.8k | 0.27 |
+| Heavy Freight Electric | electric | 120 | $500k | $162k | 0.32 | $20k | $6k | 0.30 |
+
+(Early Electric 110 km/h is as in the data; SPEC's old table said 90.)
+
+**3. Bench: `tools/bench/engineCosts.ts` (rewritten).** One train on the balance fixtures (`tests/sim/balanceRoutes.ts`: straight plain line, two towns of 20,000, 3 seeds, last of 3 years), Normal. Profit is the **train's own books**: fares less crew, fuel, upkeep, repairs and the track wear it causes (renewal share included); track and the two stations cost the same whatever engine runs and are left out (a first version counted them: in 1930+ a 60 km line between towns of 12,000 earned less than its two stations cost for every engine, which says nothing about engines). Lines: short 12 tiles (60 km), medium 48 (240 km, Venice-Milan), long 72 (360 km); consists 1, 3, 6 cars and the engine's own maximum; freight: a coal mine (3 car-loads a month, the game's mine) to a steel mill over 240 km. Electrics run on an electrified line (catenary not in the price). Payback = train price (engine + cars) / profit a year. `STARTS=`, `LINES=`, `POP=`, `JSON=` env.
+
+Best buy by case (payback years; small towns of 20,000):
+| era | line | 1 car | 3 cars | 6 cars | max consist (>6) | fastest engine of the era, 1 car |
+|---|---|---|---|---|---|---|
+| 1840 | short | Grasshopper 0.5 | Planet 0.8 | Planet 1.5 | Norris 2.3 | Norris (45 km/h) 0.7 |
+| 1840 | medium | Planet 0.3 | Norris 0.3 | Norris 0.7 | Norris 1.0 | Norris 0.3 |
+| 1840 | long | Planet 0.2 | Norris 0.3 | Norris 0.7 | Norris 1.1 | Norris 0.3 |
+| 1840 | coal | Planet 0.6 | Norris 0.4 | Norris 0.6 | Norris 1.0 | Norris 0.7 |
+| 1870 | short | Planet 0.6 | Planet 0.5 | Norris 1.0 | Norris 1.2 | American (60) 1.5 |
+| 1870 | medium | Planet 0.5 | Norris 0.3 | American 0.4 | Mogul 0.6 | American 0.9 |
+| 1870 | long | Planet 0.4 | Norris 0.3 | American 0.4 | Mogul 0.6 | American 0.9 |
+| 1870 | coal | Planet 0.8 | Norris 0.5 | Norris 0.8 | Mogul 1.3 | American 1.6 |
+| 1900 | short | Planet 0.7 | Planet 0.9 | Planet 1.7 | Norris 2.6 | Atlantic (100) 2.8 |
+| 1900 | medium | Planet 0.5 | Norris 0.4 | American 0.7 | Ten-Wheeler 0.9 | Atlantic 1.2 |
+| 1900 | long | Planet 0.5 | Norris 0.4 | Ten-Wheeler 0.6 | Ten-Wheeler 0.8 | Atlantic 1.0 |
+| 1900 | coal | Planet 1.0 | Norris 0.7 | American 1.1 | Ten-Wheeler 1.4 | Atlantic 3.3 |
+| 1930 | short | Grasshopper 1.3 | Planet 3.4 | Planet 8.6 | Norris 17.7 | E-Unit (160) never |
+| 1930 | medium | Planet 0.6 | Norris 1.0 | American 2.0 | Ten-Wheeler 2.5 | E-Unit 7.1 |
+| 1930 | long | Planet 0.5 | Norris 1.0 | Early Electric 1.8 | Early Electric 2.4 | E-Unit 3.3 |
+| 1930 | coal | Planet 1.2 | Norris 0.9 | American 1.3 | Ten-Wheeler 1.8 | E-Unit 28.6 |
+| 1950 | short | Grasshopper 1.5 | Planet 4.5 | Planet 13.0 | Norris 40.4 | E-Unit never |
+| 1950 | medium | Planet 0.6 | Norris 1.1 | American 2.2 | Ten-Wheeler 2.9 | E-Unit 9.9 |
+| 1950 | long | Planet 0.5 | Norris 1.1 | Atlantic 1.9 | Ten-Wheeler 2.4 | E-Unit 4.3 |
+| 1950 | coal | Planet 1.3 | Norris 0.8 | American 1.3 | Ten-Wheeler 1.7 | E-Unit 21.9 |
+
+Same, **long lines between big cities of 150,000** (the same bench, `POP=150000`; the line has the traffic to fill big trains):
+| era | line | 1 car | 3 cars | 6 cars | max consist | fastest engine, 1 car |
+|---|---|---|---|---|---|---|
+| 1870 | short | Planet 0.6 | Norris 0.4 | American 0.5 | Mogul 0.4 | American 1.5 |
+| 1870 | long | Planet 0.4 | Norris 0.3 | Mogul 0.3 | Mogul 0.2 | American 0.9 |
+| 1900 | short | Planet 0.7 | Norris 0.5 | Ten-Wheeler 0.5 | Ten-Wheeler 0.5 | Atlantic 2.3 |
+| 1900 | medium | Planet 0.5 | Norris 0.3 | Ten-Wheeler 0.3 | Ten-Wheeler 0.3 | Atlantic 1.2 |
+| 1900 | long | Planet 0.5 | Norris 0.3 | Atlantic 0.2 | Ten-Wheeler 0.2 | Atlantic 1.0 |
+| 1930 | short | Planet 0.8 | Norris 0.6 | American 0.6 | Mogul 0.8 | E-Unit 4.1 |
+| 1930 | medium | Planet 0.5 | Early Electric 0.3 | Early Electric 0.2 | Early Electric 0.2 | E-Unit 1.5 |
+| 1930 | long | Planet 0.5 | Early Electric 0.3 | Early Electric 0.2 | Early Electric 0.2 | E-Unit 1.3 |
+| 1950 | short | Planet 0.9 | Norris 0.7 | Ten-Wheeler 0.7 | Mogul 0.7 | E-Unit 4.9 |
+| 1950 | medium | Planet 0.6 | Early Electric 0.4 | Early Electric 0.2 | Early Electric 0.2 | E-Unit 1.7 |
+| 1950 | long | Planet 0.5 | Early Electric 0.3 | Early Electric 0.2 | Early Electric 0.2 | E-Unit 1.4 |
+
+**Targets against the measurements (reported openly; nothing tuned to hit them):**
+- *Short line: a small, slow, cheap engine has the fastest payback of its era*: **met in every era** (Grasshopper / Planet at 1 and 3 cars, Planet at 6, Norris at its full train; in 1930 and 1950 a 6-car Atlantic-class train does not pay back in 20 years on a short line between towns of 20,000, the small engines in 8-13).
+- *Long line: a fast engine is the best buy with a full consist*: **partly met.** Between big cities, yes from 1930: the Early Electric (110 km/h) wins 3, 6 and max cars on medium and long lines in 1930 and 1950, the Atlantic (100) and Ten-Wheeler (75) in 1900. Not the *fastest* engine: E-Unit (160), Hudson (135), Streamliner (145) never win, and between towns of 20,000 the mid engines (Ten-Wheeler 1900, Early Electric 1930, Atlantic 1950) win at 6 cars but the speed premium is small. Cause: a train's fares are demand-limited (a leg carries the people that appear; `PASSENGER_SPEED_FACTOR_MAX` is only +15 % for speed), so speed beyond about the era's typical train (`eraReferenceTilesPerDay`: 100 km/h in 1900, 130 in 1930) adds almost nothing to income while it adds price, upkeep, repair and rail wear.
+- *A fast expensive engine with 1 car does not pay back within 10 years*: **met only on short lines from 1930** (E-Unit and Hudson: never; Streamliner never). On medium and long lines it pays back in 7-10 years (E-Unit 1930/1950 medium 7.1 / 9.9, long 3.3 / 4.3 between small towns, 1.3-1.7 between big ones), and an Atlantic with one car in 1900 pays back in 1-3 years. A 1-car train earns more per car than a full one (cars are cheap, the first car always fills), so the price of the engine is what makes 1 car of a fast engine slow to pay.
+- *Heavy freight: a strong slow engine beats a fast passenger engine*: **missed.** Coal, 240 km (mine output is 3 car-loads a month, so one train of 6 cars fills; 5 mines at full growth, tried in a scratch run, change nothing): the Consolidation (50 km/h, 12 cars) pays back in 3.0 years (1900, 12 cars; 2.0 at 3 cars) against 1.1-1.4 for American / Ten-Wheeler / Atlantic, and the Mikado in 9.2 years at 1930 against 1.3-1.8. Cause: freight income per car follows trips a year (speed), there is no timetable or track-slot limit in a single-train line, and the model's only advantage for power is on grades (`computeTargetSpeed`: power over weight x (1 + 0.6 x climb)) which the flat fixture does not have. A real freight engine earns its keep by hauling more cars per crew and per path on a busy single line; this bench has one train.
+- *Most engines are the best choice somewhere*: **missed.** Engines that win at least one case (small towns or big cities): Grasshopper, Planet, Norris, American, Mogul, Ten-Wheeler, Atlantic, Early Electric (8 of 22). Win none: Consolidation, Pacific, Mikado, Hudson, Articulated, Streamliner, E-Unit, Cab Unit, Road Switcher, Modern Electric, High-Horsepower and Heavy Diesel, High-Speed Trainset, Heavy Freight Electric (the 1960+ engines were not benched, the eras stop at 1950; their prices are in the table). Same cause as above: no line in the model needs more than ~10 cars or ~100 km/h of a single train, and a bigger engine only adds cost.
+
+**Known side effect to decide (owner):** weight-only pricing made the modern electrics *cheaper*, not dearer: Modern Electric $300k -> $121.5k, High-Speed Trainset $600k -> $183.5k, Heavy Freight Electric $500k -> $162k (real engines of 90-136 t), and the diesels' and electrics' fixed upkeep fell (Cab Unit $11k -> $7.9k; their repair bill per tile and fuel come on top). Real diesel/electric prices follow installed power and electronics, not tonnes. A power term in the price of diesel and electric engines (e.g. $ per unit of `power`) would be the real mechanism; I did not add it (not in the item, and it would be a second pricing law). Owner call.
+
+Full payback tables, small towns of 20,000 (`engineCosts.ts`, 3 seeds; "1 car" etc. = payback years (profit k$/yr); "max consist" = the engine's own maximum when it is not 6):
+
+**1840, Normal, short line, 12 tiles / 60 km** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 15k | 0.5 (30k) | 1.0 (28k) | - | 1.5 (24k) (4) | 5k |
+| Planet 2-2-0 | 19k | 0.5 (39k) | 0.8 (39k) | 1.5 (35k) | - | 8k |
+| Norris 4-2-0 | 27k | 0.7 (39k) | 1.1 (37k) | 1.8 (34k) | 2.3 (32k) (8) | 8k |
+
+**1840, Normal, medium line, 48 tiles / 240 km (Venice-Milan)** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 15k | 0.4 (35k) | 1.1 (26k) | - | 1.4 (25k) (4) | 6k |
+| Planet 2-2-0 | 19k | 0.3 (71k) | 0.5 (71k) | 1.1 (46k) | - | 8k |
+| Norris 4-2-0 | 27k | 0.3 (92k) | 0.3 (120k) | 0.7 (82k) | 1.0 (73k) (8) | 10k |
+
+**1840, Normal, long line, 72 tiles / 360 km** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 15k | 0.3 (44k) | 0.7 (41k) | - | 1.2 (29k) (4) | 6k |
+| Planet 2-2-0 | 19k | 0.2 (80k) | 0.4 (75k) | 1.1 (50k) | - | 8k |
+| Norris 4-2-0 | 27k | 0.3 (104k) | 0.3 (127k) | 0.7 (83k) | 1.1 (69k) (8) | 10k |
+
+**1840, Normal, coal, mine to mill, 48 tiles / 240 km** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 10k | 1.1 (9k) | 4.0 (4k) | - | 15.2 (1k) (4) | 3k |
+| Planet 2-2-0 | 15k | 0.6 (26k) | 0.5 (38k) | 1.2 (22k) | - | 4k |
+| Norris 4-2-0 | 22k | 0.7 (31k) | 0.4 (70k) | 0.6 (54k) | 1.0 (40k) (8) | 5k |
+
+**1870, Normal, short line, 12 tiles / 60 km** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 19k | 0.9 (21k) | 0.9 (41k) | - | 1.0 (45k) (4) | 8k |
+| Planet 2-2-0 | 25k | 0.6 (40k) | 0.5 (82k) | 1.0 (72k) | - | 11k |
+| Norris 4-2-0 | 36k | 0.8 (46k) | 0.6 (88k) | 1.0 (83k) | 1.2 (78k) (8) | 13k |
+| American 4-4-0 | 75k | 1.5 (51k) | 1.1 (83k) | 1.5 (80k) | 2.1 (74k) (10) | 17k |
+| Mogul 2-6-0 | 89k | 1.9 (47k) | 1.3 (82k) | 1.7 (77k) | 2.2 (74k) (9) | 19k |
+
+**1870, Normal, medium line, 48 tiles / 240 km (Venice-Milan)** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 19k | 0.8 (25k) | 0.7 (51k) | - | 1.0 (44k) (4) | 8k |
+| Planet 2-2-0 | 25k | 0.5 (52k) | 0.5 (92k) | 0.8 (92k) | - | 12k |
+| Norris 4-2-0 | 36k | 0.5 (65k) | 0.3 (175k) | 0.6 (142k) | 0.8 (123k) (8) | 15k |
+| American 4-4-0 | 75k | 0.9 (84k) | 0.4 (253k) | 0.4 (270k) | 0.7 (215k) (10) | 25k |
+| Mogul 2-6-0 | 89k | 1.1 (78k) | 0.4 (237k) | 0.5 (268k) | 0.6 (280k) (9) | 28k |
+
+**1870, Normal, long line, 72 tiles / 360 km** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 19k | 0.6 (32k) | 0.6 (58k) | - | 1.0 (44k) (4) | 8k |
+| Planet 2-2-0 | 25k | 0.4 (59k) | 0.4 (100k) | 0.7 (93k) | - | 12k |
+| Norris 4-2-0 | 36k | 0.5 (72k) | 0.3 (182k) | 0.5 (168k) | 0.7 (140k) (8) | 15k |
+| American 4-4-0 | 75k | 0.9 (88k) | 0.3 (281k) | 0.4 (286k) | 0.6 (258k) (10) | 26k |
+| Mogul 2-6-0 | 89k | 1.2 (73k) | 0.4 (258k) | 0.5 (283k) | 0.6 (279k) (9) | 29k |
+
+**1870, Normal, coal, mine to mill, 48 tiles / 240 km** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 13k | 1.6 (8k) | 6.8 (3k) | - | never (0k) (4) | 4k |
+| Planet 2-2-0 | 19k | 0.8 (26k) | 0.7 (38k) | 1.6 (21k) | - | 5k |
+| Norris 4-2-0 | 30k | 1.0 (31k) | 0.5 (70k) | 0.8 (54k) | 1.3 (39k) (8) | 7k |
+| American 4-4-0 | 70k | 1.6 (43k) | 0.8 (93k) | 0.8 (102k) | 1.3 (73k) (10) | 14k |
+| Mogul 2-6-0 | 83k | 2.3 (36k) | 1.0 (90k) | 1.1 (87k) | 1.3 (84k) (9) | 15k |
+
+**1900, Normal, short line, 12 tiles / 60 km** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 29k | 1.0 (29k) | 1.3 (49k) | - | 1.9 (43k) (4) | 10k |
+| Planet 2-2-0 | 37k | 0.7 (54k) | 0.9 (76k) | 1.7 (69k) | - | 14k |
+| Norris 4-2-0 | 50k | 0.8 (63k) | 1.1 (74k) | 1.9 (69k) | 2.6 (65k) (8) | 15k |
+| American 4-4-0 | 99k | 1.4 (72k) | 1.9 (71k) | 2.7 (67k) | 4.3 (57k) (10) | 18k |
+| Mogul 2-6-0 | 116k | 1.7 (68k) | 2.1 (71k) | 3.1 (64k) | 4.2 (59k) (9) | 19k |
+| Consolidation 2-8-0 | 157k | 2.6 (60k) | 2.8 (69k) | 3.9 (61k) | 6.6 (52k) (12) | 21k |
+| Ten-Wheeler 4-6-0 | 141k | 2.0 (71k) | 2.5 (69k) | 3.5 (63k) | 4.4 (58k) (8) | 22k |
+| Atlantic 4-4-2 | 190k | 2.8 (67k) | 3.6 (63k) | 4.9 (56k) | - | 28k |
+
+**1900, Normal, medium line, 48 tiles / 240 km (Venice-Milan)** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 29k | 0.9 (34k) | 0.9 (68k) | - | 1.6 (50k) (4) | 10k |
+| Planet 2-2-0 | 37k | 0.5 (71k) | 0.6 (113k) | 1.3 (92k) | - | 14k |
+| Norris 4-2-0 | 50k | 0.6 (90k) | 0.4 (186k) | 0.9 (152k) | 1.3 (132k) (8) | 16k |
+| American 4-4-0 | 99k | 0.8 (118k) | 0.5 (273k) | 0.7 (250k) | 1.2 (213k) (10) | 23k |
+| Mogul 2-6-0 | 116k | 1.0 (111k) | 0.6 (257k) | 0.8 (250k) | 1.1 (228k) (9) | 23k |
+| Consolidation 2-8-0 | 157k | 1.7 (95k) | 0.8 (238k) | 1.1 (217k) | 1.8 (190k) (12) | 26k |
+| Ten-Wheeler 4-6-0 | 141k | 1.1 (132k) | 0.6 (302k) | 0.7 (301k) | 0.9 (299k) (8) | 29k |
+| Atlantic 4-4-2 | 190k | 1.2 (160k) | 0.7 (316k) | 0.9 (302k) | - | 41k |
+
+**1900, Normal, long line, 72 tiles / 360 km** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 29k | 0.7 (43k) | 1.7 (38k) | - | 1.4 (58k) (4) | 11k |
+| Planet 2-2-0 | 37k | 0.5 (81k) | 0.5 (128k) | 1.2 (100k) | - | 14k |
+| Norris 4-2-0 | 50k | 0.5 (99k) | 0.4 (194k) | 0.8 (166k) | 1.2 (139k) (8) | 16k |
+| American 4-4-0 | 99k | 0.8 (124k) | 0.4 (303k) | 0.7 (273k) | 1.1 (222k) (10) | 23k |
+| Mogul 2-6-0 | 116k | 1.1 (104k) | 0.5 (280k) | 0.8 (250k) | 1.0 (240k) (9) | 24k |
+| Consolidation 2-8-0 | 157k | 1.7 (91k) | 0.8 (253k) | 1.0 (247k) | 1.6 (212k) (12) | 27k |
+| Ten-Wheeler 4-6-0 | 141k | 1.0 (138k) | 0.5 (341k) | 0.6 (357k) | 0.8 (328k) (8) | 31k |
+| Atlantic 4-4-2 | 190k | 1.0 (187k) | 0.5 (447k) | 0.7 (412k) | - | 46k |
+
+**1900, Normal, coal, mine to mill, 48 tiles / 240 km** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 17k | 2.4 (7k) | 12.9 (2k) | - | never (-1k) (4) | 5k |
+| Planet 2-2-0 | 24k | 1.0 (23k) | 0.9 (35k) | 2.2 (19k) | - | 6k |
+| Norris 4-2-0 | 37k | 1.3 (29k) | 0.7 (66k) | 1.1 (50k) | 1.8 (35k) (8) | 8k |
+| American 4-4-0 | 86k | 2.1 (41k) | 1.1 (89k) | 1.1 (96k) | 1.7 (69k) (10) | 13k |
+| Mogul 2-6-0 | 103k | 3.0 (35k) | 1.3 (86k) | 1.5 (83k) | 1.7 (80k) (9) | 14k |
+| Consolidation 2-8-0 | 144k | 4.6 (31k) | 2.0 (75k) | 2.4 (69k) | 3.0 (63k) (12) | 16k |
+| Ten-Wheeler 4-6-0 | 128k | 3.0 (42k) | 1.1 (126k) | 1.2 (122k) | 1.4 (107k) (8) | 19k |
+| Atlantic 4-4-2 | 178k | 3.3 (54k) | 1.3 (143k) | 1.3 (150k) | - | 31k |
+
+**1930, Normal, short line, 12 tiles / 60 km** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 42k | 1.3 (32k) | 4.4 (22k) | - | 8.2 (15k) (4) | 16k |
+| Planet 2-2-0 | 51k | 1.4 (36k) | 3.4 (31k) | 8.6 (21k) | - | 22k |
+| Norris 4-2-0 | 66k | 1.9 (35k) | 4.0 (30k) | 9.9 (20k) | 17.7 (14k) (8) | 23k |
+| American 4-4-0 | 125k | 4.1 (31k) | 6.9 (26k) | 16.6 (16k) | 121.3 (3k) (10) | 28k |
+| Mogul 2-6-0 | 145k | 4.9 (30k) | 8.4 (24k) | 19.1 (14k) | 87.3 (4k) (9) | 30k |
+| Consolidation 2-8-0 | 195k | 7.7 (25k) | 11.7 (21k) | 29.6 (11k) | never (-9k) (12) | 33k |
+| Ten-Wheeler 4-6-0 | 175k | 6.7 (26k) | 10.9 (21k) | 30.1 (10k) | 166.1 (2k) (8) | 34k |
+| Atlantic 4-4-2 | 234k | 13.2 (18k) | 25.5 (11k) | 942.0 (0k) | - | 44k |
+| Pacific 4-6-2 | 323k | 82.4 (4k) | never (-1k) | never (-13k) | never (-24k) (9) | 57k |
+| Mikado 2-8-2 | 383k | 52.9 (7k) | 224.0 (2k) | never (-8k) | never (-30k) (14) | 52k |
+| Hudson 4-6-4 | 521k | never (-27k) | never (-32k) | never (-42k) | never (-55k) (10) | 86k |
+| Early Electric | 294k | 12.7 (23k) | 20.9 (17k) | 73.7 (6k) | never (-5k) (9) | 39k |
+| E-Unit Electric | 650k | never (-26k) | never (-32k) | never (-42k) | never (-46k) (12) | 86k |
+
+**1930, Normal, medium line, 48 tiles / 240 km (Venice-Milan)** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 42k | 1.1 (38k) | 3.7 (26k) | - | 7.7 (16k) (4) | 16k |
+| Planet 2-2-0 | 51k | 0.6 (86k) | 1.6 (67k) | 4.6 (39k) | - | 23k |
+| Norris 4-2-0 | 66k | 0.6 (108k) | 1.0 (117k) | 2.6 (76k) | 4.4 (57k) (8) | 25k |
+| American 4-4-0 | 125k | 0.9 (143k) | 1.2 (146k) | 2.0 (127k) | 3.7 (98k) (10) | 34k |
+| Mogul 2-6-0 | 145k | 1.1 (133k) | 1.6 (127k) | 2.4 (115k) | 3.7 (96k) (9) | 35k |
+| Consolidation 2-8-0 | 195k | 1.7 (113k) | 2.2 (114k) | 3.5 (94k) | 7.4 (66k) (12) | 40k |
+| Ten-Wheeler 4-6-0 | 175k | 1.1 (153k) | 1.5 (156k) | 2.1 (148k) | 2.5 (141k) (8) | 44k |
+| Atlantic 4-4-2 | 234k | 1.6 (148k) | 2.0 (143k) | 3.0 (120k) | - | 64k |
+| Pacific 4-6-2 | 323k | 2.6 (123k) | 3.4 (112k) | 4.4 (103k) | 6.1 (87k) (9) | 91k |
+| Mikado 2-8-2 | 383k | 3.1 (125k) | 3.4 (127k) | 4.3 (119k) | 11.8 (62k) (14) | 73k |
+| Hudson 4-6-4 | 521k | 7.8 (67k) | 10.2 (56k) | 16.3 (40k) | 50.3 (15k) (10) | 153k |
+| Early Electric | 294k | 1.7 (168k) | 2.2 (158k) | 3.1 (136k) | 4.1 (125k) (9) | 56k |
+| E-Unit Electric | 650k | 7.1 (92k) | 9.0 (78k) | 14.1 (55k) | 43.9 (21k) (12) | 164k |
+
+**1930, Normal, long line, 72 tiles / 360 km** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 42k | 0.8 (51k) | 2.5 (38k) | - | 5.6 (21k) (4) | 17k |
+| Planet 2-2-0 | 51k | 0.5 (95k) | 1.6 (67k) | 4.4 (42k) | - | 23k |
+| Norris 4-2-0 | 66k | 0.6 (117k) | 1.0 (117k) | 2.4 (81k) | 5.1 (49k) (8) | 25k |
+| American 4-4-0 | 125k | 0.8 (150k) | 1.2 (149k) | 1.8 (139k) | 3.2 (112k) (10) | 35k |
+| Mogul 2-6-0 | 145k | 1.2 (123k) | 1.5 (134k) | 2.2 (125k) | 3.6 (100k) (9) | 36k |
+| Consolidation 2-8-0 | 195k | 1.8 (106k) | 2.1 (117k) | 3.0 (107k) | 7.6 (64k) (12) | 40k |
+| Ten-Wheeler 4-6-0 | 175k | 1.1 (165k) | 1.3 (181k) | 2.0 (156k) | 2.5 (144k) (8) | 46k |
+| Atlantic 4-4-2 | 234k | 1.1 (219k) | 1.3 (215k) | 1.9 (194k) | - | 70k |
+| Pacific 4-6-2 | 323k | 1.6 (202k) | 1.8 (207k) | 2.6 (176k) | 3.3 (164k) (9) | 100k |
+| Mikado 2-8-2 | 383k | 2.9 (134k) | 2.9 (150k) | 4.1 (125k) | 8.8 (82k) (14) | 77k |
+| Hudson 4-6-4 | 521k | 3.6 (145k) | 4.1 (140k) | 5.5 (119k) | 8.6 (88k) (10) | 172k |
+| Early Electric | 294k | 1.1 (274k) | 1.3 (257k) | 1.8 (234k) | 2.4 (213k) (9) | 61k |
+| E-Unit Electric | 650k | 3.3 (198k) | 3.8 (183k) | 4.8 (163k) | 8.3 (113k) (12) | 185k |
+
+**1930, Normal, coal, mine to mill, 48 tiles / 240 km** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 20k | 3.2 (6k) | never (0k) | - | never (-5k) (4) | 8k |
+| Planet 2-2-0 | 29k | 1.2 (24k) | 1.3 (29k) | 3.8 (13k) | - | 9k |
+| Norris 4-2-0 | 44k | 1.5 (29k) | 0.9 (60k) | 1.6 (42k) | 2.9 (26k) (8) | 11k |
+| American 4-4-0 | 103k | 2.6 (40k) | 1.3 (87k) | 1.3 (93k) | 2.0 (71k) (10) | 19k |
+| Mogul 2-6-0 | 123k | 3.7 (33k) | 1.6 (80k) | 1.9 (76k) | 2.3 (70k) (9) | 21k |
+| Consolidation 2-8-0 | 173k | 6.2 (28k) | 2.8 (64k) | 3.3 (58k) | 4.6 (48k) (12) | 25k |
+| Ten-Wheeler 4-6-0 | 153k | 3.9 (39k) | 1.3 (123k) | 1.5 (118k) | 1.8 (101k) (8) | 30k |
+| Atlantic 4-4-2 | 212k | 4.6 (46k) | 1.7 (126k) | 1.8 (131k) | - | 50k |
+| Pacific 4-6-2 | 301k | 11.7 (26k) | 2.6 (118k) | 3.0 (110k) | 3.9 (86k) (9) | 78k |
+| Mikado 2-8-2 | 361k | 34.9 (10k) | 3.9 (95k) | 4.3 (89k) | 9.2 (46k) (14) | 59k |
+| Hudson 4-6-4 | 499k | never (-24k) | 7.8 (65k) | 11.0 (47k) | 15.2 (35k) (10) | 143k |
+| Early Electric | 272k | 3.0 (90k) | 1.7 (166k) | 2.0 (150k) | 2.0 (150k) (9) | 43k |
+| E-Unit Electric | 628k | 28.6 (22k) | 10.8 (59k) | 12.2 (53k) | 17.6 (38k) (12) | 155k |
+
+**1950, Normal, short line, 12 tiles / 60 km** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 46k | 1.5 (31k) | 5.5 (19k) | - | 12.5 (11k) (4) | 17k |
+| Planet 2-2-0 | 56k | 1.8 (31k) | 4.5 (25k) | 13.0 (16k) | - | 23k |
+| Norris 4-2-0 | 73k | 2.5 (30k) | 5.4 (25k) | 14.6 (15k) | 40.4 (7k) (8) | 24k |
+| American 4-4-0 | 139k | 5.2 (27k) | 9.1 (22k) | 25.2 (11k) | never (-2k) (10) | 27k |
+| Mogul 2-6-0 | 161k | 6.2 (26k) | 10.8 (20k) | 28.6 (11k) | 1179.9 (0k) (9) | 28k |
+| Consolidation 2-8-0 | 216k | 9.6 (22k) | 15.1 (18k) | 46.4 (8k) | never (-12k) (12) | 31k |
+| Ten-Wheeler 4-6-0 | 194k | 8.2 (24k) | 13.5 (19k) | 42.7 (8k) | never (0k) (8) | 31k |
+| Atlantic 4-4-2 | 260k | 14.0 (19k) | 24.9 (13k) | 175.9 (2k) | - | 36k |
+| Pacific 4-6-2 | 359k | 60.5 (6k) | 445.9 (1k) | never (-10k) | never (-21k) (9) | 49k |
+| Mikado 2-8-2 | 425k | 46.1 (9k) | 112.0 (4k) | never (-6k) | never (-28k) (14) | 45k |
+| Hudson 4-6-4 | 578k | never (-18k) | never (-22k) | never (-32k) | never (-45k) (10) | 71k |
+| Articulated 4-8-8-4 | 1215k | never (-50k) | never (-53k) | never (-62k) | never (-90k) (22) | 100k |
+| Early Electric | 326k | 17.6 (18k) | 31.2 (12k) | 448.4 (1k) | never (-10k) (9) | 38k |
+| Streamliner Diesel | 600k | never (0k) | never (-7k) | never (-19k) | never (-28k) (8) | 58k |
+| E-Unit Electric | 721k | never (-32k) | never (-38k) | never (-48k) | never (-53k) (12) | 87k |
+| Cab Unit Diesel | 490k | 44.6 (11k) | 126.9 (4k) | never (-7k) | never (-28k) (14) | 46k |
+| Road Switcher Diesel | 534k | 44.7 (12k) | 97.3 (6k) | never (-5k) | never (-34k) (16) | 44k |
+
+**1950, Normal, medium line, 48 tiles / 240 km (Venice-Milan)** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 46k | 1.1 (42k) | 3.6 (29k) | - | 5.5 (24k) (4) | 17k |
+| Planet 2-2-0 | 56k | 0.6 (92k) | 1.6 (70k) | 5.7 (35k) | - | 23k |
+| Norris 4-2-0 | 73k | 0.6 (115k) | 1.1 (118k) | 2.6 (84k) | 4.7 (60k) (8) | 25k |
+| American 4-4-0 | 139k | 0.9 (153k) | 1.4 (139k) | 2.2 (128k) | 4.1 (98k) (10) | 31k |
+| Mogul 2-6-0 | 161k | 1.1 (144k) | 1.7 (130k) | 2.6 (119k) | 4.0 (99k) (9) | 31k |
+| Consolidation 2-8-0 | 216k | 1.8 (123k) | 2.3 (118k) | 3.7 (98k) | 7.7 (70k) (12) | 35k |
+| Ten-Wheeler 4-6-0 | 194k | 1.2 (162k) | 1.6 (158k) | 2.3 (151k) | 2.9 (136k) (8) | 37k |
+| Atlantic 4-4-2 | 260k | 1.7 (156k) | 2.1 (152k) | 3.1 (131k) | - | 48k |
+| Pacific 4-6-2 | 359k | 2.7 (131k) | 3.4 (122k) | 4.4 (114k) | 5.8 (102k) (9) | 73k |
+| Mikado 2-8-2 | 425k | 3.0 (140k) | 3.5 (137k) | 4.4 (129k) | 9.6 (84k) (14) | 58k |
+| Hudson 4-6-4 | 578k | 6.6 (88k) | 8.1 (79k) | 10.9 (66k) | 18.9 (45k) (10) | 120k |
+| Articulated 4-8-8-4 | 1215k | 26.2 (46k) | 29.3 (44k) | 56.3 (24k) | never (-23k) (22) | 154k |
+| Early Electric | 326k | 2.0 (159k) | 2.5 (151k) | 3.5 (133k) | 4.6 (121k) (9) | 52k |
+| Streamliner Diesel | 600k | 4.4 (135k) | 5.5 (119k) | 7.5 (99k) | 9.4 (86k) (8) | 96k |
+| E-Unit Electric | 721k | 9.9 (73k) | 13.2 (59k) | 23.7 (37k) | 75.4 (14k) (12) | 164k |
+| Cab Unit Diesel | 490k | 3.4 (144k) | 4.1 (134k) | 5.2 (122k) | 9.8 (89k) (14) | 67k |
+| Road Switcher Diesel | 534k | 3.7 (146k) | 4.3 (138k) | 5.6 (121k) | 11.7 (83k) (16) | 61k |
+
+**1950, Normal, long line, 72 tiles / 360 km** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 46k | 1.1 (41k) | 4.3 (24k) | - | 6.9 (20k) (4) | 17k |
+| Planet 2-2-0 | 56k | 0.5 (103k) | 1.6 (74k) | 4.0 (51k) | - | 23k |
+| Norris 4-2-0 | 73k | 0.6 (127k) | 1.1 (121k) | 2.5 (87k) | 4.2 (67k) (8) | 25k |
+| American 4-4-0 | 139k | 0.9 (160k) | 1.3 (153k) | 2.0 (142k) | 3.9 (104k) (10) | 31k |
+| Mogul 2-6-0 | 161k | 1.2 (134k) | 1.6 (141k) | 2.4 (129k) | 3.7 (106k) (9) | 32k |
+| Consolidation 2-8-0 | 216k | 1.8 (117k) | 2.2 (124k) | 3.2 (113k) | 6.7 (80k) (12) | 36k |
+| Ten-Wheeler 4-6-0 | 194k | 1.1 (178k) | 1.4 (185k) | 2.1 (160k) | 2.4 (164k) (8) | 38k |
+| Atlantic 4-4-2 | 260k | 1.1 (242k) | 1.4 (222k) | 1.9 (210k) | - | 51k |
+| Pacific 4-6-2 | 359k | 1.6 (219k) | 2.1 (203k) | 2.6 (195k) | 3.4 (176k) (9) | 79k |
+| Mikado 2-8-2 | 425k | 2.7 (155k) | 3.0 (162k) | 4.2 (137k) | 8.2 (99k) (14) | 61k |
+| Hudson 4-6-4 | 578k | 3.5 (167k) | 4.2 (153k) | 5.0 (145k) | 6.8 (124k) (10) | 133k |
+| Articulated 4-8-8-4 | 1215k | 12.4 (98k) | 13.8 (93k) | 16.7 (81k) | never (-9k) (22) | 166k |
+| Early Electric | 326k | 1.3 (253k) | 1.6 (238k) | 2.2 (217k) | 2.8 (198k) (9) | 56k |
+| Streamliner Diesel | 600k | 2.5 (238k) | 3.0 (222k) | 3.7 (200k) | 4.4 (181k) (8) | 106k |
+| E-Unit Electric | 721k | 4.3 (169k) | 5.0 (155k) | 6.4 (135k) | 11.7 (89k) (12) | 185k |
+| Cab Unit Diesel | 490k | 2.0 (246k) | 2.4 (230k) | 2.9 (218k) | 5.1 (172k) (14) | 72k |
+| Road Switcher Diesel | 534k | 2.3 (229k) | 2.6 (225k) | 3.3 (207k) | 5.9 (166k) (16) | 65k |
+
+**1950, Normal, coal, mine to mill, 48 tiles / 240 km** (payback years; profit k$/yr in brackets; costs = upkeep, fuel, repairs, wages, track wear)
+
+| engine | 1-car train price | 1 car | 3 cars | 6 cars | max consist (cars) | costs/yr at 6 (or max) |
+|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | 22k | 3.6 (6k) | 235.0 (0k) | - | never (-5k) (4) | 9k |
+| Planet 2-2-0 | 32k | 1.3 (25k) | 1.1 (38k) | 3.0 (19k) | - | 10k |
+| Norris 4-2-0 | 49k | 1.6 (31k) | 0.8 (73k) | 1.3 (54k) | 2.3 (36k) (8) | 12k |
+| American 4-4-0 | 115k | 2.5 (45k) | 1.2 (100k) | 1.3 (108k) | 2.1 (75k) (10) | 18k |
+| Mogul 2-6-0 | 137k | 3.6 (38k) | 1.5 (97k) | 1.7 (93k) | 2.0 (88k) (9) | 18k |
+| Consolidation 2-8-0 | 192k | 5.7 (34k) | 2.4 (84k) | 2.8 (76k) | 3.7 (67k) (12) | 22k |
+| Ten-Wheeler 4-6-0 | 170k | 3.6 (47k) | 1.2 (144k) | 1.4 (139k) | 1.7 (120k) (8) | 24k |
+| Atlantic 4-4-2 | 235k | 3.8 (62k) | 1.5 (164k) | 1.5 (172k) | - | 36k |
+| Pacific 4-6-2 | 334k | 7.6 (44k) | 2.0 (169k) | 2.2 (163k) | 2.9 (130k) (9) | 62k |
+| Mikado 2-8-2 | 400k | 16.1 (25k) | 3.4 (122k) | 3.6 (117k) | 6.4 (73k) (14) | 46k |
+| Hudson 4-6-4 | 554k | 62.3 (9k) | 3.8 (150k) | 4.5 (129k) | 5.3 (113k) (10) | 111k |
+| Articulated 4-8-8-4 | 1191k | never (-54k) | 21.2 (57k) | 23.8 (51k) | never (-3k) (22) | 142k |
+| Early Electric | 301k | 3.0 (99k) | 1.4 (226k) | 1.6 (210k) | 1.8 (189k) (9) | 41k |
+| Streamliner Diesel | 576k | 6.3 (91k) | 3.1 (192k) | 3.4 (177k) | 3.5 (174k) (8) | 87k |
+| E-Unit Electric | 697k | 21.9 (32k) | 6.3 (113k) | 6.6 (109k) | 8.1 (92k) (12) | 159k |
+| Cab Unit Diesel | 466k | 5.1 (92k) | 2.3 (206k) | 2.4 (203k) | 3.2 (165k) (14) | 57k |
+| Road Switcher Diesel | 510k | 5.7 (89k) | 2.5 (211k) | 2.7 (195k) | 4.2 (140k) (16) | 50k |
+
+**4. Balance, and why it stopped.** New `tools/bench/paybackEstimate.ts`: what a player can work out before buying (price over fares less running costs for one passenger train on a line of D tiles). Speed = top speed cut by `power / train weight` (the tractive-effort model) x `AVERAGE_SPEED_SHARE`; legs a year = min(own, those of the era's typical train `eraReferenceTilesPerDay`) because demand is sized for the typical train and a faster one carries nobody more; each leg earns the cars at 80 % full at the sim's own `computeRevenue`; costs are the real cost functions (servicing, fuel, repairs per tile, wages, cars' upkeep, wear). Checked against the fixture: for 1-3 cars within about 20 % of the measured profit (e.g. 1900, 240 km, 3 cars: American 273k measured, 293k estimated), for 6 cars it overestimates (the 20,000-person fixture towns do not fill 6 cars; the bot's consist is sized by `carsForDemand`). `goodPlayer.ts`: `chooseLoco()` picks the non-electric engine with the best estimated payback for the line (consist as before, `consist(l.id, carsForDemand)`), used wherever `bestLoco()` was (new line, added train, backlog rule); `OLDLOCO=1` keeps the fastest-engine rule. The backlog and reserve rules are untouched. `goodPlayer.ts` now also prints `ENGINES id:count`.
+
+*What the bot buys:* 1900 Normal seed 2: Atlantic x52, American x2 (the fastest engine still has the best payback on lines of this length; Planet/Norris win the 1-3 car cases of the bench but the bot's trains are 4-6 cars of demand-sized consists).
+
+Survival, 3 seeds, 16 years (`BOTS=.. STARTS=.. DIFFS=.. npx tsx tools/bench/survival.ts 3`, run in pieces), after this phase:
+| bot | start | difficulty | bankrupt | min cash $M (per seed) | final NW $M (per seed) |
+|---|---|---|---|---|---|
+| good | 1840 | normal | 0/3 | 0.14 / 0.15 / 0.15 | 22.08 / 23.12 / 22.43 |
+| good | 1840 | hard | 0/3 | 0.16 / 0.16 / 0.16 | 13.8 / 12.3 / 9.69 |
+| good | 1900 | normal | 0/3 | 0.15 / 0.15 / 0.15 | **42.56 / 34.26 / 38.48** |
+| good | 1900 | hard | 0/3 | 0.13 / 0.13 / 0.13 | 10.66 / 10.51 / 10.92 |
+| good | 1930 | normal | 0/3 | 0.26 / 0.26 / 0.26 | 8.86 / 8.72 / 8.36 |
+| good | 1930 | hard | 0/3 | 0.16 / 0.16 / 0.16 | 6.18 / 4.94 / 5.47 |
+| good | 1950 | normal | 0/3 | 0.43 / 0.49 / 0.21 | 7.48 / 8.32 / 7.15 |
+| good | 1950 | hard | 0/3 | 0.2 / 0.2 / 0.07 | 4.13 / 3.72 / 3.19 |
+| overbuilder | 1840 | normal | 1/3 | 0.01 / 0.04 / -0.02 | 1.51 / 1.65 / 0.89 |
+| overbuilder | 1840 | hard | 3/3 | -0.42 / -0.42 / -0.42 | 0.08 / 0.08 / 0.08 |
+| overbuilder | 1900 | normal | 3/3 | -0.07 / -0.08 / -0.03 | 0.75 / 0.75 / 0.74 |
+| overbuilder | 1900 | hard | 3/3 | -0.31 / -0.31 / -0.31 | 0.02 / 0.02 / 0.02 |
+| overbuilder | 1930 | normal | 3/3 | -0.14 / -0.16 / -0.16 | 0.76 / 0.74 / 0.74 |
+| overbuilder | 1930 | hard | n/a | NaN (cannot afford a first line) | NaN |
+| overbuilder | 1950 | normal | 0/3 | 0.53 / 0.37 / 0.34 | 1.25 / 1.17 / 1.18 |
+| overbuilder | 1950 | hard | 3/3 | 0 / 0 / 0 | 0.4 / 0.37 / 0.4 |
+| trainSpammer | 1840 | normal | 3/3 | -0.04 / -0.02 / -0.02 | 0.66 / 0.65 / 0.8 |
+| trainSpammer | 1840 | hard | 3/3 | -0.04 / -0.05 / -0.03 | 0.5 / 0.49 / 0.52 |
+| trainSpammer | 1900 | normal | 3/3 | -0.13 / -0.1 / -0.15 | 1.91 / 1.86 / 1.96 |
+| trainSpammer | 1900 | hard | 3/3 | -0.04 / -0.09 / -0.07 | 2.11 / 2.08 / 2.1 |
+| trainSpammer | 1930 | normal | 2/3 | 0 / -0.07 / -0.09 | 1.8 / 1.45 / 1.44 |
+| trainSpammer | 1930 | hard | n/a | NaN | NaN |
+| trainSpammer | 1950 | normal | 3/3 | -0.05 / -0.05 / -0.11 | 2.2 / 2.21 / 2.22 |
+| trainSpammer | 1950 | hard | n/a | NaN | NaN |
+| leveraged | 1840 | normal | 1/3 | 0.07 / 0.05 / -0.04 | 2.32 / 2.14 / 1.73 |
+| leveraged | 1840 | hard | 3/3 | -0.01 / -0.02 / -0.03 | 1.23 / 1.22 / 1.23 |
+| leveraged | 1900 | normal | 2/3 | -0.04 / 0.11 / -0.09 | 1.68 / 2.24 / 1.67 |
+| leveraged | 1900 | hard | 3/3 | -0.04 / -0.09 / -0.07 | 2.11 / 2.08 / 2.1 |
+| leveraged | 1930 | normal | 2/3 | 0 / -0.07 / -0.09 | 1.8 / 1.45 / 1.44 |
+| leveraged | 1930 | hard | n/a | NaN | NaN |
+| leveraged | 1950 | normal | 3/3 | -0.05 / -0.05 / -0.11 | 2.2 / 2.21 / 2.22 |
+| leveraged | 1950 | hard | n/a | NaN | NaN |
+(NaN = the bot cannot afford a first line, as in earlier phases. trainSpammer and leveraged coincide where neither can borrow.)
+
+Bounds: **good survives everywhere (0/3 in all eight cells)** and Hard is at least 40 % below Normal in 1840 (47 %), 1900 (72 %), 1950 (52 %) but **not in 1930: 36 %** (Normal 8.65, Hard 5.53; before this phase 10.6 and 5.64, 47 %): the new upkeep takes 18 % off Normal and 2 % off Hard, because on Hard the bot builds the same lines with fewer trains and loco upkeep is a smaller share of its outlay (not tuned; reported). **Good 1900 Normal is 42.56 / 34.26 / 38.48, above the $20-34M band in all three seeds, so I stopped changing things as instructed.** Bad bots: against Phase 55 (1840/1900): overbuilder 1840 Normal 0/3 -> 1/3, 1900 Normal 2/3 -> 3/3; trainSpammer 1900 Hard 2/3 -> 3/3; leveraged 1840 Normal 3/3 -> 1/3, 1840 Hard 2/3 -> 3/3, 1900 Normal 1/3 -> 2/3, 1900 Hard 2/3 -> 3/3. The bad-bot bounds missed in Phase 54 stay missed (owner: forget them).
+
+**Why 1900 Normal is above the band (the numbers and the cause).** (a) The pricing/upkeep change alone, with the old fastest-engine bot (`OLDLOCO=1`), moves 1900 Normal from 33.68 / 32.27 / 32.98 to 38.98 / 36.51 / 38.26. It does so although costs rose: last-year ledger seed 1: train maintenance 1,964k (was 1,092k), track wear 342k (207k), yet passengers 9,641k (8,402k) with 58 trains instead of 54. Costs cannot explain a higher result; the difference is in the bot's trajectory. (b) The bot is chaotic around this bound: single perturbations of the same run (`OLDLOCO=1`, NW at 1916 for seeds 1/2/3 in $M): repairs off 16.5 / 38.7 / 26.9; old 18/45/90 t wear weights 38.5 / 26.6 / 29.1; loco upkeep halved 24.7 / 16.5 / 29.8; and merely sizing the *budget* estimate in `tryConnect` with the demand-sized consist instead of 6 cars gave 17.0 (seed 1, 42 trains, 6.8M debt) where the unperturbed run gave 39.0. So the 3-seed cluster at 32-34 before this phase was one basin of a distribution that runs from about 16 to 43 under any small change of timing (the bot's expansion is gated by `ensureCash`, loans and a revenue-based reserve; a lean year early stalls it with 6M of debt and ~42 trains, a good one gives 58 trains and 38M+). (c) The payback bot adds +0 to +6M on top (42.56 / 34.26 / 38.48 against 38.98 / 36.51 / 38.26): it buys Atlantics nearly everywhere, as before, and a few Americans. I did not change the bot's expansion rules, revenue or the bound. The decision is the owner's: re-centre the 20-34 band for the new cost structure (the median of the six same-code runs is about 38) or give the bot a smoother expansion rule.
+
+**Test miss (report, not loosened).** `tests/sim/balanceLongHaul.test.ts` "1930 silver and 1950 uranium": `silver.lateReturn` is **0.611, bound > 0.7** (was 0.75 on this code before the phase; Phase 54 had lowered it from 0.8 with owner OK), and `silver.lateReturn * silver.invested` 2.28e6 against the 2.3e6 bound (was 2.44e6); the uranium assertions pass (1950: 1.28 return, $5.4M a year late). Real cause: the scenario buys "the year's fastest engine with 6+ cars" (`tools/bench/longHaulScenario.ts`), in 1930 the Hudson, which now costs $225k at 1830 prices instead of $150k and $25k a year to keep instead of $12k (invested 3.74M, was 3.24M; late-years profit 2.28M, was 2.44M). The same silver chain with a Pacific returns 0.62, an Atlantic 0.55, a Ten-Wheeler 0.34; 1900 and 1840 rows pass. I added an optional `locoId` to the scenario for experiments and left its engine rule alone. Not skipped, not loosened: this test is red until the owner decides whether the chain should run on the fastest engine or on a cheaper one, or re-baselines the bound for the dearer Hudson.
+
+`tests/sim/trains/eras.test.ts` (Replace Locomotive trade-in) hard-coded the old Norris/American prices ($34k / $45k); it now reads them from the roster (same assertions).
+
+**5. SPEC, e2e, screenshot.** SPEC 7.7 table has weight and the derived cost/upkeep with the two per-tonne rates; 9.5b item 2 (wear tonnes), new item 7 (price and upkeep from size, the repair bill), changelog line. e2e `phase56.spec.ts`: in 1945 the Buy Train list shows a Hudson at 4.5-5.5x an American, an Articulated at more than 9x, a Grasshopper under a quarter, and the Hudson's spec sheet shows more than 4x an American's yearly running cost. Screenshot `docs/screenshots/phase-56-buy-train.png` (opened and checked: the list runs $225k Atlantic ... $1.2M Articulated, Hudson selected with $25k/yr; the spec sheet's yearly figure is the 1830-price upkeep as before this phase).
+
+**Decisions and deviations (no questions asked).** (1) Price and upkeep are derived from the weight at load time, the old per-engine numbers are gone from the data. (2) Fuel keeps its formula; since its budget is proportional to `maintenancePerYear` it now follows weight too. (3) Repair bill uses the running-cost share's early-to-mature blend (existing function, no new table). (4) The bench judges the train's own books (not the line's), small towns of 20,000 as the default fixture; the big-city set is a second pass. (5) The good bot chooses by an estimator, not by simulating, because simulating every engine per line is minutes per game; the estimator is checked against the fixture above. (6) `trainCost` in `tryConnect` keeps the 6-car default (changing it moved a run from 39M to 17M). (7) Heavy freight, most-engines-win and the long-line-fastest targets are missed for the stated mechanism; no fudge added. (8) Modern electrics got cheaper (owner call above). (9) `longHaulScenario.locoId` is bench plumbing only.

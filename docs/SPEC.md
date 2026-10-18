@@ -403,37 +403,42 @@ when the stretch of track to its next station is safe to run through end to end.
 
 ### 7.7 Locomotive roster
 
-Names are generic (wheel arrangements / descriptive), not trademarks. `weight`: L/M/H.
-Costs and maintenance in $ at introduction year (era inflation applies to later purchases; see §9.5).
+Names are generic (wheel arrangements / descriptive), not trademarks. `Weight` is the working weight, engine and
+tender (or fuel and equipment), in tonnes, of the real type each model stands for (Phase 56); `Cls` (L/M/H) is the axle
+class (how that weight sits on the rail, §9.5b). **Cost and Maint./yr are derived from the weight** (Phase 56):
+cost = weight × price per tonne by type (steam $900/t, electric $1,350/t, diesel $1,800/t at 1830 prices: builders
+sold steam by weight, electrical equipment cost about 1.5x and a diesel about 2x as much per tonne), maintenance =
+weight × upkeep per tonne (steam $100, diesel $75, electric $50 a year: steam needed about twice the shed labour of a
+diesel). Both in $ at 1830 prices; era inflation applies at purchase (see §9.5).
 
-| Model | Type | Intro | Max km/h | Power | Max cars | Weight | Reliab. | Cost | Maint./yr |
-|---|---|---|---|---|---|---|---|---|---|
-| Grasshopper 0-4-0 | Steam | 1830 | 25 | 2 | 3 | L | 2 | $20k | $2k |
-| Planet 2-2-0 | Steam | 1832 | 35 | 3 | 4 | L | 2 | $28k | $2.5k |
-| Norris 4-2-0 | Steam | 1838 | 45 | 4 | 5 | L | 3 | $34k | $3k |
-| American 4-4-0 | Steam | 1848 | 60 | 6 | 6 | M | 3 | $45k | $4k |
-| Mogul 2-6-0 | Steam | 1862 | 55 | 9 | 9 | M | 3 | $55k | $5k |
-| Consolidation 2-8-0 | Steam | 1872 | 50 | 12 | 12 | H | 3 | $70k | $6k |
-| Ten-Wheeler 4-6-0 | Steam | 1880 | 75 | 9 | 8 | M | 4 | $70k | $6k |
-| Atlantic 4-4-2 | Steam | 1895 | 100 | 8 | 6 | M | 4 | $85k | $7k |
-| Pacific 4-6-2 | Steam | 1905 | 115 | 11 | 9 | H | 4 | $110k | $9k |
-| Mikado 2-8-2 | Steam | 1912 | 75 | 16 | 14 | H | 4 | $120k | $10k |
-| Hudson 4-6-4 | Steam | 1927 | 135 | 14 | 10 | H | 4 | $150k | $12k |
-| Articulated 4-8-8-4 | Steam | 1941 | 95 | 26 | 22 | H | 3 | $250k | $22k |
-| Early Electric | Electric | 1905 | 90 | 12 | 9 | M | 3 | $120k | $6k |
-| Streamliner Diesel | Diesel | 1934 | 145 | 12 | 8 | M | 3 | $180k | $12k |
-| E-Unit Electric | Electric | 1928 | 160 | 18 | 12 | H | 4 | $200k | $10k |
-| Cab Unit Diesel | Diesel | 1939 | 120 | 16 | 14 | M | 4 | $170k | $11k |
-| Road Switcher Diesel | Diesel | 1949 | 105 | 19 | 16 | M | 5 | $160k | $9k |
-| Modern Electric | Electric | 1960 | 180 | 24 | 16 | H | 5 | $300k | $12k |
-| High-Horsepower Diesel | Diesel | 1963 | 125 | 26 | 20 | H | 5 | $280k | $15k |
-| Heavy Diesel | Diesel | 1976 | 130 | 32 | 24 | H | 5 | $350k | $17k |
-| High-Speed Trainset | Electric | 1981 | 270 | 16 | 10 | M | 5 | $600k | $25k |
-| Heavy Freight Electric | Electric | 1994 | 140 | 40 | 28 | H | 5 | $500k | $20k |
+| Model | Type | Intro | Max km/h | Power | Max cars | Weight | Cls | Reliab. | Cost | Maint./yr |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Grasshopper 0-4-0 | Steam | 1830 | 25 | 2 | 4 | 8 t | L | 2 | $7k | $800 |
+| Planet 2-2-0 | Steam | 1832 | 35 | 3 | 6 | 12 t | L | 2 | $11k | $1.2k |
+| Norris 4-2-0 | Steam | 1838 | 45 | 4 | 8 | 20 t | L | 3 | $18k | $2k |
+| American 4-4-0 | Steam | 1848 | 60 | 6 | 10 | 50 t | M | 3 | $45k | $5k |
+| Mogul 2-6-0 | Steam | 1862 | 55 | 9 | 9 | 60 t | M | 3 | $54k | $6k |
+| Consolidation 2-8-0 | Steam | 1872 | 50 | 12 | 12 | 85 t | H | 3 | $76.5k | $8.5k |
+| Ten-Wheeler 4-6-0 | Steam | 1880 | 75 | 9 | 8 | 75 t | M | 4 | $67.5k | $7.5k |
+| Atlantic 4-4-2 | Steam | 1895 | 100 | 8 | 6 | 105 t | M | 4 | $94.5k | $10.5k |
+| Pacific 4-6-2 | Steam | 1905 | 115 | 11 | 9 | 150 t | H | 4 | $135k | $15k |
+| Mikado 2-8-2 | Steam | 1912 | 75 | 16 | 14 | 180 t | H | 4 | $162k | $18k |
+| Hudson 4-6-4 | Steam | 1927 | 135 | 14 | 10 | 250 t | H | 4 | $225k | $25k |
+| Articulated 4-8-8-4 | Steam | 1941 | 95 | 26 | 22 | 540 t | H | 3 | $486k | $54k |
+| Early Electric | Electric | 1905 | 110 | 12 | 9 | 90 t | M | 3 | $121.5k | $4.5k |
+| Streamliner Diesel | Diesel | 1934 | 145 | 12 | 8 | 130 t | M | 3 | $234k | $9.8k |
+| E-Unit Electric | Electric | 1928 | 160 | 18 | 12 | 210 t | H | 4 | $283.5k | $10.5k |
+| Cab Unit Diesel | Diesel | 1939 | 120 | 16 | 14 | 105 t | M | 4 | $189k | $7.9k |
+| Road Switcher Diesel | Diesel | 1949 | 105 | 19 | 16 | 115 t | M | 5 | $207k | $8.7k |
+| Modern Electric | Electric | 1960 | 180 | 24 | 16 | 90 t | H | 5 | $121.5k | $4.5k |
+| High-Horsepower Diesel | Diesel | 1963 | 125 | 26 | 20 | 180 t | H | 5 | $324k | $13.5k |
+| Heavy Diesel | Diesel | 1976 | 130 | 32 | 24 | 195 t | H | 5 | $351k | $14.7k |
+| High-Speed Trainset | Electric | 1981 | 270 | 16 | 10 | 136 t | M | 5 | $183.5k | $6.8k |
+| Heavy Freight Electric | Electric | 1994 | 140 | 40 | 28 | 120 t | H | 5 | $162k | $6k |
 
 - High-Speed Trainset: passenger & mail cars only.
-- Electric: requires every edge of its route to be electrified; ~40% cheaper maintenance than diesel
-  of the same era (already reflected), no water towers needed.
+- Electric: requires every edge of its route to be electrified; a third cheaper to maintain per tonne than a diesel
+  (already reflected), no water towers needed.
 - Diesel: no water towers needed, higher reliability.
 - When a new model becomes available: news message + card in the yearly report, "New!" badge in the buy dialog.
 - Locomotives are drawn procedurally: steam = dark body + boiler + chimney (animated smoke puffs),
@@ -644,7 +649,7 @@ shown to the player where it costs money (Finance cost lines with tooltips, trai
    (prices) + staff (wages), Depot 1 / Station 2 / Terminal 6 staff. Track: 70 % of the per-tile upkeep is gangers'
    wages.
 2. **Track wear from use.** Per tile run: `(loco tonnes × axle factor + car tonnes × 0.8) / 100 × (1 + (v/100 km/h)²)`
-   (loco 18/45/90 t and axle factor 0.7/1/1.6 for light/medium/heavy; a car weighs 12 t + 18 t when full). Each train
+   (loco tonnes are the model's own working weight, §7.7, and the axle factor is 0.7/1/1.6 for light/medium/heavy; a car weighs 12 t + 18 t when full). Each train
    accumulates wear units; the monthly step charges `units × $1 × (½ wages + ½ prices)` as **Track wear** and books it on the
    train. Plus the fixed upkeep per tile (double track costs 16/10 of single, catenary +5 per tile).
 3. **Locomotive complexity.** Parts for a repair = 4 % of the engine's price (so a Mikado costs several times a Norris
@@ -672,7 +677,18 @@ shown to the player where it costs money (Finance cost lines with tooltips, trai
    40 % in 1930, 60 % in 1950, 70 % from 1970) for towns up to 15,000 people, fading linearly to nothing at 40,000,
    at every trip length (`smallTownRoadLoss`, applied in `cityTravelDemand` / `cityTileSupply`). The station panel
    shows one line, "Road competition: −N % since 1920". Nothing changes before 1920.
-7. **Freight rates by value and distance** stay as in §8.1; the freight real-rate curve in (1) is what makes 1830s–40s
+7. **Locomotive price and upkeep from real size (Phase 56).** Each model has a real working weight (§7.7). Price = weight ×
+   price per tonne by type (steam $900, electric $1,350, diesel $1,800 at 1830 prices). Yearly upkeep (depot,
+   inspection, overhaul) = weight × upkeep per tonne by type (steam $100, diesel $75, electric $50) × the year's running-cost
+   share; fuel keeps its Phase 39 form (a yearly fuel budget proportional to that upkeep, spread over tiles and the
+   train's weight). **New: a repair bill per tile run**, `weight × $0.04` (steam; diesel $0.03, electric $0.02) at 1830
+   prices, grown with the same early-to-mature share, age and obsolescence factors as the servicing (US railroads booked
+   steam repairs per locomotive-mile, and the bill rose with engine size). Booked monthly in the train's running costs
+   (`Train.repairUnits`, tonne-tiles; absent in older saves). Effect: a Hudson (250 t) costs five Americans (50 t) to buy
+   and about five to keep, a Grasshopper (8 t) a sixth; on a short line a small slow engine pays back first, on a long
+   busy one a mid-weight fast one; fast, heavy engines only pay when the line can fill them (`tools/bench/engineCosts.ts`,
+   PROGRESS Phase 56).
+8. **Freight rates by value and distance** stay as in §8.1; the freight real-rate curve in (1) is what makes 1830s–40s
    bulk freight pay (it competes with the wagon and canal).
 
 Difficulty (§9.6) is now *tax, interest, build cost and breakdowns*, no longer a revenue multiplier.
@@ -1176,3 +1192,4 @@ localization (English only, but keep strings in one `strings.ts` file for later)
 - [Phase 45] New §11b Contracts. Old saves load with no contracts (the first offer comes after a year of play). Contract money is outside the ledger.
 - [Phase 47] §11b: contract rewards and penalties are now ledger lines (untaxed, outside the credit limit); connection subsidies stay negative construction. §10.1: at most 3 toasts on screen, the oldest goes first. §4.4: the New Game screen shows one line for the selected difficulty, built from `DIFFICULTY`. §10: a line whose trains average >= 80 % load (`Train.loadShare`, 30 days of running) with more waiting than one train carries shows "Full trains, N waiting - add a train" in its Lines row, and once per game as a hint card (+ news item `addTrain`). The game-over card shows months under a year.
 - [Phase 55] §7.5 overtaking at stations and passing loops (and loops on double track), the passing-loop entry of the Phase 30A list (the Station tool's Station / Passing loop choice), §10.1 the Main menu row and explanations that stay, §5.3 double track 1.75x (upgrade 0.75x, was 1.6 / 0.6; bridges unchanged).
+- [Phase 56] §7.7: every engine has a real working weight; price and upkeep are derived from it (steam $900/t, electric $1,350/t, diesel $1,800/t; upkeep $100/$50/$75 per tonne a year), so the roster's price range widens (Grasshopper $7k, Hudson $225k, Articulated $486k at 1830 prices). §9.5b: loco tonnes in the wear model and the fuel ratio are the model's own weight (the 18/45/90 t classes are gone), and a repair bill per tile run is new (item 7).

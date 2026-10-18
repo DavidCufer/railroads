@@ -10,7 +10,12 @@ import { mechanicalAgeYears } from "../trains/ageing";
 import { booksProfit, booksStartTick } from "../trains/profit";
 import type { Train, TrainBooks } from "../trains/types";
 import { fuelPriceMult } from "./panics";
-import { carsUpkeepPerYear, locoRunningCostPerYear, trainWagesPerYear } from "./costs";
+import {
+  carsUpkeepPerYear,
+  locoRunningCostPerYear,
+  repairCostPerUnit,
+  trainWagesPerYear,
+} from "./costs";
 
 export interface LineSummary {
   /** Sorted station ids joined with "-" (stable key). */
@@ -67,7 +72,9 @@ function accruedCosts(state: GameState, train: Train): number {
     fuelEraScale(year) *
     priceIndex(year) *
     fuelPriceMult(state, loco.type);
-  return (monthly * Math.max(0, owned)) / monthTicks + fuel;
+  const repairs =
+    (train.repairUnits ?? 0) * repairCostPerUnit(loco, mechanicalAgeYears(state, train), year);
+  return (monthly * Math.max(0, owned)) / monthTicks + fuel + repairs;
 }
 
 /** Lines sorted by profit rate, best first (lines too new for a rate last). Trains with fewer than two distinct

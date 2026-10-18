@@ -2350,4 +2350,4 @@ or flat multipliers. Never loosen a test bound or word limit.
    Balance tests (`balance*.test.ts`) that fail: report old/new values and the real reason; do not loosen them.
 5. SPEC (§7.7 roster table, §9 costs), PROGRESS with all tables, e2e (update, never weaken; the buy wizard shows the new
    prices/upkeep), screenshot `phase-56-buy-train.png` (the engine list with the new prices). LOOK at it.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [x] 3 (targets partly missed, see PROGRESS) [~] 4 (bot done; stopped: good 1900 Normal 34-43M is above the 20-34M band, 1930 Hard gap 36 %; one balanceLongHaul bound red, reported) [x] 5

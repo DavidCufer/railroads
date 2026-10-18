@@ -271,12 +271,7 @@ export const WORK_DAYS_PER_YEAR = 300;
 
 // --- 2. Track wear ---------------------------------------------------------------------------------
 
-/** Gross weight of the locomotive with its tender/fuel, tonnes, by weight class. */
-export const LOCO_TONS: Record<"light" | "medium" | "heavy", number> = {
-  light: 18,
-  medium: 45,
-  heavy: 90,
-};
+/** Locomotive weights are per model (`LocomotiveDef.weightTonnes`); the class below only sets how the weight sits on the axles. */
 /** Rail wear grows steeply with axle load (roughly the fourth power in engineering practice; tamed here):
  * a heavy engine concentrates its weight on few axles and hammers the rail, a light one barely marks it. */
 export const AXLE_LOAD_FACTOR: Record<"light" | "medium" | "heavy", number> = {

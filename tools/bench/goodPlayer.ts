@@ -36,6 +36,7 @@ import { ERA_START_CASH_MULT } from "../../src/data/finance";
 // ERAMULT=off: every era starts with the plain difficulty cash (the numbers before Phase 41).
 if (process.env["ERAMULT"] === "off") (ERA_START_CASH_MULT as unknown as unknown[][]).length = 0;
 import { fixWeightBridges } from "./fixBridges";
+import { estimatePayback } from "./paybackEstimate";
 import { PARTY_SIZE } from "../../src/data/economy";
 import { createGameState } from "../../src/sim/state";
 import { scenarioById, scenarioNewGameOptions } from "../../src/data/scenarios";
@@ -154,9 +155,27 @@ function bestLoco(): string {
   return (cands[0] ?? buyableLocomotivesIn(y)[0]!).id;
 }
 
+/** Phase 56: the engine with the best payback on this line (price over fares less running costs, see paybackEstimate.ts)
+ * instead of the fastest. OLDLOCO=1 keeps `bestLoco()`. */
+function chooseLoco(cities: readonly City[], distanceTiles: number): string {
+  if (process.env["OLDLOCO"]) return bestLoco();
+  const demandCars = carsForCities(cities);
+  const cands = buyableLocomotivesIn(year()).filter((l) => l.type !== "electric");
+  let best: { id: string; payback: number } | undefined;
+  for (const l of cands) {
+    const n = consist(l.id, demandCars).length;
+    const e = estimatePayback(state, l, n, distanceTiles);
+    if (!best || e.payback < best.payback) best = { id: l.id, payback: e.payback };
+  }
+  return best && Number.isFinite(best.payback) ? best.id : bestLoco();
+}
+
 /** Cars a pair of towns can fill: sized by the smaller town (a half-empty long train only adds weight, crew and upkeep); thresholds found by bench, see PROGRESS Phase 48B. */
 function carsForDemand(pair: Pair): number {
-  const pops = pair.cities.map((c) => c.population).sort((p, q) => q - p);
+  return carsForCities(pair.cities);
+}
+function carsForCities(cities: readonly City[]): number {
+  const pops = cities.map((c) => c.population).sort((p, q) => q - p);
   const pop = Math.min(pops[0] ?? 0, pops[1] ?? 0);
   return pop < 8_000 ? 4 : pop < 16_000 ? 5 : 6;
 }
@@ -205,7 +224,9 @@ function tryConnect(newCity: City, hub: City): "built" | "nocash" | "failed" {
       const stationBudget =
         commands.computeStationBuildPlan(state, ta, typeA).cost +
         commands.computeStationBuildPlan(state, tb, typeB).cost;
-      const loco = locomotiveById(bestLoco())!;
+      const loco = locomotiveById(
+        chooseLoco([newCity, hub], dist(cityCentre(newCity), cityCentre(hub))),
+      )!;
       const trainCost =
         commands.computeBuyTrainPlan(state, loco.id, consist(loco.id)).cost *
         (pairs.length === 0 ? 1 : 2);
@@ -270,7 +291,7 @@ function tryConnect(newCity: City, hub: City): "built" | "nocash" | "failed" {
 }
 
 function addTrain(pair: Pair): boolean {
-  const loco = bestLoco();
+  const loco = chooseLoco(pair.cities, dist(pair.stops[0]!.tile, pair.stops[1]!.tile));
   const cars = consist(loco, carsForDemand(pair));
   if (!ensureCash(commands.computeBuyTrainPlan(state, loco, cars).cost + 100_000)) return false;
   const r = commands.buyTrain(state, pair.stops[0]!.id, loco, cars);
@@ -403,7 +424,12 @@ function yearlyPlanning(): void {
       pair.trains.length < 4 &&
       state.cash > 1_500_000 + state.finance.loans &&
       (process.env["OLDTRAINS"] ||
-        backlog() > (40 / PARTY_SIZE) * consist(bestLoco(), carsForDemand(pair)).length)
+        backlog() >
+          (40 / PARTY_SIZE) *
+            consist(
+              chooseLoco(pair.cities, dist(pair.stops[0]!.tile, pair.stops[1]!.tile)),
+              carsForDemand(pair),
+            ).length)
     ) {
       if (!addTrain(pair)) break;
     }
@@ -561,6 +587,11 @@ console.log(`# ${region} ${startYear} ${difficulty} seed ${seed}`);
 console.log(report.join("\n"));
 if (process.env.V) console.log(state.trains.map((t) => `${t.locoModelId}:${t.status}`).join(" "));
 console.log(`MINCASH ${(minCash / 1e6).toFixed(2)}`);
+// Phase 56: which engines the bot ended up running
+const engineCounts = new Map<string, number>();
+for (const t of state.trains)
+  engineCounts.set(t.locoModelId, (engineCounts.get(t.locoModelId) ?? 0) + 1);
+console.log(`ENGINES ${[...engineCounts].map(([id, n]) => `${id}:${n}`).join(" ")}`);
 console.log(`MAXDEBT ${maxDebtRatio.toFixed(2)}`);
 const ly = state.finance.lastYear as unknown as Record<string, number>;
 console.log(

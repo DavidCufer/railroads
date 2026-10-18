@@ -21,7 +21,12 @@ export interface LocomotiveDef {
   weightClass: WeightClass;
   /** 1 (worst) – 5 (best). */
   reliability: number;
+  /** Working weight, engine and tender (or fuel and equipment), tonnes, of the real type this model stands for. Price,
+   * upkeep, fuel and track wear all follow it. */
+  weightTonnes: number;
+  /** Derived from `weightTonnes` (see `LOCO_PRICE_PER_TONNE`), at 1830 prices. */
   cost: number;
+  /** Derived from `weightTonnes` (see `LOCO_UPKEEP_PER_TONNE`), at 1830 prices. */
   maintenancePerYear: number;
   /** High-Speed Trainset (SPEC §7.7): passenger & mail cars only. */
   passengerMailOnly?: boolean;
@@ -29,8 +34,34 @@ export interface LocomotiveDef {
   doubleEnded?: boolean;
 }
 
+type LocoSpec = Omit<LocomotiveDef, "cost" | "maintenancePerYear">;
+
+/** Phase 56: price per tonne of working weight at 1830 prices. Builders sold steam locomotives by weight (a 4-4-0 of
+ * 50 t at $45k keeps the old mid-roster price); electrical equipment cost about 1.5x and a diesel engine about 2x as
+ * much per tonne (GG1 about $1070/t, EMD E7 about $1640/t, against $600-800/t for a late steam engine). */
+export const LOCO_PRICE_PER_TONNE: Record<LocomotiveType, number> = {
+  steam: 900,
+  electric: 1350,
+  diesel: 1800,
+};
+/** Phase 56: yearly depot, inspection and overhaul upkeep per tonne at 1830 prices (before the year's running-cost
+ * share). A steam engine needed about twice the shed labour of a diesel (boiler washout, valve gear) and electrics
+ * the least (no boiler or engine): the 30 % saving the old Early Electric note quoted, widened by weight. */
+export const LOCO_UPKEEP_PER_TONNE: Record<LocomotiveType, number> = {
+  steam: 100,
+  diesel: 75,
+  electric: 50,
+};
+/** Phase 56: repair bill per tonne for each tile run, at 1830 prices and mature costs (US railroads booked steam
+ * repairs per locomotive-mile, and the bill rose with engine size). Diesels and electrics ran more miles between shops. */
+export const LOCO_REPAIR_PER_TONNE_TILE: Record<LocomotiveType, number> = {
+  steam: 0.04,
+  diesel: 0.03,
+  electric: 0.02,
+};
+
 /** SPEC §7.7 roster. Names are generic wheel arrangements/descriptions, not trademarks. */
-export const LOCOMOTIVES: readonly LocomotiveDef[] = [
+const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
   {
     id: "grasshopper-0-4-0",
     name: "Grasshopper 0-4-0",
@@ -41,8 +72,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 4,
     weightClass: "light",
     reliability: 2,
-    cost: 20_000,
-    maintenancePerYear: 2_000,
+    /** B&O Grasshopper vertical-boiler 0-4-0, about 7 t, with its wood/water car. */
+    weightTonnes: 8,
   },
   {
     id: "planet-2-2-0",
@@ -54,8 +85,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 6,
     weightClass: "light",
     reliability: 2,
-    cost: 28_000,
-    maintenancePerYear: 2_500,
+    /** Stephenson Planet 2-2-0, about 10 t plus a small tender. */
+    weightTonnes: 12,
   },
   {
     id: "norris-4-2-0",
@@ -67,8 +98,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 8,
     weightClass: "light",
     reliability: 3,
-    cost: 34_000,
-    maintenancePerYear: 3_000,
+    /** Norris 4-2-0 (Philadelphia/Baldwin 1838 class), about 12 t plus a 6-8 t tender. */
+    weightTonnes: 20,
   },
   {
     id: "american-4-4-0",
@@ -80,8 +111,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 10,
     weightClass: "medium",
     reliability: 3,
-    cost: 45_000,
-    maintenancePerYear: 4_000,
+    /** 4-4-0 of the 1860s: about 28-30 t engine plus a 20 t tender. */
+    weightTonnes: 50,
   },
   {
     id: "mogul-2-6-0",
@@ -93,8 +124,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 9,
     weightClass: "medium",
     reliability: 3,
-    cost: 55_000,
-    maintenancePerYear: 5_000,
+    /** 2-6-0: about 36 t engine plus a 24 t tender. */
+    weightTonnes: 60,
   },
   {
     id: "consolidation-2-8-0",
@@ -106,8 +137,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 12,
     weightClass: "heavy",
     reliability: 3,
-    cost: 70_000,
-    maintenancePerYear: 6_000,
+    /** 2-8-0: about 55 t engine plus a 30 t tender. */
+    weightTonnes: 85,
   },
   {
     id: "ten-wheeler-4-6-0",
@@ -119,8 +150,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 8,
     weightClass: "medium",
     reliability: 4,
-    cost: 70_000,
-    maintenancePerYear: 6_000,
+    /** 4-6-0 of the 1880s: about 45-50 t engine plus a 28 t tender. */
+    weightTonnes: 75,
   },
   {
     id: "atlantic-4-4-2",
@@ -132,8 +163,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 6,
     weightClass: "medium",
     reliability: 4,
-    cost: 85_000,
-    maintenancePerYear: 7_000,
+    /** 4-4-2 (PRR E2/E6 class): about 70 t engine plus a 40 t tender. */
+    weightTonnes: 105,
   },
   {
     id: "pacific-4-6-2",
@@ -145,8 +176,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 9,
     weightClass: "heavy",
     reliability: 4,
-    cost: 110_000,
-    maintenancePerYear: 9_000,
+    /** 4-6-2 of the 1910s: about 95-100 t engine plus a 55 t tender. */
+    weightTonnes: 150,
   },
   {
     id: "mikado-2-8-2",
@@ -158,8 +189,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 14,
     weightClass: "heavy",
     reliability: 4,
-    cost: 120_000,
-    maintenancePerYear: 10_000,
+    /** USRA light 2-8-2: about 120 t engine plus a 60-70 t tender. */
+    weightTonnes: 180,
   },
   {
     id: "hudson-4-6-4",
@@ -171,8 +202,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 10,
     weightClass: "heavy",
     reliability: 4,
-    cost: 150_000,
-    maintenancePerYear: 12_000,
+    /** NYC J-3a 4-6-4: 160 t engine plus a 90 t tender. */
+    weightTonnes: 250,
   },
   {
     id: "articulated-4-8-8-4",
@@ -184,8 +215,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 22,
     weightClass: "heavy",
     reliability: 3,
-    cost: 250_000,
-    maintenancePerYear: 22_000,
+    /** UP Big Boy 4-8-8-4: 548 t engine and tender. */
+    weightTonnes: 540,
   },
   {
     id: "early-electric",
@@ -199,8 +230,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 9,
     weightClass: "medium",
     reliability: 3,
-    cost: 120_000,
-    maintenancePerYear: 4_200,
+    /** NYC/PRR direct-current electrics of 1905-10: 85-100 t. */
+    weightTonnes: 90,
   },
   {
     id: "streamliner-diesel",
@@ -212,8 +243,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 8,
     weightClass: "medium",
     reliability: 3,
-    cost: 180_000,
-    maintenancePerYear: 12_000,
+    /** EMC E-unit A unit: about 130 t. */
+    weightTonnes: 130,
   },
   {
     id: "e-unit-electric",
@@ -225,8 +256,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 12,
     weightClass: "heavy",
     reliability: 4,
-    cost: 200_000,
-    maintenancePerYear: 10_000,
+    /** PRR GG1 (2-C+C-2): about 215 t. */
+    weightTonnes: 210,
   },
   {
     id: "cab-unit-diesel",
@@ -238,8 +269,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 14,
     weightClass: "medium",
     reliability: 4,
-    cost: 170_000,
-    maintenancePerYear: 11_000,
+    /** EMD F7 A unit: about 105 t. */
+    weightTonnes: 105,
   },
   {
     id: "road-switcher-diesel",
@@ -251,8 +282,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 16,
     weightClass: "medium",
     reliability: 5,
-    cost: 160_000,
-    maintenancePerYear: 9_000,
+    /** EMD GP7/GP9 road switcher: about 113 t. */
+    weightTonnes: 115,
   },
   {
     id: "modern-electric",
@@ -264,8 +295,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 16,
     weightClass: "heavy",
     reliability: 5,
-    cost: 300_000,
-    maintenancePerYear: 12_000,
+    /** Bo-Bo main-line electric (Re 4/4 II, AEM-7): 80-92 t. */
+    weightTonnes: 90,
   },
   {
     id: "high-horsepower-diesel",
@@ -277,8 +308,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 20,
     weightClass: "heavy",
     reliability: 5,
-    cost: 280_000,
-    maintenancePerYear: 15_000,
+    /** EMD SD40-2: 184 t. */
+    weightTonnes: 180,
   },
   {
     id: "heavy-diesel",
@@ -290,8 +321,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 24,
     weightClass: "heavy",
     reliability: 5,
-    cost: 350_000,
-    maintenancePerYear: 17_000,
+    /** EMD SD70 class: 190-195 t. */
+    weightTonnes: 195,
   },
   {
     id: "high-speed-trainset",
@@ -303,8 +334,8 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 10,
     weightClass: "medium",
     reliability: 5,
-    cost: 600_000,
-    maintenancePerYear: 25_000,
+    /** TGV Atlantique: two power cars of 68 t. */
+    weightTonnes: 136,
     doubleEnded: true,
     passengerMailOnly: true,
   },
@@ -318,10 +349,17 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     maxCars: 28,
     weightClass: "heavy",
     reliability: 5,
-    cost: 500_000,
-    maintenancePerYear: 20_000,
+    /** Re 6/6 / Class 6E class six-axle electric: 120 t. */
+    weightTonnes: 120,
   },
 ];
+
+/** The roster with price and upkeep derived from each engine's real weight. */
+export const LOCOMOTIVES: readonly LocomotiveDef[] = LOCOMOTIVE_SPECS.map((spec) => ({
+  ...spec,
+  cost: Math.round((spec.weightTonnes * LOCO_PRICE_PER_TONNE[spec.type]) / 500) * 500,
+  maintenancePerYear: Math.round((spec.weightTonnes * LOCO_UPKEEP_PER_TONNE[spec.type]) / 50) * 50,
+}));
 
 export function locomotivesAvailableIn(year: number): LocomotiveDef[] {
   return LOCOMOTIVES.filter((l) => l.introYear <= year);

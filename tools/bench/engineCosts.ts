@@ -1,143 +1,108 @@
-/** Phase 55 item 4 (report only, nothing here changes a price or a cost): for each start year and every engine the
- * player can buy, its price, price as a share of the Normal start cash, maintenance and fuel a year, crew wages, and the
- * profit a train of it earns on the owner's line (Venice-Milan, central-eu: 2 trains x 5 cars, 2 years, lifetime books).
- * Then one candidate mechanism, measured without shipping it: fuel burnt scales with the power used, so an engine
- * burns a fixed share of its full-train rate even when it hauls little (`IDLE_FUEL_SHARE`, an assumption for the
- * measurement, not a sourced figure); the table shows what that does to the profit ranking.
- * `npx tsx tools/bench/engineCosts.ts [years=2] [trains=2] [cars=5]`, env `STARTS=1840,1870,...`. */
-import { startingCashFor } from "../../src/data/finance";
-import { buyableLocomotivesIn } from "../../src/data/trains";
-import * as commands from "../../src/sim/commands";
-import { priceIndex } from "../../src/data/economy";
-import {
-  fuelCostPerYearEstimate,
-  locoRunningCostPerYear,
-  trainWagesPerYear,
-} from "../../src/sim/finance/costs";
-import { carCapacity } from "../../src/sim/trains/capacity";
-import { createGameState } from "../../src/sim/state";
-import { advanceOneHour } from "../../src/sim/tick";
-import { findBuildPath } from "../../src/sim/track/pathfind";
-import { booksProfit } from "../../src/sim/trains/profit";
-import { DAYS_PER_YEAR, HOURS_PER_DAY } from "../../src/sim/time";
+/** Phase 56 item 3: payback of every buyable engine, per era, line length and consist, on the balance fixtures
+ * (tests/sim/balanceRoutes.ts: one straight plain line between two towns of `POP` people, one train, three seeds' mean of
+ * the last of three years). Profit is the train's own books (fares less crew, fuel, upkeep, repairs and the track wear it
+ * causes, renewal share included); the track and the two stations cost the same whatever engine runs on them and are left out.
+ * Payback years = train price (engine + cars) / profit per year; "-" when the train does not earn its keep.
+ * Lines: short 12 tiles (60 km), medium 48 tiles (240 km, Venice-Milan), long 72 tiles (360 km); consists 1, 3 and 6 cars (and the engine's `maxCars` when it hauls more than 6 or fewer than 6); freight: a coal mine to a steel mill over 240 km. Electric engines run on an
+ * electrified line (the catenary is not in the price).
+ * `npx tsx tools/bench/engineCosts.ts`, env STARTS=1840,1870,... LINES=short,medium,long,coal POP=20000 SEEDS=1,2,3
+ * JSON=<file> appends one JSON row per case. */
+import { appendFileSync } from "node:fs";
+import { buyableLocomotivesIn, type LocomotiveDef } from "../../src/data/trains";
+import { buildRoute, tickDays, type RouteSpec } from "../../tests/sim/balanceRoutes";
+import { WEAR_ROUTINE_SHARE } from "../../src/data/economy";
 
-const [, , yearsArg = "2", trainsArg = "2", carsArg = "5"] = process.argv;
-const years = Number(yearsArg);
-const N = Number(trainsArg);
-const CARS = Number(carsArg);
 const starts = (process.env["STARTS"] ?? "1840,1870,1900,1930,1950").split(",").map(Number);
-/** Share of its full-train fuel rate an engine burns however little it hauls (assumed, see the header). */
-const IDLE_FUEL_SHARE = 0.4;
-const ok = (r: unknown): boolean => (r as { ok: boolean }).ok;
-
-interface Row {
-  id: string;
-  price: number;
-  train: number;
-  pct: number;
-  maint: number;
-  fuel: number;
-  wages: number;
-  profit: number;
-  load: number;
-  profitIdleFuel: number;
-}
-
-function runOne(startYear: number, locoId: string, cars: number): Row | null {
-  const state = createGameState({ seed: 1, region: "central-eu", startYear, difficulty: "normal" });
-  const startCash = startingCashFor("normal", startYear);
-  state.cash = 50_000_000;
-  const city = (nm: string) => state.cities.find((c) => c.name === nm)!;
-  const ctr = (c: { anchorX: number; anchorY: number }) => c.anchorY * state.map.width + c.anchorX;
-  const [V, M] = [city("Venice"), city("Milan")];
-  const path = findBuildPath(state.map, ctr(V), ctr(M), startYear, {});
-  if (!path || !ok(commands.buildTrack(state, path))) return null;
-  for (const c of [V, M]) if (!ok(commands.buildStation(state, ctr(c), "station"))) return null;
-  const loco = buyableLocomotivesIn(startYear).find((l) => l.id === locoId)!;
-  if (loco.type === "electric" && !ok(commands.electrifyTrack(state, path))) return null;
-  const n = Math.min(cars, loco.maxCars);
-  const sv = state.stations.find((s) => s.tile === ctr(V))!;
-  const sm = state.stations.find((s) => s.tile === ctr(M))!;
-  for (const s of [sv, sm]) commands.buildEngineShed(state, s.id);
-  const plan = commands.computeBuyTrainPlan(state, locoId, []);
-  const ids: number[] = [];
-  for (let i = 0; i < N; i++) {
-    const r = commands.buyTrain(
-      state,
-      sv.id,
-      locoId,
-      Array.from({ length: n }, () => "passengers" as const),
-    );
-    if (!ok(r)) return null;
-    const t = state.trains[state.trains.length - 1]!;
-    const o = i % 2 === 0 ? [sv, sm] : [sm, sv];
-    commands.setOrders(
-      state,
-      t.id,
-      o.map((s) => ({ stationId: s.id, rule: "auto" as const })),
-    );
-    ids.push(t.id);
-  }
-  let loadSum = 0;
-  let loadN = 0;
-  for (let i = 0; i < years * DAYS_PER_YEAR * HOURS_PER_DAY; i++) {
-    advanceOneHour(state);
-    for (const t of state.trains) {
-      if (t.status !== "moving") continue;
-      const cap = t.cars.reduce((u, c) => u + carCapacity(c), 0);
-      const used = t.cars.reduce((u, c) => u + c.loadedUnits, 0);
-      if (cap > 0) {
-        loadSum += used / cap;
-        loadN++;
-      }
-    }
-  }
-  const trains = ids.map((id) => state.trains.find((t) => t.id === id)!);
-  const perYear = (t: (typeof trains)[0], v: number) =>
-    v / Math.max(0.25, (state.ticks - t.purchaseTick) / HOURS_PER_DAY / DAYS_PER_YEAR);
-  const profit = trains.reduce((s, t) => s + perYear(t, booksProfit(t.profit.lifetime)), 0) / N;
-  // Fuel actually burnt: what the books call running, less the non-fuel running cost and the cars' upkeep.
-  const running = trains.reduce((s, t) => s + perYear(t, t.profit.lifetime.running), 0) / N;
-  const fixed = locoRunningCostPerYear(loco, 0, startYear) + 0; // cars' upkeep is small next to it
-  const fuelActual = Math.max(0, running - fixed);
-  // Candidate: the engine burns IDLE share of the rate it would burn at its reference length, whatever it hauls.
-  const refShare = Math.min(1, n / loco.maxCars);
-  const factor = (IDLE_FUEL_SHARE + (1 - IDLE_FUEL_SHARE) * refShare) / Math.max(0.05, refShare);
-  return {
-    id: locoId,
-    price: plan.cost,
-    train: commands.computeBuyTrainPlan(
-      state,
-      locoId,
-      Array.from({ length: n }, () => "passengers" as const),
-    ).cost,
-    pct: (plan.cost / startCash) * 100,
-    maint: loco.maintenancePerYear * priceIndex(startYear),
-    fuel: fuelCostPerYearEstimate(loco, n, startYear),
-    wages: trainWagesPerYear(loco, trains[0]!.cars, startYear),
-    profit,
-    load: loadN > 0 ? loadSum / loadN : 0,
-    profitIdleFuel: profit - fuelActual * (factor - 1),
-  };
-}
-
+const lineNames = (process.env["LINES"] ?? "short,medium,long,coal").split(",");
+const POP = Number(process.env["POP"] ?? 20_000);
+const seeds = (process.env["SEEDS"] ?? "1,2,3").split(",").map(Number);
+const json = process.env["JSON"];
+const LINES: Record<string, { km: number; cargo: "passengers" | "coal" }> = {
+  short: { km: 60, cargo: "passengers" },
+  medium: { km: 240, cargo: "passengers" },
+  long: { km: 360, cargo: "passengers" },
+  coal: { km: 240, cargo: "coal" },
+};
 const k = (v: number): string => `${Math.round(v / 1000)}k`;
-for (const start of starts) {
-  console.log(
-    `\n### ${start}, Normal, start cash $${Math.round(startingCashFor("normal", start) / 1000)}k; Venice-Milan, ${N} trains x ${CARS} cars, ${years} years`,
-  );
-  console.log(
-    "| engine | engine price | train price (engine + cars) | % of start cash (engine) | maintenance/yr | fuel/yr (typical) | wages/yr | profit/yr per train | load | profit/train price | profit/yr if fuel scales with power |",
-  );
-  console.log("|---|---|---|---|---|---|---|---|---|---|---|");
-  for (const loco of buyableLocomotivesIn(start)) {
-    const r = runOne(start, loco.id, CARS);
-    if (!r) {
-      console.log(`| ${loco.id} | (could not run) | | | | | | | | | |`);
-      continue;
+
+export interface Case {
+  start: number;
+  line: string;
+  engine: string;
+  cars: number;
+  price: number;
+  upkeep: number;
+  profit: number;
+  payback: number;
+}
+
+function consists(loco: LocomotiveDef): Array<[string, number]> {
+  const out: Array<[string, number]> = [];
+  for (const n of [1, 3, 6]) if (n <= loco.maxCars) out.push([String(n), n]);
+  if (loco.maxCars > 6) out.push(["max", loco.maxCars]);
+  // an engine that cannot haul 6 cars is judged at its own full train
+  else if (loco.maxCars < 6 && !out.some(([, n]) => n === loco.maxCars))
+    out.push(["max", loco.maxCars]);
+  return out;
+}
+
+export function runCase(start: number, line: string, loco: LocomotiveDef, cars: number): Case {
+  const l = LINES[line]!;
+  const spec: RouteSpec = {
+    cargo: l.cargo,
+    km: l.km,
+    loco: loco.id,
+    year: start,
+    cars,
+    ...(l.cargo === "passengers"
+      ? { population: POP, tier: "town" as const }
+      : { producer: "coalMine" as const, acceptor: "steelMill" as const }),
+    ...(loco.type === "electric" ? { electrified: true } : {}),
+  };
+  let price = 0;
+  let upkeep = 0;
+  let profit = 0;
+  for (const seed of seeds) {
+    const { state } = buildRoute({ ...spec, seed });
+    tickDays(state, 3 * 360);
+    const t = state.trains[0]!;
+    const b = t.profit.lastYear;
+    // the renewal share of wear is paid when the track is relaid: charge it to the train that caused it
+    const wear = (b.wear ?? 0) / WEAR_ROUTINE_SHARE;
+    price += t.purchasePrice / seeds.length;
+    upkeep += (b.running + (b.wages ?? 0) + wear + b.repairs) / seeds.length;
+    profit += (b.revenue - b.running - (b.wages ?? 0) - wear - b.repairs) / seeds.length;
+  }
+  const payback = profit > 0 ? price / profit : Infinity;
+  return { start, line, engine: loco.id, cars, price, upkeep, profit, payback };
+}
+
+if (process.argv[1]?.endsWith("engineCosts.ts")) {
+  for (const start of starts) {
+    for (const line of lineNames) {
+      const locos = buyableLocomotivesIn(start).filter(
+        (l) => LINES[line]!.cargo === "passengers" || !l.passengerMailOnly,
+      );
+      console.log(
+        `\n### ${start}, Normal; ${line} line (${LINES[line]!.km} km, ${LINES[line]!.cargo}${LINES[line]!.cargo === "passengers" ? `, towns of ${POP}` : ""})`,
+      );
+      console.log(
+        "| engine | kmh | t | cars | train price | costs /yr (upkeep, fuel, repairs, wages, wear) | profit /yr | payback yrs |",
+      );
+      console.log("|---|---|---|---|---|---|---|---|");
+      const best = new Map<string, number>();
+      const rows: Case[] = [];
+      for (const loco of locos)
+        for (const [label, cars] of consists(loco)) {
+          if (rows.some((x) => x.engine === loco.id && x.cars === cars)) continue;
+          const c = runCase(start, line, loco, cars);
+          rows.push(c);
+          if (json) appendFileSync(json, JSON.stringify({ ...c, label }) + "\n");
+          best.set(loco.id, Math.min(best.get(loco.id) ?? Infinity, c.payback));
+          console.log(
+            `| ${loco.id} | ${loco.maxSpeedKmh} | ${loco.weightTonnes} | ${cars} (${label}) | ${k(c.price)} | ${k(c.upkeep)} | ${k(c.profit)} | ${Number.isFinite(c.payback) ? c.payback.toFixed(1) : "never"} |`,
+          );
+        }
     }
-    console.log(
-      `| ${r.id} | ${k(r.price)} | ${k(r.train)} | ${r.pct.toFixed(0)} % | ${k(r.maint)} | ${k(r.fuel)} | ${k(r.wages)} | ${k(r.profit)} | ${(r.load * 100).toFixed(0)} % | ${(r.profit / r.train).toFixed(2)} | ${k(r.profitIdleFuel)} |`,
-    );
   }
 }

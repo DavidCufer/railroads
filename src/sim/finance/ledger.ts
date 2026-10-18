@@ -28,6 +28,7 @@ import {
 import {
   carsUpkeepPerYear,
   locoRunningCostPerYear,
+  repairCostPerUnit,
   stationMonthlyCost,
   trackEdgeMonthlyCost,
   trainWagesPerYear,
@@ -129,9 +130,12 @@ export function monthlyFinanceStep(state: GameState): void {
       priceIndex(year) *
       fuelPriceMult(state, loco.type);
     train.fuelUnits = 0;
+    const repairs = (train.repairUnits ?? 0) * repairCostPerUnit(loco, ageYears, year);
+    train.repairUnits = 0;
     const running =
       (locoRunningCostPerYear(loco, ageYears, year) + carsUpkeepPerYear(train.cars, year)) / 12 +
-      fuel;
+      fuel +
+      repairs;
     const wages = trainWagesPerYear(loco, train.cars, year) / 12;
     trainMaint += running;
     crewWages += wages;

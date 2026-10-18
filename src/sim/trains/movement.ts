@@ -53,7 +53,7 @@ import { blockIdForEdge, type Block, type BlockPartition } from "./blocks";
 import { trainBodyLength, updateCrossing } from "./crossing";
 import { carCapacity } from "./capacity";
 import { applyPendingConsist, stepLoading } from "./loading";
-import { fuelUnitsPerTile, wearUnitsPerTile } from "../finance/costs";
+import { fuelUnitsPerTile, repairUnitsPerTile, wearUnitsPerTile } from "../finance/costs";
 import { kmSinceService } from "./breakdown";
 import { addEdgeWear, edgeWearRatio, slowOrderMult } from "../track/condition";
 import { findTrainRoute } from "./route";
@@ -1115,6 +1115,7 @@ export function stepTrain(state: GameState, train: Train, runtime: TrainRuntime)
       const perTile = wearUnitsPerTile(loco, train.cars, train.speed);
       train.wearUnits = (train.wearUnits ?? 0) + moved * perTile;
       train.fuelUnits = (train.fuelUnits ?? 0) + moved * fuelUnitsPerTile(loco, train.cars);
+      train.repairUnits = (train.repairUnits ?? 0) + moved * repairUnitsPerTile(loco);
       if (train.cars.length > 0)
         recordTrainLoad(
           train,

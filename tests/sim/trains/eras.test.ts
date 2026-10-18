@@ -21,6 +21,7 @@ import {
   BREAKDOWN_BASE_CHANCE_BY_RELIABILITY,
   BREAKDOWN_SERVICE_MIN_MULT,
   buyableLocomotivesIn,
+  locomotiveById,
   locomotivesAvailableIn,
   STEAM_PHASE_OUT_YEAR,
   TRADE_IN_BASE_FRACTION,
@@ -98,12 +99,15 @@ describe("Replace Locomotive trade-in", () => {
     buyTrain(state, stationId, "american-4-4-0", []);
     const trainId = state.trains[0]!.id;
 
-    // norris-4-2-0 (1838, $34k) is available by 1848, unlike a later model.
+    // norris-4-2-0 (1838) is available by 1848, unlike a later model.
     const plan = computeReplaceLocoPlan(state, trainId, "norris-4-2-0");
     expect(plan.valid).toBe(true);
-    const oldLocoValue = 45_000 * eraInflation(1848);
+    const oldLocoValue = locomotiveById("american-4-4-0")!.cost * eraInflation(1848);
     expect(plan.tradeInValue).toBeCloseTo(oldLocoValue * TRADE_IN_BASE_FRACTION, 4);
-    expect(plan.netCost).toBeCloseTo(34_000 * eraInflation(1848) - plan.tradeInValue, 4);
+    expect(plan.netCost).toBeCloseTo(
+      locomotiveById("norris-4-2-0")!.cost * eraInflation(1848) - plan.tradeInValue,
+      4,
+    );
   });
 
   it("decreases 3%/year of age, floored at 10%", () => {
@@ -114,7 +118,7 @@ describe("Replace Locomotive trade-in", () => {
     // 5 years old: 30% - 5*3% = 15%.
     train.purchaseTick = state.ticks - 5 * DAYS_PER_YEAR * HOURS_PER_DAY;
     const at5Years = computeReplaceLocoPlan(state, train.id, "norris-4-2-0");
-    const oldLocoValue = 45_000 * eraInflation(1848);
+    const oldLocoValue = locomotiveById("american-4-4-0")!.cost * eraInflation(1848);
     expect(at5Years.tradeInValue).toBeCloseTo(oldLocoValue * 0.15, 4);
 
     // 100 years old: formula would go negative, but it's floored at 10%.

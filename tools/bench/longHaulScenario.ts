@@ -20,6 +20,8 @@ export interface LongHaulRun {
   barTrains: number;
   years: number;
   chain: "silver" | "uranium";
+  /** Engine to use instead of the year's fastest freight-capable one (bench experiments). */
+  locoId?: string;
   /** Printed once a month when set. */
   trace?: boolean;
 }
@@ -88,7 +90,7 @@ export function runLongHaul(cfg: LongHaulRun): Result {
   const pool = (strong.length > 0 ? strong : cands).sort(
     (p, q) => q.maxSpeedKmh - p.maxSpeedKmh || p.cost - q.cost,
   );
-  const loco = pool[0]!;
+  const loco = (cfg.locoId ? cands.find((l) => l.id === cfg.locoId) : undefined) ?? pool[0]!;
   const n = Math.min(loco.maxCars, 6);
   const orders = (a: number, b: number) => [
     { stationId: a, rule: "auto" as const },
