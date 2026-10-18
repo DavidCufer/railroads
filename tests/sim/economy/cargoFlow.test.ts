@@ -142,24 +142,44 @@ describe("passengers and mail: linear fill to one month, nobody gives up (Phase 
     expect(pile(state, station.id)?.passengers?.amount).toBeCloseTo(300, 6);
   });
 
-  it("a served station keeps one pile that fills linearly and caps at MAX_WAIT_DAYS of its demand (Phase 54)", () => {
-    const { state, station } = peopleStation(false);
-    state.stationEconomy.get(station.id)!.passengerPool = 300;
-    for (let day = 0; day < 60; day++) accrueDailyCargo(state);
-    const p = pile(state, station.id)?.passengers;
-    expect(p?.amount).toBeCloseTo((300 / 30) * MAX_WAIT_DAYS, 6);
-    // A train takes 80: the pile refills at the daily rate and only the part above the ceiling is turned away.
-    p!.amount -= 80;
-    for (let day = 0; day < 4; day++) accrueDailyCargo(state);
-    expect(p?.amount).toBeCloseTo((300 / 30) * MAX_WAIT_DAYS - 80 + 40, 6);
-  });
+  const route = (perMonth: number) => [{ destination: 7, cityId: 1, perMonth }];
 
-  it("clamps to the new ceiling when the pool rate falls", () => {
+  it("a served station keeps one pile that fills linearly and caps at MAX_WAIT_DAYS of its demand (Phase 54)", () => {
     const { state, station } = peopleStation(false);
     const eco = state.stationEconomy.get(station.id)!;
     eco.passengerPool = 300;
+    eco.passengerRoutes = route(300);
+    for (let day = 0; day < 60; day++) accrueDailyCargo(state);
+    const p = pile(state, station.id)?.passengers;
+    expect(p?.amount).toBeCloseTo((300 / 30) * MAX_WAIT_DAYS, 6);
+    // Nobody took them in those 60 days: the 30 days beyond the ceiling were turned away.
+    expect(state.stationFlow.get(station.id)?.month.passengers?.lostUnits ?? 0).toBeGreaterThan(0);
+  });
+
+  it("a train taking people restarts the wait: the pile refills from there, and only the part above the ceiling is lost", () => {
+    const { state, station } = peopleStation(false);
+    const eco = state.stationEconomy.get(station.id)!;
+    eco.passengerPool = 300;
+    eco.passengerRoutes = route(300);
+    for (let day = 0; day < 40; day++) accrueDailyCargo(state);
+    const p = pile(state, station.id)!.passengers!;
+    // a train takes 80 of the 300 and leaves the other 220 waiting since 22 days ago
+    p.amount -= 80;
+    state.waitingSince.set("0>7", state.ticks - 22 * 24);
+    for (let day = 0; day < 4; day++) accrueDailyCargo(state);
+    expect(p.amount).toBeCloseTo(220 + 40, 6);
+    for (let day = 0; day < 10; day++) accrueDailyCargo(state);
+    expect(p.amount).toBeCloseTo(300, 6);
+  });
+
+  it("clamps to the new ceiling when the rate falls", () => {
+    const { state, station } = peopleStation(false);
+    const eco = state.stationEconomy.get(station.id)!;
+    eco.passengerPool = 300;
+    eco.passengerRoutes = route(300);
     for (let day = 0; day < 30; day++) accrueDailyCargo(state);
     eco.passengerPool = 150;
+    eco.passengerRoutes = route(150);
     accrueDailyCargo(state);
     expect(pile(state, station.id)?.passengers?.amount ?? 0).toBeCloseTo(
       (150 / 30) * MAX_WAIT_DAYS,

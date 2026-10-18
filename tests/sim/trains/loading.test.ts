@@ -21,11 +21,15 @@ import { makeTestMap, makeTestState, tileAt } from "../track/helpers";
 import type { GameState } from "../../../src/sim/state";
 import type { Station } from "../../../src/sim/stations/types";
 
-/** `setOrders` refreshes the station economy (Phase 35); these tests hand-edit `accepts`, so keep their map. */
+/** `setOrders` refreshes the station economy (Phase 35); these tests hand-edit `accepts`, so keep those (the refreshed
+ * routes and passenger pool stay: boarding reads them, Phase 54). */
 const setOrders: typeof setOrdersCommand = (state, trainId, orders) => {
-  const economy = state.stationEconomy;
+  const before = state.stationEconomy;
   const result = setOrdersCommand(state, trainId, orders);
-  state.stationEconomy = economy;
+  for (const [id, economy] of state.stationEconomy) {
+    const old = before.get(id);
+    if (old) economy.accepts = old.accepts;
+  }
   return result;
 };
 

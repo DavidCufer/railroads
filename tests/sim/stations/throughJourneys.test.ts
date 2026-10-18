@@ -92,8 +92,8 @@ describe("Phase 48 through passengers", () => {
     const toC = lots.filter((l) => l.dest === c!.id).reduce((n, l) => n + l.amount, 0);
     // the whole pile boards (only one train serves this station) and splits over the two later stops
     expect(toB + toC).toBeCloseTo(9, 4);
-    // the nearer middle town draws the bigger share
-    expect(toB).toBeGreaterThan(toC);
+    // both towns are at the 20 % cap on their share here, so they draw the same
+    expect(toB).toBeCloseTo(toC, 6);
     expect(toC).toBeGreaterThan(0);
     // and each group is paid at its own stop, once
     for (let i = 0; i < 24 * 40 && !state.pendingDeliveries.some((e) => e.stationId === c!.id); i++)

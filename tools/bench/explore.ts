@@ -66,10 +66,16 @@ function layout(seed: number): World {
   } else if (scen === "S2") {
     towns.push({ x, y, pop: 140000 }, { x: x + 58, y, pop: 110000 });
   } else {
-    // S3: a big city, three small towns, a second big city (Milan - ... - Venice)
+    // S3, S4: a big city, three small towns, a second big city (Milan - ... - Venice)
     const pops = [140000, 0, 0, 0, 110000];
     for (let i = 0; i < 5; i++) {
-      towns.push({ x: Math.round(x), y, pop: pops[i] || Math.round(between(r, 12000, 25000)) });
+      towns.push({
+        x: Math.round(x),
+        y,
+        pop:
+          pops[i] ||
+          Math.round(scen === "S4" ? between(r, 10000, 20000) : between(r, 12000, 25000)),
+      });
       x += between(r, 15, 20);
     }
   }
@@ -177,11 +183,30 @@ const express = (n: number): Config => ({
     ...shuttles(1).trains(k),
   ],
 });
-const CONFIGS: Config[] = scen.startsWith("S1")
-  ? [multi(1), multi(2), multi(3), multi(4), multi(6), shuttles(1), shuttles(2), shuttles(3)]
-  : scen === "S2"
-    ? [direct(1), direct(2), direct(3), direct(4)]
-    : [multi(1), multi(2), multi(3), express(1), express(2)];
+/** S4 (Phase 54): `e` express trains (the two big towns only, orders A, B: they pass the small towns without
+ * stopping) and `l` locals (every station, there and back). Both kinds are spread over their cycle. */
+const mix = (e: number, l: number): Config => ({
+  name: `${e}express+${l}local`,
+  trains: (k) => [
+    ...Array.from({ length: e }, (_, i) => (i % 2 === 0 ? [0, k - 1] : [k - 1, 0])),
+    ...(l > 0 ? multi(l).trains(k) : []),
+  ],
+});
+/** S4 with env ALL=1: every mix of express and local trains up to MAXTRAINS (6), to find each pattern's best fleet. */
+const S4_ALL: Config[] = [];
+for (let e = 0; e <= 6; e++)
+  for (let l = 0; l <= 6 - e; l++)
+    if (e + l >= 1 && e + l <= Number(process.env["MAXTRAINS"] ?? 6)) S4_ALL.push(mix(e, l));
+const CONFIGS: Config[] =
+  scen === "S4"
+    ? process.env["ALL"]
+      ? S4_ALL
+      : [mix(0, 2), mix(0, 3), mix(1, 1), mix(1, 2), mix(2, 1), mix(2, 0)]
+    : scen.startsWith("S1")
+      ? [multi(1), multi(2), multi(3), multi(4), multi(6), shuttles(1), shuttles(2), shuttles(3)]
+      : scen === "S2"
+        ? [direct(1), direct(2), direct(3), direct(4)]
+        : [multi(1), multi(2), multi(3), express(1), express(2)];
 const KS = (process.env["KS"] ?? (startYear < 1880 ? "1,2,3,4,5,6,8" : "1,2,3,4,5,6"))
   .split(",")
   .map(Number);
@@ -241,6 +266,10 @@ function run(cfg: Config, k: number, seed: number): Metrics {
   for (const id of ids) {
     const t = state.trains.find((x) => x.id === id) as (typeof state.trains)[number];
     const yrs = Math.max(0.25, (state.ticks - t.purchaseTick) / HOURS_PER_DAY / DAYS_PER_YEAR);
+    if (process.env["PERTRAIN"])
+      console.log(
+        `  train ${id} stops ${t.orders.length} revenue/yr ${Math.round(t.profit.lifetime.revenue / yrs / 1000)}k profit/yr ${Math.round(booksProfit(t.profit.lifetime) / yrs / 1000)}k`,
+      );
     profit += booksProfit(t.profit.lifetime) / yrs;
     trainRevenue += t.profit.lifetime.revenue / yrs;
     const e = loadSum.get(id);
@@ -256,6 +285,8 @@ function run(cfg: Config, k: number, seed: number): Metrics {
     revenue += p?.deliveredRevenue ?? 0;
     lost += p?.lostUnits ?? 0;
   }
+  if (process.env["PERTRAIN"])
+    console.log("boarded", JSON.stringify((globalThis as unknown as { __tk?: unknown }).__tk));
   return {
     profit,
     revenue: trainRevenue,

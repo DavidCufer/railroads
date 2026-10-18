@@ -65,6 +65,30 @@ export function stampDeparture(state: GameState, stationId: number, stops: Itera
   }
 }
 
+/** Key of the people a station sends to one town (its route's destination station) in `state.waitingSince`. */
+export const waitKey = (stationId: number, destination: number): string =>
+  serviceKey(stationId, destination);
+
+/** The tick since which the people bound for `destination` have been piling up at `stationId`: when a train last took them
+ * all (or the earlier moment some were left behind). With no record yet they start to wait now. */
+export function waitingSince(state: GameState, stationId: number, destination: number): number {
+  const key = waitKey(stationId, destination);
+  let since = state.waitingSince.get(key);
+  if (since === undefined) {
+    since = state.ticks;
+    state.waitingSince.set(key, since);
+  }
+  return since;
+}
+
+/** Days the people bound for `destination` have waited, at most `MAX_WAIT_DAYS` (what a pile holds). */
+export function waitedDays(state: GameState, stationId: number, destination: number): number {
+  return Math.min(
+    MAX_WAIT_DAYS,
+    Math.max(0, (state.ticks - waitingSince(state, stationId, destination)) / HOURS_PER_DAY),
+  );
+}
+
 /** Days between trains for (station, next stop): the observed average once there is one, else the estimate. */
 export function observedIntervalDays(
   state: GameState,

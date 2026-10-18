@@ -350,15 +350,102 @@ describe("station economy with reachability", () => {
       const viaLocal = new Boarding(state, atStop(local, 0), station, 100);
       const viaExpress = new Boarding(state, atStop(express, 0), station, 100);
       expect(viaLocal.fraction).toBeCloseTo(1, 9);
-      expect(viaExpress.fraction).toBeGreaterThan(0.3);
-      expect(viaExpress.fraction).toBeLessThan(0.7);
-      expect(viaExpress.left).toBeCloseTo(100 * viaExpress.fraction, 9);
-      // the nearer town (1) is the bigger share of the local's riders, and they sum to 1
+      // both reachable towns sit at the 20 % cap on their share, so the express (one of the two) takes half the pile
+      expect(viaExpress.fraction).toBeCloseTo(0.5, 9);
+      expect(viaExpress.left).toBeCloseTo(50, 9);
+      // the local's riders split over its two later stops in the same capped shares, and they sum to 1
       const shares = [...viaLocal.shares.values()];
       expect(shares.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
-      expect(viaLocal.shares.get(1)).toBeGreaterThan(viaLocal.shares.get(2) ?? 1);
+      expect(viaLocal.shares.get(1)).toBeCloseTo(0.5, 9);
       // the express's riders all go to town 2
       expect([...viaExpress.shares.keys()]).toEqual([2]);
+    });
+
+    it("a big town the 20 % cap holds back does not let the express carry the small towns' share", () => {
+      // 0 is next to five towns: a metropolis (1, x=40) and four villages. Raw gravity would give the metropolis most of
+      // the pile; its share of the demand is capped at maxShare, and the express may take no more than that share.
+      const xs = [3, 40, 12, 20, 28, 36];
+      const pops = [12000, 400000, 3000, 3000, 3000, 3000];
+      const local = running(0, 2, 3, 4, 5, 1);
+      const express = running(0, 1);
+      const { state, cities, stations } = world(xs, pops);
+      state.stations.push(...stations);
+      state.cities.push(...cities);
+      state.trains.push(local, express);
+      state.stationEconomy = computeStationEconomies(
+        state.map,
+        state.cities,
+        [],
+        state.stations,
+        1860,
+        undefined,
+        undefined,
+        passengerLinks([local, express]),
+      );
+      const routes = state.stationEconomy.get(0)?.passengerRoutes ?? [];
+      const total = routes.reduce((n, r) => n + r.perMonth, 0);
+      const toMetropolis = routes.find((r) => r.cityId === 1)?.perMonth ?? 0;
+      const b = new Boarding(state, atStop(express, 0), state.stations[0] as Station, 100);
+      expect(b.fraction).toBeCloseTo(toMetropolis / total, 9);
+      expect(toMetropolis).toBeCloseTo(
+        (state.stationEconomy.get(0)?.passengerDemand ?? 0) * PAIR_DEMAND.maxShare,
+        9,
+      );
+      expect(b.fraction).toBeLessThan(0.5); // gravity alone would say ~0.97
+    });
+
+    it("an express cannot carry the small town's people, however often it runs", () => {
+      // Local (0, 1, 2, 1) and an express (0, 2), a call every two days: over 60 days the express takes only what the towns
+      // it calls at send (town 2's share), and the people for town 1 pile up for the local.
+      const local = running(0, 1, 2, 1);
+      const express = running(0, 2);
+      const state = setup([local, express]);
+      const station = state.stations[0] as Station;
+      const perMonthTo = (cityId: number): number =>
+        state.stationEconomy.get(0)?.passengerRoutes?.find((r) => r.cityId === cityId)?.perMonth ??
+        0;
+      let taken = 0;
+      for (let day = 1; day <= 60; day++) {
+        state.ticks += 24;
+        accrueDailyCargo(state);
+        if (day % 2 !== 0) continue;
+        const entry = state.stationCargo.get(0)?.passengers ?? { amount: 0, waitingDays: 0 };
+        const b = new Boarding(state, atStop(express, 0), station, entry.amount);
+        taken += takePassengers(entry, b, station, 1e9, state.ticks).reduce(
+          (n, l) => n + l.amount,
+          0,
+        );
+        b.recordWaiting(state, 0);
+      }
+      const expected = (perMonthTo(2) / 30) * 60;
+      expect(taken).toBeGreaterThan(0.85 * expected);
+      expect(taken).toBeLessThan(1.1 * expected);
+      // the pile still holds a full wait of town 1's people (nobody has called there)
+      const pileLeft = state.stationCargo.get(0)?.passengers?.amount ?? 0;
+      expect(pileLeft).toBeGreaterThan(perMonthTo(1) * 0.95);
+    });
+
+    it("people a full train left behind stay counted for the next train", () => {
+      const express = running(0, 2);
+      const state = setup([express]);
+      const station = state.stations[0] as Station;
+      for (let day = 0; day < 10; day++) {
+        state.ticks += 24;
+        accrueDailyCargo(state);
+      }
+      const entry = state.stationCargo.get(0)!.passengers!;
+      const before = entry.amount;
+      // a train with room for only a third of them
+      const first = new Boarding(state, atStop(express, 0), station, before);
+      const took = takePassengers(entry, first, station, before / 3, state.ticks).reduce(
+        (n, l) => n + l.amount,
+        0,
+      );
+      first.recordWaiting(state, 0);
+      expect(took).toBeCloseTo(before / 3, 6);
+      // the next train, straight after, may still take the other two thirds
+      const second = new Boarding(state, atStop(express, 0), station, entry.amount);
+      expect(second.left).toBeCloseTo((before * 2) / 3, 6);
     });
 
     it("with no other train an express takes the whole pile", () => {

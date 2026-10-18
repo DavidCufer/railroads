@@ -756,6 +756,7 @@ export function stepLoading(state: GameState, train: Train, station: Station): b
   delete train.headwayWaitTicks;
 
   for (const i of plan.load) applyLoad(state, train, station, i, boarding);
+  boarding.recordWaiting(state, station.id);
 
   if (order.rule === "fullLoad") {
     const allFull = train.cars.every((c) => c.loadedUnits >= carCapacity(c));

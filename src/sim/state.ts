@@ -121,6 +121,10 @@ export interface GameState {
   stationFlow: Map<number, StationFlow>;
   /** Phase 53C: the last passenger departure per (station, next stop); see `DepartureStamp`. Absent = "now" on first sight. */
   departures: Map<string, DepartureStamp>;
+  /** Phase 54: per (station, next stop), the tick since which the people bound that way have been waiting: a train
+   * that takes them all sets it to now, one that leaves some behind (full) sets it back so they stay counted for the next
+   * one. Absent = a full `MAX_WAIT_DAYS` of them. */
+  waitingSince: Map<string, number>;
   /** Bridges the river took and nobody has rebuilt yet (Phase 30A) — the persistent gaps in the line. */
   washouts: Washout[];
   nextWashoutId: number;
@@ -256,6 +260,7 @@ export function createGameState(options: NewGameOptions): GameState {
     stationTransfer: new Map(),
     stationFlow: new Map(),
     departures: new Map(),
+    waitingSince: new Map(),
     washouts: [],
     nextWashoutId: 0,
     industryEconomy: initIndustryEconomy(industries),

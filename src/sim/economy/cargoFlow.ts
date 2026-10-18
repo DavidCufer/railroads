@@ -16,7 +16,9 @@ import { recordPileFull, recordTurnedAway } from "../stations/flow";
 import { panicDemandMult } from "../finance/panics";
 import { DAYS_PER_MONTH } from "../time";
 import type { GameState, StationCargoPile } from "../state";
-import { waitingCap } from "../stations/waiting";
+import type { PassengerRoute } from "../stations/passengerFlows";
+import { waitedDays } from "../stations/waiting";
+import { MAX_WAIT_DAYS } from "../../data/economy";
 
 const DECAY_FLOOR = 0.05;
 
@@ -29,16 +31,34 @@ function accrueLinear(entry: StationCargoPile, monthly: number, daily: number): 
   return daily - add;
 }
 
-/** Phase 54: the passengers of a station wait in one pile. It fills linearly from the last departure at the station's
- * rate (`passengerPool` a month) and holds at most `MAX_WAIT_DAYS` of it (`waitingCap`); what a departing train cannot
- * take stays, only the part above the ceiling is turned away. */
-function accruePool(entry: StationCargoPile, perMonth: number): number {
-  const cap = waitingCap(perMonth, true);
-  const daily = perMonth / DAYS_PER_MONTH;
-  const have = Math.min(entry.amount, cap);
-  const add = Math.max(0, Math.min(daily, cap - have));
-  entry.amount = have + add;
-  return daily - add;
+/** Phase 54: the passengers of a station wait in one pile, and the pile is what is waiting for the towns its trains reach.
+ * Each town's people arrive at their share of the station's rate (`passengerRoutes`, a month) and pile up from the moment a
+ * train last took them (`waitingSince`), at most `MAX_WAIT_DAYS` of them; what a train cannot take stays, and only the
+ * part above the ceiling is turned away. Returns that part. */
+function accruePool(
+  state: GameState,
+  entry: StationCargoPile,
+  stationId: number,
+  routes: readonly PassengerRoute[],
+  demand: number,
+): number {
+  let overflow = 0;
+  let ceiling = 0;
+  for (const route of routes) {
+    const rate = route.perMonth / DAYS_PER_MONTH;
+    ceiling += rate * MAX_WAIT_DAYS;
+    const room =
+      Math.max(0, MAX_WAIT_DAYS - waitedDays(state, stationId, route.destination)) * rate;
+    const add = Math.min(rate * demand, room);
+    entry.amount += add;
+    overflow += rate * demand - add;
+  }
+  // A pile cannot hold more than a full wait of every town (an old save's pile, or a town that lost its service).
+  if (entry.amount > ceiling) {
+    overflow += entry.amount - ceiling;
+    entry.amount = ceiling;
+  }
+  return overflow;
 }
 
 export function accrueDailyCargo(state: GameState): void {
@@ -62,8 +82,8 @@ export function accrueDailyCargo(state: GameState): void {
         // People and post (Phase 30A, 35D, 54): no storage cap; linear fill, overflow is the "unserved demand" the
         // station panel shows. Passengers wait in one pile per station.
         const overflow =
-          cargo === "passengers" && economy.passengerPool !== undefined
-            ? accruePool(entry, economy.passengerPool * demand)
+          cargo === "passengers" && economy.passengerRoutes && economy.passengerRoutes.length > 0
+            ? accruePool(state, entry, station.id, economy.passengerRoutes, demand)
             : accrueLinear(entry, monthly, daily);
         if (overflow > 0) recordTurnedAway(state, station.id, cargo, overflow);
         if (entry.amount > DECAY_FLOOR) entry.waitingDays++;
