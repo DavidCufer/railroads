@@ -1,0 +1,6 @@
+Tests  4 failed | 896 passed | 1 skipped (901)
+FAIL  tests/sim/balanceLongHaul.test.ts > long-haul chain balance (Phase 40) > 1840: a poor investment (under 15 %/yr, not paid back in 10 years, well below an ordinary line's 25 %)
+FAIL  tests/sim/balanceLongHaul.test.ts > long-haul chain balance (Phase 40) > 1930 silver and 1950 uranium: the big prize, uranium the bigger
+FAIL  tests/sim/balancePassengers.test.ts > Phase 26A passenger & mail balance > 1840s: the Norris carries a Town↔Town line about level with coal (finding: the plan's 1.5-2.5x is not met, 0.93x)
+FAIL  tests/sim/balancePassengers.test.ts > Phase 26A passenger & mail balance > a mail car pays about 1.3× a passenger car per trip, and a mail train earns 0.05–0.35× a passenger train
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯

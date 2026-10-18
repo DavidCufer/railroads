@@ -1,0 +1,26 @@
+Tests  24 failed | 876 passed | 1 skipped (901)
+FAIL  tests/sim/balanceLongHaul.test.ts > long-haul chain balance (Phase 40) > 1840: a poor investment (under 15 %/yr, not paid back in 10 years, well below an ordinary line's 25 %)
+FAIL  tests/sim/balanceLongHaul.test.ts > long-haul chain balance (Phase 40) > 1930 silver and 1950 uranium: the big prize, uranium the bigger
+FAIL  tests/sim/balancePassengers.test.ts > Phase 26A passenger & mail balance > 1840s: the Norris carries a Town↔Town line about level with coal (finding: the plan's 1.5-2.5x is not met, 0.93x)
+FAIL  tests/sim/stations/changeWait.test.ts > a destination behind a change > with a 20-day onward interval (a 10-day wait) draws clearly less than on a through train
+FAIL  tests/sim/stations/legacyPile.test.ts > old-save passengers > a legacy pile with no lots is converted to destination lots and capped
+FAIL  tests/sim/stations/legacyPile.test.ts > old-save passengers > with no routes the legacy amount drops to nothing
+FAIL  tests/sim/stations/pairDemand.test.ts > station economy with reachability > Ljubljana-like fixture (PLAN Phase 35B): the first line must not take the whole town > the total is population x trips per head, a few hundred a month for a 12k town in 1860
+FAIL  tests/sim/stations/pairDemand.test.ts > station economy with reachability > Ljubljana-like fixture (PLAN Phase 35B): the first line must not take the whole town > the unconnected list is populated, and reachable + unconnected = the total
+FAIL  tests/sim/stations/pairDemand.test.ts > station economy with reachability > a daily accrual stores people by destination station and fills each bucket alike
+FAIL  tests/sim/stations/pairDemand.test.ts > station economy with reachability > a far town beyond the radius that the network reaches takes less than a near one
+FAIL  tests/sim/stations/pairDemand.test.ts > station economy with reachability > a pile holds MAX_WAIT_DAYS of people while served and counts the rest as unserved (Phase 51, 53C)
+FAIL  tests/sim/stations/pairDemand.test.ts > station economy with reachability > no destination takes more than maxShare of the total, and a town with few places to go generates fewer trips
+FAIL  tests/sim/stations/pairDemand.test.ts > station economy with reachability > of two equal towns the nearer takes more
+FAIL  tests/sim/stations/pairDemand.test.ts > station economy with reachability > panels agree: the station figure is the sum of its routes, the connected part of the town total
+FAIL  tests/sim/stations/pairDemand.test.ts > station economy with reachability > shares of all towns in range sum to the town's total demand (everything connected)
+FAIL  tests/sim/stations/pairDemand.test.ts > station economy with reachability > the split never exceeds the town total, and unreachable destinations generate nothing
+FAIL  tests/sim/stations/pairDemand.test.ts > station economy with reachability > the town's total travel demand is population x trips per head, and without service nothing is bound
+FAIL  tests/sim/stations/pairDemand.test.ts > station economy with reachability > two changes away: Belgrade-bound people wait in the Ljubljana bucket
+FAIL  tests/sim/stations/throughJourneys.test.ts > Phase 48 changes deter travel > a town reached direct draws more people than the same town reached with a change
+FAIL  tests/sim/stations/throughJourneys.test.ts > Phase 48 changes deter travel > counts the changes on a route
+FAIL  tests/sim/stations/throughJourneys.test.ts > Phase 48 through passengers > a through passenger is paid once, on arrival, for the whole distance
+FAIL  tests/sim/stations/waitingForNextTrain.test.ts > people wait for the actual next train (Phase 53C) > a long gap loses only the part above MAX_WAIT_DAYS of demand
+FAIL  tests/sim/stations/waitingForNextTrain.test.ts > people wait for the actual next train (Phase 53C) > what a train cannot take stays, and the pile refills from there
+FAIL  tests/sim/trains/loading.test.ts > Bug 1: 'fullLoad' keeps what it loaded > does not unload cargo at the station it was loaded at on extra wait days
+⎯⎯⎯⎯⎯⎯ Failed Tests 24 ⎯⎯⎯⎯⎯⎯⎯
