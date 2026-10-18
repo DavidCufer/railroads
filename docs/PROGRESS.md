@@ -5825,7 +5825,17 @@ Electric engines were electrified on the whole line by the bench (cost not count
 | good | 1900 | hard | 0/3 | 0.15 / 0.15 / 0.15 | 11.48 / 11.38 / 11.3 |
 | overbuilder | 1840 | normal | 0/3 | 0.02 / 0.02 / 0.02 | 1.42 / 1.44 / 1.49 |
 | overbuilder | 1840 | hard | 3/3 | -0.46 / -0.46 / -0.46 | 0.07 / 0.07 / 0.07 |
-**Partial: the bad-bot rows were still running when this was pushed** (good bot: all four rows 0/3 bankrupt, net worth within noise of Phase 54: 1900 Normal $32-34M inside the 20-34M bound). The remaining rows (overbuilder, trainSpammer, leveraged) will be appended when the run ends; until then the bad-bot bounds are unverified for this phase.
+| overbuilder | 1900 | normal | 2/3 | 0.01 / -0.03 / -0.02 | 0.86 / 0.8 / 0.78 |
+| overbuilder | 1900 | hard | 3/3 | -0.44 / -0.44 / -0.44 | -0.05 / -0.05 / -0.05 |
+| trainSpammer | 1840 | normal | 3/3 | -0.03 / -0.05 / -0.05 | 0.7 / 0.74 / 0.75 |
+| trainSpammer | 1840 | hard | 3/3 | -0.05 / -0.03 / -0.03 | 0.51 / 0.53 / 0.53 |
+| trainSpammer | 1900 | normal | 3/3 | -0.1 / -0.11 / -0.06 | 2.07 / 2.14 / 1.99 |
+| trainSpammer | 1900 | hard | 2/3 | 0.03 / -0.04 / -0.05 | 2.29 / 2.23 / 2.18 |
+| leveraged | 1840 | normal | 3/3 | -0.03 / -0.06 / -0.07 | 1.72 / 1.8 / 1.67 |
+| leveraged | 1840 | hard | 2/3 | 0.02 / -0.06 / -0.01 | 1.67 / 1.35 / 1.29 |
+| leveraged | 1900 | normal | 1/3 | 0.06 / 0.02 / -0.13 | 2.64 / 3.07 / 2.02 |
+| leveraged | 1900 | hard | 2/3 | 0.03 / -0.04 / -0.05 | 2.38 / 2.23 / 2.18 |
+**Bad-bot rows completed by the orchestrator's review run (same command, same code).** Against Phase 54 (1840/1900): overbuilder unchanged; trainSpammer 1840 Hard 1/3 -> 3/3 and 1900 Normal 2/3 -> 3/3 bankrupt; leveraged 1840 Hard 3/3 -> 2/3; the rest unchanged. Double track 0.75x moves no bound the wrong way except leveraged 1840 Hard (one seed); the bad-bot bounds missed in Phase 54 stay missed (owner: "let's forget about those"). Good bot unchanged (above).
 
 **6. Main menu.** The menu's Game list gets **Main menu** (`menu-main`): closes the panel, pauses, autosaves (not under `?debug=1`, as before) and *then* opens the title screen so Continue finds that save; Continue loads it (same game, same date); New Game / Scenarios / Load replace the game and the speed the player had comes back. e2e: new game, menu, Main menu, title screen with Continue, Continue, same date.
 

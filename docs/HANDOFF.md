@@ -100,3 +100,12 @@ Read this first, then `CLAUDE.md`, the last ~5 entries of `docs/PROGRESS.md`, an
   - `chain.ts`, `longHaul.ts`.
 - Debug: `?debug=1` exposes `window.__game` (state, commands, runDays, startScenario, findBuildPath).
 - Play-test round 5 summary: `docs/playtests/PT5-SUMMARY.md`. Several of its items are fixed (Phase 47).
+
+## Update 2026-10-18 evening: Phase 55 shipped (reviewed by the orchestrator)
+- Owner approved and Phase 55 is on main: overtaking at stations and passing loops (`src/sim/trains/overtake.ts`), Station /
+  Passing loop choice with the Station tool, loops on double track, Info explanations stay until tapped, double track
+  upgrade 0.75x a new single edge (owner's number), ☰ Main menu (autosave, then title screen).
+- Review: `npm run check` 905 green, e2e 128 + 127 green, no bounds loosened, screenshots looked at. Bad-bot survival rows
+  completed by the orchestrator (PROGRESS).
+- Item 4 (engine choice) was a report only: `tools/bench/engineCosts.ts`. Finding: fuel-by-power changes profit <= 5 % and
+  reorders nothing; price/maintenance against revenue is the real lever. **Awaiting owner decision** before any change.
