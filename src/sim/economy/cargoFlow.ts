@@ -71,11 +71,16 @@ function accrueLots(
   station: Station,
   demand: number,
   service: ServiceRates,
+  /** Exploration E1 (m2, m3): people a month waiting in one pile with no destination yet; they are the part of the pile
+   * that is not a lot, so nothing is turned into destination lots. */
+  poolPerMonth?: number,
 ): number {
   const lots = entry.lots ?? [];
   let lotTotal = 0;
   for (const l of lots) lotTotal += l.amount;
-  const legacy = Math.max(0, entry.amount - lotTotal);
+  const pooled = poolPerMonth !== undefined;
+  const legacy = pooled ? 0 : Math.max(0, entry.amount - lotTotal);
+  const poolHave = pooled ? Math.max(0, entry.amount - lotTotal) : 0;
   const arrived = lots.filter((l) => l.tick !== undefined);
   const own = new Map<number, number>();
   for (const l of lots)
@@ -113,11 +118,25 @@ function accrueLots(
     }
     overflow += legacy - placed;
   }
+  let pool = 0;
+  if (pooled) {
+    // One pile, filled linearly from the last departure up to MAX_WAIT_DAYS of its demand, as a destination pile is.
+    const perMonth = poolPerMonth * demand;
+    const served = [...service.keys()].some((k) => k.startsWith(`${station.id}>`));
+    const cap = waitingCap(perMonth, served);
+    const daily = perMonth / DAYS_PER_MONTH;
+    const have = Math.min(poolHave, cap);
+    const add = Math.max(0, Math.min(daily, cap - have));
+    overflow += daily - add;
+    pool = have + add;
+  }
   entry.lots = [...arrived, ...fresh]; // people who changed here have waited longest: first on
   if (entry.lots.length === 0) delete entry.lots;
   delete entry.bound;
   entry.amount =
-    fresh.reduce((n, l) => n + l.amount, 0) + arrived.reduce((n, l) => n + l.amount, 0);
+    pool +
+    fresh.reduce((n, l) => n + l.amount, 0) +
+    arrived.reduce((n, l) => n + l.amount, 0);
   return overflow;
 }
 
@@ -144,9 +163,18 @@ export function accrueDailyCargo(state: GameState): void {
         // "unserved demand" the station panel shows. Passengers are stored by first leg (Phase 35).
         const shares = cargo === "passengers" ? economy.passengerBound : undefined;
         const overflow =
-          cargo === "passengers" && economy.passengerRoutes && shares
-            ? accrueLots(entry, economy.passengerRoutes, station, demand, service)
-            : accrueLinear(entry, monthly, daily, shares);
+          cargo === "passengers" && economy.passengerPool !== undefined
+            ? accrueLots(
+                entry,
+                economy.passengerRoutes ?? [],
+                station,
+                demand,
+                service,
+                economy.passengerPool,
+              )
+            : cargo === "passengers" && economy.passengerRoutes && shares
+              ? accrueLots(entry, economy.passengerRoutes, station, demand, service)
+              : accrueLinear(entry, monthly, daily, shares);
         if (overflow > 0) recordTurnedAway(state, station.id, cargo, overflow);
         if (entry.amount > DECAY_FLOOR) entry.waitingDays++;
         else {

@@ -20,7 +20,8 @@ import {
 import { cityTileAcceptance, cityTileSupply, cityTravelDemand } from "../economy/cityStats";
 import type { City, Industry, IndustryEconomyState } from "../economy/types";
 import type { GameMap } from "../map/types";
-import { destinationSupplyMult } from "./destinations";
+import { partyOf, usesPool } from "../../data/passengerModels";
+import { destinationSupplyMult, PassengerNetwork } from "./destinations";
 import { computePassengerFlows, type PassengerRoute } from "./passengerFlows";
 import { hasImprovement } from "./improvements";
 import { stationCatchmentTiles } from "./placement";
@@ -43,6 +44,8 @@ export interface StationEconomy {
   passengerDemand?: number;
   /** The reachable destinations behind those buckets, people a month each (the "Where passengers go" sheet). */
   passengerRoutes?: PassengerRoute[];
+  /** Exploration E1 (m2, m3): people a month who wait in one pile, bound for any direct stop of the train that takes them. */
+  passengerPool?: number;
   /** Towns in travel range that no train connects to, with the people a month they would send. */
   passengerUnconnected?: Array<{ cityId: number; perMonth: number }>;
 }
@@ -184,8 +187,13 @@ export function computeStationEconomies(
   }));
   const network = links ?? new Map<number, ReadonlySet<number>>();
   const baseSupply = new Map<number, number>();
+  const model = network instanceof PassengerNetwork ? network.model : undefined;
+  const party = partyOf(model);
   for (const station of stations)
-    baseSupply.set(station.id, (result.get(station.id) as StationEconomy).supply.passengers ?? 0);
+    baseSupply.set(
+      station.id,
+      ((result.get(station.id) as StationEconomy).supply.passengers ?? 0) / party,
+    );
   for (const point of points) {
     const economy = result.get(point.id) as StationEconomy;
     // The station's part of its town's total travel demand; only the reachable shares are generated.
@@ -199,6 +207,23 @@ export function computeStationEconomies(
     if (flows.unconnected.length > 0) economy.passengerUnconnected = flows.unconnected;
     if (!network.has(point.id)) continue; // no passenger train calls here yet: one generic pile, nothing is bound
     economy.supply.passengers = demand * flows.fraction;
+    if (usesPool(model)) {
+      // Exploration E1: people to a direct stop wait in one pile; only the ones needing a change keep a destination.
+      const direct = flows.routes.filter((r) => r.changes === 0);
+      const changing = flows.routes.filter((r) => r.changes > 0);
+      economy.passengerPool = direct.reduce((n, r) => n + r.perMonth, 0);
+      if (changing.length > 0) {
+        const buckets3 = new Map<number, number>();
+        for (const route of changing)
+          buckets3.set(route.firstLeg, (buckets3.get(route.firstLeg) ?? 0) + route.perMonth);
+        const total3 = changing.reduce((n, r) => n + r.perMonth, 0);
+        economy.passengerBound = [...buckets3]
+          .sort((x, y) => x[0] - y[0])
+          .map(([stationId, amount]) => ({ stationId, share: amount / total3 }));
+      }
+      economy.passengerRoutes = changing;
+      continue;
+    }
     const buckets = new Map<number, number>();
     for (const route of flows.routes)
       buckets.set(route.firstLeg, (buckets.get(route.firstLeg) ?? 0) + route.perMonth);

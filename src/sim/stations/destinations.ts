@@ -1,5 +1,6 @@
 /** Destination bonus (Phase 26A): how many distinct other stations a station's passenger/mail
  * trains reach. Pure; recomputed with the station economy. */
+import { usesPool, type PassengerModel } from "../../data/passengerModels";
 import { DESTINATION_BONUS_MAX, DESTINATION_BONUS_PER_STOP } from "../../data/cities";
 import type { GameState } from "../state";
 import type { Train } from "../trains/types";
@@ -42,6 +43,8 @@ export class PassengerNetwork extends Map<number, Set<number>> {
   readonly lineIds = new Map<string, number>();
   /** What a change at a station towards a neighbour costs in tiles (Phase 53B); absent = `CHANGE_MIN_TILES`. */
   changeTiles?: ChangeTiles;
+  /** Exploration E1: the passenger model the network was built for (absent = "m0"). */
+  model?: PassengerModel;
 
   link(a: number, b: number, line: number): void {
     if (a === b) return;
@@ -65,9 +68,11 @@ export class PassengerNetwork extends Map<number, Set<number>> {
 export function passengerLinks(
   trains: readonly Train[],
   changeTiles?: ChangeTiles,
+  model?: PassengerModel,
 ): PassengerNetwork {
   const links = new PassengerNetwork();
   if (changeTiles) links.changeTiles = changeTiles;
+  if (model) links.model = model;
   const lineIds = links.lineIds;
   for (const train of trains) {
     if (!train.cars.some((c) => c.cargoType === "passengers")) continue;
@@ -76,6 +81,11 @@ export function passengerLinks(
     let line = lineIds.get(key);
     if (line === undefined) lineIds.set(key, (line = lineIds.size));
     const n = train.orders.length;
+    if (usesPool(model)) {
+      // Exploration E1 (m2, m3): a train takes you to any of its stops, so every pair of its stops is one hop on its line.
+      for (const a of train.orders) for (const b of train.orders) links.link(a.stationId, b.stationId, line);
+      continue;
+    }
     for (let i = 0; i < n; i++)
       links.link(
         (train.orders[i] as { stationId: number }).stationId,
@@ -88,7 +98,7 @@ export function passengerLinks(
 
 /** The passenger network of a game, with changes costed by the wait for the onward train. */
 export function passengerNetwork(state: GameState): PassengerNetwork {
-  return passengerLinks(state.trains, changeTilesFor(state));
+  return passengerLinks(state.trains, changeTilesFor(state), state.passengerModel);
 }
 
 /** Supply multiplier for a station with `destinations` distinct destinations: 1 for none or one. */

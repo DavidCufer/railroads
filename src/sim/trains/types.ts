@@ -35,6 +35,8 @@ export interface TrainCar {
   loadedUnits: number;
   /** Phase 53C: seats of a passenger car, fixed when bought (`capacity.ts`). Absent = the cargo's base capacity. */
   seats?: number;
+  /** Exploration E1: people per game passenger on this car (absent = 1); `seats` is then in game passengers. */
+  party?: number;
   /** Tile the current load was first picked up at, and the sim tick it happened — used to compute
    * distance/time for the revenue formula (SPEC §8.1) on delivery. Undefined when `loadedUnits`
    * is 0. Set once on the first load into an empty car; unaffected by a later top-up. */

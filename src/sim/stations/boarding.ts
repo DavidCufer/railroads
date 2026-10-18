@@ -3,6 +3,8 @@
  * (`StationCargoPile.bound`); a train boards the people bound for any other stop of its orders, plus those with no
  * destination yet (`amount` minus what is bound). Piles without `bound` (everything else, and old saves) board anyone.
  */
+import { PAIR_DEMAND } from "../../data/economy";
+import { octileTileDistance } from "../trains/geometry";
 import type { GameState, PassengerLot, StationCargoPile } from "../state";
 import { routesFrom, shortestFirstLegs, type Route } from "./passengerFlows";
 import { passengerNetwork, type PassengerNetwork } from "./destinations";
@@ -122,6 +124,66 @@ export function takeLots(
   }
   entry.lots = entry.lots.filter((l) => l.amount > 1e-9);
   if (entry.lots.length === 0) delete entry.lots;
+  if (entry.amount < 1e-9) {
+    entry.amount = 0;
+    delete entry.bound;
+    delete entry.lots;
+  }
+  return taken;
+}
+
+/** Exploration E1 (m2, m3): people waiting in the station's one pile, with no destination yet. */
+export function poolAmount(entry: StationCargoPile): number {
+  return Math.max(0, entry.amount - lotSum(entry));
+}
+
+/** Share of the people who board `train` at `station` that ride to each of its later stops: gravity, destination
+ * population / max(distance, `PAIR_DEMAND.minDistanceTiles`)^`distanceExponent`, among the stops the train makes before
+ * it comes back to this station (`upcomingStops`). Empty when no later stop has a town to go to. */
+export function boardingShares(
+  state: GameState,
+  train: Train,
+  station: { id: number; tile: number },
+): Map<number, number> {
+  const here = state.stationEconomy.get(station.id)?.passengerTownId;
+  const weights = new Map<number, number>();
+  let total = 0;
+  for (const stop of [...upcomingStops(train)].sort((a, b) => a - b)) {
+    if (stop === station.id) continue;
+    const target = state.stations.find((s) => s.id === stop);
+    const cityId = state.stationEconomy.get(stop)?.passengerTownId;
+    const city = cityId === undefined ? undefined : state.cities[cityId];
+    if (!target || !city || cityId === here) continue;
+    const dist = octileTileDistance(station.tile, target.tile, state.map.width);
+    const w =
+      Math.pow(city.population, PAIR_DEMAND.sizeExponent) /
+      Math.pow(Math.max(PAIR_DEMAND.minDistanceTiles, dist), PAIR_DEMAND.distanceExponent);
+    weights.set(stop, w);
+    total += w;
+  }
+  if (total <= 0) return new Map();
+  for (const [id, w] of weights) weights.set(id, w / total);
+  return weights;
+}
+
+/** Exploration E1 (m2, m3): up to `room` people of the one pile board `train` and each picks a destination among its later
+ * stops (`boardingShares`). They pay by distance on arrival like any other passenger. */
+export function takePool(
+  state: GameState,
+  entry: StationCargoPile,
+  train: Train,
+  station: { id: number; tile: number },
+  room: number,
+  now: number,
+): PassengerLot[] {
+  const n = Math.min(poolAmount(entry), room);
+  if (n <= 1e-9) return [];
+  const shares = boardingShares(state, train, station);
+  const taken: PassengerLot[] = [];
+  for (const [dest, share] of shares)
+    addLot(taken, { dest, amount: n * share, originTile: station.tile, tick: now });
+  if (taken.length === 0) return [];
+  entry.amount -= n;
   if (entry.amount < 1e-9) {
     entry.amount = 0;
     delete entry.bound;

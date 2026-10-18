@@ -8,6 +8,7 @@
  * The `compute*Plan` functions are the pure, non-mutating halves of each command — the UI reuses
  * them to price the live drag preview (SPEC §5.2's floating cost label) without side effects.
  */
+import { partyOf } from "../data/passengerModels";
 import { estimateRoundTripDays, evenGapDays } from "./trains/headway";
 import { addRoute, registerBuildRoutes, removeRoute, snapshotLegs } from "./track/routes";
 import { DIFFICULTY, LOAN_INCREMENT } from "../data/finance";
@@ -1154,7 +1155,11 @@ export function buyTrain(
     name: `Train ${id + 1}`,
     locoModelId,
     cars: cars.map((cargoType) =>
-      newCar(cargoType, calendarFromTicks(state.startYear, state.ticks).year),
+      newCar(
+        cargoType,
+        calendarFromTicks(state.startYear, state.ticks).year,
+        partyOf(state.passengerModel),
+      ),
     ),
     orders: [],
     currentOrderIndex: 0,
@@ -1279,6 +1284,7 @@ function reconcileConsist(
   oldCars: readonly TrainCar[],
   newTypes: readonly CargoType[],
   year: number,
+  party = 1,
 ): { cars: TrainCar[]; addedTypes: CargoType[]; removedCars: TrainCar[] } {
   const pools = new Map<CargoType, TrainCar[]>();
   for (const car of oldCars) {
@@ -1292,7 +1298,7 @@ function reconcileConsist(
     const existing = pools.get(type)?.shift();
     if (existing) cars.push(existing);
     else {
-      cars.push(newCar(type, year));
+      cars.push(newCar(type, year, party));
       addedTypes.push(type);
     }
   }
@@ -1330,7 +1336,12 @@ export function computeEditConsistPlan(
   }
 
   const ctx = costContext(state);
-  const { addedTypes, removedCars } = reconcileConsist(train.cars, cars, ctx.year);
+  const { addedTypes, removedCars } = reconcileConsist(
+    train.cars,
+    cars,
+    ctx.year,
+    partyOf(state.passengerModel),
+  );
   const mult = eraInflation(ctx.year) * ctx.buildCostMult;
   const addedCost = addedTypes.reduce(
     (sum, c) => sum + carPrice(c, newCarCapacity(c, ctx.year)) * mult,
@@ -1364,6 +1375,7 @@ export function editConsist(
     train.cars,
     cars,
     calendarFromTicks(state.startYear, state.ticks).year,
+    partyOf(state.passengerModel),
   );
   state.cash -= plan.netCost;
   addExpense(state, "rollingStock", plan.netCost);
