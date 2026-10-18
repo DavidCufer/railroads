@@ -238,7 +238,7 @@ export function computePassengerFlows(
   const tileOf = new Map(stations.map((s) => [s.id, s.tile]));
   const reach = routesFrom(source.id, links, tileOf, map.width);
   // Exploration E1: m2 counts only towns a train of this station calls at directly, m3 also one change away.
-  const maxChanges = links instanceof PassengerNetwork ? maxChangesOf(links.model ?? "m0") : Infinity;
+  const maxChanges = links instanceof PassengerNetwork ? maxChangesOf(links.model) : Infinity;
 
   // Gravity weight: destination population / distance (real decay, clamped so a next-door village does not dominate).
   const distToCity = (city: City): number =>
