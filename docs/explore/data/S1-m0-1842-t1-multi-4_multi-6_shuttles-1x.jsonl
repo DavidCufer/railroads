@@ -1,0 +1,4 @@
+{"scen":"S1","model":"m0","year":1842,"turn":"on","config":"multi-4","cars":1,"trains":4,"carsInUse":4,"revenueK":415,"profitK":389,"netK":380,"perTrainK":97,"loadPct":98,"waitPeople":131,"deliveredPeople":3606,"lostPeople":6190,"fare":118}
+{"scen":"S1","model":"m0","year":1842,"turn":"on","config":"multi-4","cars":2,"trains":4,"carsInUse":8,"revenueK":746,"profitK":708,"netK":698,"perTrainK":177,"loadPct":91,"waitPeople":106,"deliveredPeople":5975,"lostPeople":3911,"fare":128.3}
+{"scen":"S1","model":"m0","year":1842,"turn":"on","config":"multi-4","cars":3,"trains":4,"carsInUse":12,"revenueK":832,"profitK":790,"netK":778,"perTrainK":197,"loadPct":86,"waitPeople":102,"deliveredPeople":6609,"lostPeople":3387,"fare":127.7}
+{"scen":"S1","model":"m0","year":1842,"turn":"on","config":"multi-4","cars":4,"trains":4,"carsInUse":16,"revenueK":784,"profitK":738,"netK":725,"perTrainK":184,"loadPct":72,"waitPeople":104,"deliveredPeople":5802,"lostPeople":4029,"fare":127}

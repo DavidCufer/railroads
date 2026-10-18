@@ -1,0 +1,2 @@
+{"scen":"S1","model":"m3","year":1842,"turn":"on","config":"shuttles-2x","cars":1,"trains":8,"carsInUse":8,"revenueK":574,"profitK":531,"netK":513,"perTrainK":66,"loadPct":89,"waitPeople":43,"deliveredPeople":6363,"lostPeople":562,"fare":93.2}
+{"scen":"S1","model":"m3","year":1842,"turn":"on","config":"shuttles-2x","cars":2,"trains":8,"carsInUse":16,"revenueK":615,"profitK":565,"netK":543,"perTrainK":71,"loadPct":48,"waitPeople":21,"deliveredPeople":6821,"lostPeople":0,"fare":92.2}
