@@ -782,7 +782,7 @@ export const strings = {
       },
       {
         icon: "swap",
-        text: "A passing loop is a short double section on single track where two trains can meet. It is cheap, and spaced departures let three or four trains share one line.",
+        text: "A passing loop is a short double section on single track where two trains can meet. It is cheap, and spaced departures let three or four trains share one line. A loop also lets a fast train overtake a slow one.",
       },
       {
         icon: "doubleTrack",

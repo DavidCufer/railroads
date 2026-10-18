@@ -2,6 +2,9 @@
  * real map has many; they soak up the share of a town's trips that no train of ours reaches).
  *
  * `npx tsx tools/bench/explore.ts <S1|S1s|S2|S3|S4> <year> [seeds=3] [years=2]`
+ * env `OVERTAKE=0` turns the Phase 55 overtaking hold off; `EXPRESS_LOCO=<id>` / `LOCAL_LOCO=<id>` give the S4 express / local trains
+ * their own locomotive (a faster express can catch a local: the overtaking bench), and the output gains `expressDays`
+ * (average end-to-end run time of an express, first departure to arrival at the far end).
  * env `TURN=0` turns terminus turnaround off, `CONFIGS=a,b` runs only those, `KS=1,2,3` car counts, `JSON=1` one JSON line per config.
  * Prints, per configuration and car count, totals over the line's trains, averaged over the seeds. */
 import { PARTY_SIZE } from "../../src/data/economy";
@@ -9,6 +12,7 @@ import { TURNAROUND_HOURS } from "../../src/data/trains";
 import * as commands from "../../src/sim/commands";
 import type { City } from "../../src/sim/economy/types";
 import { advanceOneHour } from "../../src/sim/tick";
+import { overtaking } from "../../src/sim/trains/overtake";
 import { findBuildPath } from "../../src/sim/track/pathfind";
 import { carCapacity } from "../../src/sim/trains/capacity";
 import { booksProfit } from "../../src/sim/trains/profit";
@@ -21,6 +25,7 @@ const startYear = Number(yearArg);
 const SEEDS = Array.from({ length: Number(seedsArg) }, (_, i) => i + 1);
 const YEARS = Number(yearsArg);
 const LOCO = startYear < 1880 ? "norris-4-2-0" : "atlantic-4-4-2";
+if (process.env["OVERTAKE"] === "0") overtaking.enabled = false;
 /** Yearly charge on the money put into trains and cars (3-5 % was a railway bond's yield in the 1840s-1900s). */
 const CAPITAL_CHARGE = 0.05;
 if (process.env["TURN"] === "0") {
@@ -221,6 +226,7 @@ interface Metrics {
   deliveredPeople: number;
   lostPeople: number;
   fare: number; // revenue per person delivered
+  expressDays: number; // average end-to-end run time of an express (0 when the config has none)
 }
 
 function run(cfg: Config, k: number, seed: number): Metrics {
@@ -228,9 +234,16 @@ function run(cfg: Config, k: number, seed: number): Metrics {
   const party = PARTY_SIZE;
   const cash0 = state.cash;
   const ids: number[] = [];
-  for (const orders of cfg.trains(stations.length)) {
+  const expressIds = new Set<number>();
+  const nStations = stations.length;
+  for (const orders of cfg.trains(nStations)) {
     const cars = Array.from({ length: k }, () => "passengers" as const);
-    const r = commands.buyTrain(state, stations[orders[0] as number] as number, LOCO, cars);
+    const isExpress =
+      scen === "S4" &&
+      orders.length === 2 &&
+      Math.abs((orders[0] as number) - (orders[1] as number)) === nStations - 1;
+    const loco = (isExpress ? process.env["EXPRESS_LOCO"] : process.env["LOCAL_LOCO"]) ?? LOCO;
+    const r = commands.buyTrain(state, stations[orders[0] as number] as number, loco, cars);
     if (!(r as { ok: boolean }).ok) throw new Error("train " + JSON.stringify(r));
     const t = state.trains[state.trains.length - 1] as { id: number };
     commands.setOrders(
@@ -239,11 +252,20 @@ function run(cfg: Config, k: number, seed: number): Metrics {
       orders.map((o) => ({ stationId: stations[o] as number, rule: "auto" as const })),
     );
     ids.push(t.id);
+    if (isExpress) expressIds.add(t.id);
   }
   const capex = cash0 - state.cash;
   const loadSum = new Map<number, [number, number]>();
   let waitSum = 0;
   let days = 0;
+  // Express run times: from leaving one end to loading at the other.
+  const endTiles = new Set(
+    [stations[0], stations[nStations - 1]].map(
+      (id) => state.stations.find((s) => s.id === id)?.tile,
+    ),
+  );
+  const leftAt = new Map<number, number>();
+  const runHours: number[] = [];
   for (let i = 0; i < YEARS * DAYS_PER_YEAR * HOURS_PER_DAY; i++) {
     advanceOneHour(state);
     if (i % HOURS_PER_DAY === 0) {
@@ -251,6 +273,13 @@ function run(cfg: Config, k: number, seed: number): Metrics {
       for (const s of stations) waitSum += state.stationCargo.get(s)?.passengers?.amount ?? 0;
     }
     for (const t of state.trains) {
+      if (expressIds.has(t.id)) {
+        const atEnd = endTiles.has(t.route[t.routeIndex]) && t.edgeProgress === 0;
+        if (t.status === "loading" && atEnd && leftAt.has(t.id)) {
+          runHours.push(i - (leftAt.get(t.id) as number));
+          leftAt.delete(t.id);
+        } else if (t.status === "moving" && !atEnd && !leftAt.has(t.id)) leftAt.set(t.id, i);
+      }
       if (t.status !== "moving") continue;
       const cap = t.cars.reduce((u, c) => u + carCapacity(c), 0);
       const used = t.cars.reduce((u, c) => u + c.loadedUnits, 0);
@@ -297,6 +326,9 @@ function run(cfg: Config, k: number, seed: number): Metrics {
     deliveredPeople: delivered * party,
     lostPeople: lost * party,
     fare: delivered > 0 ? revenue / (delivered * party) : 0,
+    expressDays: runHours.length
+      ? runHours.reduce((a, b) => a + b, 0) / runHours.length / HOURS_PER_DAY
+      : 0,
   };
 }
 
@@ -324,6 +356,7 @@ for (const cfg of CONFIGS) {
       deliveredPeople: Math.round(avg((m) => m.deliveredPeople)),
       lostPeople: Math.round(avg((m) => m.lostPeople)),
       fare: Math.round(avg((m) => m.fare) * 10) / 10,
+      expressDays: Math.round(avg((m) => m.expressDays) * 10) / 10,
     };
     console.log(process.env["JSON"] ? JSON.stringify(row) : Object.values(row).join("\t"));
   }

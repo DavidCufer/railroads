@@ -810,7 +810,8 @@ export function computePassingLoopPlan(state: GameState, tile: number): StationB
     edges.length === 2 &&
     canPlaceStationAt(state.map, state.trackGraph, tile) &&
     !stationAtTile(state.stations, tile);
-  const plain = edges.every((e) => !e.double && !e.bridge);
+  // Phase 55: a loop on double track is a refuge where a fast train overtakes a slow one.
+  const plain = edges.every((e) => !e.bridge);
   const land = passingLoopLandCost(landPrices(state), tile);
   const landGrant = landGrantFor(state, land);
   return {

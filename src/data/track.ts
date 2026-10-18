@@ -20,10 +20,11 @@ export const TERRAIN_COST_MULTIPLIER: Partial<Record<Terrain, number>> = {
 export const DIAGONAL_FACTOR = 1.41;
 export const GRADE_SURCHARGE_PER_ELEVATION = 2_000 / WORLD_SCALE;
 
-/** Double track: 1.6× a fresh single-track edge's cost; upgrading existing single track costs
- * the 0.6× delta. Over a bridge the fresh-build multiplier is 1.8× (SPEC §5.3), so the upgrade
- * delta there is 0.8×. */
-export const DOUBLE_TRACK_MULTIPLIER = 1.6;
+/** Double track: 1.75× a fresh single-track edge's cost; upgrading existing single track costs
+ * the 0.75× delta (Phase 55, was 1.6×/0.6×). Real basis: the second line needs a wider formation, cuttings and
+ * embankments, so it costs most of a new line. Over a bridge the fresh-build multiplier is 1.8× (SPEC §5.3), so the
+ * upgrade delta there is 0.8×. */
+export const DOUBLE_TRACK_MULTIPLIER = 1.75;
 export const DOUBLE_TRACK_UPGRADE_MULTIPLIER = DOUBLE_TRACK_MULTIPLIER - 1.0;
 export const DOUBLE_TRACK_BRIDGE_MULTIPLIER = 1.8;
 export const DOUBLE_TRACK_BRIDGE_UPGRADE_MULTIPLIER = DOUBLE_TRACK_BRIDGE_MULTIPLIER - 1.0;

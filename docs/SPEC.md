@@ -204,7 +204,7 @@ Per edge, base cost × terrain multiplier (use the more expensive of the two til
 | Base single track, plain | $4,000 per tile |
 | Terrain multipliers | plain 1.0, desert 1.2, forest 1.5 (clearing), swamp 2.0, hills 2.0, mountain 4.0 |
 | Grade surcharge | +$2,000 × \|Δelevation\| per edge |
-| Double track | 1.6 × the single-track cost of that edge (upgrade cost = 0.6× if single exists) |
+| Double track | 1.75 × the single-track cost of that edge (upgrade cost = 0.75× if single exists; Phase 55, was 1.6 / 0.6) |
 | Electrification (from 1905) | $6,000 per edge (+50% on double track) |
 | River bridge (single-tile river crossing) | wood $20k (all eras), stone $45k (from 1840), steel $80k (from 1870) |
 | Water bridge (over `water` tiles) | per water tile: wood — not allowed; stone $60k (max 3 tiles); steel $110k (max 8 tiles, from 1870) |

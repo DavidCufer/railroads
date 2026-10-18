@@ -6,6 +6,7 @@ import {
   buildTrack,
   buyTrain,
   setOrders,
+  upgradeTrack,
 } from "../../../src/sim/commands";
 import { OVERTAKE_MAX_HOLD_HOURS } from "../../../src/data/trains";
 import { stepTrains } from "../../../src/sim/trains";
@@ -162,5 +163,27 @@ describe("overtaking at a passing place", () => {
       if (L.waitingOn?.kind === "overtake") held++;
     });
     expect(held).toBeGreaterThan(0);
+  });
+
+  it("a passing loop can be built on double track, where it only serves overtaking", () => {
+    const { state, a, b } = line();
+    const path = Array.from({ length: LENGTH }, (_, x) => x);
+    expect(upgradeTrack(state, path).ok).toBe(true);
+    expect(buildPassingLoop(state, 12).ok).toBe(true);
+    const local = launch(state, "grasshopper-0-4-0", a, [a, b]);
+    run(state, 150, () => {});
+    const express = launch(state, "american-4-4-0", a, [a, b]);
+    const L = state.trains.find((t) => t.id === local)!;
+    let held = 0;
+    let longest = 0;
+    run(state, 2500, () => {
+      if (L.waitingOn?.kind === "overtake") {
+        held++;
+        expect(L.waitingOn.trainIds).toEqual([express]);
+      } else held = 0;
+      longest = Math.max(longest, held);
+    });
+    expect(longest).toBeGreaterThan(0);
+    expect(longest).toBeLessThanOrEqual(OVERTAKE_MAX_HOLD_HOURS);
   });
 });
