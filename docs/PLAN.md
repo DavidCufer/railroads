@@ -2306,3 +2306,48 @@ Real mechanisms only; numbers in `src/data` with a one-line justification. Never
    screenshots `phase-55-*.png`: an express passing a local held in a loop, the Station/Passing loop choice, the
    Info text staying, the Main menu row. LOOK at them.
 Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6 [x] 7
+
+## Phase 56 — Every engine has its use: price and upkeep from the engine's real size
+
+Owner decision (2026-10-18), after the Phase 55 engine-cost report: "Ideal case would be that each engine has its own use
+case, or at least most of them. Small and slow should be enough for close-by cities, and more cost effective. A fast
+expensive train with one carriage should not break even for a long time. For a short line a small slow train should at
+least break even faster. Increase the cost between them a bit; upkeep should be a bit higher." **Go, without the Buy
+Train payback line** (no new UI line in this phase).
+
+Why today every engine looks alike (Phase 55 item 4, `tools/bench/engineCosts.ts`): price is 2-16 % of start cash up to
+1900, maintenance + fuel are under ~11 % of a train's profit, a Norris pays back in ~4 months, so the fastest engine
+always wins and the cost side decides nothing.
+
+Real mechanisms only; numbers in `src/data` with a one-line real justification. Do not add new era calibration tables
+or flat multipliers. Never loosen a test bound or word limit.
+
+1. **Price from the engine's real size.** Add each engine's real working weight (engine + tender, tonnes, from the real
+   type it stands for; one-line source note per engine) to `LocomotiveDef`. Price = a price per tonne (era-scaled as
+   prices are today) × weight, plus a type premium for electric and diesel (real: electrical/diesel equipment cost more
+   per tonne than a steam boiler). State the per-tonne rate and the premium with their basis. The gap between small and
+   big engines should come out several times wider than today (e.g. a Hudson several × an American, an Articulated more).
+   Keep the existing gross weight model (`economy.ts` weight by class) consistent with the new weights, or replace it
+   with them, and say which.
+2. **Upkeep from size and distance run.** Real repair bills per engine-mile grew with engine weight. Split the
+   locomotive's yearly cost into (a) a fixed part per year ∝ weight (depot, inspection, boiler/equipment wear by age) and
+   (b) a running part per tile run ∝ weight (repairs follow mileage), alongside the existing fuel and wages. Upkeep goes
+   up overall, most for the big engines. Keep the save format working (old saves load; derived values, not stored).
+3. **Targets (bench).** Extend `tools/bench/engineCosts.ts`: lines short (~10-15 tiles, two close towns), medium
+   (Venice-Milan) and long (~60+ tiles); consists 1 car, half, full; freight: a coal line with a heavy train. Report per
+   era (1840, 1870, 1900, 1930, 1950, Normal) price, upkeep/yr, profit/yr and **payback years** for every buyable engine.
+   - Short line: a small, slow, cheap engine has the fastest payback of its era.
+   - Long line: a fast engine is the best buy (fastest payback with a full consist).
+   - Fast expensive engine with 1 car: no payback within 10 years.
+   - Heavy freight: a strong slow (freight) engine beats a fast passenger engine.
+   - Most engines are the best choice somewhere: list each engine with the case it wins, and the ones that win none.
+   If a target is missed, find the real mechanism (e.g. dwell/turnaround dominating short lines, power on grades); do
+   not tune a fudge to hit it. Report misses openly.
+4. **Balance.** The good bot picks the engine with the best payback for each line (instead of `bestLoco()`, the fastest),
+   keeping its backlog/reserve rules. Re-run survival (good + bad bots, 1840/1900/1930/1950, Normal and Hard, 3 seeds).
+   Bounds: good survives everywhere; good 1900 Normal $20-34M; Hard >= 40 % below Normal. If the good bot falls outside
+   $20-34M, stop and report the numbers and the cause for the owner; do not change revenue or loosen the bound.
+   Balance tests (`balance*.test.ts`) that fail: report old/new values and the real reason; do not loosen them.
+5. SPEC (§7.7 roster table, §9 costs), PROGRESS with all tables, e2e (update, never weaken; the buy wizard shows the new
+   prices/upkeep), screenshot `phase-56-buy-train.png` (the engine list with the new prices). LOOK at it.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
