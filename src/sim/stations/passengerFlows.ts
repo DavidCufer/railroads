@@ -7,6 +7,7 @@
  * **first leg**: the next station on the shortest route there, so the waiting number always equals what the trains
  * calling at the station can take.
  */
+import { maxChangesOf } from "../../data/passengerModels";
 import { CHANGE_MIN_TILES, PAIR_DEMAND, travelRangeTiles } from "../../data/economy";
 import type { City } from "../economy/types";
 import type { GameMap } from "../map/types";
@@ -236,6 +237,8 @@ export function computePassengerFlows(
   const range = travelRangeTiles(year);
   const tileOf = new Map(stations.map((s) => [s.id, s.tile]));
   const reach = routesFrom(source.id, links, tileOf, map.width);
+  // Exploration E1: m2 counts only towns a train of this station calls at directly, m3 also one change away.
+  const maxChanges = links instanceof PassengerNetwork ? maxChangesOf(links.model ?? "m0") : Infinity;
 
   // Gravity weight: destination population / distance (real decay, clamped so a next-door village does not dominate).
   const distToCity = (city: City): number =>
@@ -256,7 +259,7 @@ export function computePassengerFlows(
   >();
   for (const s of stations) {
     const r = reach.get(s.id);
-    if (!r || s.cityId < 0 || s.cityId === source.cityId) continue;
+    if (!r || s.cityId < 0 || s.cityId === source.cityId || r.changes > maxChanges) continue;
     const known = target.get(s.cityId);
     if (!known || r.cost < known.dist || (r.cost === known.dist && s.id < known.station))
       target.set(s.cityId, {

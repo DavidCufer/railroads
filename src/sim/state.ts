@@ -1,4 +1,5 @@
 /** GameState: the map plus the game's single seeded RNG stream (SPEC §1, §12). */
+import type { PassengerModel } from "../data/passengerModels";
 import { createRng, type RngState } from "./rng";
 import { generateMap, type MapGenOptions } from "./map/generate";
 import type { GameMap } from "./map/types";
@@ -129,6 +130,8 @@ export interface GameState {
   stationFlow: Map<number, StationFlow>;
   /** Phase 53C: the last passenger departure per (station, next stop); see `DepartureStamp`. Absent = "now" on first sight. */
   departures: Map<string, DepartureStamp>;
+  /** Exploration E1: the passenger demand model (absent = "m0", the Phase 53C rules). Not saved: a prototype switch. */
+  passengerModel?: PassengerModel;
   /** Bridges the river took and nobody has rebuilt yet (Phase 30A) — the persistent gaps in the line. */
   washouts: Washout[];
   nextWashoutId: number;
@@ -192,6 +195,8 @@ interface BaseNewGameOptions {
   difficulty?: Difficulty;
   /** Phase 46: start from this scenario (src/data/scenarios.ts) - cash, opening debt and the goal come from it. */
   scenarioId?: string;
+  /** Exploration E1: passenger demand model (default "m0"). */
+  passengerModel?: PassengerModel;
 }
 
 /** A freshly-generated random map (SPEC §4.2). */
@@ -264,6 +269,7 @@ export function createGameState(options: NewGameOptions): GameState {
     stationTransfer: new Map(),
     stationFlow: new Map(),
     departures: new Map(),
+    ...(options.passengerModel ? { passengerModel: options.passengerModel } : {}),
     washouts: [],
     nextWashoutId: 0,
     industryEconomy: initIndustryEconomy(industries),

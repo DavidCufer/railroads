@@ -4,6 +4,7 @@
  * time on first use, decrements it, and performs the actual unload/load batch (and, for "Wait for
  * full load", may loop for extra days) once it reaches zero.
  */
+import { partyOf, usesPool } from "../../data/passengerModels";
 import {
   CARGO,
   cargoUnitFactor,
@@ -47,6 +48,7 @@ import {
   Router,
   takeBoarders,
   takeLots,
+  takePool,
   upcomingStops,
 } from "../stations/boarding";
 import { stampDeparture } from "../stations/waiting";
@@ -456,7 +458,8 @@ function payDelivery(
         days,
         locomotiveById(train.locoModelId)?.maxSpeedKmh ?? 0,
       ) *
-      (unitsDelivered / CARGO[cargo].capacity);
+      ((unitsDelivered * (cargo === "passengers" ? partyOf(state.passengerModel) : 1)) /
+        CARGO[cargo].capacity);
 
     // Post Office/Cold Storage (SPEC §6.2): bonus depends on where the cargo was *loaded*, not
     // where it's being delivered.
@@ -701,6 +704,11 @@ function applyLoad(
   // its single origin and is topped up from the older piles only.
   if (car.cargoType === "passengers" && (car.lots || car.loadedUnits === 0)) {
     const taken = takeLots(entry, router, train, station.id, room, state.ticks);
+    if (usesPool(state.passengerModel)) {
+      // Exploration E1: the rest of the room goes to the one pile, split over this train's later stops.
+      const got = taken.reduce((sum, l) => sum + l.amount, 0);
+      taken.push(...takePool(state, entry, train, station, room - got, state.ticks));
+    }
     if (taken.length > 0) {
       const lots = (car.lots ??= []);
       for (const lot of taken) addLot(lots, lot);
