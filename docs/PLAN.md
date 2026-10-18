@@ -2130,4 +2130,4 @@ All three are real mechanisms. Build them in this order and measure after each.
    - If 1840 stays far above its old target, say why.
 5. SPEC, PROGRESS with every table (before and after each item), screenshots `phase-53c-*.png`: a train "Turning"
    and a Venice station. LOOK at them.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 (main) [~] 2 (branch phase-53c-wip; 4 balance bounds fail, see PROGRESS) [~] 3 (branch) [~] 4 (benches run; 1900 Normal, 1840, bad-bot and multi-stop 1.25x NOT met) [ ] 5

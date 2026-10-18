@@ -5537,3 +5537,43 @@ Before (Phase 53): good 1840 N 6.1 7.8 8.2, H 2.9 2.9 3.6; 1900 N 22.5 19.7 22.6
 
 **Checks:** `npm run check` 887 tests pass; new tests `changeWait.test.ts`; e2e shard 1/2 126 passed, shard 2/2 124 passed and 1 failed (`phase35` expected Venice's 1900 town total 484; it is now 40k x 0.0327 = 1308, updated, the spec then passes alone). The screenshots of all other phases were restored.
 **Needs the owner:** (1) the observed-gap cap proposal for multi-stop; (2) bad-bot Normal/Hard bounds: which of (a)-(c) to build, or accept the thin margins; (3) era car capacity (above) to bring 1900 Normal back into $20-34M and the Hard gap back; (4) whether the 1900+ trips table (0.0327, 70x compressed) is the growth you want.
+
+
+## 2026-10-18 - Phase 53C: Observed waiting gap, terminus turnaround, era coach seats (items 1-3 coded; item 1 on main, items 2-3 on branch `phase-53c-wip`; targets NOT met; items 4-5 partial)
+**Where the code is.** Item 1 is on `main` (`npm run check` green). Items 2 and 3 are on branch **`phase-53c-wip`** only, because with them four existing balance tests fail and the rules forbid loosening a bound (list below). I did not merge them. Decision for the owner: re-baseline those four brackets, or change the mechanism.
+
+**1. People wait for the actual next train (main).** `state.departures` (saved; absent in old saves = stamped "now" on first sight) holds, per (station, next stop), the last passenger departure and a smoothed observed gap (`stampDeparture`, called when a passenger train leaves a stop, for every stop it makes next). A destination pile now holds up to `MAX_WAIT_DAYS` of demand while a train serves the pair (`waitingCap(perMonth, served)`), fills linearly, what a train cannot take stays, only the part above the ceiling is lost. The UI "every ~N d" shows the observed gap (`observedIntervalDays`, falls back to the estimate). Tests: `waitingForNextTrain.test.ts` (gap shorter than the ceiling loses nobody; long gap loses only the part above; leftovers stay; observed gap smoothing). **Changed test (flagged):** `singleTrack.test.ts` "convoy vs spaced departures" asserted spacing earns > +5 %. A convoy no longer loses anyone to the cap, so spacing gives -3.4 % (1.879M vs 1.946M). I replaced the assertion with `spaced > convoy x 0.95` and said why in the test; this is the one place I changed a bound, because its premise (the empty platform behind a convoy turns people away) is gone.
+
+**2. Terminus turnaround (branch).** `TURNAROUND_HOURS` steam 1 / diesel 0.5 / electric 0.5, `doubleEnded` set 0.25 (only the High-Speed Trainset); `GAME_DAYS_PER_REAL_HOUR = KMH_PER_TILE_PER_DAY / KM_PER_TILE = 3` (a real hour of running takes 3 game days at any speed), so steam turns in 72 ticks, diesel/electric 36, double-ended 18 (`src/data/trains.ts`, with the real basis). A train reverses at a stop when the stops before and after in its orders are the same station (`reversesAtOrder`): every stop of a shuttle, the ends of a there-and-back line, not intermediate stops or loops. Choices: the turn comes after unloading and loading, and a turning train does not hold a platform (coaches drawn off while the engine turns); without that the Phase 28A yard throughput test collapsed. A new train at its first stop does not turn. The train panel and station list show "Turning". `estimateRoundTripDays` includes the turns. Freight is affected too. Also fixed: a train entering the yard now records who it waits for from the first tick (the phantom-jam invariant test failed on that after the timing shift). Test change (definition, not a bound): `signaling.test.ts` counts platform holders excluding turning trains. New `turnaround.test.ts`.
+**3. Passenger seats by era (branch).** `PASSENGER_SEATS_ANCHORS`: 40 (to 1879), 60 (1880-1919), 80 (1920+); `TrainCar.seats` is fixed when bought (old cars = 40); `src/sim/trains/capacity.ts` is the one place that reads a car's capacity and price. Price and upkeep follow seats (cost per seat constant, so a 60-seat car costs 1.5x, an 80-seat car 2x the 6,000 base at the year's prices). Car weight is NOT scaled by seats (a simplification; real coaches were heavier).
+
+**Tests that fail on the branch (items 2): not loosened.** `balancePassengers` 1840s pax/coal 1.48 (bound < 1.3; 0.93 before) and mail/pax 0.0489 (bound > 0.05); `balanceLongHaul` 1840 payback "10" (expected never) and 1930/1950 ratio 0.75 (bound > 0.8). All four pass with the turnaround set to 0. Cause: a lightly loaded passenger line is demand-bound and piles up while the train turns, a coal train runs full and loses a trip's income per turn, so passengers gain ground on coal.
+
+**Survival, 3 seeds, 16 years, bankrupt (final NW $M of the three seeds).** (A) item 1 only (main); (B) 1+2; (C) 1+2+3.
+| bot / start / diff | A: item 1 | B: +turnaround | C: +seats |
+|---|---|---|---|
+| good 1840 N | 0/3 (26.0 22.9 24.4) | 0/3 (22.4 21.8 21.9) | same as B |
+| good 1840 H | 0/3 (8.6 7.8 9.3) | 0/3 (8.0 8.3 7.9) | same as B |
+| good 1900 N | 0/3 (82.9 67.3 73.1) | 0/3 (45.2 41.7 45.1) | 0/3 (52.9 31.6 35.6) |
+| good 1900 H | 0/3 (31.9 16.2 17.8) | 0/3 (12.0 10.7 11.9) | 0/3 (12.7 12.8 12.9) |
+| good 1930 N / H | 0/3 (12.5 16.0 13.1) / (8.9 7.3 7.1) | (12.6 11.8 11.0) / (5.2 4.4 4.8) | (11.7 11.8 10.1) / (6.3 5.6 5.8) |
+| good 1950 N / H | 0/3 (10.6 9.3 9.3) / (5.2 4.3 4.4) | (9.2 8.8 8.7) / (4.7 4.0 3.4) | (8.8 8.0 8.1) / (4.3 4.0 3.7) |
+| overbuilder 1840 N / H | 0/3 / 3/3 | 1/3 / 3/3 | 1/3 / 3/3 |
+| overbuilder 1900 N / H | 3/3 / 3/3 | 1/3 / 3/3 | 1/3 / 3/3 |
+| overbuilder 1930 N / H | 3/3 / 3/3 | 3/3 / 3/3 | 3/3 / **0/3** |
+| overbuilder 1950 N / H | 0/3 / 3/3 | 2/3 / 3/3 | 3/3 / 3/3 |
+| trainSpammer 1840 N / H | 3/3 / 3/3 | 3/3 / 2/3 | 3/3 / 2/3 |
+| trainSpammer 1900 N / H | 3/3 / 2/3 | 3/3 / 2/3 | 3/3 / 2/3 |
+| trainSpammer 1930 N / H | 1/3 / 2/3 | 2/3 / 2/3 | 0/3 / 1/3 |
+| trainSpammer 1950 N / H | 2/3 / 1/3 | 3/3 / 1/3 | 3/3 / 2/3 |
+| leveraged 1840 N / H | 3/3 / 3/3 | 3/3 / 3/3 | 3/3 / 3/3 |
+| leveraged 1900 N / H | 0/3 / 0/3 | 3/3 / 1/3 | 1/3 / 2/3 |
+| leveraged 1930 N / H | 1/3 / 2/3 | 2/3 / 2/3 | 0/3 / 1/3 |
+| leveraged 1950 N / H | 2/3 / 1/3 | 3/3 / 1/3 | 3/3 / 2/3 |
+(Phase 53B for comparison: good 1900 N 10.2 16.6 11.4, H 9.9 10.7 10.6; 1840 N 10.6 11.4 10.8.)
+**Bounds.** Met in C: good survives everywhere; Hard is 64 % (1900), 63 % (1840) and 49 % (1950) below Normal; 1930 Hard is 50 % below. **Missed in C:** good 1900 Normal 52.9 / 31.6 / 35.6 vs $20-34M (one seed 53, two just above 34); good 1840 Normal $22M against the old ~$4M target (1840 stays rich: item 1 removes the cap losses, the 53B per-seat revenue is unchanged and 1840 coaches stay at 40 seats, so nothing new brings it down); bad bots: overbuilder Normal 1/3 at 1840 and 1900 (needs >= 50 %), trainSpammer / leveraged Hard 1/3-2/3 at most starts (need >= 80 %), leveraged/trainSpammer 1930 Normal 0/3. Bad bots survive because the old reason still holds (a long slow line is paid by distance; trainSpammer/leveraged are cash-limited, margins ~$0.1M); I did not build crowding, per-km upkeep or a revenue-linked loan limit: none is clearly a plain rule yet. Item 1 alone made the economy 3x richer in 1900 (the ceiling is now 30 days of demand instead of the estimated gap), turnaround took ~45 % off it, seats put ~15 % of it back.
+
+**Multi-stop, Frankfurt chain, 1842, Norris x5, 3 seeds, profit per train $k/yr (load).** 53B: 4 trains multi 99 / shuttles 149 (0.66x); 6 trains 78 / 91 (0.86x). Item 1: 4: 115 (49 %) / 151 (63 %) = 0.76x; 6: 113 (48 %) / 117 (50 %) = 0.97x. Items 1-3: 4: 113 (50 %) / 140 (66 %) = 0.81x; 6: 110 (49 %) / 114 (55 %) = 0.96x. **Target >= 1.25x NOT met.** Item 1 closed most of the gap (the estimated-interval cap was part of it); the turnaround cost shuttles ~7 % but multi trains only ~2 %, as the PLAN expected, yet multi trains still run less full (50 % vs 66 %). Not isolated beyond that. Owner scenario and `through.ts` after item 1: Venice-Milan best fleet 1 to 2 (1 train 197 $k/yr, 2: 209, 4: 136, 6: 100: unchanged shape); not re-run for 2-3.
+
+**Not done:** SPEC edits (§8.1, §9.5d), item 5 screenshots (`phase-53c-*.png`), e2e shards, owner/through re-runs for items 2-3, the 1840 explanation beyond the above. The branch passes everything except the four tests above (not run: e2e).
+**Needs the owner:** (1) the four balance brackets vs terminus turnaround (re-baseline or rethink); (2) accept the `singleTrack` convoy assertion change; (3) the 1900 Normal / 1840 wealth and the bad-bot survival, which need a mechanism, not a tuning.
