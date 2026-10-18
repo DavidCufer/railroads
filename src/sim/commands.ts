@@ -79,6 +79,7 @@ import { issueLoan, repayPrincipal } from "./finance/credit";
 import { emptyTrainProfit, recordTrainRepair } from "./trains/profit";
 import { DAYS_PER_YEAR, HOURS_PER_DAY } from "./time";
 import { dropCarCargo } from "./trains/loading";
+import { carPrice, carPriceOf, newCar, newCarCapacity } from "./trains/capacity";
 import { tileXY } from "./trains/geometry";
 import type { LoadingRule, Train, TrainCar, TrainOrder } from "./trains/types";
 
@@ -1109,7 +1110,9 @@ export function computeBuyTrainPlan(
   }
   const ctx = costContext(state);
   const mult = eraInflation(ctx.year) * ctx.buildCostMult;
-  const cost = loco.cost * mult + cars.reduce((sum, c) => sum + CARGO[c].carCost * mult, 0);
+  const cost =
+    loco.cost * mult +
+    cars.reduce((sum, c) => sum + carPrice(c, newCarCapacity(c, ctx.year)) * mult, 0);
   return { cost, valid: true };
 }
 
@@ -1150,7 +1153,9 @@ export function buyTrain(
     id,
     name: `Train ${id + 1}`,
     locoModelId,
-    cars: cars.map((cargoType) => ({ cargoType, loadedUnits: 0 })),
+    cars: cars.map((cargoType) =>
+      newCar(cargoType, calendarFromTicks(state.startYear, state.ticks).year),
+    ),
     orders: [],
     currentOrderIndex: 0,
     status: "loading",
@@ -1273,6 +1278,7 @@ export function spaceTrainsEvenly(
 function reconcileConsist(
   oldCars: readonly TrainCar[],
   newTypes: readonly CargoType[],
+  year: number,
 ): { cars: TrainCar[]; addedTypes: CargoType[]; removedCars: TrainCar[] } {
   const pools = new Map<CargoType, TrainCar[]>();
   for (const car of oldCars) {
@@ -1286,7 +1292,7 @@ function reconcileConsist(
     const existing = pools.get(type)?.shift();
     if (existing) cars.push(existing);
     else {
-      cars.push({ cargoType: type, loadedUnits: 0 });
+      cars.push(newCar(type, year));
       addedTypes.push(type);
     }
   }
@@ -1323,12 +1329,15 @@ export function computeEditConsistPlan(
     return invalid;
   }
 
-  const { addedTypes, removedCars } = reconcileConsist(train.cars, cars);
   const ctx = costContext(state);
+  const { addedTypes, removedCars } = reconcileConsist(train.cars, cars, ctx.year);
   const mult = eraInflation(ctx.year) * ctx.buildCostMult;
-  const addedCost = addedTypes.reduce((sum, c) => sum + CARGO[c].carCost * mult, 0);
+  const addedCost = addedTypes.reduce(
+    (sum, c) => sum + carPrice(c, newCarCapacity(c, ctx.year)) * mult,
+    0,
+  );
   const refund = removedCars.reduce(
-    (sum, c) => sum + CARGO[c.cargoType].carCost * mult * CONSIST_EDIT_REFUND_FRACTION,
+    (sum, c) => sum + carPriceOf(c) * mult * CONSIST_EDIT_REFUND_FRACTION,
     0,
   );
   return { netCost: addedCost - refund, addedCost, refund, valid: true };
@@ -1351,7 +1360,11 @@ export function editConsist(
   if (!plan.valid) return { ok: false, reason: "invalid-consist" };
   if (plan.netCost > state.cash) return { ok: false, reason: "cant-afford" };
 
-  const { cars: reconciledCars, removedCars } = reconcileConsist(train.cars, cars);
+  const { cars: reconciledCars, removedCars } = reconcileConsist(
+    train.cars,
+    cars,
+    calendarFromTicks(state.startYear, state.ticks).year,
+  );
   state.cash -= plan.netCost;
   addExpense(state, "rollingStock", plan.netCost);
 
@@ -1387,8 +1400,7 @@ export function computeSellTrainPlan(state: GameState, trainId: number): SellTra
   if (!loco) return { refund: 0, valid: false };
   const ctx = costContext(state);
   const mult = eraInflation(ctx.year) * ctx.buildCostMult;
-  const value =
-    loco.cost * mult + train.cars.reduce((sum, c) => sum + CARGO[c.cargoType].carCost * mult, 0);
+  const value = loco.cost * mult + train.cars.reduce((sum, c) => sum + carPriceOf(c) * mult, 0);
   return { refund: value * SELL_REFUND_FRACTION, valid: true };
 }
 
@@ -1521,7 +1533,7 @@ export function replaceLocomotive(
   const train = state.trains.find((t) => t.id === trainId) as Train;
   const ctx = costContext(state);
   const mult = eraInflation(ctx.year) * ctx.buildCostMult;
-  const carsValue = train.cars.reduce((sum, c) => sum + CARGO[c.cargoType].carCost * mult, 0);
+  const carsValue = train.cars.reduce((sum, c) => sum + carPriceOf(c) * mult, 0);
 
   train.locoModelId = newLocoModelId;
   train.purchasePrice = plan.newLocoCost + carsValue;

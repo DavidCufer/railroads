@@ -1,4 +1,5 @@
 import { GameLoop, type GameSpeed } from "./render/loop";
+import { carCapacity } from "./sim/trains/capacity";
 import { routesAt } from "./sim/track/routes";
 import { FpsCounter } from "./render/fps";
 import { Camera, TILE_SIZE } from "./render/camera";
@@ -1814,7 +1815,7 @@ function main(): void {
         (state.trains.find((t) => t.id === trainId)?.cars ?? []).map((c) => ({
           cargoType: c.cargoType,
           loadedUnits: c.loadedUnits,
-          capacity: CARGO[c.cargoType].capacity,
+          capacity: carCapacity(c),
         })),
       debugOpenStation: (stationId) => openStationById(stationId),
       debugPickStation: (stationId) => deliverStationPick(stationId),

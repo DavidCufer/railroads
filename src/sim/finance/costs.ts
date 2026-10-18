@@ -2,6 +2,7 @@
  * and the thing itself, used by the monthly ledger and by the panels that show the player each cost.
  * The tables live in src/data/economy.ts. */
 import { KM_PER_TILE } from "../../data/scale";
+import { carCapacity, carPriceOf } from "../trains/capacity";
 import {
   AXLE_LOAD_FACTOR,
   CAR_AXLE_FACTOR,
@@ -43,7 +44,7 @@ import {
   STEAM_MAINTENANCE_SURCHARGE_YEAR,
   type LocomotiveDef,
 } from "../../data/trains";
-import { CARGO, carUpkeepRate } from "../../data/cargo";
+import { carUpkeepRate } from "../../data/cargo";
 import { ageRunningCostMult } from "../trains/ageing";
 import type { StationType } from "../../data/stations";
 import type { TrainCar } from "../trains/types";
@@ -86,8 +87,7 @@ export function locoRunningCostPerYear(
  * An empty short train burns little, a long loaded one a lot; a stationary train burns none. */
 export function fuelUnitsPerTile(loco: LocomotiveDef, cars: readonly TrainCar[]): number {
   let tons = LOCO_TONS[loco.weightClass];
-  for (const c of cars)
-    tons += CAR_EMPTY_TONS + CAR_LOAD_TONS * (c.loadedUnits / CARGO[c.cargoType].capacity);
+  for (const c of cars) tons += CAR_EMPTY_TONS + CAR_LOAD_TONS * (c.loadedUnits / carCapacity(c));
   const refTons =
     LOCO_TONS[loco.weightClass] +
     loco.maxCars * (CAR_EMPTY_TONS + CAR_LOAD_TONS * FUEL_REF_LOAD_FRACTION);
@@ -117,7 +117,7 @@ export function fuelCostPerYearEstimate(loco: LocomotiveDef, cars: number, year:
 /** Upkeep of the train's cars per year: each car's price × its type's upkeep rate, at the year's prices. */
 export function carsUpkeepPerYear(cars: readonly TrainCar[], year: number): number {
   let total = 0;
-  for (const c of cars) total += CARGO[c.cargoType].carCost * carUpkeepRate(c.cargoType);
+  for (const c of cars) total += carPriceOf(c) * carUpkeepRate(c.cargoType);
   return total * priceIndex(year);
 }
 
@@ -173,7 +173,7 @@ export function wearUnitsPerTile(
 ): number {
   let carTons = 0;
   for (const c of cars)
-    carTons += CAR_EMPTY_TONS + CAR_LOAD_TONS * (c.loadedUnits / CARGO[c.cargoType].capacity);
+    carTons += CAR_EMPTY_TONS + CAR_LOAD_TONS * (c.loadedUnits / carCapacity(c));
   // An electric engine has no reciprocating masses hammering the rail.
   const locoWear =
     LOCO_TONS[loco.weightClass] *
