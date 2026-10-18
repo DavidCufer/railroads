@@ -2131,3 +2131,60 @@ All three are real mechanisms. Build them in this order and measure after each.
 5. SPEC, PROGRESS with every table (before and after each item), screenshots `phase-53c-*.png`: a train "Turning"
    and a Venice station. LOOK at them.
 Status: [x] 1 (main) [~] 2 (branch phase-53c-wip; 4 balance bounds fail, see PROGRESS) [~] 3 (branch) [~] 4 (benches run; 1900 Normal, 1840, bad-bot and multi-stop 1.25x NOT met) [ ] 5
+
+## Exploration E1 — Which passenger model makes a multi-stop train the natural choice? (prototype on a branch, not main)
+Owner (2026-10-18): "Not sure what to do… maybe remove the rule that passengers wait for a certain city. If there are a
+bunch of small cities with few passengers it is better to have one train serving all of them. Also now there are too
+many wagons; better fewer passengers that pay more. Explore a bit, try different approaches. The goal is that it is
+good to have a passenger train with multiple stops."
+
+Work on branch `explore-passengers`, starting from `phase-53c-wip` (main + terminus turnaround + era coach seats). Do
+**not** push to main. Deliverable: `docs/explore/passengers.md` on the branch (short, tables, a recommendation) plus
+the prototype code behind a model switch, so the owner can choose.
+
+**The right question.** Phases 48–53 compared multi-stop and shuttles *per train at equal train counts*. When demand
+is plentiful, that always favours shuttles. The owner's point is different: a set of small towns has small flows. One
+train calling at all of them fills its seats from many small flows. A shuttle per leg runs nearly empty and cannot pay
+its crew and upkeep. So compare **the best total profit for a given set of towns**, choosing the number of trains and
+cars freely per configuration.
+
+**Models to prototype** (a `passengerModel` switch in the game options, used by the benches):
+- **M1 — current** (passengers bound for a destination, changes allowed), with fewer travellers each paying more.
+  Volume: one scale constant, so a 15k town sends ~20–40 a month to a typical neighbour. Fare: per distance, scaled so
+  a *full* car still earns what it does now.
+- **M2 — direct trains only, one pile per station** (owner's suggestion).
+  - A station's demand is the gravity share of the towns that *its trains call at directly* (no changes counted).
+  - People wait in one pile per station, not per destination.
+  - When a train calls, people board and split over the train's *later stops* by gravity (pop / distance) among
+    those stops. They pay per distance on arrival.
+  - So a train calling at more towns makes every one of its stops generate more travellers. That is the intuitive
+    "one train serving all the small towns".
+  - No transfers in this model.
+- **M3 — M2 plus changes:** like M2, but a town reachable with one change is also counted, at a strong discount for
+  the real wait (Phase 53B change cost). Is it worth the complexity over M2?
+
+Use the same volume and fare scale in M1–M3, and the same waiting rule: a pile fills from the last departure up to
+`MAX_WAIT_DAYS`.
+
+**Scenarios** (2 years, 3 seeds, 1842 Norris and 1900 Atlantic; report total profit/yr, profit per train, average
+load, cars in use, average waiting):
+- S1: a chain of 5 small towns (12–25k), 15–25 tiles apart (synthetic map or central-eu small-town chain).
+  Configurations: 1 multi-stop train end to end; 2 multi-stop trains; 4 shuttles (one per leg); 8 shuttles; for
+  each, the best number of cars.
+- S2: two big cities (Venice–Milan): 1–4 direct trains (an express between two big cities may rightly win here).
+- S3: a big city with 3 small towns along the way (Milan–…–Venice style): an all-stops train vs express + shuttles.
+- Turnaround on/off for S1, to see how much it matters.
+
+**What "good" looks like:**
+- S1: the best configuration is a multi-stop train, by a clear margin (≥ 25 % more total profit than the best
+  shuttle set).
+- S2: a direct train is fine.
+- S3: the all-stops train is competitive.
+- In all three: few wagons (a typical early train 3–5 cars) and crowds of tens, not hundreds.
+
+Also report, for the recommended model: simplicity for the player (what the station panel would show), and the
+good-bot NW for 1840 and 1900 Normal (a quick, uncalibrated read only).
+
+Do not change any test bound on the branch to make a model look good. If a model needs test changes, list them in
+the doc.
+Status: [ ] M1 [ ] M2 [ ] M3 [ ] scenarios [ ] doc
