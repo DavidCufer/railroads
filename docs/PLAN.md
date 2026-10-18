@@ -2305,4 +2305,4 @@ Real mechanisms only; numbers in `src/data` with a one-line justification. Never
 7. SPEC (§7.5 overtaking and loops on double track, §10 menu), PROGRESS with tables, e2e (update, never weaken),
    screenshots `phase-55-*.png`: an express passing a local held in a loop, the Station/Passing loop choice, the
    Info text staying, the Main menu row. LOOK at them.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6 [x] 7

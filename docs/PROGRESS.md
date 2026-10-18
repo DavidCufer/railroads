@@ -5655,3 +5655,180 @@ Before (Phase 53): good 1840 N 6.1 7.8 8.2, H 2.9 2.9 3.6; 1900 N 22.5 19.7 22.6
 | good | 1950 | normal | 0/3 | 0.22 / 0.22 / 0.22 | 34.5 / 48.1 / 25.7 |
 
 **Not done / for the owner:** the loan-limit lever and the bad-bot Hard bounds; whether to keep the 2.3M silver bound; a multi-stop bot that survives 1930 (first line cash crunch after extension); the S4 composition target.
+
+
+## 2026-10-18 - Phase 55: overtaking at stations and passing loops, Station / Passing loop choice, Info text stays, engine-cost numbers (report), double track 0.75x, Main menu (items 1-7 done; see the bounds note under item 5)
+
+**What shipped (all on main; `npm run check` 905 tests and both e2e shards green: 128 + 127 passed).**
+
+**1. Overtaking (SPEC 7.5).** `src/sim/trains/overtake.ts` (pure), called from `tryEnterSection` after the opposing-traffic rule. A train that stands in a station (it has at most one tick of speed, having just loaded) or is at a passing loop holds when a faster train heading the same way through that station would catch it before the next station on its route: hold iff `hoursUntilThrough + section/vFast < section/vSlow`. Times: `computeTargetSpeed` x `AVERAGE_SPEED_SHARE` (headway.ts's 0.75, now exported) / `TICKS_PER_TILE_DIVISOR`; the fast train's hours are the distance along its route to the station over its speed, plus the rest of its dwell when it stops there (`loadTicksLeft`, or `stopDwellHours`, the headway.ts dwell formula). Status "waitingForBlock" with `waitingOn = {kind: "overtake", trainIds: [N]}`, shown as "Waiting for Train N to pass". Rules that keep it safe: one train at a time (the soonest); only a `moving` train approaching or a `loading`/just-loaded train standing at the station counts, never a waiting one (no chain or cycle of holds); equal or lower speed never holds; hold capped at `OVERTAKE_MAX_HOLD_HOURS` (src/data/trains.ts: one real hour x `GAME_DAYS_PER_REAL_HOUR` x 24 = 72 ticks; real timetables put a local 10-20 minutes inside for an express; well under `DEADLOCK_REROUTE_DAYS`); a held train clears its blocks (stations are passing places) so it blocks nothing; a train running through an ordinary station at speed is not held, at a passing loop it is (a loop is where trains are put inside). A train standing at a station that is the end of the fast train's run counts as passing straight on only at a straight two-edge station and when its orders do not reverse there (`lastApproachNode`); otherwise it is ignored (conservative).
+Passing loops on plain straight **double** track: `computePassingLoopPlan` no longer refuses a double edge (bridges still refused).
+Tests (`tests/sim/trains/overtake.test.ts`, 7): express behind a local that stops everywhere (held, express first, hold <= cap, `trainIds` is the express); with and without the rule (`overtaking.enabled`, a switch for bench and tests only) the express reaches the end sooner with it; equal-speed pair never holds; express + local + an opposing express on single track: nobody `stuck`, every train keeps loading; a holding train's blocker is always `moving`/`loading`; a loop holds a local for an express; a loop on double track can be built and serves overtaking. Passing-loop and following tests unchanged.
+**Decision:** hold only for trains that are `moving`/`loading`; a fast train that is itself waiting (e.g. for the line) does not hold the slow one, so the slow one may leave first and the fast one follows it, as before this phase (no deadlock risk, a little less overtaking).
+**Bench (S4: two 100k+ towns, three 10-20k towns between, double track, 4 cars, 3 seeds, 2 years; `ALL=1 OVERTAKE=0|1 EXPRESS_LOCO=.. LOCAL_LOCO=.. CONFIGS=.. KS=4 npx tsx tools/bench/explore.ts S4 <year> 3 2`; new columns `expressDays`).** Express run time end to end (days, first departure to arrival at the far end; the free-running express alone is 11.1 days in 1906 and 41.1 in 1842) and line profit $k/yr:
+| 1906 (express Pacific, local Ten-Wheeler) | profit, rule on | express days, on | profit, rule off | express days, off |
+|---|---|---|---|---|
+| 1 express + 1 local | 1307 | 11.1 | 1307 | 11.2 |
+| 1 express + 2 locals | 1788 | 11.2 | 1747 | 11.9 |
+| 2 express + 2 locals | 2593 | 11.1 | 2508 | 11.9 |
+| 1 express + 3 locals | 2219 | 11.2 | 2180 | 11.8 |
+| 1842 (express Norris, local Planet) | profit, rule on | express days, on | profit, rule off | express days, off |
+|---|---|---|---|---|
+| 1 express + 1 local | 369 | 42.1 | 303 | 58.2 |
+| 1 express + 2 locals | 494 | 43.1 | 417 | 62.4 |
+| 2 express + 2 locals | 731 | 42.4 | 571 | 62.5 |
+| 1 express + 3 locals | 623 | 43.0 | 538 | 66.8 |
+With the rule the express loses 0-5 % of its free-running time behind the locals (11.1 -> 11.2; 41.1 -> 43.1) and profit is +2-3 % (1906), +16-28 % (1842, where the speed gap Norris/Planet is large); without it the express loses 5-8 % (1906) and 42-62 % (1842). Target "the express loses little time behind locals" met. (Equal engines: no change, as designed.)
+
+**2. Build a passing loop.** Station tool, tap on a plain straight track tile where a loop can go: the existing chooser pops up with **Station** / **Passing loop - $23k**; Station goes to the placement panel as before, Passing loop to `openPassingLoopPanel` / `buildPassingLoop`. Anywhere else (a junction, a dead end, a tile with a station, a bridge) the tap behaves as before. The passing-loop help entry gains "A loop also lets a fast train overtake a slow one." (one entry, one sentence), and the loop panel line says so too. Existing e2e (`stations`, `phase20`, `phase28b`) now click "Station" in the chooser before the placement panel: updated, nothing weakened.
+
+**3. Info text stays.** What was wrong (read in code; I did not run the old build): the cargo chips and demand tiles of the station panel (and city/industry panels) answer a tap with `showToast`: 3.5 s, and at the cap of 3 toasts (Phase 47) the oldest goes first, so news pushed the answer out. New `showExplanation` / `dismissExplanation` in toast.ts: the answer stays until tapped, until its panel closes (`closePanel`), or until the next explanation replaces it; it is excluded from the toast cap, so news cannot push it out; news toasts unchanged. e2e `phase55.spec.ts`: tap a demand tile, add four news toasts, wait 5 s, text still there; tap removes it; closing the panel removes it.
+
+**4. Engine-cost numbers (report only: no price or running cost changed).** `npx tsx tools/bench/engineCosts.ts [years=2] [trains=2] [cars=5]` (new): central-eu, Venice-Milan as in owner.ts, 2 trains x 5 cars of each buyable engine, 2 years of the books, Normal. Price is what `computeBuyTrainPlan` charges (engine alone, and engine + cars); maintenance is `maintenancePerYear` at the year's prices; fuel/yr is `fuelCostPerYearEstimate` for the 5-car train; wages `trainWagesPerYear`; the last column is the candidate mechanism below.
+### 1840, Normal, start cash $1000k; Venice-Milan, 2 trains x 5 cars, 2 years
+| engine | engine price | train price (engine + cars) | % of start cash (engine) | maintenance/yr | fuel/yr (typical) | wages/yr | profit/yr per train | load | profit/train price | profit/yr if fuel scales with power |
+|---|---|---|---|---|---|---|---|---|---|---|
+| grasshopper-0-4-0 | 22k | 50k | 2 % | 2k | 1k | 2k | 34k | 62 % | 0.68 | 34k |
+| planet-2-2-0 | 31k | 66k | 3 % | 3k | 1k | 2k | 64k | 39 % | 0.97 | 64k |
+| norris-4-2-0 | 38k | 73k | 4 % | 3k | 1k | 2k | 112k | 38 % | 1.53 | 110k |
+
+### 1870, Normal, start cash $1000k; Venice-Milan, 2 trains x 5 cars, 2 years
+| engine | engine price | train price (engine + cars) | % of start cash (engine) | maintenance/yr | fuel/yr (typical) | wages/yr | profit/yr per train | load | profit/train price | profit/yr if fuel scales with power |
+|---|---|---|---|---|---|---|---|---|---|---|
+| grasshopper-0-4-0 | 30k | 66k | 3 % | 3k | 1k | 3k | 37k | 90 % | 0.56 | 37k |
+| planet-2-2-0 | 41k | 87k | 4 % | 4k | 1k | 3k | 89k | 94 % | 1.02 | 89k |
+| norris-4-2-0 | 50k | 96k | 5 % | 4k | 1k | 3k | 174k | 97 % | 1.80 | 171k |
+| american-4-4-0 | 67k | 113k | 7 % | 6k | 1k | 3k | 323k | 96 % | 2.87 | 317k |
+| mogul-2-6-0 | 81k | 128k | 8 % | 7k | 2k | 3k | 350k | 96 % | 2.74 | 344k |
+
+### 1900, Normal, start cash $1000k; Venice-Milan, 2 trains x 5 cars, 2 years
+| engine | engine price | train price (engine + cars) | % of start cash (engine) | maintenance/yr | fuel/yr (typical) | wages/yr | profit/yr per train | load | profit/train price | profit/yr if fuel scales with power |
+|---|---|---|---|---|---|---|---|---|---|---|
+| grasshopper-0-4-0 | 37k | 104k | 4 % | 4k | 1k | 4k | 51k | 90 % | 0.49 | 51k |
+| planet-2-2-0 | 52k | 136k | 5 % | 5k | 1k | 4k | 102k | 79 % | 0.75 | 101k |
+| norris-4-2-0 | 63k | 147k | 6 % | 6k | 0k | 4k | 186k | 76 % | 1.27 | 184k |
+| american-4-4-0 | 83k | 168k | 8 % | 7k | 1k | 4k | 360k | 75 % | 2.14 | 356k |
+| mogul-2-6-0 | 101k | 186k | 10 % | 9k | 1k | 4k | 393k | 79 % | 2.11 | 389k |
+| consolidation-2-8-0 | 129k | 214k | 13 % | 11k | 1k | 4k | 361k | 79 % | 1.68 | 355k |
+| ten-wheeler-4-6-0 | 129k | 214k | 13 % | 11k | 1k | 4k | 491k | 75 % | 2.29 | 488k |
+| atlantic-4-4-2 | 156k | 242k | 16 % | 13k | 2k | 4k | 611k | 74 % | 2.52 | 610k |
+
+### 1930, Normal, start cash $1500k; Venice-Milan, 2 trains x 5 cars, 2 years
+| engine | engine price | train price (engine + cars) | % of start cash (engine) | maintenance/yr | fuel/yr (typical) | wages/yr | profit/yr per train | load | profit/train price | profit/yr if fuel scales with power |
+|---|---|---|---|---|---|---|---|---|---|---|
+| grasshopper-0-4-0 | 44k | 151k | 3 % | 4k | 1k | 6k | 52k | 74 % | 0.34 | 52k |
+| planet-2-2-0 | 62k | 196k | 4 % | 6k | 1k | 7k | 93k | 57 % | 0.48 | 92k |
+| norris-4-2-0 | 75k | 209k | 5 % | 7k | 1k | 7k | 176k | 55 % | 0.84 | 173k |
+| american-4-4-0 | 99k | 234k | 7 % | 9k | 1k | 7k | 345k | 54 % | 1.48 | 337k |
+| mogul-2-6-0 | 121k | 256k | 8 % | 11k | 2k | 7k | 370k | 56 % | 1.44 | 363k |
+| consolidation-2-8-0 | 154k | 289k | 10 % | 13k | 2k | 7k | 339k | 56 % | 1.17 | 327k |
+| ten-wheeler-4-6-0 | 154k | 289k | 10 % | 13k | 2k | 7k | 470k | 54 % | 1.63 | 464k |
+| atlantic-4-4-2 | 187k | 322k | 12 % | 15k | 4k | 7k | 581k | 53 % | 1.80 | 578k |
+| pacific-4-6-2 | 242k | 378k | 16 % | 20k | 4k | 7k | 581k | 48 % | 1.54 | 569k |
+| mikado-2-8-2 | 264k | 400k | 18 % | 22k | 3k | 7k | 465k | 54 % | 1.16 | 445k |
+| hudson-4-6-4 | 330k | 467k | 22 % | 26k | 5k | 7k | 570k | 43 % | 1.22 | 553k |
+| early-electric | 264k | 400k | 18 % | 9k | 2k | 7k | 590k | 38 % | 1.47 | 582k |
+| e-unit-electric | 440k | 578k | 29 % | 22k | 3k | 7k | 648k | 29 % | 1.12 | 623k |
+
+### 1950, Normal, start cash $2000k; Venice-Milan, 2 trains x 5 cars, 2 years
+| engine | engine price | train price (engine + cars) | % of start cash (engine) | maintenance/yr | fuel/yr (typical) | wages/yr | profit/yr per train | load | profit/train price | profit/yr if fuel scales with power |
+|---|---|---|---|---|---|---|---|---|---|---|
+| grasshopper-0-4-0 | 49k | 168k | 2 % | 5k | 0k | 7k | 39k | 58 % | 0.23 | 39k |
+| planet-2-2-0 | 68k | 217k | 3 % | 6k | 0k | 7k | 87k | 46 % | 0.40 | 86k |
+| norris-4-2-0 | 83k | 232k | 4 % | 7k | 0k | 7k | 159k | 45 % | 0.69 | 156k |
+| american-4-4-0 | 110k | 259k | 5 % | 10k | 0k | 7k | 310k | 45 % | 1.20 | 305k |
+| mogul-2-6-0 | 134k | 283k | 7 % | 12k | 0k | 7k | 317k | 45 % | 1.12 | 312k |
+| consolidation-2-8-0 | 171k | 320k | 9 % | 15k | 0k | 7k | 289k | 45 % | 0.90 | 282k |
+| ten-wheeler-4-6-0 | 171k | 320k | 9 % | 15k | 0k | 7k | 412k | 45 % | 1.29 | 409k |
+| atlantic-4-4-2 | 207k | 357k | 10 % | 17k | 1k | 7k | 514k | 44 % | 1.44 | 513k |
+| pacific-4-6-2 | 268k | 419k | 13 % | 22k | 1k | 7k | 516k | 40 % | 1.23 | 512k |
+| mikado-2-8-2 | 293k | 444k | 15 % | 24k | 0k | 7k | 408k | 45 % | 0.92 | 398k |
+| hudson-4-6-4 | 366k | 517k | 18 % | 29k | 1k | 7k | 515k | 36 % | 1.00 | 509k |
+| articulated-4-8-8-4 | 610k | 764k | 31 % | 54k | 1k | 9k | 480k | 44 % | 0.63 | 460k |
+| early-electric | 293k | 444k | 15 % | 10k | 0k | 7k | 519k | 31 % | 1.17 | 515k |
+| streamliner-diesel | 439k | 591k | 22 % | 29k | 1k | 7k | 533k | 26 % | 0.90 | 529k |
+| e-unit-electric | 488k | 641k | 24 % | 24k | 1k | 7k | 546k | 24 % | 0.85 | 537k |
+| cab-unit-diesel | 415k | 567k | 21 % | 27k | 0k | 7k | 520k | 29 % | 0.92 | 510k |
+| road-switcher-diesel | 390k | 542k | 20 % | 22k | 0k | 7k | 516k | 32 % | 0.95 | 504k |
+
+Electric engines were electrified on the whole line by the bench (cost not counted in the train price). S4 (1 express + 2 locals, 4 cars, every train the same engine; the S4 bench does not electrify, so electric engines are n/a), profit $k/yr of the three trains, 3 seeds:
+### S4 1840: 1 express + 2 locals, 4 cars, every train this engine; profit k$/yr (3 seeds), net of 5 % capital
+| engine | profit/yr (3 trains) | net of 5 % capital | load |
+|---|---|---|---|
+| grasshopper-0-4-0 | 184k | 177k | 87 % |
+| planet-2-2-0 | 405k | 396k | 90 % |
+| norris-4-2-0 | 699k | 689k | 91 % |
+### S4 1870: 1 express + 2 locals, 4 cars, every train this engine; profit k$/yr (3 seeds), net of 5 % capital
+| engine | profit/yr (3 trains) | net of 5 % capital | load |
+|---|---|---|---|
+| grasshopper-0-4-0 | 140k | 130k | 94 % |
+| planet-2-2-0 | 318k | 307k | 97 % |
+| norris-4-2-0 | 543k | 530k | 97 % |
+| american-4-4-0 | 983k | 967k | 98 % |
+| mogul-2-6-0 | 910k | 893k | 97 % |
+### S4 1900: 1 express + 2 locals, 4 cars, every train this engine; profit k$/yr (3 seeds), net of 5 % capital
+| engine | profit/yr (3 trains) | net of 5 % capital | load |
+|---|---|---|---|
+| grasshopper-0-4-0 | 186k | 171k | 93 % |
+| planet-2-2-0 | 430k | 412k | 96 % |
+| norris-4-2-0 | 743k | 724k | 97 % |
+| american-4-4-0 | 1349k | 1327k | 97 % |
+| mogul-2-6-0 | 1255k | 1230k | 97 % |
+| consolidation-2-8-0 | 1135k | 1106k | 97 % |
+| ten-wheeler-4-6-0 | 1603k | 1574k | 97 % |
+| atlantic-4-4-2 | 1954k | 1921k | 96 % |
+### S4 1930: 1 express + 2 locals, 4 cars, every train this engine; profit k$/yr (3 seeds), net of 5 % capital
+| engine | profit/yr (3 trains) | net of 5 % capital | load |
+|---|---|---|---|
+| grasshopper-0-4-0 | 226k | 203k | 86 % |
+| planet-2-2-0 | 534k | 509k | 89 % |
+| norris-4-2-0 | 934k | 907k | 90 % |
+| american-4-4-0 | 1663k | 1632k | 90 % |
+| mogul-2-6-0 | 1545k | 1511k | 90 % |
+| consolidation-2-8-0 | 1398k | 1359k | 90 % |
+| ten-wheeler-4-6-0 | 1956k | 1918k | 89 % |
+| atlantic-4-4-2 | 2362k | 2318k | 87 % |
+| pacific-4-6-2 | 2564k | 2512k | 86 % |
+| mikado-2-8-2 | 1941k | 1886k | 89 % |
+| hudson-4-6-4 | 2793k | 2727k | 86 % |
+| early-electric | n/a (needs electrified track, which this bench does not build) | | |
+| e-unit-electric | n/a (needs electrified track, which this bench does not build) | | |
+### S4 1950: 1 express + 2 locals, 4 cars, every train this engine; profit k$/yr (3 seeds), net of 5 % capital
+| engine | profit/yr (3 trains) | net of 5 % capital | load |
+|---|---|---|---|
+| grasshopper-0-4-0 | 218k | 193k | 82 % |
+| planet-2-2-0 | 531k | 503k | 85 % |
+| norris-4-2-0 | 938k | 908k | 86 % |
+| american-4-4-0 | 1674k | 1640k | 86 % |
+| mogul-2-6-0 | 1559k | 1522k | 86 % |
+| consolidation-2-8-0 | 1410k | 1367k | 87 % |
+| ten-wheeler-4-6-0 | 1981k | 1938k | 85 % |
+| atlantic-4-4-2 | 2399k | 2350k | 84 % |
+| pacific-4-6-2 | 2606k | 2549k | 83 % |
+| mikado-2-8-2 | 1970k | 1909k | 85 % |
+| hudson-4-6-4 | 2857k | 2785k | 82 % |
+| articulated-4-8-8-4 | 2297k | 2188k | 84 % |
+| early-electric | n/a (needs electrified track, which this bench does not build) | | |
+| streamliner-diesel | 3919k | 3836k | 79 % |
+| e-unit-electric | n/a (needs electrified track, which this bench does not build) | | |
+| cab-unit-diesel | 3422k | 3342k | 81 % |
+| road-switcher-diesel | 3112k | 3036k | 81 % |
+
+**What the numbers say.** (a) Engine price and running cost are small next to what a train earns: an engine costs up to 16 % (Atlantic, 1900), 29 % (E-unit, 1930) and 31 % (Articulated, 1950) of the Normal start cash, maintenance is 2-11 % of an engine's profit on the line and fuel (typical) 0-4 % of it, so the cost side hardly decides anything. (b) Profit follows top speed and power: load is ~90-97 % in 1870/1900 so every engine fills, and a Norris earns 3-5x a Grasshopper on the same line for 1.7x the price. Per unit of train price the mid engines lead (American 1870 2.87, Atlantic 1900 2.52 / 1930 1.80 / 1950 1.44); the biggest engines are the worst investments on a passenger line (1950 profit per train price: Articulated 0.63, Streamliner 0.90, E-unit 0.85, Hudson 1.00 against Atlantic 1.44), and the freight engines (Consolidation, Mikado) earn less than a fast mixed engine carrying passengers. Among the modern engines the choice hardly matters for profit (1950: Atlantic, Pacific, Hudson, Streamliner, E-unit, Cab unit all 514-546k a train) while their prices run from 207k to 488k. So the choice matters between a slow and a fast engine and hardly at all among fast ones, and the dearest engines are not better, which is the owner's observation. (c) Candidate mechanism, measured not shipped: fuel burnt scales with the power used (an engine burns a share `IDLE_FUEL_SHARE` = 0.4 (assumed, not sourced) of its full-train fuel rate however little it hauls, so a big engine on 5 cars burns much more than today's weight-only formula). Effect on profit/yr per train: at most -5 % (Mikado 1930 465 -> 445k, Articulated 1950 480 -> 460k, E-unit 1930 648 -> 623k), typically -1 %. It would reorder engines only within 5 % of each other; it does not change which engine is best. The levers that would make the choice matter are price and maintenance against revenue (1950: a Hudson costs 3.3x an American for +66 % profit on this line, an Articulated 5.5x for +55 %), not the fuel formula.
+
+**5. Double track 0.75x.** `DOUBLE_TRACK_MULTIPLIER` 1.6 -> 1.75 (`DOUBLE_TRACK_UPGRADE_MULTIPLIER` = 1.75 - 1 = 0.75; bridges unchanged 1.8 / 0.8). SPEC 5.3 table updated. Survival, 3 seeds, 16 years, Normal and Hard, 1840 and 1900 (`DIFFS=normal,hard STARTS=1840,1900 npx tsx tools/bench/survival.ts 3`), after this phase (overtaking and double track 0.75x both in):
+| bot | start | difficulty | bankrupt | min cash $M (per seed) | final NW $M (per seed) |
+|---|---|---|---|---|---|
+| good | 1840 | normal | 0/3 | 0.19 / 0.18 / 0.18 | 21.86 / 20.65 / 20.43 |
+| good | 1840 | hard | 0/3 | 0.17 / 0.17 / 0.17 | 7.07 / 11.38 / 7.47 |
+| good | 1900 | normal | 0/3 | 0.18 / 0.18 / 0.18 | 33.68 / 32.27 / 32.98 |
+| good | 1900 | hard | 0/3 | 0.15 / 0.15 / 0.15 | 11.48 / 11.38 / 11.3 |
+| overbuilder | 1840 | normal | 0/3 | 0.02 / 0.02 / 0.02 | 1.42 / 1.44 / 1.49 |
+| overbuilder | 1840 | hard | 3/3 | -0.46 / -0.46 / -0.46 | 0.07 / 0.07 / 0.07 |
+**Partial: the bad-bot rows were still running when this was pushed** (good bot: all four rows 0/3 bankrupt, net worth within noise of Phase 54: 1900 Normal $32-34M inside the 20-34M bound). The remaining rows (overbuilder, trainSpammer, leveraged) will be appended when the run ends; until then the bad-bot bounds are unverified for this phase.
+
+**6. Main menu.** The menu's Game list gets **Main menu** (`menu-main`): closes the panel, pauses, autosaves (not under `?debug=1`, as before) and *then* opens the title screen so Continue finds that save; Continue loads it (same game, same date); New Game / Scenarios / Load replace the game and the speed the player had comes back. e2e: new game, menu, Main menu, title screen with Continue, Continue, same date.
+
+**7. Docs and screenshots.** SPEC 5.3, 7.5, 10.1 and the passing-loop entry updated, changelog line added. Screenshots `docs/screenshots/phase-55-*.png`: `overtake` (the local's panel "Waiting for Train 2 to pass" at the loop), `loop-choice` (Station / Passing loop popup), `info-stays` (an explanation with four news toasts under it), `main-menu-row`, `title-from-game`. I opened all of them.
+**Decisions and deviations (no questions asked).** The hold rule is one rule for stations and loops (loops hold trains at speed, stations only trains that stand in them). The cap is one real hour. The speed estimate uses `computeTargetSpeed` on the next edge, i.e. it includes the current load and grade but not later hills. The e2e for the overtake screenshot polls the local's `waitingOn` day by day. The Info-text fix covers the chips and demand tiles (what the Info tool's station panel offers), not the "Where to" sheet, which is a sheet and already stays.
+**Not done / for the owner:** the S4 composition target of Phase 54 (1 express + 1-2 locals best) is unchanged by this phase; overtaking mainly helps when the express is genuinely faster; engines of equal speed behave as before.
