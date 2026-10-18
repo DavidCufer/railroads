@@ -2249,4 +2249,4 @@ main only when `npm run check` is green. Real mechanisms only; numbers in src/da
    - Report the 1840 good-bot level against the old ~$4M reference.
 6. SPEC (§8.1, §9.5d rewritten for M2), PROGRESS with all tables, e2e (update, never weaken), and screenshots
    `phase-54-*.png`: a Venice station, an express and a local on one line. LOOK at them.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
+Status: [x] 1 [~] 2 (bench and boarding done; target composition not met, see PROGRESS) [x] 3 [~] 4 (no train-panel aboard line: word limit) [~] 5 (good bot bounds met; bad-bot Hard bounds and the multi-stop bot not met) [x] 6

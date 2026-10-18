@@ -97,11 +97,11 @@ const dist = (a: number, b: number): number => {
 };
 const cityCentre = (c: City): number => c.anchorY * state.map.width + c.anchorX;
 
+/** A line: its stops from one end to the other (two at first; Phase 54 extends it through towns on the way, as a good
+ * player does under the direct-train model, where one train calling at more towns makes every stop draw more). */
 interface Pair {
-  a: Station;
-  b: Station;
-  cityA: City;
-  cityB: City;
+  stops: Station[];
+  cities: City[];
   trains: number[];
   path: number[];
 }
@@ -156,7 +156,8 @@ function bestLoco(): string {
 
 /** Cars a pair of towns can fill: sized by the smaller town (a half-empty long train only adds weight, crew and upkeep); thresholds found by bench, see PROGRESS Phase 48B. */
 function carsForDemand(pair: Pair): number {
-  const pop = Math.min(pair.cityA.population, pair.cityB.population);
+  const pops = pair.cities.map((c) => c.population).sort((p, q) => q - p);
+  const pop = Math.min(pops[0] ?? 0, pops[1] ?? 0);
   return pop < 8_000 ? 4 : pop < 16_000 ? 5 : 6;
 }
 
@@ -243,7 +244,7 @@ function tryConnect(newCity: City, hub: City): "built" | "nocash" | "failed" {
       const b = state.stations.find((s) => s.tile === tb)!;
       if (wantDouble) commands.upgradeTrack(state, path);
       commands.buildEngineShed(state, a.id);
-      const pair: Pair = { a, b, cityA: newCity, cityB: hub, trains: [], path };
+      const pair: Pair = { stops: [a, b], cities: [newCity, hub], trains: [], path };
       if (process.env.V)
         console.log(
           "built",
@@ -272,20 +273,72 @@ function addTrain(pair: Pair): boolean {
   const loco = bestLoco();
   const cars = consist(loco, carsForDemand(pair));
   if (!ensureCash(commands.computeBuyTrainPlan(state, loco, cars).cost + 100_000)) return false;
-  const r = commands.buyTrain(state, pair.a.id, loco, cars);
+  const r = commands.buyTrain(state, pair.stops[0]!.id, loco, cars);
   if (!ok(r)) return false;
   const train = state.trains[state.trains.length - 1]!;
-  const forward = pair.trains.length % 2 === 0;
-  commands.setOrders(
-    state,
-    train.id,
-    (forward ? [pair.a, pair.b] : [pair.b, pair.a]).map((s) => ({
-      stationId: s.id,
-      rule: "auto" as const,
-    })),
-  );
   pair.trains.push(train.id);
+  setLineOrders(pair, train.id, pair.trains.length - 1);
   return true;
+}
+
+/** MULTISTOP=1 extends lines through towns on the way (Phase 54 experiment, see PROGRESS: unstable, off by default).
+ * There and back through every stop (A B C B for three), trains spread over the cycle. */
+function setLineOrders(pair: Pair, trainId: number, index: number): void {
+  const k = pair.stops.length;
+  const cycle = [
+    ...pair.stops.map((_, i) => i),
+    ...Array.from({ length: Math.max(0, k - 2) }, (_, i) => k - 2 - i),
+  ];
+  const rot = index % 2 === 0 ? 0 : Math.floor(cycle.length / 2);
+  const orders = [...cycle.slice(rot), ...cycle.slice(0, rot)].map((i) => ({
+    stationId: pair.stops[i]!.id,
+    rule: "auto" as const,
+  }));
+  commands.setOrders(state, trainId, orders);
+}
+
+/** Extends the line whose far end is nearest to `city` (within 70 tiles, and not much farther than the nearest connected
+ * town) through it: track from that end station to a new station in `city`, then every train of the line calls at it. */
+function tryExtend(city: City, nearest: number): "built" | "nocash" | "failed" {
+  let best: { line: Pair; d: number } | undefined;
+  for (const line of pairs) {
+    const end = line.cities[line.cities.length - 1]!;
+    const d = dist(cityCentre(end), cityCentre(city));
+    if (d <= 70 && d <= nearest + 12 && (!best || d < best.d)) best = { line, d };
+  }
+  if (!best) return "failed";
+  const line = best.line;
+  const endStation = line.stops[line.stops.length - 1]!;
+  const taken = new Set(state.trackGraph.allNodes());
+  const stationTiles = new Set(state.stations.map((st) => st.tile));
+  for (const tb of cityTilesToward(city, endStation.tile)
+    .filter((t) => !taken.has(t))
+    .slice(0, 4)) {
+    const path =
+      findBuildPath(state.map, endStation.tile, tb, year(), {
+        respectTurns: { graph: state.trackGraph, stationTiles },
+        ...(landPricesFn ? { land: landPricesFn(state) } : {}),
+      }) ?? null;
+    if (!path || path.length < 4) continue;
+    const plan = commands.computeBuildPlan(state, path);
+    if (!plan.valid) continue;
+    const type = stationTypeFor(city);
+    const stationCost = commands.computeStationBuildPlan(state, tb, type).cost;
+    const wantDouble = year() >= 1870 && state.cash > 2_500_000;
+    const total = plan.cost + stationCost + (wantDouble ? plan.cost * 0.7 : 0) + 60_000;
+    const reserve = 50_000 + 0.4 * ledgerRevenue(state.finance.lastYear);
+    if (!ensureCash(total + reserve)) return "nocash";
+    if (!ok(commands.buildTrack(state, path))) continue;
+    if (!ok(commands.buildStation(state, tb, type))) continue;
+    const station = state.stations.find((st) => st.tile === tb)!;
+    if (wantDouble) commands.upgradeTrack(state, path);
+    line.stops.push(station);
+    line.cities.push(city);
+    connected.add(city.id);
+    line.trains.forEach((id, i) => setLineOrders(line, id, i));
+    return "built";
+  }
+  return "failed";
 }
 
 function yearlyPlanning(): void {
@@ -324,9 +377,15 @@ function yearlyPlanning(): void {
   const maxPairs = Number(process.env["MAXPAIRS"] ?? Infinity);
   for (const cand of candidates) {
     if (built >= 2 || pairs.length >= maxPairs) break;
-    const r = tryConnect(cand.c, cand.hub);
-    if (r === "built") built++;
-    else if (r === "failed") failedCities.add(cand.c.id);
+    const r = !process.env["MULTISTOP"] ? "failed" : tryExtend(cand.c, cand.d);
+    if (r === "built") {
+      built++;
+      continue;
+    }
+    if (r === "nocash") continue;
+    const r2 = tryConnect(cand.c, cand.hub);
+    if (r2 === "built") built++;
+    else if (r2 === "failed") failedCities.add(cand.c.id);
     // too dear for now: try the next-best city, a cash-short player builds the cheaper line first
   }
 
@@ -336,7 +395,7 @@ function yearlyPlanning(): void {
     // platforms (more than one train-load across the pair's two stations), not just because there is cash.
     // OLDTRAINS=1 keeps the earlier rule (4 trains per pair whenever cash allows).
     const backlog = (): number =>
-      [pair.a, pair.b].reduce(
+      pair.stops.reduce(
         (sum, st) => sum + (state.stationCargo.get(st.id)?.passengers?.amount ?? 0),
         0,
       );
@@ -348,10 +407,7 @@ function yearlyPlanning(): void {
     ) {
       if (!addTrain(pair)) break;
     }
-    for (const [st, city] of [
-      [pair.a, pair.cityA],
-      [pair.b, pair.cityB],
-    ] as const) {
+    for (const [st, city] of pair.stops.map((st, i) => [st, pair.cities[i]!] as const)) {
       if (city.population < 40_000 || state.cash < 1_000_000) continue;
       commands.buildImprovement(state, st.id, "postOffice");
       commands.buildImprovement(state, st.id, "hotel");
