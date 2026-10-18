@@ -202,29 +202,24 @@ export const strings = {
     supplyRate: (unit: string) => `${unit ? ` ${unit}` : ""} / month`,
     /** PLAN Phase 16: the station panel's "Waiting" line, e.g. "12 passengers waiting". */
     waitingCount: (amount: string) => `${amount} waiting`,
-    waitingElsewhere: "other towns",
-    /** Phase 51: a waiting row's average gap between trains that carry those people. */
-    nextTrain: (days: string) => `every ~${days}d`,
+    /** "Waiting 41 · next train ~6 d" */
+    waitingLine: (n: number, days?: number) =>
+      days === undefined ? `Waiting ${n}` : `Waiting ${n} · next train ~${days} d`,
+    /** "Trains here reach: Milan, Padua" */
+    reachLine: (towns: string) => `Trains here reach: ${towns}`,
+    reachMore: (n: number) => `+${n} more`,
     supplies: "Supplies",
     perMonthNote: "/mo",
     /** PLAN Phase 35: the "Where passengers go" detail sheet (tap the passenger supply tile). */
     destinations: {
       title: "Where passengers go",
-      subtitle: (station: string) => `${station} · people per month`,
+      subtitle: (station: string) => `${station} · passengers per month`,
       tapHint: "Where to ▸",
-      total: (n: string) => `About ${n} people a month want to travel from here by train.`,
-      /** "Ljubljana 30 · Zagreb 15" */
-      row: (name: string, count: string) => `${name} ${count}`,
-      /** "Zagreb 15 (1 change)": fewer people travel when they must change trains */
-      rowChanges: (name: string, count: string, changes: number) =>
-        `${name} ${count} (${changes} change${changes === 1 ? "" : "s"})`,
-      /** "540/mo · 120 waiting" */
-      rowCount: (perMonth: string, waiting: number) =>
-        waiting >= 1 ? `${perMonth}/mo · ${waiting} waiting` : `${perMonth}/mo`,
-      expand: "Show final destinations",
-      collapse: "Hide final destinations",
-      notConnected: "Not connected",
-      notConnectedHint: "Connect them to win these travellers",
+      total: (n: string) => `About ${n} passengers a month travel from here by train.`,
+      /** "Milan 30/mo · 18 %" */
+      row: (perMonth: string, pct: number) => `${perMonth}/mo · ${pct} %`,
+      notConnected: "Not served",
+      notConnectedHint: "No train from here calls at them: connect them to win these travellers",
       more: (n: number) => `${n} more`,
       none: "No train runs from here yet. Passengers appear once a train calls.",
     },

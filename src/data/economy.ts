@@ -126,10 +126,11 @@ export function passengerSpeedFactor(year: number, distanceTiles: number, days: 
   );
 }
 
-/** Travellers one game passenger stands for (Phase 53B). One: a game passenger is one seated traveller (a car seats 40,
- * a real 1840s carriage 24-40), paying the era's real per-distance fare (`PASSENGER_REAL_FARE_ANCHORS`). The game's
- * compression is not hidden in the fare: it sits in how many journeys a head makes (`TRIPS_PER_HEAD_ANCHORS`). */
-export const PARTY_SIZE = 1;
+/** Travellers one game passenger stands for (Phase 54, SPEC 8.1): a party, a family or a group booking, so the player
+ * sees tens of passengers where there were hundreds of people. Demand is divided by it, a car holds seats / it game
+ * passengers, and a delivered passenger pays it times the per-person fare, so a full car earns what it always did.
+ * Three is a choice (not measured): it brings the 1900 monthly flows down to the order of the 1842 ones. */
+export const PARTY_SIZE = 3;
 
 /** Nominal fare/rate multiplier on `CargoDef.baseRate` (which is quoted at 1830 prices). */
 export function fareIndex(year: number, cargo: CargoType): number {
@@ -608,12 +609,6 @@ export const MIN_WAIT_DAYS = 1;
  * 100 km round trip takes ~25 days) was never fed by a bigger pile, and a lower cap (14) cut the 1840s passenger
  * line to 0.59x coal against a 0.7x bound for no mechanism but the clamp. */
 export const MAX_WAIT_DAYS = 30;
-
-/** Phase 48/53B: least tiles of effective distance a change of train adds: the platform walk and the luggage (an hour
- * and a half at the era's ~50 km/h is about 75 km = 15 tiles). A change costs at least this, and otherwise the wait for
- * the onward train: half its service interval x the era's reference tiles a day (`changeTiles` in waiting.ts). This is
- * why railways ran through carriages: every change lost custom. */
-export const CHANGE_MIN_TILES = 15;
 
 /** The radius of the destinations a town's people know of, in tiles (5 km each), by year: 300 km in 1830, growing
  * with faster trains, cheaper fares, newspapers and timetables. */

@@ -7,10 +7,11 @@ import { clampInputStocks } from "../sim/economy/processing";
 import { materializeAllJunctions } from "../sim/track/routes";
 import { emptyTrainProfit } from "../sim/trains/profit";
 import type { TrainProfit } from "../sim/trains/types";
-import type { GameState } from "../sim/state";
+import type { GameState, StationCargoPile } from "../sim/state";
+import { CARGO } from "../data/cargo";
 import type { GameMap } from "../sim/map/types";
 import { TrackGraph } from "../sim/track/graph";
-import { rebucketPassengerPiles } from "../sim/stations/boarding";
+import { PARTY_SIZE } from "../data/economy";
 import { computeStationEconomies } from "../sim/stations/economy";
 import { destinationSets, passengerNetwork } from "../sim/stations/destinations";
 import { emptyLedgerPeriod, type LedgerPeriod } from "../data/finance";
@@ -91,6 +92,7 @@ export function serializeGameState(state: GameState): SerializedGameStateV3 {
     stationTransfer: mapEntries(state.stationTransfer),
     stationFlow: mapEntries(state.stationFlow),
     departures: mapEntries(state.departures),
+    passengerParty: PARTY_SIZE,
     washouts: state.washouts,
     nextWashoutId: state.nextWashoutId,
     industryEconomy: mapEntries(state.industryEconomy),
@@ -201,6 +203,35 @@ export function deserializeGameState(data: SerializedGameStateV3): GameState {
     links,
   );
   clampInputStocks(state); // Phase 38: stockpiles are capped now
-  rebucketPassengerPiles(state, links); // Phase 34 saves stored waiting passengers by destination
+  if ((data.passengerParty ?? 1) !== PARTY_SIZE) migratePassengers(state, data.passengerParty ?? 1);
   return state;
+}
+
+/** Phase 54: a save written with another number of people per game passenger (or with per-destination piles) becomes the
+ * one-pile model. Every pile of any shape collapses into the station's one pile (its amount, rescaled; the older
+ * `bound` / `lots` fields are dropped); a passenger car keeps its destination lots, rescaled, and its seats count in the
+ * new unit; people aboard with no destination are put off (they had paid nothing yet). */
+export function migratePassengers(state: GameState, oldParty: number): void {
+  const k = oldParty / PARTY_SIZE;
+  for (const pile of state.stationCargo.values()) {
+    const entry = pile.passengers as
+      (StationCargoPile & { bound?: unknown; lots?: unknown }) | undefined;
+    if (!entry) continue;
+    delete entry.bound;
+    delete entry.lots;
+    entry.amount *= k;
+  }
+  for (const train of state.trains)
+    for (const car of train.cars) {
+      if (car.cargoType !== "passengers") continue;
+      car.seats = (car.seats ?? CARGO.passengers.capacity) / PARTY_SIZE;
+      if (car.lots) {
+        for (const lot of car.lots) lot.amount *= k;
+        car.loadedUnits = car.lots.reduce((n, l) => n + l.amount, 0);
+      } else {
+        car.loadedUnits = 0;
+        delete car.loadedTile;
+        delete car.loadedTick;
+      }
+    }
 }

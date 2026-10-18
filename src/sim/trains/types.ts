@@ -33,10 +33,8 @@ export interface TrainCar {
    * `planLoadUnload`) — it doesn't top up again until fully unloaded — except under the "Wait for
    * full load" rule, which keeps retrying the same stop until full or `maxWaitDays` elapses. */
   loadedUnits: number;
-  /** Phase 53C: seats of a passenger car, fixed when bought (`capacity.ts`). Absent = the cargo's base capacity. */
+  /** Phase 53C/54: seats of a passenger car in game passengers, fixed when bought (`capacity.ts`). Absent = the base. */
   seats?: number;
-  /** Exploration E1: people per game passenger on this car (absent = 1); `seats` is then in game passengers. */
-  party?: number;
   /** Tile the current load was first picked up at, and the sim tick it happened — used to compute
    * distance/time for the revenue formula (SPEC §8.1) on delivery. Undefined when `loadedUnits`
    * is 0. Set once on the first load into an empty car; unaffected by a later top-up. */

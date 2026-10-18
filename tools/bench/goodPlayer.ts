@@ -36,7 +36,7 @@ import { ERA_START_CASH_MULT } from "../../src/data/finance";
 // ERAMULT=off: every era starts with the plain difficulty cash (the numbers before Phase 41).
 if (process.env["ERAMULT"] === "off") (ERA_START_CASH_MULT as unknown as unknown[][]).length = 0;
 import { fixWeightBridges } from "./fixBridges";
-import { partyOf, type PassengerModel } from "../../src/data/passengerModels";
+import { PARTY_SIZE } from "../../src/data/economy";
 import { createGameState } from "../../src/sim/state";
 import { scenarioById, scenarioNewGameOptions } from "../../src/data/scenarios";
 import { advanceOneHour } from "../../src/sim/tick";
@@ -81,10 +81,6 @@ const state = createGameState(
         region,
         startYear,
         difficulty,
-        // Exploration E1: PASSENGER_MODEL=m0|m1|m2|m3
-        ...(process.env["PASSENGER_MODEL"]
-          ? { passengerModel: process.env["PASSENGER_MODEL"] as PassengerModel }
-          : {}),
       },
 );
 
@@ -347,7 +343,8 @@ function yearlyPlanning(): void {
     while (
       pair.trains.length < 4 &&
       state.cash > 1_500_000 + state.finance.loans &&
-      (process.env["OLDTRAINS"] || backlog() > (40 / partyOf(state.passengerModel)) * consist(bestLoco(), carsForDemand(pair)).length)
+      (process.env["OLDTRAINS"] ||
+        backlog() > (40 / PARTY_SIZE) * consist(bestLoco(), carsForDemand(pair)).length)
     ) {
       if (!addTrain(pair)) break;
     }

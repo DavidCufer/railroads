@@ -1,16 +1,12 @@
-/** Phase 51: people wait only for the next train (SPEC §9.5e-5). Pure.
+/** Phase 51/54: people wait only for the next train (SPEC §9.5e-5). Pure.
  *
- * A destination's pile at a station holds the people who arrive between two trains that carry them: demand per day x the
- * service interval (round-trip time of those trains / how many), clamped to `MIN_WAIT_DAYS`..`MAX_WAIT_DAYS`. */
-import {
-  CHANGE_MIN_TILES,
-  MAX_WAIT_DAYS,
-  MIN_WAIT_DAYS,
-  eraReferenceTilesPerDay,
-} from "../../data/economy";
+ * A station's one pile holds the people who arrive between two trains: it fills from the last departure up to
+ * `MAX_WAIT_DAYS` of demand. Service rates (departures a day per station and next stop) are the estimate behind the
+ * station panel's "next train" until a gap has been observed. */
+import { MAX_WAIT_DAYS } from "../../data/economy";
 import type { GameState } from "../state";
 import { estimateRoundTripDays } from "../trains/headway";
-import { DAYS_PER_MONTH, HOURS_PER_DAY, calendarFromTicks } from "../time";
+import { DAYS_PER_MONTH, HOURS_PER_DAY } from "../time";
 
 /** Departures a day, per (station, first leg), of passenger trains that call at both. Key `${station}>${firstLeg}`. */
 export type ServiceRates = Map<string, number>;
@@ -80,22 +76,4 @@ export function observedIntervalDays(
   if (estimate === undefined) return undefined;
   const seen = state.departures.get(serviceKey(stationId, next))?.gapDays;
   return seen !== undefined && seen > 0 ? seen : estimate;
-}
-
-/** Tiles of effective distance a change of train costs at `station` for the onward leg to `next`. */
-export type ChangeTiles = (station: number, next: number) => number;
-
-/** Phase 53B: a change costs what it really costs, the wait. The traveller arrives at a random moment, so waits half the
- * onward service interval (clamped like a pile's, `MIN/MAX_WAIT_DAYS`), which at the era's reference speed
- * (`eraReferenceTilesPerDay`) is that many tiles of travel; never less than the platform walk (`CHANGE_MIN_TILES`).
- * The service data is Phase 51's and is built on the first change asked about, so a network with no change pays nothing. */
-export function changeTilesFor(state: GameState): ChangeTiles {
-  let rates: ServiceRates | undefined;
-  const year = calendarFromTicks(state.startYear, state.ticks).year;
-  return (station, next) => {
-    rates ??= serviceRates(state);
-    const interval = serviceIntervalDays(rates.get(serviceKey(station, next))) ?? MAX_WAIT_DAYS;
-    const wait = 0.5 * Math.min(MAX_WAIT_DAYS, Math.max(MIN_WAIT_DAYS, interval));
-    return Math.max(CHANGE_MIN_TILES, wait * eraReferenceTilesPerDay(year));
-  };
 }

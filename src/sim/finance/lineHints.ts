@@ -6,7 +6,7 @@ import type { CargoType } from "../../data/cargo";
 import { ADD_TRAIN_HINT } from "../../data/trains";
 import { pushNews } from "../news";
 import type { GameState } from "../state";
-import { boardable } from "../stations/boarding";
+import { pileShareFor } from "../stations/boarding";
 import { HOURS_PER_DAY } from "../time";
 import { booksStartTick } from "../trains/profit";
 import { carCapacity } from "../trains/capacity";
@@ -53,7 +53,17 @@ export function addTrainHint(
       const pile = state.stationCargo.get(stationId)?.[cargo];
       if (!pile) continue;
       const carrier = carriers.find((t) => t.orders.some((o) => o.stationId === stationId));
-      if (carrier) waiting += boardable(pile, carrier, stationId);
+      const station = state.stations.find((s) => s.id === stationId);
+      if (!carrier || !station) continue;
+      waiting +=
+        cargo === "passengers"
+          ? pile.amount *
+            pileShareFor(
+              state,
+              station,
+              carrier.orders.map((o) => o.stationId),
+            )
+          : pile.amount;
     }
     if (waiting > oneTrain && (!best || waiting > best.waiting))
       best = { waiting: Math.round(waiting), cargo };

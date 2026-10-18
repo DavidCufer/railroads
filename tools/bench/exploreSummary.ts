@@ -34,7 +34,9 @@ for (const r of sel) {
   const key = `${r.scen} ${r.year} ${r.model}`;
   groups.set(key, [...(groups.get(key) ?? []), r]);
 }
-console.log("scen year model | config | best cars | trains | cars in use | profit k/yr | net k/yr | per train k | load % | waiting | delivered | lost | fare");
+console.log(
+  "scen year model | config | best cars | trains | cars in use | profit k/yr | net k/yr | per train k | load % | waiting | delivered | lost | fare",
+);
 for (const [key, list] of [...groups].sort((a, b) => a[0].localeCompare(b[0]))) {
   const byConfig = new Map<string, Row>();
   for (const r of list) {

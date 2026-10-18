@@ -1,11 +1,10 @@
-/** Exploration E1 (branch `explore-passengers`): which passenger model makes a multi-stop train the natural choice?
- * Synthetic flat map, no random terrain: a chain of towns on a straight double track, plus unserved background towns (a
+/** Exploration E1 and Phase 54 item 2: which service pattern pays on a chain of towns? Synthetic flat map, no random terrain: a chain of towns on a straight double track, plus unserved background towns (a
  * real map has many; they soak up the share of a town's trips that no train of ours reaches).
  *
- * `npx tsx tools/bench/explore.ts <S1|S2|S3> <m0|m1|m2|m3> <year> [seeds=3] [years=2]`
+ * `npx tsx tools/bench/explore.ts <S1|S1s|S2|S3|S4> <year> [seeds=3] [years=2]`
  * env `TURN=0` turns terminus turnaround off, `CONFIGS=a,b` runs only those, `KS=1,2,3` car counts, `JSON=1` one JSON line per config.
  * Prints, per configuration and car count, totals over the line's trains, averaged over the seeds. */
-import { partyOf, type PassengerModel } from "../../src/data/passengerModels";
+import { PARTY_SIZE } from "../../src/data/economy";
 import { TURNAROUND_HOURS } from "../../src/data/trains";
 import * as commands from "../../src/sim/commands";
 import type { City } from "../../src/sim/economy/types";
@@ -17,8 +16,7 @@ import { DAYS_PER_YEAR, HOURS_PER_DAY } from "../../src/sim/time";
 import type { GameState } from "../../src/sim/state";
 import { makeTestMap, makeTestState, tileAt } from "../../tests/sim/track/helpers";
 
-const [, , scen = "S1", modelArg = "m0", yearArg = "1842", seedsArg = "3", yearsArg = "2"] = process.argv;
-const model = modelArg as PassengerModel;
+const [, , scen = "S1", yearArg = "1842", seedsArg = "3", yearsArg = "2"] = process.argv;
 const startYear = Number(yearArg);
 const SEEDS = Array.from({ length: Number(seedsArg) }, (_, i) => i + 1);
 const YEARS = Number(yearsArg);
@@ -26,7 +24,8 @@ const LOCO = startYear < 1880 ? "norris-4-2-0" : "atlantic-4-4-2";
 /** Yearly charge on the money put into trains and cars (3-5 % was a railway bond's yield in the 1840s-1900s). */
 const CAPITAL_CHARGE = 0.05;
 if (process.env["TURN"] === "0") {
-  for (const k of Object.keys(TURNAROUND_HOURS) as Array<keyof typeof TURNAROUND_HOURS>) TURNAROUND_HOURS[k] = 0;
+  for (const k of Object.keys(TURNAROUND_HOURS) as Array<keyof typeof TURNAROUND_HOURS>)
+    TURNAROUND_HOURS[k] = 0;
 }
 
 /** Small deterministic generator for the bench's own map layout (not the sim's). */
@@ -95,7 +94,7 @@ function build(seed: number): Built {
   const width = Math.max(...world.towns.map((t) => t.x)) + 24;
   const height = 100;
   const map = makeTestMap(Array.from({ length: height }, () => "p".repeat(width)));
-  const state = makeTestState(map, { startYear, cash: 5e8, passengerModel: model, seed });
+  const state = makeTestState(map, { startYear, cash: 5e8, seed });
   const mk = (t: Town, id: number, name: string): City => {
     const side = t.pop >= 100000 ? 4 : 3;
     const tiles: number[] = [];
@@ -178,13 +177,14 @@ const express = (n: number): Config => ({
     ...shuttles(1).trains(k),
   ],
 });
-const CONFIGS: Config[] =
-  scen.startsWith("S1")
-    ? [multi(1), multi(2), multi(3), multi(4), multi(6), shuttles(1), shuttles(2), shuttles(3)]
-    : scen === "S2"
-      ? [direct(1), direct(2), direct(3), direct(4)]
-      : [multi(1), multi(2), multi(3), express(1), express(2)];
-const KS = (process.env["KS"] ?? (startYear < 1880 ? "1,2,3,4,5,6,8" : "1,2,3,4,5,6")).split(",").map(Number);
+const CONFIGS: Config[] = scen.startsWith("S1")
+  ? [multi(1), multi(2), multi(3), multi(4), multi(6), shuttles(1), shuttles(2), shuttles(3)]
+  : scen === "S2"
+    ? [direct(1), direct(2), direct(3), direct(4)]
+    : [multi(1), multi(2), multi(3), express(1), express(2)];
+const KS = (process.env["KS"] ?? (startYear < 1880 ? "1,2,3,4,5,6,8" : "1,2,3,4,5,6"))
+  .split(",")
+  .map(Number);
 
 interface Metrics {
   profit: number; // per year, the line's trains' books
@@ -200,7 +200,7 @@ interface Metrics {
 
 function run(cfg: Config, k: number, seed: number): Metrics {
   const { state, stations } = build(seed);
-  const party = partyOf(model);
+  const party = PARTY_SIZE;
   const cash0 = state.cash;
   const ids: number[] = [];
   for (const orders of cfg.trains(stations.length)) {
@@ -274,10 +274,10 @@ for (const cfg of CONFIGS) {
   if (only && !only.includes(cfg.name)) continue;
   for (const k of KS) {
     const runs = SEEDS.map((s) => run(cfg, k, s));
-    const avg = (f: (m: Metrics) => number): number => runs.reduce((a, m) => a + f(m), 0) / runs.length;
+    const avg = (f: (m: Metrics) => number): number =>
+      runs.reduce((a, m) => a + f(m), 0) / runs.length;
     const row = {
       scen,
-      model,
       year: startYear,
       turn: process.env["TURN"] === "0" ? "off" : "on",
       config: cfg.name,

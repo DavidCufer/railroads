@@ -5,6 +5,7 @@ import { buildStation, buildTrack, buyTrain, setOrders } from "../../../src/sim/
 import { addTrainHint, monthlyLineHintStep } from "../../../src/sim/finance/lineHints";
 import { HOURS_PER_DAY } from "../../../src/sim/time";
 import { makeTestMap, makeTestState, tileAt } from "../track/helpers";
+import { giveStationsTowns } from "../stationTowns";
 
 function world() {
   const row = Array.from({ length: 16 }, () => "p").join("");
@@ -17,6 +18,7 @@ function world() {
   );
   buildStation(state, tileAt(map, 0, 1), "station");
   buildStation(state, tileAt(map, 15, 1), "station");
+  giveStationsTowns(state);
   const [a, b] = state.stations.map((s) => s.id) as [number, number];
   expect(buyTrain(state, a, "grasshopper-0-4-0", ["passengers"]).ok).toBe(true);
   const train = state.trains[0]!;

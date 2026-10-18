@@ -15,134 +15,34 @@ import { cargoDecayExempt, stationStorageCap } from "../stations/improvements";
 import { recordPileFull, recordTurnedAway } from "../stations/flow";
 import { panicDemandMult } from "../finance/panics";
 import { DAYS_PER_MONTH } from "../time";
-import type { GameState, PassengerLot, StationCargoPile } from "../state";
-import type { PassengerRoute } from "../stations/passengerFlows";
-import type { Station } from "../stations/types";
-import { serviceKey, serviceRates, waitingCap, type ServiceRates } from "../stations/waiting";
+import type { GameState, StationCargoPile } from "../state";
+import { waitingCap } from "../stations/waiting";
 
 const DECAY_FLOOR = 0.05;
 
-/** Phase 35D: a passenger/mail pile fills at `monthly / 30` a day and holds at most one month of that bucket's rate. */
-function accrueLinear(
-  entry: StationCargoPile,
-  monthly: number,
-  daily: number,
-  shares: ReadonlyArray<{ stationId: number; share: number }> | undefined,
-): number {
-  let overflow = 0;
-  if (!shares || shares.length === 0) {
-    // One generic pile (mail, or a station no passenger train calls at): people of old buckets are unassigned now.
-    delete entry.bound;
-    delete entry.lots;
-    const total = Math.min(entry.amount, monthly);
-    const room = monthly - total;
-    const add = Math.min(daily, room);
-    overflow = daily - add;
-    entry.amount = total + add;
-    return overflow;
-  }
-  const bound: Record<number, number> = {};
-  const oldBound = entry.bound ?? {};
-  let boundTotal = 0;
-  let oldBoundTotal = 0;
-  for (const v of Object.values(oldBound)) oldBoundTotal += v;
-  const unbound = Math.max(0, entry.amount - oldBoundTotal);
-  for (const { stationId, share } of shares) {
-    const cap = monthly * share;
-    const have = Math.min(oldBound[stationId] ?? 0, cap);
-    const add = Math.min(daily * share, cap - have);
-    overflow += daily * share - add;
-    bound[stationId] = have + add;
-    boundTotal += have + add;
-  }
-  // People of a destination that is no longer reachable (or whose bucket shrank) board any train: unassigned, but
-  // the whole pile still holds at most one month of the station's passengers.
-  entry.bound = bound;
-  entry.amount = boundTotal + Math.min(unbound, Math.max(0, monthly - boundTotal));
-  return overflow;
+/** Phase 35D: a mail pile (or a station no passenger train calls at) fills at `monthly / 30` a day and holds at most one
+ * month of the station's rate. Returns the part turned away. */
+function accrueLinear(entry: StationCargoPile, monthly: number, daily: number): number {
+  const total = Math.min(entry.amount, monthly);
+  const add = Math.min(daily, monthly - total);
+  entry.amount = total + add;
+  return daily - add;
 }
 
-/** Phase 48: passengers wait bound for their destination station. Each reachable destination's bucket fills linearly
- * at its monthly rate and holds one month of it; people who changed trains here (lots with a start tick) are not new
- * demand and do not count against the cap. Older first-leg piles are left as they are and drain as trains take them. */
-function accrueLots(
-  entry: StationCargoPile,
-  routes: readonly PassengerRoute[],
-  station: Station,
-  demand: number,
-  service: ServiceRates,
-  /** Exploration E1 (m2, m3): people a month waiting in one pile with no destination yet; they are the part of the pile
-   * that is not a lot, so nothing is turned into destination lots. */
-  poolPerMonth?: number,
-): number {
-  const lots = entry.lots ?? [];
-  let lotTotal = 0;
-  for (const l of lots) lotTotal += l.amount;
-  const pooled = poolPerMonth !== undefined;
-  const legacy = pooled ? 0 : Math.max(0, entry.amount - lotTotal);
-  const poolHave = pooled ? Math.max(0, entry.amount - lotTotal) : 0;
-  const arrived = lots.filter((l) => l.tick !== undefined);
-  const own = new Map<number, number>();
-  for (const l of lots)
-    if (l.tick === undefined) own.set(l.dest, (own.get(l.dest) ?? 0) + l.amount);
-  const fresh: PassengerLot[] = [];
-  const room = new Map<number, number>();
-  let overflow = 0;
-  for (const route of [...routes].sort((a, b) => a.destination - b.destination)) {
-    // Phase 51/53C: people wait for the next train that carries them, up to MAX_WAIT_DAYS of demand since the last one left.
-    const perMonth = route.perMonth * demand;
-    const cap = waitingCap(perMonth, service.has(serviceKey(station.id, route.firstLeg)));
-    const daily = perMonth / DAYS_PER_MONTH;
-    const have = Math.min(own.get(route.destination) ?? 0, cap);
-    const add = Math.max(0, Math.min(daily, cap - have));
-    overflow += daily - add;
-    room.set(route.destination, cap - have - add);
-    if (have + add > 0)
-      fresh.push({ dest: route.destination, amount: have + add, originTile: station.tile });
-  }
-  // Phase 52: people of a pre-Phase-48 pile (no destination) are turned into destination lots by the route shares,
-  // within the caps; what does not fit is counted lost once. With no routes they are all lost.
-  if (legacy > 0) {
-    let weight = 0;
-    for (const route of routes) weight += route.perMonth;
-    let placed = 0;
-    if (weight > 0) {
-      for (const route of [...routes].sort((a, b) => a.destination - b.destination)) {
-        const put = Math.min(legacy * (route.perMonth / weight), room.get(route.destination) ?? 0);
-        if (put <= 0) continue;
-        placed += put;
-        const lot = fresh.find((l) => l.dest === route.destination);
-        if (lot) lot.amount += put;
-        else fresh.push({ dest: route.destination, amount: put, originTile: station.tile });
-      }
-    }
-    overflow += legacy - placed;
-  }
-  let pool = 0;
-  if (pooled) {
-    // One pile, filled linearly from the last departure up to MAX_WAIT_DAYS of its demand, as a destination pile is.
-    const perMonth = poolPerMonth * demand;
-    const served = [...service.keys()].some((k) => k.startsWith(`${station.id}>`));
-    const cap = waitingCap(perMonth, served);
-    const daily = perMonth / DAYS_PER_MONTH;
-    const have = Math.min(poolHave, cap);
-    const add = Math.max(0, Math.min(daily, cap - have));
-    overflow += daily - add;
-    pool = have + add;
-  }
-  entry.lots = [...arrived, ...fresh]; // people who changed here have waited longest: first on
-  if (entry.lots.length === 0) delete entry.lots;
-  delete entry.bound;
-  entry.amount =
-    pool +
-    fresh.reduce((n, l) => n + l.amount, 0) +
-    arrived.reduce((n, l) => n + l.amount, 0);
-  return overflow;
+/** Phase 54: the passengers of a station wait in one pile. It fills linearly from the last departure at the station's
+ * rate (`passengerPool` a month) and holds at most `MAX_WAIT_DAYS` of it (`waitingCap`); what a departing train cannot
+ * take stays, only the part above the ceiling is turned away. */
+function accruePool(entry: StationCargoPile, perMonth: number): number {
+  const cap = waitingCap(perMonth, true);
+  const daily = perMonth / DAYS_PER_MONTH;
+  const have = Math.min(entry.amount, cap);
+  const add = Math.max(0, Math.min(daily, cap - have));
+  entry.amount = have + add;
+  return daily - add;
 }
 
 export function accrueDailyCargo(state: GameState): void {
   const demand = panicDemandMult(state);
-  const service = serviceRates(state);
   for (const station of state.stations) {
     const economy = state.stationEconomy.get(station.id);
     if (!economy) continue;
@@ -159,29 +59,17 @@ export function accrueDailyCargo(state: GameState): void {
       const daily = monthly / DAYS_PER_MONTH;
       const entry: StationCargoPile = pile[cargo] ?? { amount: 0, waitingDays: 0 };
       if (givesUpWaiting(cargo)) {
-        // People and post (Phase 30A, 35D): no storage cap; linear fill to one month per bucket, overflow is the
-        // "unserved demand" the station panel shows. Passengers are stored by first leg (Phase 35).
-        const shares = cargo === "passengers" ? economy.passengerBound : undefined;
+        // People and post (Phase 30A, 35D, 54): no storage cap; linear fill, overflow is the "unserved demand" the
+        // station panel shows. Passengers wait in one pile per station.
         const overflow =
           cargo === "passengers" && economy.passengerPool !== undefined
-            ? accrueLots(
-                entry,
-                economy.passengerRoutes ?? [],
-                station,
-                demand,
-                service,
-                economy.passengerPool,
-              )
-            : cargo === "passengers" && economy.passengerRoutes && shares
-              ? accrueLots(entry, economy.passengerRoutes, station, demand, service)
-              : accrueLinear(entry, monthly, daily, shares);
+            ? accruePool(entry, economy.passengerPool * demand)
+            : accrueLinear(entry, monthly, daily);
         if (overflow > 0) recordTurnedAway(state, station.id, cargo, overflow);
         if (entry.amount > DECAY_FLOOR) entry.waitingDays++;
         else {
           entry.amount = 0;
           entry.waitingDays = 0;
-          delete entry.bound;
-          delete entry.lots;
         }
         pile[cargo] = entry;
         continue;

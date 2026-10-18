@@ -7,6 +7,7 @@ import type { Industry } from "../../../src/sim/economy/types";
 import { INDUSTRIES } from "../../../src/data/industries";
 import { STATION_TYPE_DEFS } from "../../../src/data/stations";
 import { waitingDecayThresholdDays } from "../../../src/data/cargo";
+import { MAX_WAIT_DAYS } from "../../../src/data/economy";
 
 function stationWithCoalMine() {
   const map = makeTestMap(["ppp"]);
@@ -141,41 +142,29 @@ describe("passengers and mail: linear fill to one month, nobody gives up (Phase 
     expect(pile(state, station.id)?.passengers?.amount).toBeCloseTo(300, 6);
   });
 
-  it("each first-leg bucket fills and caps at its own month", () => {
+  it("a served station keeps one pile that fills linearly and caps at MAX_WAIT_DAYS of its demand (Phase 54)", () => {
     const { state, station } = peopleStation(false);
-    state.stationEconomy.get(station.id)!.passengerBound = [
-      { stationId: 7, share: 0.5 },
-      { stationId: 8, share: 0.5 },
-    ];
+    state.stationEconomy.get(station.id)!.passengerPool = 300;
     for (let day = 0; day < 60; day++) accrueDailyCargo(state);
     const p = pile(state, station.id)?.passengers;
-    expect(p?.bound?.[7]).toBeCloseTo(150, 6);
-    expect(p?.bound?.[8]).toBeCloseTo(150, 6);
-    expect(p?.amount).toBeCloseTo(300, 6);
-    // A train takes the 7s: only that bucket refills, and only the 8s' overflow keeps counting.
-    p!.bound![7] = 70;
+    expect(p?.amount).toBeCloseTo((300 / 30) * MAX_WAIT_DAYS, 6);
+    // A train takes 80: the pile refills at the daily rate and only the part above the ceiling is turned away.
     p!.amount -= 80;
-    for (let day = 0; day < 6; day++) accrueDailyCargo(state);
-    expect(p?.bound?.[7]).toBeCloseTo(100, 6);
-    expect(p?.bound?.[8]).toBeCloseTo(150, 6);
+    for (let day = 0; day < 4; day++) accrueDailyCargo(state);
+    expect(p?.amount).toBeCloseTo((300 / 30) * MAX_WAIT_DAYS - 80 + 40, 6);
   });
 
-  it("clamps to the new cap when the rate falls; unreachable destinations become unassigned", () => {
+  it("clamps to the new ceiling when the pool rate falls", () => {
     const { state, station } = peopleStation(false);
     const eco = state.stationEconomy.get(station.id)!;
-    eco.passengerBound = [
-      { stationId: 7, share: 0.5 },
-      { stationId: 8, share: 0.5 },
-    ];
+    eco.passengerPool = 300;
     for (let day = 0; day < 30; day++) accrueDailyCargo(state);
-    // Station 8 loses its service and the supply halves: bucket 7 now holds at most 0.5 x 150.
-    eco.supply = { passengers: 150, mail: 60 };
-    eco.passengerBound = [{ stationId: 7, share: 0.5 }];
+    eco.passengerPool = 150;
     accrueDailyCargo(state);
-    const p = pile(state, station.id)?.passengers;
-    expect(p?.bound?.[7]).toBeCloseTo(75, 6);
-    expect(p?.bound?.[8]).toBeUndefined();
-    expect(p?.amount ?? 0).toBeLessThanOrEqual(150 + 1e-9);
+    expect(pile(state, station.id)?.passengers?.amount ?? 0).toBeCloseTo(
+      (150 / 30) * MAX_WAIT_DAYS,
+      6,
+    );
   });
 
   it("freight is unchanged: storage cap and decay as before", () => {

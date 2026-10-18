@@ -1,6 +1,6 @@
 /** Phase 48: passengers ride to their destination station, pay once for the whole trip, and change trains at an interchange. */
 import { describe, expect, it } from "vitest";
-import { PAIR_DEMAND } from "../../../src/data/economy";
+import { PARTY_SIZE } from "../../../src/data/economy";
 import { locomotiveById } from "../../../src/data/trains";
 import { buyTrain, setOrders } from "../../../src/sim/commands";
 import { computeStationEconomies } from "../../../src/sim/stations/economy";
@@ -13,6 +13,7 @@ import type { City } from "../../../src/sim/economy/types";
 import type { Station } from "../../../src/sim/stations/types";
 import { makeTestMap, makeTestState, tileAt } from "../track/helpers";
 import { lineWithStops } from "../trains/middleStop.test";
+import { giveStationsTowns } from "../stationTowns";
 
 const LOCO = "american-4-4-0";
 
@@ -30,7 +31,13 @@ function trainAt(state: GameState, stationId: number, orders: number[], cars = 1
 }
 
 /** Puts `units` people aboard the first car, bound for `dest`, as if they boarded at `origin` now. */
-function board(state: GameState, t: Train, dest: number, origin: Station, units = 40): void {
+function board(
+  state: GameState,
+  t: Train,
+  dest: number,
+  origin: Station,
+  units = 40 / PARTY_SIZE,
+): void {
   const car = t.cars[0] as Train["cars"][number];
   car.lots = [{ dest, amount: units, originTile: origin.tile, tick: state.ticks }];
   car.loadedUnits = units;
@@ -55,7 +62,7 @@ describe("Phase 48 through passengers", () => {
     for (let i = 0; i < 24 * 40 && state.pendingDeliveries.length === 0; i++) advanceOneHour(state);
     const first = state.pendingDeliveries.find((e) => e.trainId === t.id);
     expect(first?.stationId).toBe(c!.id); // not at the middle stop
-    expect(first?.units).toBeCloseTo(40);
+    expect(first?.units).toBeCloseTo(40 / PARTY_SIZE);
     const days = (first!.tick! - 0) / 24;
     const whole = computeRevenue(
       state,
@@ -71,55 +78,36 @@ describe("Phase 48 through passengers", () => {
     ).toEqual([]);
   });
 
-  it("a passenger who must change waits at the interchange and is paid on final arrival", () => {
+  it("people from one pile split over the train's stops and each group is paid at its own stop (Phase 54)", () => {
     const { state, stationIds } = lineWithStops(3, 12, 1860);
     for (const s of state.stations) s.hasEngineShed = true;
+    giveStationsTowns(state);
     const [a, b, c] = stationIds.map((id) => state.stations.find((s) => s.id === id)) as Station[];
-    const first = trainAt(state, a!.id, [a!.id, b!.id]);
-    const second = trainAt(state, b!.id, [b!.id, c!.id]);
-    first.currentOrderIndex = 1;
-    const started = state.ticks;
-    board(state, first, c!.id, a!);
-    state.pendingDeliveries.length = 0;
-    let waited = false;
-    let paid = false;
-    let aboard = false;
-    for (let i = 0; i < 24 * 80 && !paid; i++) {
+    const t = trainAt(state, a!.id, [a!.id, b!.id, c!.id, b!.id]);
+    t.currentOrderIndex = 0;
+    state.stationCargo.set(a!.id, { passengers: { amount: 9, waitingDays: 3 } });
+    for (let i = 0; i < 24 * 5 && !t.cars.some((car) => car.lots); i++) advanceOneHour(state);
+    const lots = t.cars.flatMap((car) => car.lots ?? []).filter((l) => l.originTile === a!.tile);
+    const toB = lots.filter((l) => l.dest === b!.id).reduce((n, l) => n + l.amount, 0);
+    const toC = lots.filter((l) => l.dest === c!.id).reduce((n, l) => n + l.amount, 0);
+    // the whole pile boards (only one train serves this station) and splits over the two later stops
+    expect(toB + toC).toBeCloseTo(9, 4);
+    // the nearer middle town draws the bigger share
+    expect(toB).toBeGreaterThan(toC);
+    expect(toC).toBeGreaterThan(0);
+    // and each group is paid at its own stop, once
+    for (let i = 0; i < 24 * 40 && !state.pendingDeliveries.some((e) => e.stationId === c!.id); i++)
       advanceOneHour(state);
-      const lots = state.stationCargo.get(b!.id)?.passengers?.lots ?? [];
-      if (
-        !waited &&
-        lots.some((l) => l.dest === c!.id && l.originTile === a!.tile && l.tick === started)
-      ) {
-        waited = true;
-        // the first leg paid nothing: they are not at their destination yet
-        expect(
-          state.pendingDeliveries.some((e) => e.trainId === first.id && e.stationId === b!.id),
-        ).toBe(false);
-      }
-      if (second.cars.some((car) => car.lots?.some((l) => l.originTile === a!.tile))) aboard = true;
-      paid =
-        aboard &&
-        state.pendingDeliveries.some((e) => e.trainId === second.id && e.stationId === c!.id);
-    }
-    expect(waited).toBe(true);
-    expect(paid).toBe(true);
-    const event = state.pendingDeliveries
-      .filter((e) => e.trainId === second.id && e.stationId === c!.id)
-      .pop()!;
-    // at least the whole-distance fare of our people (other riders may be in the same event)
-    const whole = computeRevenue(
-      state,
-      "passengers",
-      tileDist(state, a!, c!),
-      (event.tick! - started) / 24,
-      locomotiveById(LOCO)?.maxSpeedKmh ?? 0,
+    expect(state.pendingDeliveries.some((e) => e.trainId === t.id && e.stationId === b!.id)).toBe(
+      true,
     );
-    expect(event.revenue).toBeGreaterThanOrEqual(whole * 0.999);
+    expect(state.pendingDeliveries.some((e) => e.trainId === t.id && e.stationId === c!.id)).toBe(
+      true,
+    );
   });
 });
 
-describe("Phase 48 changes deter travel", () => {
+describe("Phase 54 direct service only", () => {
   const world = (xs: number[]) => {
     const map = makeTestMap(["p".repeat(Math.max(...xs) + 4)]);
     makeTestState(map, { startYear: 1860 });
@@ -157,9 +145,7 @@ describe("Phase 48 changes deter travel", () => {
       orders: ids.map((stationId) => ({ stationId, rule: "auto" })),
     }) as unknown as Train;
 
-  it("a town reached direct draws more people than the same town reached with a change", () => {
-    // Phase 51: with maxShare 0.2 a handful of candidates all take 1/n whatever the distance, so six towns, all within
-    // the 15-tile minimum distance (equal gravity weight) and the rest unconnected, leave room for the change penalty.
+  it("a town reached direct draws people; the same town reached only by changing draws none (Phase 54)", () => {
     const { map, cities, stations } = world([3, 8, 11, 13, 15, 17, 18]);
     const demandTo = (trains: Train[]): number =>
       computeStationEconomies(
@@ -174,28 +160,8 @@ describe("Phase 48 changes deter travel", () => {
       )
         .get(0)
         ?.passengerRoutes?.find((r) => r.cityId === 2)?.perMonth ?? 0;
-    const direct = demandTo([line(0, 1, 2, 1)]); // one through line
-    const changing = demandTo([line(0, 1), line(1, 2)]); // change at 1
-    expect(PAIR_DEMAND.maxShare).toBeGreaterThan(0);
-    expect(direct).toBeGreaterThan(0);
-    expect(changing).toBeGreaterThan(0);
-    expect(direct).toBeGreaterThan(changing);
-  });
-
-  it("counts the changes on a route", () => {
-    const { map, cities, stations } = world([3, 12, 21, 30]);
-    const routes = computeStationEconomies(
-      map,
-      cities,
-      [],
-      stations,
-      1860,
-      undefined,
-      undefined,
-      passengerLinks([line(0, 1), line(1, 2)]),
-    ).get(0)?.passengerRoutes;
-    expect(routes?.find((r) => r.cityId === 1)?.changes).toBe(0);
-    expect(routes?.find((r) => r.cityId === 2)?.changes).toBe(1);
+    expect(demandTo([line(0, 1, 2, 1)])).toBeGreaterThan(0); // one through line
+    expect(demandTo([line(0, 1), line(1, 2)])).toBe(0); // change at 1: not counted
   });
 });
 

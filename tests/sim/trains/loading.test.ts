@@ -7,13 +7,13 @@ import {
 } from "../../../src/sim/commands";
 import { computeRevenue, expectedTransitDays, stepLoading } from "../../../src/sim/trains/loading";
 import { CARGO, REVENUE_DISTANCE_TILES } from "../../../src/data/cargo";
+import { carCapacity } from "../../../src/sim/trains/capacity";
 import { KM_PER_TILE, WORLD_SCALE } from "../../../src/data/scale";
 import { DIFFICULTY } from "../../../src/data/finance";
 import {
   competitionLoss,
   eraReferenceTilesPerDay,
   fareIndex,
-  PARTY_SIZE,
   PASSENGER_SPEED_FACTOR_MAX,
   PASSENGER_SPEED_FACTOR_MIN,
 } from "../../../src/data/economy";
@@ -45,6 +45,22 @@ function twoStationLine(distanceTiles: number): { state: GameState; a: Station; 
   expect(buildStation(state, tileAt(map, width - 1, 0), "depot").ok).toBe(true);
   const a = state.stations[0] as Station;
   const b = state.stations[1] as Station;
+  // Each station serves a town, so passengers have somewhere to go (Phase 54).
+  [a, b].forEach((station, id) => {
+    map.cityId[station.tile] = id;
+    state.cities.push({
+      id,
+      name: `T${id}`,
+      tier: "city",
+      population: 20_000,
+      anchorX: station.tile % map.width,
+      anchorY: 0,
+      tiles: [station.tile],
+      coastal: false,
+    });
+    const economy = state.stationEconomy.get(station.id);
+    if (economy) economy.passengerTownId = id;
+  });
   return { state, a, b };
 }
 
@@ -102,14 +118,14 @@ describe("computeRevenue", () => {
       cargo: "passengers",
       distanceTiles: 20 * WORLD_SCALE,
       days: 12,
-      expected: 1650 * 2 * PASSENGER_SPEED_FACTOR_MAX * F("passengers") * PARTY_SIZE,
+      expected: 1650 * 2 * PASSENGER_SPEED_FACTOR_MAX * F("passengers"),
     },
     // A slow trip (long wait at an interchange, stops on the way) still pays at least 0.9 of the per-distance fare.
     {
       cargo: "passengers",
       distanceTiles: 20 * WORLD_SCALE,
       days: 120,
-      expected: 1650 * 2 * PASSENGER_SPEED_FACTOR_MIN * F("passengers") * PARTY_SIZE,
+      expected: 1650 * 2 * PASSENGER_SPEED_FACTOR_MIN * F("passengers"),
     },
   ];
 
@@ -155,7 +171,6 @@ describe("computeRevenue", () => {
         (CARGO.passengers.baseRate *
           ((40 * WORLD_SCALE) / REVENUE_DISTANCE_TILES) *
           fareIndex(year, "passengers") *
-          PARTY_SIZE *
           (1 - competitionLoss(year, "passengers", 40 * WORLD_SCALE * KM_PER_TILE, 0)));
       expect(perDistance(10_000)).toBeGreaterThanOrEqual(PASSENGER_SPEED_FACTOR_MIN - 1e-9);
       expect(perDistance(1)).toBeLessThanOrEqual(PASSENGER_SPEED_FACTOR_MAX + 1e-9);
@@ -340,8 +355,8 @@ describe("stepLoading", () => {
     runToDeparture(state, train, a);
 
     const car = train.cars[0];
-    expect(car?.loadedUnits).toBe(6);
-    expect(car?.loadedUnits).toBeLessThan(CARGO.passengers.capacity);
+    expect(car?.loadedUnits).toBeCloseTo(6, 6);
+    expect(car?.loadedUnits).toBeLessThan(carCapacity(car as never));
     expect(car?.loadedTile).toBe(a.tile);
     expect(state.stationCargo.get(a.id)?.passengers?.amount).toBeCloseTo(0, 5);
   });
@@ -423,9 +438,10 @@ describe("Bug 1: 'fullLoad' keeps what it loaded", () => {
     setAccepts(state, a.id, ["passengers"]);
     setAccepts(state, b.id, ["passengers"]);
     state.stationCargo.set(a.id, {
-      passengers: { amount: CARGO.passengers.capacity, waitingDays: 0 },
+      passengers: { amount: 3 * carCapacity({ cargoType: "passengers" }), waitingDays: 0 },
     });
     const bought = buyTrain(state, a.id, LOCO, ["passengers", "passengers", "passengers"]);
+    const seats = carCapacity({ cargoType: "passengers" }); // game passengers a car holds
     const train = state.trains[0];
     if (!bought.ok || !train) throw new Error("setup failed");
     setOrders(state, train.id, [
@@ -437,14 +453,14 @@ describe("Bug 1: 'fullLoad' keeps what it loaded", () => {
     while (!stepLoading(state, train, a)) {
       ticks++;
       state.stationCargo.get(a.id)!.passengers = {
-        amount: CARGO.passengers.capacity,
+        amount: 3 * seats,
         waitingDays: 0,
       };
       if (ticks > 10_000) throw new Error("never departed");
     }
     // The cars hold what was loaded; nothing was "delivered" back to the origin.
     const total = train.cars.reduce((n, c) => n + c.loadedUnits, 0);
-    expect(total).toBe(3 * CARGO.passengers.capacity);
+    expect(total).toBeCloseTo(3 * seats, 6);
     expect(state.pendingDeliveries).toHaveLength(0);
   });
 });

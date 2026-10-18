@@ -20,8 +20,8 @@ import {
 import { cityTileAcceptance, cityTileSupply, cityTravelDemand } from "../economy/cityStats";
 import type { City, Industry, IndustryEconomyState } from "../economy/types";
 import type { GameMap } from "../map/types";
-import { partyOf, usesPool } from "../../data/passengerModels";
-import { destinationSupplyMult, PassengerNetwork } from "./destinations";
+import { PARTY_SIZE } from "../../data/economy";
+import { destinationSupplyMult } from "./destinations";
 import { computePassengerFlows, type PassengerRoute } from "./passengerFlows";
 import { hasImprovement } from "./improvements";
 import { stationCatchmentTiles } from "./placement";
@@ -35,16 +35,13 @@ export interface StationEconomy {
   acceptPoints: Partial<Record<CargoType, number>>;
   /** Cargo types whose acceptPoints meet STATION_ACCEPTANCE_THRESHOLD. */
   accepts: CargoType[];
-  /** Where this station's passengers wait (Phase 35): shares of the supply per **first leg** (the next station on the
-   * shortest route to their destination), summing to 1. Absent while no passenger train serves the station. */
-  passengerBound?: Array<{ stationId: number; share: number }>;
   /** The town whose travel demand this station draws on most, and the station's part of that demand (people a month,
    * before only the reachable destinations are kept): `supply.passengers` is the connected part of it. */
   passengerTownId?: number;
   passengerDemand?: number;
-  /** The reachable destinations behind those buckets, people a month each (the "Where passengers go" sheet). */
+  /** The towns the station's trains call at directly, passengers a month each (the "Where to" sheet). */
   passengerRoutes?: PassengerRoute[];
-  /** Exploration E1 (m2, m3): people a month who wait in one pile, bound for any direct stop of the train that takes them. */
+  /** Phase 54: passengers a month who wait in the station's one pile. Absent while no passenger train calls here. */
   passengerPool?: number;
   /** Towns in travel range that no train connects to, with the people a month they would send. */
   passengerUnconnected?: Array<{ cityId: number; perMonth: number }>;
@@ -187,12 +184,10 @@ export function computeStationEconomies(
   }));
   const network = links ?? new Map<number, ReadonlySet<number>>();
   const baseSupply = new Map<number, number>();
-  const model = network instanceof PassengerNetwork ? network.model : undefined;
-  const party = partyOf(model);
   for (const station of stations)
     baseSupply.set(
       station.id,
-      ((result.get(station.id) as StationEconomy).supply.passengers ?? 0) / party,
+      ((result.get(station.id) as StationEconomy).supply.passengers ?? 0) / PARTY_SIZE,
     );
   for (const point of points) {
     const economy = result.get(point.id) as StationEconomy;
@@ -202,38 +197,14 @@ export function computeStationEconomies(
       economy.passengerTownId = point.cityId;
       economy.passengerDemand = demand;
     }
+    if (economy.supply.passengers) economy.supply.passengers = demand; // in game passengers
     const flows = computePassengerFlows(map, cities, currentYear, point, demand, points, network);
     if (!flows) continue;
     if (flows.unconnected.length > 0) economy.passengerUnconnected = flows.unconnected;
-    if (!network.has(point.id)) continue; // no passenger train calls here yet: one generic pile, nothing is bound
+    if (!network.has(point.id)) continue; // no passenger train calls here yet: one generic pile
     economy.supply.passengers = demand * flows.fraction;
-    if (usesPool(model)) {
-      // Exploration E1: people to a direct stop wait in one pile; only the ones needing a change keep a destination.
-      const direct = flows.routes.filter((r) => r.changes === 0);
-      const changing = flows.routes.filter((r) => r.changes > 0);
-      economy.passengerPool = direct.reduce((n, r) => n + r.perMonth, 0);
-      if (changing.length > 0) {
-        const buckets3 = new Map<number, number>();
-        for (const route of changing)
-          buckets3.set(route.firstLeg, (buckets3.get(route.firstLeg) ?? 0) + route.perMonth);
-        const total3 = changing.reduce((n, r) => n + r.perMonth, 0);
-        economy.passengerBound = [...buckets3]
-          .sort((x, y) => x[0] - y[0])
-          .map(([stationId, amount]) => ({ stationId, share: amount / total3 }));
-      }
-      economy.passengerRoutes = changing;
-      continue;
-    }
-    const buckets = new Map<number, number>();
-    for (const route of flows.routes)
-      buckets.set(route.firstLeg, (buckets.get(route.firstLeg) ?? 0) + route.perMonth);
-    const total = demand * flows.fraction;
-    if (total > 0) {
-      economy.passengerBound = [...buckets]
-        .sort((x, y) => x[0] - y[0])
-        .map(([stationId, amount]) => ({ stationId, share: amount / total }));
-      economy.passengerRoutes = flows.routes;
-    }
+    economy.passengerPool = demand * flows.fraction;
+    economy.passengerRoutes = flows.routes;
   }
   // Mail keeps the Phase 26A destination bonus: more distinct places reached => more post.
   if (destinations)

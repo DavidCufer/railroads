@@ -14,10 +14,12 @@ const run = (
 ) => runLongHaul({ startYear, legTiles: 100, oreTrains, barTrains, years: 10, chain });
 
 describe("long-haul chain balance (Phase 40)", () => {
-  it("1840: a poor investment (under 15 %/yr, not paid back in 10 years, well below an ordinary line's 25 %)", () => {
+  it("1840: a poor investment (under 15 %/yr, not paid back before year 10, well below an ordinary line's 25 %)", () => {
+    // Phase 54 (owner OK): was "never". The terminus turnaround and one pile per station let the ore and bar trains run a
+    // little richer; it is paid back in the last year of the bench (10) at best, still not before it.
     const r = run(1840, 2, 1, "silver");
     expect(r.lateReturn).toBeLessThan(0.15);
-    expect(r.payback).toBe("never");
+    expect(["never", "10"]).toContain(r.payback);
   });
 
   it("1900: strong, paid back within three years", () => {
@@ -29,8 +31,11 @@ describe("long-haul chain balance (Phase 40)", () => {
   it("1930 silver and 1950 uranium: the big prize, uranium the bigger", () => {
     const silver = run(1930, 2, 1, "silver");
     const uranium = run(1950, 2, 1, "uranium");
-    expect(silver.lateReturn).toBeGreaterThan(0.8);
-    expect(silver.lateReturn * silver.invested).toBeGreaterThan(2.5e6);
+    // Phase 54 (owner OK): was 0.8. Measured 0.75 with the terminus turnaround: a full ore train loses a trip's income
+    // at every turn, and silver is a full-train cargo.
+    expect(silver.lateReturn).toBeGreaterThan(0.7);
+    // Phase 54 (owner OK): was 2.5e6, measured 2.44e6 (the same turnaround cost).
+    expect(silver.lateReturn * silver.invested).toBeGreaterThan(2.3e6);
     expect(uranium.lateReturn * uranium.invested).toBeGreaterThan(
       1.4 * silver.lateReturn * silver.invested,
     );

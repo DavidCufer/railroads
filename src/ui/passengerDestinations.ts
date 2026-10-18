@@ -1,5 +1,5 @@
-/** "Where passengers go" detail sheet (PLAN Phase 35 item 5): the station's monthly passengers by first train stop,
- * each row expandable to final destinations, then the towns in range that no train connects to. Read-only. */
+/** "Where passengers go" detail sheet (PLAN Phase 35 item 5, Phase 54): the station's monthly passengers by town the
+ * trains here call at, with each town's share, then the biggest towns in range that none of them serves. Read-only. */
 import type { GameState } from "../sim/state";
 import type { StationEconomy } from "../sim/stations/economy";
 import type { Station } from "../sim/stations/types";
@@ -17,30 +17,13 @@ export function openDestinationsSheet(
 ): SheetHandle {
   const t = strings.station.destinations;
   const cityName = (id: number): string => state.cities.find((c) => c.id === id)?.name ?? "?";
-  const stationName = (id: number): string => state.stations.find((s) => s.id === id)?.name ?? "?";
   const round = (n: number): string => String(Math.max(1, Math.round(n)));
-  const open = new Set<number>();
 
-  const routes = economy.passengerRoutes ?? [];
-  const groups = new Map<number, typeof routes>();
-  for (const r of routes) groups.set(r.firstLeg, [...(groups.get(r.firstLeg) ?? []), r]);
-  const rows = [...groups]
-    .map(([firstLeg, list]) => ({
-      firstLeg,
-      list: [...list].sort((a, b) => b.perMonth - a.perMonth || a.cityId - b.cityId),
-      total: list.reduce((s, r) => s + r.perMonth, 0),
-    }))
-    .sort((a, b) => b.total - a.total || a.firstLeg - b.firstLeg);
-  const max = Math.max(1, ...rows.map((r) => r.total));
-  const total = rows.reduce((s, r) => s + r.total, 0);
-
-  /** People waiting here for these destinations (Phase 48: by destination; older piles by first leg). */
-  const waitingFor = (destinations: readonly number[], firstLeg: number): number => {
-    const pile = state.stationCargo.get(station.id)?.passengers;
-    let sum = pile?.bound?.[firstLeg] ?? 0;
-    for (const lot of pile?.lots ?? []) if (destinations.includes(lot.dest)) sum += lot.amount;
-    return sum;
-  };
+  const rows = [...(economy.passengerRoutes ?? [])].sort(
+    (x, y) => y.perMonth - x.perMonth || x.cityId - y.cityId,
+  );
+  const total = rows.reduce((s, r) => s + r.perMonth, 0);
+  const max = Math.max(1, ...rows.map((r) => r.perMonth));
 
   const body = h("div", { className: "dest-sheet" });
   const render = (): void => {
@@ -53,60 +36,28 @@ export function openDestinationsSheet(
       ),
     );
     for (const row of rows) {
-      const expanded = open.has(row.firstLeg);
       nodes.push(
         h(
           "div",
           { className: "dest-row" },
           h(
-            "button",
-            {
-              className: "dest-row-head",
-              "aria-expanded": String(expanded),
-              "aria-label": expanded ? t.collapse : t.expand,
-              onClick: () => {
-                if (open.has(row.firstLeg)) open.delete(row.firstLeg);
-                else open.add(row.firstLeg);
-                render();
-              },
-            },
-            h("span", { className: "dest-caret" }, expanded ? "▾" : "▸"),
-            h("span", { className: "dest-name" }, stationName(row.firstLeg)),
+            "div",
+            { className: "dest-row-head" },
+            h("span", { className: "dest-name" }, cityName(row.cityId)),
             h(
               "span",
               { className: "dest-bar-track" },
               h("span", {
                 className: "dest-bar-fill",
-                style: { width: `${(row.total / max) * 100}%` },
+                style: { width: `${(row.perMonth / max) * 100}%` },
               }),
             ),
             h(
               "span",
               { className: "dest-count" },
-              t.rowCount(
-                round(row.total),
-                Math.round(
-                  waitingFor(
-                    row.list.map((r) => r.destination),
-                    row.firstLeg,
-                  ),
-                ),
-              ),
+              t.row(round(row.perMonth), Math.round((row.perMonth / total) * 100)),
             ),
           ),
-          expanded
-            ? h(
-                "div",
-                { className: "dest-final" },
-                row.list
-                  .map((r) =>
-                    r.changes > 0
-                      ? t.rowChanges(cityName(r.cityId), round(r.perMonth), r.changes)
-                      : t.row(cityName(r.cityId), round(r.perMonth)),
-                  )
-                  .join(" · "),
-              )
-            : null,
         ),
       );
     }

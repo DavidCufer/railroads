@@ -4,7 +4,6 @@
  * time on first use, decrements it, and performs the actual unload/load batch (and, for "Wait for
  * full load", may loop for extra days) once it reaches zero.
  */
-import { partyOf, usesPool } from "../../data/passengerModels";
 import {
   CARGO,
   cargoUnitFactor,
@@ -40,17 +39,7 @@ import {
 } from "../../data/trains";
 import { handlingCost } from "../finance/costs";
 import { addExpense, addRevenue } from "../finance/ledger";
-import {
-  addLot,
-  boardable,
-  legacyBoardable,
-  lotFate,
-  Router,
-  takeBoarders,
-  takeLots,
-  takePool,
-  upcomingStops,
-} from "../stations/boarding";
+import { addLot, Boarding, lotFate, takePassengers, upcomingStops } from "../stations/boarding";
 import { stampDeparture } from "../stations/waiting";
 import { recordDelivered, recordLoadedRevenue, recordSent } from "../stations/flow";
 import { carCapacity } from "./capacity";
@@ -163,21 +152,11 @@ function acceptedOnRoute(
   return false;
 }
 
-/** Whether anyone aboard a lots car leaves it at this stop: arrives, or changes trains (Phase 48). */
-function lotsLeaveHere(
-  state: GameState,
-  router: Router,
-  train: Train,
-  station: Station,
-  car: TrainCar,
-): boolean {
+/** Whether anyone aboard a lots car leaves it at this stop: arrives (Phase 48/54). */
+function lotsLeaveHere(state: GameState, train: Train, station: Station, car: TrainCar): boolean {
   return (car.lots ?? []).some((lot) => {
-    const fate = lotFate(lot, router, train, station.id);
-    return (
-      fate === "arrive" ||
-      fate === "change" ||
-      (fate === "stranded" && accepts(state, station.id, "passengers"))
-    );
+    const fate = lotFate(lot, train, station.id);
+    return fate === "arrive" || (fate === "stranded" && accepts(state, station.id, "passengers"));
   });
 }
 
@@ -186,7 +165,7 @@ function planLoadUnload(
   train: Train,
   station: Station,
   order: TrainOrder,
-  router: Router,
+  boarding: Boarding,
 ): LoadPlan {
   const unload: number[] = [];
   const transfer: number[] = [];
@@ -200,7 +179,7 @@ function planLoadUnload(
   train.cars.forEach((car, i) => {
     if (car.loadedUnits <= 0 || !firstPass) return;
     if (car.lots) {
-      if (lotsLeaveHere(state, router, train, station, car)) unload.push(i);
+      if (lotsLeaveHere(state, train, station, car)) unload.push(i);
       return;
     }
     if (car.loadedTile === station.tile) return;
@@ -223,7 +202,8 @@ function planLoadUnload(
       // unloads first), so it can be refilled at the same stop — otherwise every two-way route
       // (passenger/mail shuttles) left each station with the just-emptied cars running empty.
       const loadedAfterUnload = unload.includes(i) || transfer.includes(i) ? 0 : car.loadedUnits;
-      const legacyCar = loadedAfterUnload > 0 && !car.lots;
+      // A passenger car already carrying people with no destination (hand-built, or an old save) is not topped up.
+      if (car.cargoType === "passengers" && loadedAfterUnload > 0 && !car.lots) return;
       // "Wait for full load" re-runs this plan on each extra wait day, so a partially loaded car
       // keeps topping up until it's full or the stop gives up (SPEC §7.2).
       if (loadedAfterUnload >= carCapacity(car)) return;
@@ -233,9 +213,9 @@ function planLoadUnload(
       const waiting = pile?.[car.cargoType];
       const available =
         (waiting
-          ? legacyCar
-            ? legacyBoardable(waiting, train, station.id)
-            : boardable(waiting, train, station.id, router)
+          ? car.cargoType === "passengers"
+            ? boarding.available(waiting.amount)
+            : waiting.amount
           : 0) + loadableTransfer(state, train, station, car.cargoType);
       // PLAN Phase 16 ("partial loading"): Auto loads whatever is waiting, not just a full carload
       // — a small town's trickle of supply used to never reach a full car and always left empty
@@ -324,7 +304,6 @@ export function computeRevenue(
     (distanceTiles / REVENUE_DISTANCE_TILES) *
     timeFactor *
     fareIndex(year, cargo) *
-    (cargo === "passengers" ? PARTY_SIZE : 1) *
     (1 - competitionLoss(year, cargo, distanceTiles * KM_PER_TILE, trainKmh)) *
     DIFFICULTY[state.difficulty].revenueMult
   );
@@ -458,8 +437,7 @@ function payDelivery(
         days,
         locomotiveById(train.locoModelId)?.maxSpeedKmh ?? 0,
       ) *
-      ((unitsDelivered * (cargo === "passengers" ? partyOf(state.passengerModel) : 1)) /
-        CARGO[cargo].capacity);
+      ((unitsDelivered * (cargo === "passengers" ? PARTY_SIZE : 1)) / CARGO[cargo].capacity);
 
     // Post Office/Cold Storage (SPEC §6.2): bonus depends on where the cargo was *loaded*, not
     // where it's being delivered.
@@ -529,19 +507,18 @@ function settleIndustries(
   }
 }
 
-/** Phase 48: unloads a car of passengers bound for destinations. Those at their destination are paid, once, for the
- * whole trip from where they began; those who must change join the station's waiting people (keeping where and
- * when they began); the rest stay aboard. Without a `router` (a car removed from the consist) everyone is paid here. */
+/** Unloads a car of passengers bound for destinations. Those at their destination are paid, once, for the whole trip
+ * from where they began; the rest stay aboard. With `everyoneAlights` (a car removed from the consist) all are paid here. */
 function settleLots(
   state: GameState,
   train: Train,
   station: Station,
   car: TrainCar,
-  router: Router | undefined,
+  everyoneAlights: boolean,
 ): void {
   const stay: PassengerLot[] = [];
   for (const lot of car.lots ?? []) {
-    const fate = router ? lotFate(lot, router, train, station.id) : "arrive";
+    const fate = everyoneAlights ? "arrive" : lotFate(lot, train, station.id);
     if (fate === "arrive" || (fate === "stranded" && accepts(state, station.id, "passengers"))) {
       const revenue = payDelivery(
         state,
@@ -554,13 +531,6 @@ function settleLots(
         lot.originTile,
       );
       recordDelivered(state, station.id, "passengers", lot.amount, revenue);
-    } else if (fate === "change") {
-      const pile = state.stationCargo.get(station.id) ?? {};
-      state.stationCargo.set(station.id, pile);
-      const entry = (pile.passengers ??= { amount: 0, waitingDays: 0 });
-      entry.lots ??= [];
-      addLot(entry.lots, lot);
-      entry.amount += lot.amount;
     } else stay.push(lot);
   }
   car.loadedUnits = stay.reduce((sum, l) => sum + l.amount, 0);
@@ -568,16 +538,10 @@ function settleLots(
   else clearLoad(car);
 }
 
-function applyUnload(
-  state: GameState,
-  train: Train,
-  station: Station,
-  carIndex: number,
-  router: Router,
-): void {
+function applyUnload(state: GameState, train: Train, station: Station, carIndex: number): void {
   const car = train.cars[carIndex];
   if (!car) return;
-  if (car.lots) settleLots(state, train, station, car, router);
+  if (car.lots) settleLots(state, train, station, car, false);
   else settleUnload(state, train, station, car);
 }
 
@@ -662,7 +626,7 @@ export function dropCarCargo(
 ): void {
   if (car.loadedUnits <= 0) return;
   if (accepts(state, station.id, car.cargoType)) {
-    if (car.lots) settleLots(state, train, station, car, undefined);
+    if (car.lots) settleLots(state, train, station, car, true);
     else settleUnload(state, train, station, car);
   } else {
     clearLoad(car);
@@ -688,7 +652,7 @@ function applyLoad(
   train: Train,
   station: Station,
   carIndex: number,
-  router: Router,
+  boarding: Boarding,
 ): void {
   const car = train.cars[carIndex];
   if (!car) return;
@@ -700,37 +664,29 @@ function applyLoad(
   const entry: StationCargoPile | undefined = pile?.[car.cargoType];
   if (!entry || entry.amount <= 0) return;
 
-  // Passengers bound for a destination (Phase 48) ride on a car that holds only such people; an older load keeps
-  // its single origin and is topped up from the older piles only.
-  if (car.cargoType === "passengers" && (car.lots || car.loadedUnits === 0)) {
-    const taken = takeLots(entry, router, train, station.id, room, state.ticks);
-    if (usesPool(state.passengerModel)) {
-      // Exploration E1: the rest of the room goes to the one pile, split over this train's later stops.
-      const got = taken.reduce((sum, l) => sum + l.amount, 0);
-      taken.push(...takePool(state, entry, train, station, room - got, state.ticks));
+  // Passengers (Phase 54) ride on a car that holds only people with a destination: they come from the station's one pile
+  // and split over this train's later stops.
+  if (car.cargoType === "passengers") {
+    if (car.loadedUnits > 0 && !car.lots) return;
+    const taken = takePassengers(entry, boarding, station, room, state.ticks);
+    if (taken.length === 0) return;
+    const lots = (car.lots ??= []);
+    for (const lot of taken) addLot(lots, lot);
+    if (car.loadedUnits === 0) {
+      car.loadedTile = taken[0]?.originTile as number;
+      car.loadedTick = state.ticks;
+      delete car.oreOriginTile;
     }
-    if (taken.length > 0) {
-      const lots = (car.lots ??= []);
-      for (const lot of taken) addLot(lots, lot);
-      if (car.loadedUnits === 0) {
-        car.loadedTile = taken[0]?.originTile as number;
-        car.loadedTick = state.ticks;
-        delete car.oreOriginTile;
-      }
-      const units = taken.reduce((sum, l) => sum + l.amount, 0);
-      car.loadedUnits += units;
-      entry.waitingDays = 0;
-      const own = taken
-        .filter((l) => l.originTile === station.tile)
-        .reduce((sum, l) => sum + l.amount, 0);
-      if (own > 0) recordSent(state, station.id, "passengers", own);
-      return;
-    }
-    if (car.lots) return;
+    const units = taken.reduce((sum, l) => sum + l.amount, 0);
+    car.loadedUnits += units;
+    entry.waitingDays = 0;
+    recordSent(state, station.id, "passengers", units);
+    return;
   }
-  const amount = Math.min(legacyBoardable(entry, train, station.id), room);
+  const amount = Math.min(entry.amount, room);
   if (amount <= 0) return;
-  takeBoarders(entry, train, station.id, amount);
+  entry.amount -= amount;
+  if (entry.amount < 1e-9) entry.amount = 0;
   entry.waitingDays = 0;
   if (car.loadedUnits === 0) {
     car.loadedTile = station.tile;
@@ -746,13 +702,23 @@ function applyLoad(
   recordSent(state, station.id, car.cargoType, amount);
 }
 
+/** What this train may take from the station's passenger pile at this stop (`Boarding`). */
+function boardingFor(state: GameState, train: Train, station: Station): Boarding {
+  return new Boarding(
+    state,
+    train,
+    station,
+    state.stationCargo.get(station.id)?.passengers?.amount ?? 0,
+  );
+}
+
 /** Advances one tick of a "loading" stop at `station`; returns true once the train is ready to
  * depart (its `currentOrderIndex` should then advance and it can resume moving). */
 export function stepLoading(state: GameState, train: Train, station: Station): boolean {
   const order = train.orders[train.currentOrderIndex];
   if (!order || order.rule === "passThrough") return true;
   if (train.loadTicksLeft < 0) {
-    const plan = planLoadUnload(state, train, station, order, new Router(state));
+    const plan = planLoadUnload(state, train, station, order, boardingFor(state, train, station));
     train.loadTicksLeft =
       computeDwellTicks(state, train, station, plan) +
       (train.servicePending ? SERVICE_DELAY_TICKS : 0);
@@ -763,9 +729,9 @@ export function stepLoading(state: GameState, train: Train, station: Station): b
     return false;
   }
 
-  const router = new Router(state);
-  const plan = planLoadUnload(state, train, station, order, router);
-  for (const i of plan.unload) applyUnload(state, train, station, i, router);
+  const boarding = boardingFor(state, train, station);
+  const plan = planLoadUnload(state, train, station, order, boarding);
+  for (const i of plan.unload) applyUnload(state, train, station, i);
   for (const i of plan.transfer) applyTransfer(state, train, station, i);
 
   // Departure spacing (Phase 30A): hold the train — already unloaded, not yet loaded, so the people keep
@@ -789,7 +755,7 @@ export function stepLoading(state: GameState, train: Train, station: Station): b
   delete train.headwayHold;
   delete train.headwayWaitTicks;
 
-  for (const i of plan.load) applyLoad(state, train, station, i, router);
+  for (const i of plan.load) applyLoad(state, train, station, i, boarding);
 
   if (order.rule === "fullLoad") {
     const allFull = train.cars.every((c) => c.loadedUnits >= carCapacity(c));

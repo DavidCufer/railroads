@@ -97,13 +97,9 @@ describe("a multi-stop train refills its seats at an intermediate stop", () => {
     car.loadedUnits = full;
     car.loadedTile = a!.tile;
     car.loadedTick = state.ticks;
-    // b's platform has people bound for c waiting
+    // b's one pile has people waiting; the ones this train takes ride on to c
     state.stationCargo.set(b!.id, {
-      passengers: {
-        amount: 200,
-        waitingDays: 5,
-        lots: [{ dest: c!.id, amount: 200, originTile: b!.tile }],
-      },
+      passengers: { amount: 200, waitingDays: 5 },
     });
     let refilled = false;
     for (let i = 0; i < 24 * 40 && !refilled; i++) {
@@ -149,30 +145,23 @@ describe("people wait for the actual next train (Phase 53C)", () => {
     const { state, a, b } = served();
     const gap = 3 * MAX_WAIT_DAYS;
     for (let day = 0; day < gap; day++) accrueDailyCargo(state);
-    const route = state.stationEconomy.get(a)?.passengerRoutes?.find((r) => r.destination === b);
-    const perDay = (route?.perMonth ?? 0) / 30;
+    const perDay = (state.stationEconomy.get(a)?.passengerPool ?? 0) / 30;
     expect(perDay).toBeGreaterThan(0);
-    const pile =
-      state.stationCargo.get(a)?.passengers?.lots?.find((l) => l.dest === b)?.amount ?? 0;
+    const pile = state.stationCargo.get(a)?.passengers?.amount ?? 0;
     expect(pile).toBeCloseTo(perDay * MAX_WAIT_DAYS, 6);
-    // all other destinations share the same rule; the b-bound loss is exactly the days above the ceiling
+    // the loss is exactly the days above the ceiling
     expect(lostAt(state, a)).toBeGreaterThanOrEqual(perDay * (gap - MAX_WAIT_DAYS) - 1e-6);
   });
 
   it("what a train cannot take stays, and the pile refills from there", () => {
-    const { state, a, b } = served();
+    const { state, a } = served();
     for (let day = 0; day < 20; day++) accrueDailyCargo(state);
-    const lot = (): number =>
-      state.stationCargo.get(a)?.passengers?.lots?.find((l) => l.dest === b)?.amount ?? 0;
-    const before = lot();
-    const lots = state.stationCargo.get(a)?.passengers?.lots?.find((l) => l.dest === b);
-    lots!.amount = before / 2; // a train took half
-    state.stationCargo.get(a)!.passengers!.amount -= before / 2;
+    const pile = (): number => state.stationCargo.get(a)?.passengers?.amount ?? 0;
+    const before = pile();
+    state.stationCargo.get(a)!.passengers!.amount -= before / 2; // a train took half
     for (let day = 0; day < 5; day++) accrueDailyCargo(state);
-    const perDay =
-      (state.stationEconomy.get(a)?.passengerRoutes?.find((r) => r.destination === b)?.perMonth ??
-        0) / 30;
-    expect(lot()).toBeCloseTo(before / 2 + 5 * perDay, 6);
+    const perDay = (state.stationEconomy.get(a)?.passengerPool ?? 0) / 30;
+    expect(pile()).toBeCloseTo(before / 2 + 5 * perDay, 6);
   });
 
   it("the observed gap is the smoothed time between departures", () => {

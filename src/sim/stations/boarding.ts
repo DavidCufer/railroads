@@ -1,96 +1,128 @@
 /**
- * Who boards a train (PLAN Phase 34 item 10): waiting passengers are bound for a destination station
- * (`StationCargoPile.bound`); a train boards the people bound for any other stop of its orders, plus those with no
- * destination yet (`amount` minus what is bound). Piles without `bound` (everything else, and old saves) board anyone.
+ * Who boards a train (PLAN Phase 54, SPEC §8.1). One pile of waiting passengers per station. A calling train takes the
+ * people heading for the towns it stops at: at most the pile x (gravity weight of the towns of its later stops / gravity
+ * weight of every town the station's trains reach), so an express that skips the small towns does not carry the people
+ * who wanted them. Those who board split over the train's later stops by gravity and pay per distance on arrival.
  */
-import { PAIR_DEMAND } from "../../data/economy";
-import { octileTileDistance } from "../trains/geometry";
 import type { GameState, PassengerLot, StationCargoPile } from "../state";
-import { routesFrom, shortestFirstLegs, type Route } from "./passengerFlows";
-import { passengerNetwork, type PassengerNetwork } from "./destinations";
+import { octileTileDistance } from "../trains/geometry";
+import { passengerNetwork } from "./destinations";
+import { gravityWeight } from "./passengerFlows";
 import type { Train } from "../trains/types";
 
-/** Phase 48: answers "which way to their destination?" for people at a station, from the trains' current orders.
- * Built once per stop (the network cannot change in the middle of one). */
-export class Router {
-  private readonly links: PassengerNetwork;
-  private readonly tileOf: Map<number, number>;
-  private readonly width: number;
-  private readonly cache = new Map<string, Map<number, Route>>();
-
-  constructor(state: GameState) {
-    this.links = passengerNetwork(state);
-    this.tileOf = new Map(state.stations.map((s) => [s.id, s.tile]));
-    this.width = state.map.width;
-  }
-
-  /** Best routes from `station`; `line` = the train line the traveller is on (-1 = not on one yet). */
-  from(station: number, line = -1): Map<number, Route> {
-    const key = `${station}:${line}`;
-    let routes = this.cache.get(key);
-    if (!routes) {
-      routes = routesFrom(station, this.links, this.tileOf, this.width, line);
-      this.cache.set(key, routes);
-    }
-    return routes;
-  }
-
-  /** The line `train` runs (-1 if it is not a passenger train). */
-  lineOf(train: Train): number {
-    return this.links.lineIds.get(train.orders.map((o) => o.stationId).join(",")) ?? -1;
-  }
-}
-
 /** The stops `train` makes from its current one until it comes back to this same station: where one more ride on it
- * can take you. (A train A-B-C-B at C: B, A, B; at the middle B: C only.) */
+ * can take you. (A train A-B-C-B at C: B, A, B; at the middle B: C only.) A "pass through" order is not a stop. */
 export function upcomingStops(train: Train): Set<number> {
   const stops = new Set<number>();
   const n = train.orders.length;
   const here = train.orders[train.currentOrderIndex]?.stationId;
   for (let step = 1; step < n; step++) {
-    const id = (train.orders[(train.currentOrderIndex + step) % n] as { stationId: number })
-      .stationId;
-    if (id === here) break;
-    stops.add(id);
+    const order = train.orders[(train.currentOrderIndex + step) % n] as {
+      stationId: number;
+      rule: string;
+    };
+    if (order.stationId === here) break;
+    if (order.rule !== "passThrough") stops.add(order.stationId);
   }
   return stops;
 }
 
-function lotSum(entry: StationCargoPile): number {
-  let sum = 0;
-  for (const lot of entry.lots ?? []) sum += lot.amount;
-  return sum;
+/** Gravity weight of every town a set of stops stands for, seen from `station`, and the stop that serves each town (the
+ * nearest). One entry per town: two stops in one town are one destination. */
+function townWeights(
+  state: GameState,
+  station: { id: number; tile: number },
+  stops: Iterable<number>,
+): Map<number, { weight: number; stop: number }> {
+  const here = state.stationEconomy.get(station.id)?.passengerTownId;
+  const result = new Map<number, { weight: number; stop: number; dist: number }>();
+  for (const stopId of [...stops].sort((a, b) => a - b)) {
+    if (stopId === station.id) continue;
+    const stop = state.stations.find((s) => s.id === stopId);
+    const cityId = state.stationEconomy.get(stopId)?.passengerTownId;
+    const city = cityId === undefined ? undefined : state.cities[cityId];
+    if (!stop || !city || cityId === here) continue;
+    const dist = octileTileDistance(station.tile, stop.tile, state.map.width);
+    const known = result.get(city.id);
+    if (!known || dist < known.dist)
+      result.set(city.id, {
+        weight: gravityWeight(
+          city.population,
+          octileTileDistance(
+            station.tile,
+            city.anchorY * state.map.width + city.anchorX,
+            state.map.width,
+          ),
+        ),
+        stop: stopId,
+        dist,
+      });
+  }
+  return result;
 }
 
-/** Whether `lot` waiting at `stationId` would ride `train`: the next station towards its destination is a stop the
- * train makes. People whose destination cannot be reached by any train board anything. */
-function lotBoards(
-  lot: PassengerLot,
-  router: Router,
-  train: Train,
-  stationId: number,
-  upcoming: ReadonlySet<number>,
-): boolean {
-  if (lot.dest === stationId) return false;
-  const route = router.from(stationId).get(lot.dest);
-  return route ? upcoming.has(route.firstLeg) : true;
+/** Part of the station's pile that is bound for the towns of `stops`: their gravity weight / the weight of every town the
+ * station's trains reach. */
+export function pileShareFor(
+  state: GameState,
+  station: { id: number; tile: number },
+  stops: Iterable<number>,
+): number {
+  let mine = 0;
+  for (const t of townWeights(state, station, stops).values()) mine += t.weight;
+  let all = 0;
+  for (const t of townWeights(
+    state,
+    station,
+    passengerNetwork(state).get(station.id) ?? [],
+  ).values())
+    all += t.weight;
+  return all > 0 ? Math.min(1, mine / all) : 0;
 }
 
-/** What happens to a passenger lot aboard `train` when it calls at `stationId`: it arrives (destination), stays on
- * (the train goes on towards it), or changes (alights to wait for another train). */
+/** What one calling train may take from the station's pile and where those people go. Built once per stop. */
+export class Boarding {
+  /** Share of the people who board that ride to each later stop (sums to 1; empty when no later stop has a town). */
+  readonly shares = new Map<number, number>();
+  /** Part of the pile this train takes: its towns' weight / the weight of all towns the station's trains reach. */
+  readonly fraction: number;
+  /** People of the pile this train may still take at this stop (shrinks as its cars load). */
+  left: number;
+
+  constructor(state: GameState, train: Train, station: { id: number; tile: number }, pile: number) {
+    const mine = townWeights(state, station, upcomingStops(train));
+    let total = 0;
+    for (const t of mine.values()) total += t.weight;
+    if (total > 0) for (const t of mine.values()) this.shares.set(t.stop, t.weight / total);
+    let all = 0;
+    for (const t of townWeights(
+      state,
+      station,
+      passengerNetwork(state).get(station.id) ?? [],
+    ).values())
+      all += t.weight;
+    this.fraction = all > 0 ? Math.min(1, total / all) : 0;
+    this.left = pile * this.fraction;
+  }
+
+  /** People who would board now, of a pile of `amount`. */
+  available(amount: number): number {
+    return this.shares.size === 0 ? 0 : Math.min(amount, this.left);
+  }
+}
+
+/** What happens to a passenger lot aboard `train` when it calls at `stationId`: it arrives (its destination), stays on
+ * (the train goes on towards it), or is stranded (no later stop of the train is its destination any more). */
 export function lotFate(
   lot: PassengerLot,
-  router: Router,
   train: Train,
   stationId: number,
-): "arrive" | "stay" | "change" | "stranded" {
+): "arrive" | "stay" | "stranded" {
   if (lot.dest === stationId) return "arrive";
-  const route = router.from(stationId, router.lineOf(train)).get(lot.dest);
-  if (!route) return "stranded";
-  return upcomingStops(train).has(route.firstLeg) ? "stay" : "change";
+  return upcomingStops(train).has(lot.dest) ? "stay" : "stranded";
 }
 
-/** Adds `amount` people to `lots`, merged with a lot of the same destination, origin and start. */
+/** Adds `add` to `lots`, merged with a lot of the same destination, origin and start. */
 export function addLot(lots: PassengerLot[], add: PassengerLot): void {
   const same = lots.find(
     (l) => l.dest === add.dest && l.originTile === add.originTile && l.tick === add.tick,
@@ -99,197 +131,22 @@ export function addLot(lots: PassengerLot[], add: PassengerLot): void {
   else lots.push({ ...add });
 }
 
-/** People boarding `train` from the lots in `entry`, up to `room`; removes them from the pile. A lot's journey starts
- * (`tick`) the moment it first boards. */
-export function takeLots(
+/** Up to `room` people of the pile board `train`, within what `boarding` still allows; each picks a destination among the
+ * train's later stops. Removes them from the pile. */
+export function takePassengers(
   entry: StationCargoPile,
-  router: Router,
-  train: Train,
-  stationId: number,
+  boarding: Boarding,
+  station: { tile: number },
   room: number,
   now: number,
 ): PassengerLot[] {
-  const taken: PassengerLot[] = [];
-  if (!entry.lots || room <= 0) return taken;
-  const upcoming = upcomingStops(train);
-  let left = room;
-  for (const lot of entry.lots) {
-    if (left <= 1e-9) break;
-    if (lot.amount <= 0 || !lotBoards(lot, router, train, stationId, upcoming)) continue;
-    const n = Math.min(lot.amount, left);
-    lot.amount -= n;
-    left -= n;
-    entry.amount -= n;
-    addLot(taken, { dest: lot.dest, amount: n, originTile: lot.originTile, tick: lot.tick ?? now });
-  }
-  entry.lots = entry.lots.filter((l) => l.amount > 1e-9);
-  if (entry.lots.length === 0) delete entry.lots;
-  if (entry.amount < 1e-9) {
-    entry.amount = 0;
-    delete entry.bound;
-    delete entry.lots;
-  }
-  return taken;
-}
-
-/** Exploration E1 (m2, m3): people waiting in the station's one pile, with no destination yet. */
-export function poolAmount(entry: StationCargoPile): number {
-  return Math.max(0, entry.amount - lotSum(entry));
-}
-
-/** Share of the people who board `train` at `station` that ride to each of its later stops: gravity, destination
- * population / max(distance, `PAIR_DEMAND.minDistanceTiles`)^`distanceExponent`, among the stops the train makes before
- * it comes back to this station (`upcomingStops`). Empty when no later stop has a town to go to. */
-export function boardingShares(
-  state: GameState,
-  train: Train,
-  station: { id: number; tile: number },
-): Map<number, number> {
-  const here = state.stationEconomy.get(station.id)?.passengerTownId;
-  const weights = new Map<number, number>();
-  let total = 0;
-  for (const stop of [...upcomingStops(train)].sort((a, b) => a - b)) {
-    if (stop === station.id) continue;
-    const target = state.stations.find((s) => s.id === stop);
-    const cityId = state.stationEconomy.get(stop)?.passengerTownId;
-    const city = cityId === undefined ? undefined : state.cities[cityId];
-    if (!target || !city || cityId === here) continue;
-    const dist = octileTileDistance(station.tile, target.tile, state.map.width);
-    const w =
-      Math.pow(city.population, PAIR_DEMAND.sizeExponent) /
-      Math.pow(Math.max(PAIR_DEMAND.minDistanceTiles, dist), PAIR_DEMAND.distanceExponent);
-    weights.set(stop, w);
-    total += w;
-  }
-  if (total <= 0) return new Map();
-  for (const [id, w] of weights) weights.set(id, w / total);
-  return weights;
-}
-
-/** Exploration E1 (m2, m3): up to `room` people of the one pile board `train` and each picks a destination among its later
- * stops (`boardingShares`). They pay by distance on arrival like any other passenger. */
-export function takePool(
-  state: GameState,
-  entry: StationCargoPile,
-  train: Train,
-  station: { id: number; tile: number },
-  room: number,
-  now: number,
-): PassengerLot[] {
-  const n = Math.min(poolAmount(entry), room);
+  const n = Math.min(boarding.available(entry.amount), room);
   if (n <= 1e-9) return [];
-  const shares = boardingShares(state, train, station);
   const taken: PassengerLot[] = [];
-  for (const [dest, share] of shares)
+  for (const [dest, share] of boarding.shares)
     addLot(taken, { dest, amount: n * share, originTile: station.tile, tick: now });
-  if (taken.length === 0) return [];
   entry.amount -= n;
-  if (entry.amount < 1e-9) {
-    entry.amount = 0;
-    delete entry.bound;
-    delete entry.lots;
-  }
+  boarding.left -= n;
+  if (entry.amount < 1e-9) entry.amount = 0;
   return taken;
-}
-
-function boundSum(entry: StationCargoPile): number {
-  let sum = 0;
-  for (const v of Object.values(entry.bound ?? {})) sum += v;
-  return sum;
-}
-
-function eligibleBound(entry: StationCargoPile, train: Train, stationId: number): number {
-  if (!entry.bound) return 0;
-  let sum = 0;
-  const seen = new Set<number>();
-  for (const order of train.orders) {
-    if (order.stationId === stationId || seen.has(order.stationId)) continue;
-    seen.add(order.stationId);
-    sum += entry.bound[order.stationId] ?? 0;
-  }
-  return sum;
-}
-
-/** People in `entry` who would board `train` at `stationId`. */
-export function boardable(
-  entry: StationCargoPile,
-  train: Train,
-  stationId: number,
-  router?: Router,
-): number {
-  return legacyBoardable(entry, train, stationId) + lotsBoardable(entry, train, stationId, router);
-}
-
-/** People of the older first-leg buckets (and everyone with no destination) who would board `train`. */
-export function legacyBoardable(entry: StationCargoPile, train: Train, stationId: number): number {
-  const amount = Math.max(0, entry.amount - lotSum(entry));
-  if (!entry.bound) return amount;
-  const unbound = Math.max(0, amount - boundSum(entry));
-  return Math.min(amount, unbound + eligibleBound(entry, train, stationId));
-}
-
-/** People bound for a destination (Phase 48) who would board `train`. */
-export function lotsBoardable(
-  entry: StationCargoPile,
-  train: Train,
-  stationId: number,
-  router?: Router,
-): number {
-  if (!entry.lots || !router) return 0;
-  const upcoming = upcomingStops(train);
-  let sum = 0;
-  for (const lot of entry.lots)
-    if (lotBoards(lot, router, train, stationId, upcoming)) sum += lot.amount;
-  return sum;
-}
-
-/** Removes `amount` (at most `boardable`) from `entry`: people bound for the train's stops first, then unassigned. */
-export function takeBoarders(
-  entry: StationCargoPile,
-  train: Train,
-  stationId: number,
-  amount: number,
-): void {
-  if (entry.bound) {
-    const eligible = eligibleBound(entry, train, stationId);
-    const fromBound = Math.min(amount, eligible);
-    if (fromBound > 0) {
-      const ratio = fromBound / eligible;
-      const seen = new Set<number>();
-      for (const order of train.orders) {
-        if (order.stationId === stationId || seen.has(order.stationId)) continue;
-        seen.add(order.stationId);
-        const v = entry.bound[order.stationId] ?? 0;
-        entry.bound[order.stationId] = v - v * ratio;
-      }
-    }
-  }
-  entry.amount -= amount;
-  if (entry.amount < 1e-9) {
-    entry.amount = 0;
-    delete entry.bound;
-    delete entry.lots;
-  }
-}
-
-/** Migration (Phase 35 item 7): Phase 34 saved waiting passengers by *destination* station; they are now stored by
- * first leg (the next station on the shortest route there). Re-buckets every passenger pile; people bound for a
- * station no train network reaches any more become unassigned (they board any train, or give up as usual). Applying
- * it to a pile that is already stored by first leg changes nothing. */
-export function rebucketPassengerPiles(
-  state: Pick<GameState, "stations" | "stationCargo" | "map">,
-  links: ReadonlyMap<number, ReadonlySet<number>>,
-): void {
-  const tileOf = new Map(state.stations.map((s) => [s.id, s.tile]));
-  for (const [stationId, pile] of state.stationCargo) {
-    const entry = pile.passengers;
-    if (!entry?.bound) continue;
-    const reach = shortestFirstLegs(stationId, links, tileOf, state.map.width);
-    const rebound: Record<number, number> = {};
-    for (const [key, amount] of Object.entries(entry.bound)) {
-      const firstLeg = reach.get(Number(key))?.firstLeg;
-      if (firstLeg !== undefined) rebound[firstLeg] = (rebound[firstLeg] ?? 0) + amount;
-    }
-    entry.bound = rebound;
-  }
 }

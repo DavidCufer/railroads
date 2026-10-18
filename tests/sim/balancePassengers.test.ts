@@ -40,10 +40,12 @@ describe("Phase 26A passenger & mail balance", () => {
   };
 
   it("1840s: the Norris carries a Town↔Town line about level with coal (finding: the plan's 1.5-2.5x is not met, 0.93x)", () => {
-    // Measured 0.93x (profit 0.86x): the small Norris consist and slow fares cap passengers as hard as coal. Bound brackets it.
+    // Measured 0.93x (profit 0.86x) before Phase 54: the small Norris consist and slow fares cap passengers as hard as
+    // coal. Phase 54 (owner OK): upper bound 1.3 -> 1.6, measured 1.48. A full coal train loses a trip's income at every
+    // terminus turn (a steam engine turns in a day); a passenger train that runs part-loaded barely does.
     const ratio = paxVsCoal(1840, "norris-4-2-0");
     expect(ratio).toBeGreaterThan(0.7);
-    expect(ratio).toBeLessThan(1.3);
+    expect(ratio).toBeLessThan(1.6);
   });
 
   it("1860s: with the American and 1840s-60s fares passengers lead coal by 2-3.5x", () => {

@@ -129,6 +129,9 @@ interface SerializedGameStateBase<TTrain> {
   stationFlow?: Array<[number, StationFlow]>;
   /** Added in Phase 53C without a version bump: absent in older saves, read as empty (stamps start at "now"). */
   departures?: Array<[string, DepartureStamp]>;
+  /** Added in Phase 54 without a version bump: people per game passenger the save was written with. Absent = 1 (older
+   * saves, whose piles and cars count people one by one and may keep per-destination piles; see `migratePassengers`). */
+  passengerParty?: number;
   /** Added in Phase 30A without a version bump: bridges washed out and not yet rebuilt. */
   washouts?: Washout[];
   nextWashoutId?: number;

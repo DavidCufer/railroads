@@ -1,5 +1,4 @@
 /** GameState: the map plus the game's single seeded RNG stream (SPEC §1, §12). */
-import type { PassengerModel } from "../data/passengerModels";
 import { createRng, type RngState } from "./rng";
 import { generateMap, type MapGenOptions } from "./map/generate";
 import type { GameMap } from "./map/types";
@@ -26,9 +25,8 @@ import { createHistory, startHistory, type HistoryState } from "./history";
 import { scenarioById } from "../data/scenarios";
 
 /** A station's waiting pile for one cargo type (SPEC §6.3). */
-/** Phase 48: passengers bound for a destination *station*, wherever they board or change. They keep where the journey
- * began (`originTile`) and when (`tick`, set at first boarding), so the one fare for the whole trip is paid on
- * arrival and the time decay counts the wait to change. A pile's own-origin lots have no `tick` yet. */
+/** Phase 48/54: passengers aboard a car bound for a destination *station*. They keep where the journey began
+ * (`originTile`) and when (`tick`, set at boarding), so the one fare for the whole trip is paid on arrival. */
 export interface PassengerLot {
   dest: number;
   amount: number;
@@ -49,13 +47,6 @@ export interface StationCargoPile {
    * clock proxy for "cargo older than N days" (there's no per-unit FIFO aging; resets to 0 the
    * moment a train loads any amount, in src/sim/trains/loading.ts). */
   waitingDays: number;
-  /** Passengers only (Phase 34 item 10): how many of `amount` are bound for each destination station. A train boards
-   * only those bound for stops on its route; `amount` minus the sum of these (people from before the station had a
-   * service, or whose destination lost its service) board any train. Absent = everyone boards any train. */
-  bound?: Record<number, number>;
-  /** Passengers only (Phase 48): people bound for their destination station, new demand and people who changed here.
-   * Part of `amount`; `bound` (the older first-leg piles) is the rest. */
-  lots?: PassengerLot[];
 }
 
 /** A delivery just paid out (SPEC §8.1's floating `+$` label) — pushed by
@@ -130,8 +121,6 @@ export interface GameState {
   stationFlow: Map<number, StationFlow>;
   /** Phase 53C: the last passenger departure per (station, next stop); see `DepartureStamp`. Absent = "now" on first sight. */
   departures: Map<string, DepartureStamp>;
-  /** Exploration E1: the passenger demand model (absent = "m0", the Phase 53C rules). Not saved: a prototype switch. */
-  passengerModel?: PassengerModel;
   /** Bridges the river took and nobody has rebuilt yet (Phase 30A) — the persistent gaps in the line. */
   washouts: Washout[];
   nextWashoutId: number;
@@ -195,8 +184,6 @@ interface BaseNewGameOptions {
   difficulty?: Difficulty;
   /** Phase 46: start from this scenario (src/data/scenarios.ts) - cash, opening debt and the goal come from it. */
   scenarioId?: string;
-  /** Exploration E1: passenger demand model (default "m0"). */
-  passengerModel?: PassengerModel;
 }
 
 /** A freshly-generated random map (SPEC §4.2). */
@@ -269,7 +256,6 @@ export function createGameState(options: NewGameOptions): GameState {
     stationTransfer: new Map(),
     stationFlow: new Map(),
     departures: new Map(),
-    ...(options.passengerModel ? { passengerModel: options.passengerModel } : {}),
     washouts: [],
     nextWashoutId: 0,
     industryEconomy: initIndustryEconomy(industries),

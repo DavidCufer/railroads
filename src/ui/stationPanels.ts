@@ -5,7 +5,7 @@
  * - `openStationPanel` — tapping a built station (Station or Info mode): name + rename, type +
  *   upgrade, supplies/accepts, a waiting-cargo placeholder (Phase 7 does real cargo flow).
  */
-import { waitingSplitRows, type WaitingRow } from "./waitingSplit";
+import { waitingInfo, type WaitingInfo } from "./waitingSplit";
 import { CARGO, CARGO_TYPES, type CargoType } from "../data/cargo";
 import {
   STATION_IMPROVEMENT_TYPES,
@@ -115,7 +115,7 @@ function supplyChipStack(
   onTap?: () => void,
   trend?: string,
   pileFull?: string,
-  split?: WaitingRow[],
+  split?: WaitingInfo,
 ): HTMLElement {
   const children: Node[] = [
     cargoChip(
@@ -140,7 +140,7 @@ function supplyChipStack(
         }),
       ),
     );
-    if (waiting.amount > 0.5) {
+    if (waiting.amount > 0.5 && !split) {
       children.push(
         h(
           "span",
@@ -155,22 +155,18 @@ function supplyChipStack(
       h(
         "div",
         { className: "waiting-rows", "data-testid": "waiting-split" },
-        ...split.map((r) =>
-          h(
-            "div",
-            { className: "waiting-row" },
-            h("span", { className: "waiting-arrow", "aria-hidden": "true" }, "→"),
-            h("span", { className: "waiting-dest" }, r.label),
-            r.nextDays
-              ? h(
-                  "span",
-                  { className: "waiting-next" },
-                  strings.station.nextTrain(String(r.nextDays)),
-                )
-              : null,
-            h("b", { className: "waiting-n" }, String(r.n)),
-          ),
+        h(
+          "div",
+          { className: "waiting-row waiting-line" },
+          strings.station.waitingLine(split.waiting, split.nextDays),
         ),
+        split.reach.length > 0
+          ? h(
+              "div",
+              { className: "waiting-row waiting-reach" },
+              strings.station.reachLine(split.reach.join(", ")),
+            )
+          : null,
       ),
     );
   if (trend) children.push(h("span", { className: "cargo-waiting-label supply-trend" }, trend));
@@ -301,7 +297,7 @@ function economyBody(
                   trends[i],
                   pileFullFor(cargo),
                   cargo === "passengers" && state && station
-                    ? waitingSplitRows(state, station.id)
+                    ? waitingInfo(state, station.id)
                     : undefined,
                 ),
               ),
@@ -318,7 +314,7 @@ function economyBody(
                   undefined,
                   undefined,
                   cargo === "passengers" && state && station
-                    ? waitingSplitRows(state, station.id)
+                    ? waitingInfo(state, station.id)
                     : undefined,
                 ),
               ),

@@ -1,6 +1,7 @@
 /** PLAN Phase 43 item 2: the owner's scenario. central-eu, 1842 start, Venice–Milan with N Norris × 5 passenger cars
  * (default 18) plus one Venice–Trieste train. After 2 years prints each train's profit per year (lifetime books),
  * its load, and the Venice–Milan line total. `npx tsx tools/bench/owner.ts [trains=18] [years=2] [start=1842]` */
+import { carCapacity } from "../../src/sim/trains/capacity";
 import * as commands from "../../src/sim/commands";
 import { createGameState } from "../../src/sim/state";
 import { advanceOneHour } from "../../src/sim/tick";
@@ -52,7 +53,7 @@ const trieste = buy(sv, stt, false);
 const loadSum = new Map<number, [number, number]>();
 let waitDays = 0;
 const waitSum = [0, 0, 0];
-const venice = { milan: 0, trieste: 0, changed: 0 };
+const venice = { milan: 0, trieste: 0 };
 for (let i = 0; i < years * DAYS_PER_YEAR * HOURS_PER_DAY; i++) {
   advanceOneHour(state);
   if (i % HOURS_PER_DAY === 0) {
@@ -60,17 +61,20 @@ for (let i = 0; i < years * DAYS_PER_YEAR * HOURS_PER_DAY; i++) {
     [sv, sm, stt].forEach(
       (s, j) => (waitSum[j]! += state.stationCargo.get(s.id)?.passengers?.amount ?? 0),
     );
-    // Venice by who is waiting: new people bound for each town, and people who changed trains here (not capped)
-    for (const lot of state.stationCargo.get(sv.id)?.passengers?.lots ?? []) {
-      if (lot.tick !== undefined) venice.changed += lot.amount;
-      else if (lot.dest === sm.id) venice.milan += lot.amount;
-      else venice.trieste += lot.amount;
+    // Venice: one pile (Phase 54); split between the two towns by the gravity shares of its routes
+    const pile = state.stationCargo.get(sv.id)?.passengers?.amount ?? 0;
+    const routes = state.stationEconomy.get(sv.id)?.passengerRoutes ?? [];
+    const total = routes.reduce((n, r) => n + r.perMonth, 0);
+    for (const r of routes) {
+      const part = total > 0 ? (pile * r.perMonth) / total : 0;
+      if (r.destination === sm.id) venice.milan += part;
+      else venice.trieste += part;
     }
   }
   // Load factor over the hours a train is between stations (what a passenger sees on board).
   for (const t of state.trains) {
     if (t.status !== "moving") continue;
-    const cap = t.cars.length * 40;
+    const cap = t.cars.reduce((n, c) => n + carCapacity(c), 0);
     const used = t.cars.reduce((u, c) => u + c.loadedUnits, 0);
     const e = loadSum.get(t.id) ?? [0, 0];
     e[0] += used / cap;
@@ -145,5 +149,5 @@ console.log(
   `average waiting (people), Venice ${Math.round(waitSum[0]! / waitDays)}, Milan ${Math.round(waitSum[1]! / waitDays)}, Trieste ${Math.round(waitSum[2]! / waitDays)}`,
 );
 console.log(
-  `Venice waiting by kind: for Milan ${Math.round(venice.milan / waitDays)}, for Trieste ${Math.round(venice.trieste / waitDays)}, changed here ${Math.round(venice.changed / waitDays)}`,
+  `Venice waiting by kind: for Milan ${Math.round(venice.milan / waitDays)}, for Trieste ${Math.round(venice.trieste / waitDays)}`,
 );

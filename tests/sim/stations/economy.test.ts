@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { cityTravelDemand } from "../../../src/sim/economy/cityStats";
 import { INDUSTRIES } from "../../../src/data/industries";
 import { STATION_ACCEPTANCE_THRESHOLD } from "../../../src/data/stations";
+import { PARTY_SIZE } from "../../../src/data/economy";
 import { computeStationEconomies, previewStationEconomy } from "../../../src/sim/stations/economy";
 import type { City, Industry } from "../../../src/sim/economy/types";
 import type { Station } from "../../../src/sim/stations/types";
@@ -164,8 +165,9 @@ describe("computeStationEconomies — supply", () => {
     };
 
     const result = computeStationEconomies(map, [city], [], [stationA, stationB], 1830);
-    // Passengers: the town's total travel demand (population x trips per head, Phase 35C), half to each station.
-    const expectedEach = cityTravelDemand(city, 1830) / 2;
+    // Passengers: the town's total travel demand (population x trips per head, Phase 35C) in game passengers
+    // (Phase 54: PARTY_SIZE people each), half to each station.
+    const expectedEach = cityTravelDemand(city, 1830) / PARTY_SIZE / 2;
     expect(result.get(0)!.supply.passengers).toBeCloseTo(expectedEach, 1);
     expect(result.get(1)!.supply.passengers).toBeCloseTo(expectedEach, 1);
   });

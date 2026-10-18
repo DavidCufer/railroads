@@ -2,6 +2,7 @@
  * towns, with the same trains and cars. Prints profit per train, average load while moving and average waiting
  * at each station. `npx tsx tools/bench/multistop.ts [trains=6] [years=2] [start=1842]`;
  * env `SPACE` (space trains evenly), `DIAG`, `TOWNS` (comma list, default Milan,Venice,Trieste,Ljubljana), `LOCO`, `CARS`, `SEEDS`. */
+import { carCapacity } from "../../src/sim/trains/capacity";
 import * as commands from "../../src/sim/commands";
 import { createGameState } from "../../src/sim/state";
 import { advanceOneHour } from "../../src/sim/tick";
@@ -148,7 +149,7 @@ function run(mode: "multi" | "shuttles", seed: number): Result {
       if (t.status !== "moving") continue;
       const used = t.cars.reduce((u, c) => u + c.loadedUnits, 0);
       const e = loadSum.get(t.id) ?? [0, 0];
-      e[0] += used / (t.cars.length * 40);
+      e[0] += used / t.cars.reduce((n, c) => n + carCapacity(c), 0);
       e[1] += 1;
       loadSum.set(t.id, e);
     }
@@ -166,10 +167,8 @@ function run(mode: "multi" | "shuttles", seed: number): Result {
     for (const st of stations) {
       const e = state.stationEconomy.get(st.id);
       const routes = e?.passengerRoutes ?? [];
-      const by = (c: number) =>
-        Math.round(routes.filter((r) => r.changes === c).reduce((a, r) => a + r.perMonth, 0));
       console.log(
-        `  ${mode} ${st.name}: demand ${Math.round(e?.passengerDemand ?? 0)} generated ${Math.round(e?.supply.passengers ?? 0)} a month; by changes 0/1/2/3: ${by(0)}/${by(1)}/${by(2)}/${by(3)}`,
+        `  ${mode} ${st.name}: demand ${Math.round(e?.passengerDemand ?? 0)} generated ${Math.round(e?.supply.passengers ?? 0)} a month to ${routes.length} towns called at directly`,
       );
     }
   let profit = 0;
