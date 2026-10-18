@@ -2250,3 +2250,59 @@ main only when `npm run check` is green. Real mechanisms only; numbers in src/da
 6. SPEC (§8.1, §9.5d rewritten for M2), PROGRESS with all tables, e2e (update, never weaken), and screenshots
    `phase-54-*.png`: a Venice station, an express and a local on one line. LOOK at them.
 Status: [x] 1 [~] 2 (bench and boarding done; target composition not met, see PROGRESS) [x] 3 [~] 4 (no train-panel aboard line: word limit) [~] 5 (good bot bounds met; bad-bot Hard bounds and the multi-stop bot not met) [x] 6
+
+## Phase 55 — Overtaking at stations and passing loops; Info text stays; engine-cost numbers; double track 0.75×; Main menu
+
+Owner decisions (2026-10-18), after the Phase 54 play-test:
+- "Do number 1, can I also build passing loop?" (overtaking, and building loops himself).
+- "Do 2" (the station Info text disappears too quickly).
+- "Check numbers for 3" (engine choice hardly matters): **numbers only, no price or cost change in this phase.**
+- "At four double track should be 0.75 of normal": adding a second track costs 0.75× a new single-track edge.
+- New: "When I am in game, I don't know how to return to the start menu."
+
+Real mechanisms only; numbers in `src/data` with a one-line justification. Never loosen a test bound or word limit.
+
+1. **A faster train overtakes a slower one at a station or passing loop** (SPEC §7.5).
+   - Today: same-direction trains only follow (`followerSpeedCap`), so a slow train in front sets the pace of every
+     train behind it until the next station. Stations and loops are passing places only for *opposing* trains.
+   - Real practice ("putting the slow train inside"): a train ready to leave a passing place (a station it stops at,
+     or a passing loop) **holds** if a faster same-direction train will catch it before the next passing place on
+     its route. It waits until that train has passed through, then departs. Status/`waitingOn`: "Waiting for Train N
+     to pass" (strings.ts).
+     - "Will catch it": compare arrival times at the next passing place from each train's position and the speed it
+       can reach (use the same running-time estimate as `headway.ts` / `computeTargetSpeed`, not a fixed rule). Only
+       trains already heading for this passing place on the same route direction count, within a lookahead you state.
+     - A train standing in a station or loop must not block a train running **through** it (check that a
+       pass-through or non-stopping train is not held by the follower logic behind a stopped train in the loop).
+     - No deadlock and no starvation: a train holds for at most one overtaking train at a time and never more than a
+       stated limit (e.g. it never waits for a train that is itself waiting); the Phase 18 fairness rule still holds.
+       Add unit tests for: express behind a local on one line; two equal-speed trains (no hold); a slow train that
+       stops everywhere and an express that stops only at the ends; opposing traffic on single track at the same time.
+   - **Passing loops on double track** too (a refuge loop for overtaking): today `computePassingLoopPlan` refuses a
+     double edge. Allow it on plain straight double track; on double track it only serves overtaking.
+   - Bench: add an overtaking scenario (S4 line, 1 express + 2 locals, express behind a local). Report express run
+     time end to end with and without the rule, and total profit. The express should lose little time behind locals.
+2. **The player can build a passing loop.** Today the only way is tapping the traffic-jam toast.
+   - With the Station tool, tapping a plain straight track tile where a loop can go offers **Station / Passing loop**
+     (short labels, loop price shown), then uses the existing `openPassingLoopPanel` / `buildPassingLoop`.
+   - Help text: one line in the existing passing-loop help entry that loops also let fast trains overtake.
+3. **Info text stays until dismissed.** "When I click info on a station I cannot even read it, it disappears so
+   quickly." Reproduce first in e2e: find what the Info tool and the (i)/explanation taps in the station panel show
+   (toasts last 3.5 s and are pushed out by news at the toast cap of 3). Fix: an explanation the player asked for
+   stays until tapped away (or the panel closes), and news cannot push it out. News toasts are unchanged.
+4. **Engine-cost numbers (report only, no change).** For 1840, 1870, 1900, 1930 and 1950 starts (Normal), list for
+   each engine you can buy: price, price as % of start cash, maintenance/yr, fuel/yr on a typical line, and profit/yr
+   with the bench's typical consist. Use `tools/bench/owner.ts` (Venice–Milan) and S4. Then measure one real
+   candidate mechanism without shipping it: fuel burnt scales with the power used (a bigger engine on a short train
+   burns more), so show how the "best" engine's profit changes. Put the tables in PROGRESS for the owner.
+5. **Double track 0.75×.** `DOUBLE_TRACK_UPGRADE_MULTIPLIER` 0.6 → 0.75 (a fresh double edge
+   `DOUBLE_TRACK_MULTIPLIER` 1.6 → 1.75). Real basis: the second line needs a wider formation, cuttings and
+   embankments, so it costs most of a new line. Bridges unchanged. Re-run the good/bad bots (1840/1900, Normal/Hard,
+   3 seeds) and report; if a bound moves, say so, do not loosen it.
+6. **Main menu from the game.** ☰ menu → "Main menu" row: autosaves, then opens the title screen (Continue / New
+   Game / Load). With `?debug=1` no autosave (as today). e2e: open the menu, tap Main menu, title screen shows,
+   Continue returns to the same game.
+7. SPEC (§7.5 overtaking and loops on double track, §10 menu), PROGRESS with tables, e2e (update, never weaken),
+   screenshots `phase-55-*.png`: an express passing a local held in a loop, the Station/Passing loop choice, the
+   Info text staying, the Main menu row. LOOK at them.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7
