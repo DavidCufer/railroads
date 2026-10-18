@@ -2188,3 +2188,65 @@ good-bot NW for 1840 and 1900 Normal (a quick, uncalibrated read only).
 Do not change any test bound on the branch to make a model look good. If a model needs test changes, list them in
 the doc.
 Status: [ ] M1 [ ] M2 [ ] M3 [ ] scenarios [ ] doc
+
+## Phase 54 — Ship the owner's passenger model (E1 "M2"): direct trains, one pile per station; express + locals
+Owner decisions (2026-10-18), after Exploration E1 (`docs/explore/passengers.md` on branch `explore-passengers`):
+- Use the owner's model, M2.
+- "Yes, it's OK to update test limits": the 4 balance tests that fail with the terminus turnaround and the era
+  coach seats (`balancePassengers` pax/coal 1840s and mail/pax, `balanceLongHaul` 1840 payback and 1930/1950
+  ratio).
+- New wish: "If 2 large towns produce lots of passengers, it should make sense to connect them with 1 express train
+  that does not stop in between, plus 1–2 local trains that stop at every station."
+
+Start from branch `explore-passengers` (M2 prototype + terminus turnaround + era seats), rebased onto main. Push to
+main only when `npm run check` is green. Real mechanisms only; numbers in src/data with a one-line justification.
+
+1. **M2 becomes the only passenger model.**
+   - Remove the destination-lot machinery and the M0/M1/M3 switches: per-destination piles, changes, the change
+     wait, legacy conversion.
+   - Rules:
+     - A station's travel demand = the gravity shares of the towns its trains call at *directly*.
+     - People wait in one pile per station, filling from the last departure up to `MAX_WAIT_DAYS`.
+     - **A train takes the people heading for the towns it stops at.** Internally, a calling train may board at
+       most the pile × (gravity weight of its later stops ÷ gravity weight of all towns the station's trains
+       reach). The board then splits over its later stops by gravity, and fares are per distance on arrival.
+     - The player sees one number. This keeps an express (A→B only) from carrying people who wanted the small towns.
+   - Keep the per-distance fare and the speed factor.
+   - `PASSENGER_PARTY_PEOPLE = 3` (fewer passengers each paying more, as the owner asked), stated once in SPEC.
+   - Save migration: old piles of any shape collapse into the one station pile.
+2. **Express + locals should win by real mechanisms, not a rule.**
+   - Add scenario S4 to `tools/bench/explore.ts` (keep it as a bench): two big towns (100k+) with 3 small towns
+     (10–20k) between.
+   - Configurations: 2 locals; 3 locals; 1 express + 1 local; 1 express + 2 locals; 2 express + 1 local; 2
+     express. The best car count for each.
+   - Target: "1 express + 1–2 locals" is the best total profit, ahead of all-locals and all-express.
+   - The mechanisms already in play: an express is faster (no intermediate dwell or acceleration), so it gets the
+     fare speed factor. A local loaded with big-town people fills before the small towns.
+   - If that is not enough, add **travel time in the gravity weight**: a town reached by a faster direct train
+     draws more trips. Real basis: people travel more where the journey is quicker ("time-space shrinkage"). Use
+     the best direct service's run time instead of distance, with the same exponent. Measure again.
+   - Report the S4 table. Make sure an express really passes intermediate stations without stopping (orders
+     A, B only).
+3. **Merge terminus turnaround + era coach seats** (Phase 53C items 2–3). Update the 4 balance tests to new limits
+   (owner OK). Write each old and new limit and the real reason in PROGRESS: a full coal train loses a trip per
+   turn, a part-loaded passenger train barely does. Tests asserting the old destination-pile mechanism get *new
+   fixtures* for M2, not looser bounds.
+4. **UI:**
+   - Station: "Waiting 41 · next train ~6 d" and "Trains here reach: A, C, D" (towns, biggest share first). The
+     "Where to" sheet shows the shares among reachable towns and, as a hint, the biggest unserved towns in range.
+   - Remove per-destination rows and change texts.
+   - Train panel: passengers on board by destination as one short line if it fits the word limit.
+   - Keep word-count limits; never loosen them.
+5. **Economy and difficulty** (reference targets, Phase 41–44 bounds):
+   - Re-run good/bad bots for 1840/1900/1930/1950, Normal and Hard, 3 seeds.
+   - Make the good bot build *multi-stop lines* through towns, as a good player would under M2, and keep its
+     backlog/reserve rules.
+   - Bounds: good survives everywhere; good 1900 Normal $20–34M; Hard ≥ 40 % below Normal; bad bots bankrupt
+     ≥ 50 % on Normal and ≥ 80 % on Hard.
+   - If a bound is missed, find the real mechanism. Allowed: the single volume scale `TRIPS_PER_HEAD` compression,
+     stated openly as the game scale, and a loan limit tied to earnings (real lending practice), if bad bots
+     survive on credit.
+   - Report the 1840 good-bot level against the old ~$4M reference.
+6. SPEC (§8.1, §9.5d rewritten for M2), PROGRESS with all tables, e2e (update, never weaken), and screenshots
+   `phase-54-*.png`: a Venice station, an express and a local on one line. LOOK at them.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
