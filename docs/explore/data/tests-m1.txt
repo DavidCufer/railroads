@@ -1,0 +1,9 @@
+Tests  7 failed | 893 passed | 1 skipped (901)
+FAIL  tests/sim/balanceLongHaul.test.ts > long-haul chain balance (Phase 40) > 1840: a poor investment (under 15 %/yr, not paid back in 10 years, well below an ordinary line's 25 %)
+FAIL  tests/sim/balanceLongHaul.test.ts > long-haul chain balance (Phase 40) > 1930 silver and 1950 uranium: the big prize, uranium the bigger
+FAIL  tests/sim/balancePassengers.test.ts > Phase 26A passenger & mail balance > 1840s: the Norris carries a Town↔Town line about level with coal (finding: the plan's 1.5-2.5x is not met, 0.93x)
+FAIL  tests/sim/stations/pairDemand.test.ts > station economy with reachability > Ljubljana-like fixture (PLAN Phase 35B): the first line must not take the whole town > the total is population x trips per head, a few hundred a month for a 12k town in 1860
+FAIL  tests/sim/stations/pairDemand.test.ts > station economy with reachability > the town's total travel demand is population x trips per head, and without service nothing is bound
+FAIL  tests/sim/stations/throughJourneys.test.ts > Phase 48 through passengers > a through passenger is paid once, on arrival, for the whole distance
+FAIL  tests/sim/trains/loading.test.ts > Bug 1: 'fullLoad' keeps what it loaded > does not unload cargo at the station it was loaded at on extra wait days
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
