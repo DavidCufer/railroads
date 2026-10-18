@@ -190,7 +190,9 @@ export function statusText(state: GameState, train: Train): string {
     );
   }
   if (train.status === "loading" && orderStation) {
-    return strings.trains.panel.atStop(orderStation);
+    return train.turning
+      ? strings.trains.panel.turning(orderStation)
+      : strings.trains.panel.atStop(orderStation);
   }
   return strings.trains.statusNames[train.status];
 }

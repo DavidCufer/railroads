@@ -34,6 +34,7 @@ import {
   SERVICE_DELAY_TICKS,
   OVERLENGTH_SLOWDOWN_MULT,
   locomotiveById,
+  turnaroundTicks,
   TICKS_PER_CAR_HANDLED,
 } from "../../data/trains";
 import { handlingCost } from "../finance/costs";
@@ -50,6 +51,7 @@ import {
 } from "../stations/boarding";
 import { stampDeparture } from "../stations/waiting";
 import { recordDelivered, recordLoadedRevenue, recordSent } from "../stations/flow";
+import { reversesAtOrder } from "./headway";
 import { recordTrainRevenue, recordTrainRunning } from "./profit";
 import { accrueCityGrowthScore } from "../economy/cityGrowth";
 import { cityTileAcceptance } from "../economy/cityStats";
@@ -256,6 +258,11 @@ function loadableTransfer(
     if (lot.cargoType === cargo && lot.depositedByTrainId !== train.id) total += lot.units;
   }
   return total;
+}
+
+/** Whether the train's orders send it back the way it came from its current stop (`reversesAtOrder`). */
+export function reversesHere(train: Train): boolean {
+  return reversesAtOrder(train.orders, train.currentOrderIndex);
 }
 
 function computeDwellTicks(
@@ -737,8 +744,12 @@ export function stepLoading(state: GameState, train: Train, station: Station): b
   if (!order || order.rule === "passThrough") return true;
   if (train.loadTicksLeft < 0) {
     const plan = planLoadUnload(state, train, station, order, new Router(state));
+    const loco = locomotiveById(train.locoModelId);
+    const turn = loco && reversesHere(train) ? turnaroundTicks(loco) : 0;
+    if (turn > 0) train.turning = true;
     train.loadTicksLeft =
       computeDwellTicks(state, train, station, plan) +
+      turn +
       (train.servicePending ? SERVICE_DELAY_TICKS : 0);
     delete train.servicePending;
   }
@@ -786,6 +797,7 @@ export function stepLoading(state: GameState, train: Train, station: Station): b
   }
 
   train.loadTicksLeft = -1;
+  delete train.turning;
   station.lastDepartureTick = state.ticks;
   if (train.cars.some((c) => c.cargoType === "passengers"))
     stampDeparture(state, station.id, upcomingStops(train));

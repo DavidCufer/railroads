@@ -352,6 +352,8 @@ export const strings = {
       diesel: "Diesel",
       electric: "Electric",
     },
+    /** Phase 53C: the loading status while the train reverses at the end of its run. */
+    turningName: "Turning",
     statusNames: {
       loading: "Loading",
       moving: "Moving",
@@ -509,6 +511,7 @@ export const strings = {
       moving: (station: string, speed: string) => `${station} · ${speed}`,
       loadingAt: (station: string, pct: number) => `Loading at ${station} · ${pct}%`,
       atStop: (station: string) => `At ${station}`,
+      turning: (station: string) => `Turning at ${station}`,
       hereNow: "Here now",
       nextStop: "Next stop",
       addStop: "Add stop",
