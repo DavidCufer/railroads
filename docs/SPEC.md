@@ -348,6 +348,21 @@ when the stretch of track to its next station is safe to run through end to end.
   Otherwise it stays in the station with status "waiting for line clear" (signal icon).
 - **Same direction is fine**: any number of trains may be in a section heading the same way. Followers keep a
   2-tile spacing and brake behind the leader (on single and double track).
+- **Overtaking (Phase 55)**: stations and passing loops are where a faster train gets past a slower one ("putting
+  the slow train inside"). A train ready to leave a station (or standing in a loop) **holds** — status "waiting for the
+  line", "Waiting for Train N to pass" (`WaitingOn.kind = "overtake"`) — if a faster train heading the same way
+  through that station would catch it before the next station on its route. Times come from the same running-time
+  estimate as `headway.ts` (`computeTargetSpeed` x the average-speed share; the other train's hours to the station,
+  plus the rest of its dwell if it stops there). The slow train holds exactly when
+  `through + section/vFast < section/vSlow` (the fast train, once past the station, reaches the next station before
+  the slow one would), which also bounds the wait: the hold is worth it only when it is shorter than the time the fast
+  train would lose behind. Limits (src/sim/trains/overtake.ts, `OVERTAKE_MAX_HOLD_HOURS` = one real hour = 72 ticks): a
+  train holds for **one** train at a time, the soonest; only a train that is `moving` towards the station or
+  `loading` in it counts (never one that is itself waiting, so no chain or cycle of holds); a train that has waited the
+  limit departs regardless; a train running through an ordinary station at speed is not held (at a passing loop it is: a loop is where trains are put inside); the held train stands in the
+  station without reserving anything, so it blocks no train running through. Equal speeds never hold. Passing loops
+  may be built on plain straight **double** track too (a refuge for overtaking); there they serve only overtaking.
+  Bench: `tools/bench/explore.ts S4` with `EXPRESS_LOCO`, `LOCAL_LOCO`, `OVERTAKE=0|1` (docs/PROGRESS.md "Phase 55").
 - **Double track**: opposing trains use separate lanes, so the line rule never blocks them.
 - **Platforms and the yard (Phase 28A)**: a station has *platforms* (Depot 2, Station 3, Terminal 5) that limit how many
   trains **load at once**. A train arriving at a destination whose platforms are all busy (or whose yard already holds
@@ -702,7 +717,7 @@ and the last one keeps the first decades playable. Measured results: docs/PROGRE
    A "worn out" news item appears once; `overhaulLocomotive` (30 % of the engine's price, 25 days in an Engine Shed, 60 % of the
    mechanical age taken off; engines of 10+ years) or replacement fixes it.
 7. **Single track has capacity, and a way to add it.** A **passing loop** (`buildPassingLoop`, $12k at 1830 prices, a station-like
-   section splitter with no staff or catchment, only on plain straight single track) lets opposing trains meet mid-line (§7.5).
+   section splitter with no staff or catchment, on plain straight track, single or (Phase 55) double) lets opposing trains meet mid-line and a fast train overtake a slow one (§7.5). With the Station tool a tap on such a tile offers **Station / Passing loop**.
    An order option **minimum days between departures** (`TrainOrder.minGapDays`, 0 / ½ / 1 / 2 / 3) spaces trains instead of
    convoys; the train holds its departure with "Holding for departure slot".
 8. **Servicing by distance.** Breakdown chance is ×0.5 fresh from an Engine Shed and rises by +1.0 for every interval run since
@@ -868,6 +883,10 @@ All tap targets ≥ 44 CSS px. Respect Android safe-area insets.
 ### 10.1 Layout
 
 - **Top bar** (thin, translucent): company cash (tap → finances), date, speed controls (⏸ 1× 2× 4× 8×), ☰ menu.
+  The ☰ menu's **Main menu** row (Phase 55) autosaves (never under `?debug=1`), pauses, and shows the title screen
+  (Continue loads that autosave, New Game / Scenarios / Load replace the game and restore the speed).
+- **Explanations** (Phase 55): text the player asked for by tapping (a cargo chip, a demand tile) is not a news toast: it
+  stays until tapped, until the panel closes or until the next explanation replaces it, and news toasts never push it out.
 - **Left build toolbar** (vertical, collapsible): Track, Double, Electrify, Station, Bulldoze, Info (default).
 - **Bottom-right**: Trains button (list), News button with unread badge.
 - **Panels** slide in from the right (max 45% width): Station, Train, City, Industry, Finance, Train list, Buy train.
@@ -1156,3 +1175,4 @@ localization (English only, but keep strings in one `strings.ts` file for later)
 - [Phase 30A] Deviation from the PLAN text: PLAN says the order option is "per-train or per-line"; it is per stop (`TrainOrder.minGapDays`), which covers both. PLAN says interest premium "grows with debt ÷ net worth": implemented as debt ÷ (net worth + debt) so it stays in 0–1 when net worth is small or negative.
 - [Phase 45] New §11b Contracts. Old saves load with no contracts (the first offer comes after a year of play). Contract money is outside the ledger.
 - [Phase 47] §11b: contract rewards and penalties are now ledger lines (untaxed, outside the credit limit); connection subsidies stay negative construction. §10.1: at most 3 toasts on screen, the oldest goes first. §4.4: the New Game screen shows one line for the selected difficulty, built from `DIFFICULTY`. §10: a line whose trains average >= 80 % load (`Train.loadShare`, 30 days of running) with more waiting than one train carries shows "Full trains, N waiting - add a train" in its Lines row, and once per game as a hint card (+ news item `addTrain`). The game-over card shows months under a year.
+- [Phase 55] §7.5 overtaking at stations and passing loops (and loops on double track), the passing-loop entry of the Phase 30A list (the Station tool's Station / Passing loop choice), §10.1 the Main menu row and explanations that stay, §5.3 double track 1.75x (upgrade 0.75x, was 1.6 / 0.6; bridges unchanged).
