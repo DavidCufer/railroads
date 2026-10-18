@@ -144,6 +144,7 @@ export function statusText(state: GameState, train: Train): string {
       .map((id) => state.trains.find((t) => t.id === id)?.name)
       .filter((n): n is string => n !== undefined);
     const who = names.length > 3 ? `${names.slice(0, 3).join(", ")}…` : names.join(", ");
+    if (w.kind === "overtake" && who) return strings.trains.waitingToLetPass(who);
     if (stationName && who) {
       return w.kind === "line"
         ? strings.trains.waitingForTrainOnLine(who, stationName)

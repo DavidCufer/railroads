@@ -388,6 +388,8 @@ export const strings = {
       `Waiting for ${trains} (single track to ${station})`,
     waitingForTrainAtPlatform: (station: string, trains: string) =>
       `Waiting in the yard at ${station} for a platform (${trains})`,
+    /** Phase 55: a train held at a station or passing loop to let a faster one by. */
+    waitingToLetPass: (trains: string) => `Waiting for ${trains} to pass`,
     /** PLAN Phase 25A: halted just short of a junction/crossing another train is using. */
     waitingAtCrossing: (trains: string) => `Waiting at crossing for ${trains}`,
     /** Floating label for cargo left at a Warehouse hub (no payment yet). */

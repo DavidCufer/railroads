@@ -414,6 +414,14 @@ export const DEADLOCK_STUCK_DAYS = 20;
  * same-way trains hold back, so a steady stream in one direction cannot starve the other. */
 export const SIGNAL_FAIRNESS_HOURS = 24;
 export const DEADLOCK_BLOCK_PENALTY = 1_000;
+/** Phase 55: the longest a train holds at a passing place to let a faster one by (SPEC §7.5), in real hours. Real
+ * "putting the slow train inside" costs the slow train minutes to an hour (timetables allowed a local 10-20 minutes at
+ * a crossing station for an express), so an hour is generous. In game ticks it is `GAME_DAYS_PER_REAL_HOUR` days (72
+ * ticks), well under `DEADLOCK_REROUTE_DAYS`, so a hold can never look like a jam to the safety nets. */
+export const OVERTAKE_MAX_HOLD_REAL_HOURS = 1;
+export const OVERTAKE_MAX_HOLD_HOURS = Math.round(
+  OVERTAKE_MAX_HOLD_REAL_HOURS * GAME_DAYS_PER_REAL_HOUR * 24,
+);
 /** A train stuck at a non-target dead end reverses after this many in-game hours (SPEC §7.3). */
 export const DEAD_END_REVERSE_HOURS = 6;
 

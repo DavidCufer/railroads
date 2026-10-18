@@ -18,7 +18,7 @@ import type { Train } from "./types";
 /** Track is rarely a straight line, curves and junctions cost speed: legs are 15 % longer than the crow flies and the
  * train averages 75 % of its top speed. */
 const DETOUR = 1.15;
-const AVERAGE_SPEED_SHARE = 0.75;
+export const AVERAGE_SPEED_SHARE = 0.75;
 
 /** The steps the per-stop stepper offers, in days (Off = undefined). */
 export const GAP_STEPS: readonly (number | undefined)[] = [
@@ -43,6 +43,11 @@ export function reversesAtOrder(orders: Train["orders"], i: number): boolean {
   return at(i - 1) === at(i + 1) && at(i - 1) !== at(i);
 }
 
+/** Hours a train dwells at a stop it loads at: the same figure `estimateRoundTripDays` uses. */
+export function stopDwellHours(train: Train): number {
+  return Math.max(MIN_LOADING_TICKS, train.cars.length * 2 * TICKS_PER_CAR_HANDLED);
+}
+
 /** Days a train needs to run all its stops once and arrive back at the first: running time plus a dwell per stop. */
 export function estimateRoundTripDays(state: GameState, train: Train): number {
   const loco = locomotiveById(train.locoModelId);
@@ -63,9 +68,7 @@ export function estimateRoundTripDays(state: GameState, train: Train): number {
   for (let i = 0; i < train.orders.length; i++)
     if (loco && train.orders[i]?.rule !== "passThrough" && reversesAtOrder(train.orders, i))
       turnHours += turnaroundTicks(loco);
-  const dwellHours =
-    stops.length * Math.max(MIN_LOADING_TICKS, train.cars.length * 2 * TICKS_PER_CAR_HANDLED) +
-    turnHours;
+  const dwellHours = stops.length * stopDwellHours(train) + turnHours;
   return (tiles / tilesPerHour + dwellHours) / HOURS_PER_DAY;
 }
 

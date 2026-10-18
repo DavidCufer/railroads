@@ -87,7 +87,7 @@ export interface NodeClaim {
  * Recorded by every failed departure check and cleared the moment one succeeds; purely derived
  * (re-set every tick a train is still waiting), so it is not saved. */
 export interface WaitingOn {
-  kind: "line" | "platform";
+  kind: "line" | "platform" | "overtake";
   /** The station the train is trying to reach. */
   stationId: number;
   /** The block whose opposing traffic denies the departure (`kind === "line"`). */

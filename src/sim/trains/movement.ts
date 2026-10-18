@@ -35,6 +35,7 @@ import {
   TRAIN_BRAKE_KMH_PER_TICK,
   MIN_SPEED_FACTOR,
   SIGNAL_FAIRNESS_HOURS,
+  OVERTAKE_MAX_HOLD_HOURS,
   TICKS_PER_TILE_DIVISOR,
   WATER_TOWER_RANGE_TILES,
   WATER_TOWER_SPEED_PENALTY,
@@ -56,6 +57,8 @@ import { fuelUnitsPerTile, wearUnitsPerTile } from "../finance/costs";
 import { kmSinceService } from "./breakdown";
 import { addEdgeWear, edgeWearRatio, slowOrderMult } from "../track/condition";
 import { findTrainRoute } from "./route";
+import { AVERAGE_SPEED_SHARE } from "./headway";
+import { overtakeBlocker } from "./overtake";
 import type { HeldBlock, Train, TrainOrder, TrainStatus } from "./types";
 import type { TrackEdge } from "../track/types";
 
@@ -581,11 +584,47 @@ function tryEnterSection(
     }
   }
 
+  // Phase 55 (SPEC §7.5): a train standing in a station, or at a passing loop, lets a faster one that would catch it
+  // before the next station go through first. Capped, and never for a train that is itself waiting.
+  // (A train that has just loaded has already picked up one tick of speed when the departure check runs.)
+  const standing =
+    train.speed <= TRAIN_ACCEL_KMH_PER_TICK || targetStationIsLoopAt(runtime, startIndex, train);
+  // `waitTicks` only counts a wait once the train is in a waiting status.
+  if (
+    standing &&
+    (train.status !== "waitingForBlock" || train.waitTicks < OVERTAKE_MAX_HOLD_HOURS)
+  ) {
+    const faster = overtakeBlocker(
+      state,
+      {
+        stationTiles: runtime.stationTiles,
+        tilesPerHour: (t, a, b) => {
+          const loco = locomotiveById(t.locoModelId);
+          return loco
+            ? (computeTargetSpeed(state, loco, t, a, b) * AVERAGE_SPEED_SHARE) /
+                TICKS_PER_TILE_DIVISOR
+            : 0;
+        },
+      },
+      train,
+    );
+    if (faster) {
+      setWaitingStatus(train, "waitingForBlock");
+      train.waitingOn = { kind: "overtake", stationId: targetStation.id, trainIds: [faster.id] };
+      return { ok: false };
+    }
+  }
+
   delete train.waitingOn;
   train.heldBlocks.push(...batch);
   train.sectionTargetStationId = targetStation.id;
   setStatus(train, "moving");
   return { ok: true };
+}
+
+/** Whether the station the train stands at is a passing loop (trains run through a loop without stopping). */
+function targetStationIsLoopAt(runtime: TrainRuntime, index: number, train: Train): boolean {
+  return runtime.stationsByTile.get(train.route[index] as number)?.passingLoop === true;
 }
 
 /** Computes a fresh route from the train's current node to `targetStation` and adopts it (or, if
