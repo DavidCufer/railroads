@@ -42,7 +42,6 @@ import {
   type LocomotiveDef,
 } from "../../data/trains";
 import { STATION_TYPE_DEFS } from "../../data/stations";
-import { CARGO } from "../../data/cargo";
 import { recordTrainLoad, trainLoad } from "./profit";
 import { pushNews } from "../news";
 import type { GameState } from "../state";
@@ -51,6 +50,7 @@ import { directionSteps } from "../track/graph";
 import { directionBetween, edgeDirectionFrom, edgeLengthTiles, tileXY } from "./geometry";
 import { blockIdForEdge, type Block, type BlockPartition } from "./blocks";
 import { trainBodyLength, updateCrossing } from "./crossing";
+import { carCapacity } from "./capacity";
 import { applyPendingConsist, stepLoading } from "./loading";
 import { fuelUnitsPerTile, wearUnitsPerTile } from "../finance/costs";
 import { kmSinceService } from "./breakdown";
@@ -316,6 +316,7 @@ export function platformHolders(state: GameState, station: Station, excludeId = 
     (t) =>
       t.id !== excludeId &&
       t.status === "loading" &&
+      !t.turning &&
       t.route[t.routeIndex] === station.tile &&
       t.sectionTargetStationId === undefined,
   );
@@ -671,7 +672,7 @@ export function computeTargetSpeed(
     train.cars.reduce((sum, c) => {
       // SPEC §7.4: "each carload weighs 1 unit when loaded, 0.4 empty" — interpolated by fill
       // fraction under partial loading (PLAN Phase 16) rather than a flat loaded/empty switch.
-      const fraction = c.loadedUnits / CARGO[c.cargoType].capacity;
+      const fraction = c.loadedUnits / carCapacity(c);
       return sum + CAR_WEIGHT_EMPTY + fraction * (CAR_WEIGHT_LOADED - CAR_WEIGHT_EMPTY);
     }, 0);
   const elevA = state.map.elevation[a] ?? 0;
@@ -770,6 +771,7 @@ function arriveAtStation(state: GameState, train: Train, station: Station): void
   train.speed = 0;
   train.direction = -1;
   train.loadTicksLeft = -1;
+  delete train.turning;
   train.loadExtraWaitDays = 0;
   delete train.headwayHold;
   delete train.headwayWaitTicks;
@@ -803,6 +805,15 @@ function arriveAtStation(state: GameState, train: Train, station: Station): void
     train.yardSince = state.ticks;
     train.waitingForStationId = station.id;
     setStatus(train, "waitingForStation");
+    // Say who it waits for from the first tick (handleYard refreshes it), not only from the next one.
+    train.waitingOn = {
+      kind: "platform",
+      stationId: station.id,
+      trainIds: [
+        ...platformHolders(state, station, train.id),
+        ...yardQueue(state, station).filter((t) => t.id !== train.id && yardBefore(t, train)),
+      ].map((t) => t.id),
+    };
   }
 }
 
@@ -1068,7 +1079,7 @@ export function stepTrain(state: GameState, train: Train, runtime: TrainRuntime)
       if (train.cars.length > 0)
         recordTrainLoad(
           train,
-          trainLoad(train, (c) => CARGO[c.cargoType].capacity),
+          trainLoad(train, (c) => carCapacity(c)),
           moved,
         );
       // Phase 30A: the edge under the head wears too (track condition, src/sim/track/condition.ts).

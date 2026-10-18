@@ -408,3 +408,20 @@ export const CARGO: Record<CargoType, CargoDef> = {
     notes: "pays on arrival at the Nuclear Power Plant, by the distance from the mine",
   },
 };
+
+/** Phase 53C: seats in a passenger car by the year it is built, following the art era buckets of the carriages: the
+ * 4- and 6-wheel compartment carriages of the early railways seated about 40 (an 1840s first/second class carriage
+ * 24-40); the bogie coaches that spread from the 1880s (Pullman and corridor stock) about 60; the all-steel coaches of
+ * the 1920s about 80 (a 1930s open second-class coach 64-88). A car keeps the seats of the year it was bought. Price
+ * and upkeep follow the seats (cost per seat is constant). Other cargoes have one size. */
+export const PASSENGER_SEATS_ANCHORS: ReadonlyArray<readonly [fromYear: number, seats: number]> = [
+  [1830, 40],
+  [1880, 60],
+  [1920, 80],
+];
+
+export function passengerSeatsIn(year: number): number {
+  let seats = PASSENGER_SEATS_ANCHORS[0]?.[1] ?? 40;
+  for (const [from, n] of PASSENGER_SEATS_ANCHORS) if (year >= from) seats = n;
+  return seats;
+}

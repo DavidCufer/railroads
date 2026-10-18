@@ -2,13 +2,14 @@
  * The "add a train" hint (Phase 47): a line whose trains run nearly full while more is waiting for it than one train
  * carries. Pure reading of the state; the one-time news item is the only thing it writes.
  */
-import { CARGO, type CargoType } from "../../data/cargo";
+import type { CargoType } from "../../data/cargo";
 import { ADD_TRAIN_HINT } from "../../data/trains";
 import { pushNews } from "../news";
 import type { GameState } from "../state";
 import { boardable } from "../stations/boarding";
 import { HOURS_PER_DAY } from "../time";
 import { booksStartTick } from "../trains/profit";
+import { carCapacity } from "../trains/capacity";
 import type { Train } from "../trains/types";
 import { lineSummaries } from "./lines";
 
@@ -18,9 +19,9 @@ export interface AddTrainHint {
   cargo: CargoType;
 }
 
-function carCapacity(train: Train, cargo: CargoType): number {
+function trainCapacity(train: Train, cargo: CargoType): number {
   let cap = 0;
-  for (const car of train.cars) if (car.cargoType === cargo) cap += CARGO[car.cargoType].capacity;
+  for (const car of train.cars) if (car.cargoType === cargo) cap += carCapacity(car);
   return cap;
 }
 
@@ -44,8 +45,9 @@ export function addTrainHint(
   const cargos = [...new Set(trains.flatMap((t) => t.cars.map((c) => c.cargoType)))];
   let best: AddTrainHint | undefined;
   for (const cargo of cargos) {
-    const carriers = trains.filter((t) => carCapacity(t, cargo) > 0);
-    const oneTrain = carriers.reduce((sum, t) => sum + carCapacity(t, cargo), 0) / carriers.length;
+    const carriers = trains.filter((t) => trainCapacity(t, cargo) > 0);
+    const oneTrain =
+      carriers.reduce((sum, t) => sum + trainCapacity(t, cargo), 0) / carriers.length;
     let waiting = 0;
     for (const stationId of stops) {
       const pile = state.stationCargo.get(stationId)?.[cargo];
