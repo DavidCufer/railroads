@@ -3,6 +3,7 @@
  * it), suggestions, and a palette of car tiles (tap to append). Shared by the buy wizard and the
  * train panel's "Edit cars".
  */
+import { newCarCapacity } from "../sim/trains/capacity";
 import { CARGO, CARGO_TYPES, type CargoType } from "../data/cargo";
 import type { LocomotiveDef } from "../data/trains";
 import type { StationEconomy } from "../sim/stations/economy";
@@ -83,9 +84,10 @@ export interface ConsistBuilder {
   refresh: () => void;
 }
 
-export function carCapacityText(cargo: CargoType): string {
+export function carCapacityText(cargo: CargoType, year: number): string {
   const def = CARGO[cargo];
-  return cargo === "passengers" ? `${def.capacity} seats` : `${def.capacity} ${def.unit}`;
+  const capacity = newCarCapacity(cargo, year);
+  return cargo === "passengers" ? `${capacity} seats` : `${capacity} ${def.unit}`;
 }
 
 export function consistBuilder(options: ConsistBuilderOptions): ConsistBuilder {
@@ -184,7 +186,7 @@ export function consistBuilder(options: ConsistBuilderOptions): ConsistBuilder {
             className: "train-car-add-btn car-tile",
             disabled: !loco || full,
             "aria-label": t.addCar(CARGO[c].name),
-            title: `${CARGO[c].name} · ${carCapacityText(c)}`,
+            title: `${CARGO[c].name} · ${carCapacityText(c, options.year)}`,
             "data-cargo": c,
             onClick: () => {
               options.cars.push(c);
@@ -201,7 +203,7 @@ export function consistBuilder(options: ConsistBuilderOptions): ConsistBuilder {
               cargoBadge(c, "cargo-icon-xs"),
               CARGO[c].carLabel,
             ),
-            h("span", { className: "car-tile-cap tabular" }, `${CARGO[c].capacity}`),
+            h("span", { className: "car-tile-cap tabular" }, `${newCarCapacity(c, options.year)}`),
           ),
         ),
       ),

@@ -327,7 +327,7 @@ describe("station platforms (PLAN 28A: platforms limit loading, not entry)", () 
     for (let tick = 0; tick < 40 * 24; tick++) {
       stepTrains(state);
       const loadingAtB = state.trains.filter(
-        (t) => t.status === "loading" && t.route[t.routeIndex] === bTile,
+        (t) => t.status === "loading" && !t.turning && t.route[t.routeIndex] === bTile,
       );
       expect(loadingAtB.length).toBeLessThanOrEqual(2);
       for (const t of loadingAtB) visits.set(t.id, (visits.get(t.id) ?? 0) + 1);

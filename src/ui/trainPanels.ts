@@ -3,6 +3,7 @@
  * Route / Stats tabs, action-bar footer), the Edit cars sheet (reuses the consist builder), the
  * Replace-locomotive picker and the train list. The buy wizard lives in `buyTrainWizard.ts`.
  */
+import { carCapacity } from "../sim/trains/capacity";
 import { repairPhase } from "../sim/trains/repairCrew";
 import { CARGO, type CargoType } from "../data/cargo";
 import {
@@ -300,7 +301,7 @@ function carLoadChip(car: TrainCar): HTMLElement {
   const def = CARGO[car.cargoType];
   const loaded = car.loadedUnits > 0;
   const label = loaded
-    ? `${def.name} ${Math.round(car.loadedUnits)} / ${def.capacity}${def.unit ? ` ${def.unit}` : ""}`
+    ? `${def.name} ${Math.round(car.loadedUnits)} / ${carCapacity(car)}${def.unit ? ` ${def.unit}` : ""}`
     : `${strings.trains.empty} (${def.name})`;
   return h(
     "span",
@@ -320,7 +321,7 @@ function heroStrip(state: GameState, train: Train): HTMLElement {
       locoId: train.locoModelId,
       cars: train.cars.map((c) => ({
         cargoType: c.cargoType,
-        fill01: c.loadedUnits / CARGO[c.cargoType].capacity,
+        fill01: c.loadedUnits / carCapacity(c),
         loaded: c.loadedUnits > 0,
       })),
       year: currentYear(state),
@@ -518,11 +519,11 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
         : 0;
       const wages = l ? trainWagesPerYear(l, t.cars, year) : 0;
       const competition = l ? trainCompetition(l, t, state.stations, state.map.width, year) : 0;
-      const capacity = t.cars.reduce((sum, c) => sum + CARGO[c.cargoType].capacity, 0);
+      const capacity = t.cars.reduce((sum, c) => sum + carCapacity(c), 0);
       const loaded = t.cars.reduce((sum, c) => sum + c.loadedUnits, 0);
       const byCargo = new Map<CargoType, number>();
       for (const c of t.cars) {
-        byCargo.set(c.cargoType, (byCargo.get(c.cargoType) ?? 0) + CARGO[c.cargoType].capacity);
+        byCargo.set(c.cargoType, (byCargo.get(c.cargoType) ?? 0) + carCapacity(c));
       }
       return h(
         "div",

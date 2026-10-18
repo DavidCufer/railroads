@@ -51,6 +51,7 @@ import {
 } from "../stations/boarding";
 import { stampDeparture } from "../stations/waiting";
 import { recordDelivered, recordLoadedRevenue, recordSent } from "../stations/flow";
+import { carCapacity } from "./capacity";
 import { reversesAtOrder } from "./headway";
 import { recordTrainRevenue, recordTrainRunning } from "./profit";
 import { accrueCityGrowthScore } from "../economy/cityGrowth";
@@ -223,7 +224,7 @@ function planLoadUnload(
       const legacyCar = loadedAfterUnload > 0 && !car.lots;
       // "Wait for full load" re-runs this plan on each extra wait day, so a partially loaded car
       // keeps topping up until it's full or the stop gives up (SPEC §7.2).
-      if (loadedAfterUnload >= CARGO[car.cargoType].capacity) return;
+      if (loadedAfterUnload >= carCapacity(car)) return;
       // Livestock Pens (SPEC §6.2): required to *load* livestock at this station (unaffected for
       // unloading/delivering it elsewhere).
       if (car.cargoType === "livestock" && !hasImprovement(station, "livestockPens")) return;
@@ -626,7 +627,7 @@ function applyTransfer(state: GameState, train: Train, station: Station, carInde
 function loadFromTransfer(state: GameState, train: Train, station: Station, car: TrainCar): void {
   const lots = state.stationTransfer.get(station.id);
   if (!lots || car.loadedUnits > 0) return;
-  const capacity = CARGO[car.cargoType].capacity;
+  const capacity = carCapacity(car);
   for (const lot of lots) {
     if (lot.cargoType !== car.cargoType || lot.depositedByTrainId === train.id) continue;
     const amount = Math.min(lot.units, capacity - car.loadedUnits);
@@ -689,7 +690,7 @@ function applyLoad(
   const car = train.cars[carIndex];
   if (!car) return;
   loadFromTransfer(state, train, station, car);
-  const capacity = CARGO[car.cargoType].capacity;
+  const capacity = carCapacity(car);
   const room = capacity - car.loadedUnits;
   if (room <= 0) return;
   const pile = state.stationCargo.get(station.id);
@@ -744,12 +745,8 @@ export function stepLoading(state: GameState, train: Train, station: Station): b
   if (!order || order.rule === "passThrough") return true;
   if (train.loadTicksLeft < 0) {
     const plan = planLoadUnload(state, train, station, order, new Router(state));
-    const loco = locomotiveById(train.locoModelId);
-    const turn = loco && reversesHere(train) ? turnaroundTicks(loco) : 0;
-    if (turn > 0) train.turning = true;
     train.loadTicksLeft =
       computeDwellTicks(state, train, station, plan) +
-      turn +
       (train.servicePending ? SERVICE_DELAY_TICKS : 0);
     delete train.servicePending;
   }
@@ -787,7 +784,7 @@ export function stepLoading(state: GameState, train: Train, station: Station): b
   for (const i of plan.load) applyLoad(state, train, station, i, router);
 
   if (order.rule === "fullLoad") {
-    const allFull = train.cars.every((c) => c.loadedUnits >= CARGO[c.cargoType].capacity);
+    const allFull = train.cars.every((c) => c.loadedUnits >= carCapacity(c));
     const maxWait = order.maxWaitDays ?? DEFAULT_FULL_LOAD_MAX_WAIT_DAYS;
     if (!allFull && train.loadExtraWaitDays < maxWait) {
       train.loadExtraWaitDays++;
@@ -796,6 +793,15 @@ export function stepLoading(state: GameState, train: Train, station: Station): b
     }
   }
 
+  // Phase 53C: a train that reverses here turns after it has unloaded and loaded: the coaches are drawn off the platform
+  // while the engine is turned or runs round (`platformHolders` leaves a turning train out), then it departs.
+  const loco = locomotiveById(train.locoModelId);
+  // (A new train standing at its first stop has not arrived from a run and has nothing to turn.)
+  if (!train.turning && loco && train.distanceTraveled > 0 && reversesHere(train)) {
+    train.turning = true;
+    train.loadTicksLeft = turnaroundTicks(loco);
+    return false;
+  }
   train.loadTicksLeft = -1;
   delete train.turning;
   station.lastDepartureTick = state.ticks;
