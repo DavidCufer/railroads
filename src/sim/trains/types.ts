@@ -188,6 +188,8 @@ export interface Train {
   /** Extra whole days waited beyond the initial load pass for a "Wait for full load" stop (SPEC
    * §7.2) — reset to 0 on arrival. */
   loadExtraWaitDays: number;
+  /** Phase 53C: set while the dwell at this stop includes turning (the train reverses here); cleared on departure. */
+  turning?: boolean;
   /** Set while a train that has unloaded at this stop waits for its departure headway (`TrainOrder.minGapDays`). */
   headwayHold?: boolean;
   /** Ticks spent waiting for the headway at this stop (capped so a queue cannot wait for ever). */
