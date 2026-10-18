@@ -1,7 +1,7 @@
 /** Locomotive roster and train physics/balance constants (SPEC §7.1, §7.4, §7.5, §7.7).
  * Logic lives in src/sim/trains. */
 
-import { WORLD_SCALE } from "./scale";
+import { KM_PER_TILE, WORLD_SCALE } from "./scale";
 
 export type LocomotiveType = "steam" | "diesel" | "electric";
 export type WeightClass = "light" | "medium" | "heavy";
@@ -25,6 +25,8 @@ export interface LocomotiveDef {
   maintenancePerYear: number;
   /** High-Speed Trainset (SPEC §7.7): passenger & mail cars only. */
   passengerMailOnly?: boolean;
+  /** Phase 53C: a cab at both ends (a push-pull or multiple-unit set), so it reverses without running round. */
+  doubleEnded?: boolean;
 }
 
 /** SPEC §7.7 roster. Names are generic wheel arrangements/descriptions, not trademarks. */
@@ -303,6 +305,7 @@ export const LOCOMOTIVES: readonly LocomotiveDef[] = [
     reliability: 5,
     cost: 600_000,
     maintenancePerYear: 25_000,
+    doubleEnded: true,
     passengerMailOnly: true,
   },
   {
@@ -344,6 +347,30 @@ export const KMH_PER_TILE_PER_DAY = 30 / WORLD_SCALE;
 
 /** `speedKmh / TICKS_PER_TILE_DIVISOR` tiles per tick (1 tick = 1 in-game hour, 24/day). */
 export const TICKS_PER_TILE_DIVISOR = KMH_PER_TILE_PER_DAY * 24;
+
+/** Phase 53C: game days that one real hour of running takes. A real hour at speed v covers v km; the game covers
+ * `v / KMH_PER_TILE_PER_DAY` tiles a day of `KM_PER_TILE` km each, so the same distance takes
+ * `KMH_PER_TILE_PER_DAY / KM_PER_TILE` days (3): the compression the game already applies to every journey. */
+export const GAME_DAYS_PER_REAL_HOUR = KMH_PER_TILE_PER_DAY / KM_PER_TILE;
+
+/** Phase 53C: real hours a train spends reversing at the end of its run, before it can leave. A steam engine had to be
+ * turned (turntable or wye) or run round its train by pointwork, and coaled and watered: 19th-century practice put the
+ * engine's turn at a terminus at about an hour (a 2-3 hour run was followed by a half-hour to an hour of turning).
+ * A diesel or electric locomotive only runs round (about half an hour, uncoupling, crossing over and recoupling). A
+ * set with a cab at both ends (`LocomotiveDef.doubleEnded`) only changes ends: the driver walks through, about a
+ * quarter of an hour (the 10-15 min scheduled turn of an Intercity set at a terminus). */
+export const TURNAROUND_HOURS: Record<LocomotiveType, number> = {
+  steam: 1,
+  diesel: 0.5,
+  electric: 0.5,
+};
+export const DOUBLE_ENDED_TURNAROUND_HOURS = 0.25;
+
+/** Game ticks (hours) a locomotive takes to turn at a terminus. */
+export function turnaroundTicks(loco: LocomotiveDef): number {
+  const hours = loco.doubleEnded ? DOUBLE_ENDED_TURNAROUND_HOURS : TURNAROUND_HOURS[loco.type];
+  return Math.round(hours * GAME_DAYS_PER_REAL_HOUR * 24);
+}
 
 // --- Speed model (SPEC §7.4) -----------------------------------------------------------------
 

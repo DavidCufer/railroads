@@ -67,6 +67,16 @@ let lastStationType: StationType | null = null;
 
 /** The type the Station tool opens with: the last one built, else the everyday "Station" (Depot is a
  * freight-siding size — PLAYTEST-1 Bug 8). */
+/** The status word of a train in a list: "Turning" while it reverses at the end of its run (Phase 53C). */
+function trainStatusName(t: {
+  status: keyof typeof strings.trains.statusNames;
+  turning?: boolean;
+}): string {
+  return t.status === "loading" && t.turning
+    ? strings.trains.turningName
+    : strings.trains.statusNames[t.status];
+}
+
 function rememberedStationType(): StationType {
   if (lastStationType) return lastStationType;
   try {
@@ -796,9 +806,7 @@ function trainsTab(state: GameState, station: Station, handlers?: StationPanelHa
           "span",
           { className: "card-meta-inline" },
           statusIcon,
-          next
-            ? `${strings.trains.statusNames[t.status]} · ${next.name}`
-            : strings.trains.statusNames[t.status],
+          next ? `${trainStatusName(t)} · ${next.name}` : trainStatusName(t),
         ),
         chevron: true,
         onClick: () => handlers?.onOpenTrain?.(t.id),
