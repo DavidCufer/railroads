@@ -1,7 +1,7 @@
 /** Phase 43: where the people waiting at a station are going, in one short line ("Milan 40 · Trieste 540"). Pure read
  * of the passenger pile's `lots` (by destination) and older `bound` buckets; people beyond the top rows and those with no assigned destination are folded into the last "other towns" row. */
 import type { GameState } from "../sim/state";
-import { serviceIntervalDays, serviceKey, serviceRates } from "../sim/stations/waiting";
+import { observedIntervalDays, serviceRates } from "../sim/stations/waiting";
 import { strings } from "./strings";
 
 const SHOWN = 3;
@@ -34,7 +34,7 @@ export function waitingSplitRows(state: GameState, stationId: number): WaitingRo
   const rates = serviceRates(state);
   const nextOf = (dest: number): number | undefined => {
     const route = routes.find((r) => r.destination === dest);
-    const days = route && serviceIntervalDays(rates.get(serviceKey(stationId, route.firstLeg)));
+    const days = route && observedIntervalDays(state, rates, stationId, route.firstLeg);
     return days === undefined ? undefined : Math.max(1, Math.round(days));
   };
   const rows: WaitingRow[] = bound.slice(0, SHOWN).map(([id, n]) => {

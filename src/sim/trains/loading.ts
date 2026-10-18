@@ -46,7 +46,9 @@ import {
   Router,
   takeBoarders,
   takeLots,
+  upcomingStops,
 } from "../stations/boarding";
+import { stampDeparture } from "../stations/waiting";
 import { recordDelivered, recordLoadedRevenue, recordSent } from "../stations/flow";
 import { recordTrainRevenue, recordTrainRunning } from "./profit";
 import { accrueCityGrowthScore } from "../economy/cityGrowth";
@@ -785,5 +787,7 @@ export function stepLoading(state: GameState, train: Train, station: Station): b
 
   train.loadTicksLeft = -1;
   station.lastDepartureTick = state.ticks;
+  if (train.cars.some((c) => c.cargoType === "passengers"))
+    stampDeparture(state, station.id, upcomingStops(train));
   return true;
 }

@@ -20,7 +20,7 @@ import type { HistoryState } from "../sim/history";
 import type { RegionId } from "../sim/regions";
 import type { PendingCityFounding } from "../sim/regions";
 import type { TrackEdge } from "../sim/track/types";
-import type { DeliveryEvent, StationCargoPile, TransferLot } from "../sim/state";
+import type { DeliveryEvent, DepartureStamp, StationCargoPile, TransferLot } from "../sim/state";
 import type { StationFlow } from "../sim/stations/flow";
 import type { Washout } from "../sim/track/washout";
 
@@ -127,6 +127,8 @@ interface SerializedGameStateBase<TTrain> {
   stationTransfer?: Array<[number, TransferLot[]]>;
   /** Added in Phase 30A without a version bump: absent in older saves, read as empty. */
   stationFlow?: Array<[number, StationFlow]>;
+  /** Added in Phase 53C without a version bump: absent in older saves, read as empty (stamps start at "now"). */
+  departures?: Array<[string, DepartureStamp]>;
   /** Added in Phase 30A without a version bump: bridges washed out and not yet rebuilt. */
   washouts?: Washout[];
   nextWashoutId?: number;

@@ -18,13 +18,7 @@ import { DAYS_PER_MONTH } from "../time";
 import type { GameState, PassengerLot, StationCargoPile } from "../state";
 import type { PassengerRoute } from "../stations/passengerFlows";
 import type { Station } from "../stations/types";
-import {
-  serviceIntervalDays,
-  serviceKey,
-  serviceRates,
-  waitingCap,
-  type ServiceRates,
-} from "../stations/waiting";
+import { serviceKey, serviceRates, waitingCap, type ServiceRates } from "../stations/waiting";
 
 const DECAY_FLOOR = 0.05;
 
@@ -90,12 +84,9 @@ function accrueLots(
   const room = new Map<number, number>();
   let overflow = 0;
   for (const route of [...routes].sort((a, b) => a.destination - b.destination)) {
-    // Phase 51: people wait only for the next train that carries them (data/economy.ts MIN/MAX_WAIT_DAYS).
+    // Phase 51/53C: people wait for the next train that carries them, up to MAX_WAIT_DAYS of demand since the last one left.
     const perMonth = route.perMonth * demand;
-    const cap = waitingCap(
-      perMonth,
-      serviceIntervalDays(service.get(serviceKey(station.id, route.firstLeg))),
-    );
+    const cap = waitingCap(perMonth, service.has(serviceKey(station.id, route.firstLeg)));
     const daily = perMonth / DAYS_PER_MONTH;
     const have = Math.min(own.get(route.destination) ?? 0, cap);
     const add = Math.max(0, Math.min(daily, cap - have));

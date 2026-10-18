@@ -1,12 +1,14 @@
 /** Phase 51: people wait only for the next train (SPEC §9.5e-5). */
 import { describe, expect, it } from "vitest";
-import { MAX_WAIT_DAYS, MIN_WAIT_DAYS } from "../../../src/data/economy";
+import { MAX_WAIT_DAYS } from "../../../src/data/economy";
 import { buyTrain, setOrders } from "../../../src/sim/commands";
 import { accrueDailyCargo } from "../../../src/sim/economy/cargoFlow";
 import {
   serviceIntervalDays,
   serviceKey,
   serviceRates,
+  observedIntervalDays,
+  stampDeparture,
   waitingCap,
 } from "../../../src/sim/stations/waiting";
 import { advanceOneHour } from "../../../src/sim/tick";
@@ -15,21 +17,16 @@ import type { Station } from "../../../src/sim/stations/types";
 import { lineWithStops } from "../trains/middleStop.test";
 
 describe("the waiting cap", () => {
-  it("is the demand of the days until the next train", () => {
-    // 300 a month = 10 a day; a train every 4 days
-    expect(waitingCap(300, 4)).toBeCloseTo(40, 9);
-    expect(waitingCap(300, 7.5)).toBeCloseTo(75, 9);
-  });
-
-  it("is clamped to MIN_WAIT_DAYS and MAX_WAIT_DAYS of demand", () => {
-    expect(waitingCap(300, 0.1)).toBeCloseTo(10 * MIN_WAIT_DAYS, 9);
-    expect(waitingCap(300, 400)).toBeCloseTo(10 * MAX_WAIT_DAYS, 9);
+  it("is MAX_WAIT_DAYS of demand while a train serves the pair", () => {
+    // 300 a month = 10 a day
+    expect(waitingCap(300, true)).toBeCloseTo(10 * MAX_WAIT_DAYS, 9);
   });
 
   it("is zero with no service", () => {
-    expect(waitingCap(300, serviceIntervalDays(undefined))).toBe(0);
-    expect(waitingCap(300, serviceIntervalDays(0))).toBe(0);
-    expect(waitingCap(0, 4)).toBe(0);
+    expect(waitingCap(300, false)).toBe(0);
+    expect(waitingCap(0, true)).toBe(0);
+    expect(serviceIntervalDays(undefined)).toBeUndefined();
+    expect(serviceIntervalDays(0)).toBeUndefined();
   });
 
   it("the interval is the round trip over the number of trains that carry the people", () => {
@@ -75,7 +72,7 @@ describe("the waiting cap", () => {
     const lost =
       (flow?.month.passengers?.lostUnits ?? 0) + (flow?.lastMonth.passengers?.lostUnits ?? 0);
     expect(waiting).toBeGreaterThan(0);
-    expect(waiting).toBeLessThan(eco?.supply.passengers ?? 0); // less than a month of people
+    expect(waiting).toBeLessThanOrEqual((eco?.supply.passengers ?? 0) + 1e-9); // at most a month of people
     expect(lost).toBeGreaterThan(0);
   });
 });
@@ -118,5 +115,78 @@ describe("a multi-stop train refills its seats at an intermediate stop", () => {
     }
     expect(refilled).toBe(true);
     expect(t.cars[0]!.loadedUnits).toBeGreaterThan(0);
+  });
+});
+
+describe("people wait for the actual next train (Phase 53C)", () => {
+  /** A two-stop passenger line with a train; accrual only (the train never moves). */
+  const served = () => {
+    const { state, stationIds } = lineWithStops(3, 12, 1860);
+    for (const s of state.stations) s.hasEngineShed = true;
+    const [a, b] = stationIds;
+    expect(buyTrain(state, a!, "american-4-4-0", ["passengers"]).ok).toBe(true);
+    const t = state.trains[state.trains.length - 1] as Train;
+    setOrders(
+      state,
+      t.id,
+      [a!, b!].map((id) => ({ stationId: id, rule: "auto" as const })),
+    );
+    return { state, a: a!, b: b! };
+  };
+  const lostAt = (state: ReturnType<typeof served>["state"], id: number): number => {
+    const f = state.stationFlow.get(id);
+    return (f?.month.passengers?.lostUnits ?? 0) + (f?.lastMonth.passengers?.lostUnits ?? 0);
+  };
+
+  it("a gap shorter than MAX_WAIT_DAYS loses no one", () => {
+    const { state, a } = served();
+    for (let day = 0; day < MAX_WAIT_DAYS - 1; day++) accrueDailyCargo(state);
+    expect(state.stationCargo.get(a)?.passengers?.amount).toBeGreaterThan(0);
+    expect(lostAt(state, a)).toBe(0);
+  });
+
+  it("a long gap loses only the part above MAX_WAIT_DAYS of demand", () => {
+    const { state, a, b } = served();
+    const gap = 3 * MAX_WAIT_DAYS;
+    for (let day = 0; day < gap; day++) accrueDailyCargo(state);
+    const route = state.stationEconomy.get(a)?.passengerRoutes?.find((r) => r.destination === b);
+    const perDay = (route?.perMonth ?? 0) / 30;
+    expect(perDay).toBeGreaterThan(0);
+    const pile =
+      state.stationCargo.get(a)?.passengers?.lots?.find((l) => l.dest === b)?.amount ?? 0;
+    expect(pile).toBeCloseTo(perDay * MAX_WAIT_DAYS, 6);
+    // all other destinations share the same rule; the b-bound loss is exactly the days above the ceiling
+    expect(lostAt(state, a)).toBeGreaterThanOrEqual(perDay * (gap - MAX_WAIT_DAYS) - 1e-6);
+  });
+
+  it("what a train cannot take stays, and the pile refills from there", () => {
+    const { state, a, b } = served();
+    for (let day = 0; day < 20; day++) accrueDailyCargo(state);
+    const lot = (): number =>
+      state.stationCargo.get(a)?.passengers?.lots?.find((l) => l.dest === b)?.amount ?? 0;
+    const before = lot();
+    const lots = state.stationCargo.get(a)?.passengers?.lots?.find((l) => l.dest === b);
+    lots!.amount = before / 2; // a train took half
+    state.stationCargo.get(a)!.passengers!.amount -= before / 2;
+    for (let day = 0; day < 5; day++) accrueDailyCargo(state);
+    const perDay =
+      (state.stationEconomy.get(a)?.passengerRoutes?.find((r) => r.destination === b)?.perMonth ??
+        0) / 30;
+    expect(lot()).toBeCloseTo(before / 2 + 5 * perDay, 6);
+  });
+
+  it("the observed gap is the smoothed time between departures", () => {
+    const { state, a, b } = served();
+    state.ticks = 24;
+    stampDeparture(state, a, [b]);
+    expect(state.departures.get(serviceKey(a, b))?.gapDays).toBeUndefined();
+    state.ticks += 24 * 10;
+    stampDeparture(state, a, [b]);
+    expect(state.departures.get(serviceKey(a, b))?.gapDays).toBeCloseTo(10, 9);
+    state.ticks += 24 * 2;
+    stampDeparture(state, a, [b]);
+    expect(state.departures.get(serviceKey(a, b))?.gapDays).toBeCloseTo(8, 9); // 10 + (2 - 10) / 4
+    const rates = serviceRates(state);
+    expect(observedIntervalDays(state, rates, a, b)).toBeCloseTo(8, 9);
   });
 });

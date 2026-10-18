@@ -10,7 +10,7 @@ import {
 } from "../../data/economy";
 import type { GameState } from "../state";
 import { estimateRoundTripDays } from "../trains/headway";
-import { DAYS_PER_MONTH, calendarFromTicks } from "../time";
+import { DAYS_PER_MONTH, HOURS_PER_DAY, calendarFromTicks } from "../time";
 
 /** Departures a day, per (station, first leg), of passenger trains that call at both. Key `${station}>${firstLeg}`. */
 export type ServiceRates = Map<string, number>;
@@ -42,11 +42,44 @@ export function serviceIntervalDays(ratePerDay: number | undefined): number | un
   return ratePerDay && ratePerDay > 0 ? 1 / ratePerDay : undefined;
 }
 
-/** Most people a destination's pile holds: a day's demand x the days to the next train, clamped. Zero with no service. */
-export function waitingCap(perMonth: number, intervalDays: number | undefined): number {
-  if (intervalDays === undefined || perMonth <= 0) return 0;
-  const days = Math.min(MAX_WAIT_DAYS, Math.max(MIN_WAIT_DAYS, intervalDays));
-  return (perMonth / DAYS_PER_MONTH) * days;
+/** Most people a destination's pile holds: `MAX_WAIT_DAYS` of its demand while a train serves the pair, none without
+ * service. Phase 53C: the pile no longer follows an estimated service interval. It fills linearly from the moment the
+ * last train that carries those people left (`DepartureStamp`), what a departing train cannot take stays, and only the
+ * part above this ceiling is lost. */
+export function waitingCap(perMonth: number, served: boolean): number {
+  if (!served || perMonth <= 0) return 0;
+  return (perMonth / DAYS_PER_MONTH) * MAX_WAIT_DAYS;
+}
+
+/** A passenger train leaves `stationId` now: stamp every next stop it makes (the first legs of the people it carries),
+ * and fold the gap since the previous departure into the observed average. */
+export function stampDeparture(state: GameState, stationId: number, stops: Iterable<number>): void {
+  for (const next of stops) {
+    if (next === stationId) continue;
+    const key = serviceKey(stationId, next);
+    const old = state.departures.get(key);
+    if (!old) {
+      state.departures.set(key, { last: state.ticks });
+      continue;
+    }
+    const gap = (state.ticks - old.last) / HOURS_PER_DAY;
+    // Smoothed over ~4 departures; a gap of 0 (two trains leave together) is a real observation.
+    old.gapDays = old.gapDays === undefined ? gap : old.gapDays + (gap - old.gapDays) / 4;
+    old.last = state.ticks;
+  }
+}
+
+/** Days between trains for (station, next stop): the observed average once there is one, else the estimate. */
+export function observedIntervalDays(
+  state: GameState,
+  rates: ServiceRates,
+  stationId: number,
+  next: number,
+): number | undefined {
+  const estimate = serviceIntervalDays(rates.get(serviceKey(stationId, next)));
+  if (estimate === undefined) return undefined;
+  const seen = state.departures.get(serviceKey(stationId, next))?.gapDays;
+  return seen !== undefined && seen > 0 ? seen : estimate;
 }
 
 /** Tiles of effective distance a change of train costs at `station` for the onward leg to `next`. */

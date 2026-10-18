@@ -35,6 +35,13 @@ export interface PassengerLot {
   tick?: number;
 }
 
+/** Phase 53C: when a passenger train last left a station towards a next stop (key `serviceKey(station, next)`), and the
+ * observed average days between such departures (smoothed). People bound that way have been piling up since `last`. */
+export interface DepartureStamp {
+  last: number;
+  gapDays?: number;
+}
+
 export interface StationCargoPile {
   amount: number;
   /** Consecutive in-game days this pile has gone without any of it being picked up — the decay
@@ -120,6 +127,8 @@ export interface GameState {
   stationCargo: Map<number, Partial<Record<CargoType, StationCargoPile>>>;
   /** Per-station revenue and turned-away passengers / mail (Phase 30A) — see src/sim/stations/flow.ts. */
   stationFlow: Map<number, StationFlow>;
+  /** Phase 53C: the last passenger departure per (station, next stop); see `DepartureStamp`. Absent = "now" on first sight. */
+  departures: Map<string, DepartureStamp>;
   /** Bridges the river took and nobody has rebuilt yet (Phase 30A) — the persistent gaps in the line. */
   washouts: Washout[];
   nextWashoutId: number;
@@ -254,6 +263,7 @@ export function createGameState(options: NewGameOptions): GameState {
     stationCargo: new Map(),
     stationTransfer: new Map(),
     stationFlow: new Map(),
+    departures: new Map(),
     washouts: [],
     nextWashoutId: 0,
     industryEconomy: initIndustryEconomy(industries),

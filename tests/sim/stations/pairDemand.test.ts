@@ -215,7 +215,7 @@ describe("station economy with reachability", () => {
       orders: ids.map((stationId) => ({ stationId, rule: "auto" })),
     }) as unknown as Train;
 
-  it("a pile holds the people of the days until the next train and counts the rest as unserved (Phase 51)", () => {
+  it("a pile holds MAX_WAIT_DAYS of people while served and counts the rest as unserved (Phase 51, 53C)", () => {
     const { state, cities, stations } = world([3, 12, 21]);
     state.stations.push(...stations);
     state.cities.push(...cities);
@@ -234,8 +234,7 @@ describe("station economy with reachability", () => {
     const routes = state.stationEconomy.get(0)?.passengerRoutes ?? [];
     const rates = serviceRates(state);
     let cap = 0;
-    for (const r of routes)
-      cap += waitingCap(r.perMonth, serviceIntervalDays(rates.get(serviceKey(0, r.firstLeg))));
+    for (const r of routes) cap += waitingCap(r.perMonth, rates.has(serviceKey(0, r.firstLeg)));
     expect(cap).toBeGreaterThan(0);
     for (let day = 0; day < 120; day++) {
       accrueDailyCargo(state);

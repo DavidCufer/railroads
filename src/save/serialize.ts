@@ -58,11 +58,11 @@ function deserializeMap(data: SerializedGameMapV1): GameMap {
   };
 }
 
-function mapEntries<V>(map: ReadonlyMap<number, V>): Array<[number, V]> {
+function mapEntries<K, V>(map: ReadonlyMap<K, V>): Array<[K, V]> {
   return Array.from(map.entries());
 }
 
-function entriesMap<V>(entries: ReadonlyArray<[number, V]>): Map<number, V> {
+function entriesMap<K, V>(entries: ReadonlyArray<[K, V]>): Map<K, V> {
   return new Map(entries);
 }
 
@@ -90,6 +90,7 @@ export function serializeGameState(state: GameState): SerializedGameStateV3 {
     stationCargo: mapEntries(state.stationCargo),
     stationTransfer: mapEntries(state.stationTransfer),
     stationFlow: mapEntries(state.stationFlow),
+    departures: mapEntries(state.departures),
     washouts: state.washouts,
     nextWashoutId: state.nextWashoutId,
     industryEconomy: mapEntries(state.industryEconomy),
@@ -163,6 +164,7 @@ export function deserializeGameState(data: SerializedGameStateV3): GameState {
     stationCargo: entriesMap(data.stationCargo),
     stationTransfer: entriesMap(data.stationTransfer ?? []),
     stationFlow: entriesMap(data.stationFlow ?? []),
+    departures: entriesMap(data.departures ?? []),
     washouts: data.washouts ?? [],
     nextWashoutId: data.nextWashoutId ?? (data.washouts ?? []).length,
     industryEconomy: entriesMap(data.industryEconomy),
