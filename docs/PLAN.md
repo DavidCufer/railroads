@@ -2423,4 +2423,4 @@ Never loosen a test bound or word limit (the band in item 1 is the owner's decis
    If a balance test fails, report old/new values and the real cause; do not loosen it.
 5. PROGRESS with tables, SPEC (§7.4 effort model if changed, §7.7 rating), e2e (update, never weaken), screenshot
    `phase-57-*.png` (a heavy coal train climbing on a hill line, its train panel). LOOK at it.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [~] 3 (measured, no correction built; target missed, proposal in PROGRESS) [x] 4 [x] 5

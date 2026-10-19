@@ -6337,3 +6337,86 @@ Hard is at least 40 % below Normal on every median (1930, 36 % on three seeds in
 **5. Docs and screenshot.** SPEC §7.7 (price rule, table costs, the HST caveat), §9.5 item 7 (upkeep display) and a deviation line; PLAN status. Screenshot `docs/screenshots/phase-56b-buy-train.png` (1960 list, Modern Electric selected: $737k price, $12k/yr upkeep at 1960 prices, Cab Unit $246k, Streamliner $184k): I opened it; the electric/diesel list reads as a clear price ladder and the spec sheet's upkeep is in the same money as the price.
 
 **Decisions and deviations.** (1) Diesel hp-per-unit 100 and electric kW-per-unit 200 chosen by fit to the real engines, not tuned; (2) rate is the real price deflated by the game's own inflation, so prices in the engine's own year are real ones, which is why diesels fall; (3) High-Speed Trainset left cheap, see above; (4) the roster now shows prices at the current year's prices (was the 1830 table price); (5) `survival.ts` seeds run in parallel through async `execFile` (`JOBS=`); results are the same per seed as the sequential version (seed 1 1900 Normal 42.56 both ways).
+
+## 2026-10-19 - Phase 57: 1900 band $30-45M, High-Speed Trainset priced by its real rating, freight engines measured (no model error found)
+
+**State: items 1, 2, 4, 5 done. Item 3: measured, and no correction built (nothing found that is a clear modelling error and helps; the numbers and a proposal are below). `npm run check` green; e2e both shards green (see end).** Good bot 1900 Normal median $38.61M is inside $30-45M.
+
+**1. Band.** 1900 Normal good bot: $30-45M, median of 10 seeds (owner decision, 2026-10-19). Written in PLAN (Phase 41-44 bounds and Phase 57), HANDOFF (balance section) and the `tools/bench/survival.ts` header. Other bounds unchanged (good survives everywhere; Hard >= 40 % below Normal).
+
+**2. Price by real rating.** `LocomotiveDef.ratedPowerKw` / `ratedPowerHp` (optional, source note beside each): used only by `locoBasePrice` (price = real rating x $60 per kW or hp, as in 56B); speed still uses `power`. Checked every diesel and electric against the engine it stands for (rating in game units = power x 100 hp or 200 kW):
+| engine | game power -> rating | real engine | real rating | verdict |
+|---|---|---|---|---|
+| Early Electric | 12 -> 2.4 MW | PRR DD1 / NYC S-motor | 2.2-3 MW | left |
+| Streamliner Diesel | 12 -> 1,200 hp | EMC E1/E2 A unit | 2,000 hp | **cap (40 % under): set 2,000 hp** |
+| E-Unit Electric | 18 -> 3.6 MW | PRR GG1 | 3.45 MW | left |
+| Cab Unit Diesel | 16 -> 1,600 hp | EMD F7 | 1,500 hp | left |
+| Road Switcher Diesel | 19 -> 1,900 hp | EMD GP9 | 1,750 hp | left |
+| Modern Electric | 24 -> 4.8 MW | Re 4/4 II | 4.7 MW | left |
+| High-Horsepower Diesel | 26 -> 2,600 hp | EMD SD40-2 | 3,000 hp | left (13 % under, inside the fit's scatter) |
+| Heavy Diesel | 32 -> 3,200 hp | EMD SD70 | 4,000 hp | left (20 % under; I did not treat 20 % as a "clear cap", owner call) |
+| High-Speed Trainset | 16 -> 3.2 MW | TGV Atlantique | 8,800 kW | **cap (64 % under): set 8,800 kW** |
+| Heavy Freight Electric | 40 -> 8 MW | Re 6/6 | 7.8 MW | left |
+
+Prices (1830 prices; real price in the engine's year is x `eraInflation`): High-Speed Trainset **$192k -> $528k** (Phase 55: $600k); Streamliner Diesel **$72k -> $120k** (Phase 55: $180k). Upkeep unchanged (by weight). The Streamliner is the only change to a pre-1950 engine, so it touches the 1930 and 1950 bot runs (below). Test `locoSize.test.ts` uses the rating when present and checks the HST ($528k, dearer than the Heavy Freight Electric); e2e `phase57.spec.ts` checks both prices in 1995 (within 3 %: the list shows two figures at $1M+).
+
+**3. A job for freight engines: measured, no build.**
+
+*3a Bench.* `tools/bench/freight.ts` (new; env STARTS, MULTS, MINES, FACILITY, CARS, SEEDS, FLAT). A 240 km coal line: mine in a valley (elevation 2), a ridge of 5 steps in 5 tiles (the game's steepest grade, 1 step a tile) on the loaded run, down to the plain, steel mill on the plain. Every buyable non-passenger engine of 1870/1900/1930/1950 at 3, 6, 10, 14 cars and its own maximum; train's own books as in `engineCosts.ts`, 2 seeds, last of 3 years. Mine output is **held** at a multiple of the base 60 t/month (3 car-loads) by resetting `growthMult` every day: x2.16 is the mine after **10 years** of well-served growth (8 %/yr, `INDUSTRY_GROWTH_RATE_ANCHORS`), x3 (the cap) after 14; also 3 mines in one station's catchment. The fixture (`tests/sim/balanceRoutes.ts`) got `elevationByX`, `outputMult`, `extraProducers`, `loadRule`, `warehouse` (all optional, default unchanged).
+
+*The first finding is not about engines.* With the fixture's default **Depot** at the mine and "auto" loading, a train takes what is in the pile at arrival and a Depot's pile holds **40 t** (`storagePerCargo`, 2 car-loads), so every train leaves with 2-4 loaded cars whatever its length, and the cheapest short train wins (Norris x3 0.5-0.7 yr in every era; an Articulated with 22 cars carried 836 t a year). Not an engine mechanism. With a **Terminal** at the mine, a Warehouse (pile 300 t) and "wait for full load" (what a player hauling long trains builds), the long trains work:
+
+Best by case, 3 mines at x2.16 (389 t/month, 19 car-loads), 240 km, payback years (best profit per year in brackets):
+| era | Depot, auto | Terminal + Warehouse, full load |
+|---|---|---|
+| 1870 | Norris x3 0.4 (American x3 145k) | Mogul x9 0.3 (Mogul x9 335k) |
+| 1900 | Norris x3 0.5 (Atlantic x6 205k) | Ten-Wheeler x8 0.4 (Ten-Wheeler x8 409k) |
+| 1930 | Norris x3 0.6 (Early Electric x6 245k) | Early Electric x9 0.4 (E-Unit x10 932k) |
+| 1950 | Norris x3 0.6 (Streamliner x3 324k) | Cab Unit x14 0.2 (E-Unit x12 1,256k) |
+
+Heavy freight engines, 1950, Terminal setup, 3 mines x2.16 (their own best consist):
+| engine | cars | train price | profit/yr | payback yrs |
+|---|---|---|---|---|
+| Ten-Wheeler | 8 | 204k | 467k | 0.4 |
+| Consolidation | 12 | 245k | 414k | 0.6 |
+| Mikado | 14 | 464k | 812k | 0.6 |
+| Hudson | 10 | 598k | 822k | 0.7 |
+| Articulated | 14 / 22 | 1,254k / 1,293k | 895k / 808k | 1.4 / 1.6 |
+| Cab Unit Diesel | 14 | 303k | 1,232k | 0.2 |
+| Road Switcher Diesel | 14 | 346k | 1,244k | 0.3 |
+
+*3b The missing mechanism: checked each listed item.*
+- **Engine weight in the effort model** (`LOCO_WEIGHT_UNITS` 2 for all). Real basis: one weight unit is a loaded car, 30 t (12 t empty + 18 t load; 0.4 = 12/30), so the engine counts as `weightTonnes / 30` (Grasshopper 0.27, Articulated 18). I built it and measured: it makes heavy engines *slower*, the opposite of what is wanted (Articulated x14 895k -> 737k, Mikado x14 812k -> 721k, Ten-Wheeler x8 409k -> 368k; best payback unchanged: Ten-Wheeler / Cab Unit). It also needs every engine's `power` re-fitted (the roster's Power was tuned against the flat 2), which would reach the passenger results and the bot. **Reverted, not kept.**
+- **Adhesion / grade** (`GRADE_EFFORT_FACTOR` 0.6). Physics says a 1 % grade multiplies a train's resistance by about 3.5, so 0.6 per step understates climbing, but I could not give a real basis for a game-unit-to-grade conversion (a step is about 450 m of rise charged to one 5 km edge). Experiment only: factor 3 and factor 12 (5x and 20x): best payback and best-profit engines unchanged (Ten-Wheeler x8 / Cab Unit x14 best payback; Atlantic / E-Unit best profit). **Grade is not what holds heavy engines back.** Not built.
+- **Crew per train vs per car** (`trainCrewSize`: footplate crew + one guard per 4 cars). Real freight crews did not grow with train length (a conductor and two brakemen up to any length), so a 22-car train is over-staffed in the game (Articulated: 3 + 5). The effect is small: wages are 19k of 246k revenue on the Articulated case. A freight-only rule would be a real correction but changes nothing in the ranking; left, noted.
+- **Car weight units vs tonnes:** 1 unit = 30 t loaded, 12 t empty (0.4), as `CAR_EMPTY_TONS` + `CAR_LOAD_TONS`: consistent, no error.
+- **Industry output:** not the missing piece. At 10x and 30x the base output (600 and 1,800 t/month, beyond the x3 cap, in the bench only) the ranking is the same (Ten-Wheeler x8 / Cab Unit x14), because the train, not the mine, is the limit (a Terminal + Warehouse pile caps one visit at 300 t anyway). I changed no output.
+
+*3c What it is: the price grows faster than the haul.* Throughput (max cars x max km/h x 20 t) per $1,000 of 1830 price, steam freight line: Norris 400, American 267, Ten-Wheeler 178, Consolidation 157, Pacific 153, Mikado 130, Hudson 120, **Articulated 86**; diesels Cab Unit 350, Road Switcher 295, High-Horsepower 321, Heavy Diesel 325. Steam price is weight x $900 and weight outgrows `maxCars` x speed: an Articulated is 540 t pulling 22 x 20 t = 440 t of coal (a real 4-8-8-4 pulled 3,600 t, 100+ wagons; the game's trains are 4-5 times shorter, car lengths and `maxCars` being a scale choice). So a heavy steam engine earns the most per train (895k vs 467k) and needs the fewest crews and track slots, but costs 6x the Ten-Wheeler, and the payback bot, which looks at one train, always prefers the cheaper one. Diesels are priced by horsepower and win (Cab Unit 0.2 yr).
+
+*Proposal for the owner (not built; it changes prices or scale):* (1) price heavy steam freight engines by hauling capacity rather than weight (builders quoted by tractive effort; e.g. weight x min(1, maxCars / reference) or a per-tonne rate that falls with size, source: Big Boy about $480/t against a 4-4-0 about $280/t at their own prices), or (2) raise `maxCars` of the heavy engines (and station `maxTrainLength`) toward real train lengths, a scale change touching loading time and signalling, or (3) let the payback bot count the fleet needed to carry a line's whole output (crews, track slots, a Depot-to-Terminal upgrade) instead of one train. I recommend (1) with the small crew correction for freight; each needs a balance run. A smaller thing: a Depot at a mine caps every visit at 2 car-loads and "auto" loading never waits; the Buy Train / station panels say nothing of it (a hint, not a price).
+
+**Target 3d: missed, openly.** On the hill coal line a freight engine of its era is the best payback only in 1870 (Mogul x9 0.3 yr; Consolidation does not exist yet) and, among Terminal setups, never again: 1900 Ten-Wheeler 0.4 vs Consolidation 0.5, 1950 Cab Unit 0.2 vs Mikado 0.6 / Articulated 1.4. Passenger results of Phase 56 are untouched (no model change).
+
+**4. Balance (medians of 10 seeds, good bot, `SEEDS=10 JOBS=5 BOTS=good`).** All 80 runs survive (0/10 bankrupt in every cell).
+| start | Normal NW $M median [min-max] | 56B | Hard NW $M median [min-max] | Hard below Normal |
+|---|---|---|---|---|
+| 1840 | 22.32 [21.57-23.41] | 22.32 | 11.52 [8.91-14.08] | 48 % |
+| 1900 | **38.61** [34.26-44.64] | 38.61 | 10.70 [10.20-12.33] | 72 % |
+| 1930 | 10.28 [9.90-15.69] | 11.62 | 5.62 [4.74-6.22] | 45 % |
+| 1950 | 7.37 [6.97-7.74] | 7.44 | 3.87 [3.46-4.23] | 47 % |
+
+1900 Normal $38.61M is inside $30-45M (all ten seeds are within it, 34.26 to 44.64). 1840, 1900 and the 1840/1900 Hard cells are identical to 56B (no change touches them); 1930 Normal fell from 11.62 to 10.28 and 1950 from 7.44 to 7.37 and the only change that reaches those starts is the Streamliner price, $120k not $72k (the real-rating price, not a tuning); I did not trace which purchases the bot changed. Hard is at least 40 % below Normal in all four eras. The HST (1981) is outside every start's window (start + 16), the bot never meets it.
+
+Bad bots, 3 seeds (bankrupt / runs; "-" = could not afford a first line, as in earlier phases): 
+| bot | 1840 N | 1840 H | 1900 N | 1900 H | 1930 N | 1930 H | 1950 N | 1950 H |
+|---|---|---|---|---|---|---|---|---|
+| overbuilder | 1/3 | 3/3 | 3/3 | 3/3 | 3/3 | - | 3/3 | 3/3 |
+| trainSpammer | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | - | 3/3 | 1/3 |
+| leveraged | 1/3 | 3/3 | 2/3 | 3/3 | 3/3 | - | 3/3 | 1/3 |
+
+Some bad-bot bounds are missed (1840 Normal 1/3, 1950 Hard 1/3, 1900 leveraged Normal 2/3), as the HANDOFF note says the owner said to forget; not chased, not worsened by this phase (the only change they see is the Streamliner price).
+
+**5. Docs.** SPEC §7.7 (rated power rule and the checked list, the two new prices, table rows) and the change log; PLAN status; HANDOFF band. Screenshot `docs/screenshots/phase-57-coal-climb.png` (1945: an Articulated with 12 coal cars, full, on the ridge of a hill line, its train panel open; I opened it: the train is long and loaded, the hills terrain shows, the panel shows Articulated, 95 km/h, Full load at the mine).
+
+**Decisions and deviations.** (1) Streamliner included in the rated-power fix (40 % under its real 2,000 hp) while High-Horsepower and Heavy Diesel (13 %, 20 % under) were left; the line I drew is "far below, more than a third". (2) Item 3 built no correction: the two real corrections I found (engine weight in the effort model; freight crew by train not by car) either hurt freight or do not change it, and the real cause is price against haul and the facility, which are balance-scale decisions for the owner. (3) The new bench is in `tools/bench/freight.ts`; `engineCosts.ts` is untouched. (4) The e2e price test allows 3 % because the engine list rounds to two figures above $1M.

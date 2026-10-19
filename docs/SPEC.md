@@ -413,8 +413,13 @@ kW per unit: GG1 3.45 MW = 18, Re 4/4 II 4.7 MW = 24, Re 6/6 7.8 MW = 40), at $6
 about $215k in 1949, $143/hp, / `eraInflation(1949)` 2.43 = $59; a GG1 about $460k in 1934, $133/kW, / 2.25 = $59), so the
 price in the engine's own year is the real one. Maintenance stays by weight (shop labour follows the machine's size)
 = weight × upkeep per tonne (steam $100, diesel $75, electric $50 a year). Both in $ at 1830 prices; era inflation
-applies at purchase (see §9.5). Known gap: the High-Speed Trainset's game Power (16) is far below its real 8.8 MW, so it
-is priced as a 16-unit electric ($192k at 1830 prices; its old price was $600k). The spec sheet, the roster and the buy
+applies at purchase (see §9.5). **Rated power (Phase 57):** where the game's Power is a gameplay cap far below the real
+rating, the model carries `ratedPowerKw` / `ratedPowerHp` and the price follows that instead (price only; speed uses
+Power): High-Speed Trainset TGV Atlantique 8,800 kW ($528k, was $192k; its Power 16 stood for 3.2 MW) and Streamliner
+Diesel EMC E1/E2 2,000 hp ($120k, was $72k; Power 12 = 1,200 hp). The others were checked against their real engines and
+left: Early Electric 2.4 MW (DD1 about 2.2-3 MW), E-Unit 3.6 MW (GG1 3.45), Cab Unit 1,600 hp (F7 1,500), Road Switcher
+1,900 hp (GP9 1,750), Modern Electric 4.8 MW (Re 4/4 II 4.7), High-Horsepower Diesel 2,600 hp (SD40-2 3,000, 13 % under),
+Heavy Diesel 3,200 hp (SD70 4,000, 20 % under), Heavy Freight Electric 8 MW (Re 6/6 7.8). The spec sheet, the roster and the buy
 wizard show the price **and the yearly upkeep at the current year's prices** (§9).
 
 | Model | Type | Intro | Max km/h | Power | Max cars | Weight | Cls | Reliab. | Cost | Maint./yr |
@@ -432,14 +437,14 @@ wizard show the price **and the yearly upkeep at the current year's prices** (§
 | Hudson 4-6-4 | Steam | 1927 | 135 | 14 | 10 | 250 t | H | 4 | $225k | $25k |
 | Articulated 4-8-8-4 | Steam | 1941 | 95 | 26 | 22 | 540 t | H | 3 | $486k | $54k |
 | Early Electric | Electric | 1905 | 110 | 12 | 9 | 90 t | M | 3 | $144k | $4.5k |
-| Streamliner Diesel | Diesel | 1934 | 145 | 12 | 8 | 130 t | M | 3 | $72k | $9.8k |
+| Streamliner Diesel | Diesel | 1934 | 145 | 12 | 8 | 130 t | M | 3 | $120k | $9.8k |
 | E-Unit Electric | Electric | 1928 | 160 | 18 | 12 | 210 t | H | 4 | $216k | $10.5k |
 | Cab Unit Diesel | Diesel | 1939 | 120 | 16 | 14 | 105 t | M | 4 | $96k | $7.9k |
 | Road Switcher Diesel | Diesel | 1949 | 105 | 19 | 16 | 115 t | M | 5 | $114k | $8.7k |
 | Modern Electric | Electric | 1960 | 180 | 24 | 16 | 90 t | H | 5 | $288k | $4.5k |
 | High-Horsepower Diesel | Diesel | 1963 | 125 | 26 | 20 | 180 t | H | 5 | $156k | $13.5k |
 | Heavy Diesel | Diesel | 1976 | 130 | 32 | 24 | 195 t | H | 5 | $192k | $14.7k |
-| High-Speed Trainset | Electric | 1981 | 270 | 16 | 10 | 136 t | M | 5 | $192k | $6.8k |
+| High-Speed Trainset | Electric | 1981 | 270 | 16 | 10 | 136 t | M | 5 | $528k | $6.8k |
 | Heavy Freight Electric | Electric | 1994 | 140 | 40 | 28 | 120 t | H | 5 | $480k | $6k |
 
 - High-Speed Trainset: passenger & mail cars only.
@@ -1203,3 +1208,4 @@ localization (English only, but keep strings in one `strings.ts` file for later)
 - [Phase 55] §7.5 overtaking at stations and passing loops (and loops on double track), the passing-loop entry of the Phase 30A list (the Station tool's Station / Passing loop choice), §10.1 the Main menu row and explanations that stay, §5.3 double track 1.75x (upgrade 0.75x, was 1.6 / 0.6; bridges unchanged).
 - [Phase 56] §7.7: every engine has a real working weight; price and upkeep are derived from it (steam $900/t, electric $1,350/t, diesel $1,800/t; upkeep $100/$50/$75 per tonne a year), so the roster's price range widens (Grasshopper $7k, Hudson $225k, Articulated $486k at 1830 prices). §9.5b: loco tonnes in the wear model and the fuel ratio are the model's own weight (the 18/45/90 t classes are gone), and a repair bill per tile run is new (item 7).
 - [Phase 56B] §7.7: diesel and electric price = installed power (game Power × 100 hp or 200 kW) × $60 at 1830 prices, steam stays by weight; diesels fall to 0.40-0.71 of their Phase 55 price, electrics are back near it (Modern Electric $288k, Heavy Freight $480k); High-Speed Trainset $192k (its game Power is capped). §9: the upkeep shown beside an engine's price is at the current year's prices.
+- [Phase 57] §7.7: `ratedPowerKw` / `ratedPowerHp` price an engine by its real rating where game Power is a cap: High-Speed Trainset $528k (was $192k), Streamliner Diesel $120k (was $72k); the other diesels and electrics checked and left. Good-bot 1900 Normal band is $30-45M on the median of ten seeds (was $20-34M). No change to the effort model (§7.4): engine weight in it and a steeper grade were measured and did not help freight engines (PROGRESS Phase 57).
