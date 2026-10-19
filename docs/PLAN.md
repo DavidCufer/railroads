@@ -2470,3 +2470,52 @@ multipliers. Never loosen a test bound or word limit. Measure before and after e
 6. PROGRESS with tables, SPEC (§7.4, §7.7, §8 cargo urgency, stations), e2e (update, never weaken), screenshots
    `phase-58-*.png`: a long coal train with a heavy engine on a hill line, a short local, the buy list. LOOK at them.
 Status: [x] 1 [x] 2 [x] 3 [x] 4 (measured; freight-engine targets missed, see PROGRESS) [x] 5 [x] 6
+
+## Phase 59 — Track joins that work, a strong test player, and an economy checked against real railways
+
+Owner play-test (2026-10-19, Normal, 1845), "Go" on the orchestrator's proposal:
+- "Had some problems building rails here": `docs/playtests/pt6-track-red.jpg` (a straight E-W drag from the NE-SW line to
+  the NW-SE line is red; the refused step is at the join with the NW-SE line; no reason shown) and
+  `docs/playtests/pt6-track-suggestion.jpg` ("Smallest legal connection $12k" detours south to another line instead).
+- "On Normal the game is way too easy. I almost cannot build as fast as I can make money. Maybe the bots are too stupid?"
+
+Real mechanisms only; numbers in `src/data` with a one-line justification **and a source**. No flat multipliers. An era
+table is allowed only where each row has a real source. Never loosen a test bound or word limit.
+
+1. **Track joins (do first, push on its own).**
+   - Reproduce the owner's layout in a unit test: two diagonal lines crossing in a V, a straight E-W drag joining one at a
+     mid-line tile from the other. Find why the join step is refused (sharp turn, junction-layout rule, diagonal node
+     geometry). If it is a bug, fix it. If it is a rule, check it against real practice: a turnout off a diagonal line
+     at 45° is a normal junction and should be legal.
+   - A red drag always says why, in one short line near the cost label (strings.ts, word limits kept), e.g. "Too sharp
+     to join here" or "Junction too close to another".
+   - "Smallest legal connection" prefers a legal join next to where the drag ended (nearest tiles on the same line)
+     before any detour to another line. Test both.
+   - e2e: the owner's case draws green (or shows the reason and a nearby legal suggestion). Screenshot
+     `phase-59-track-join.png`. LOOK at it.
+2. **A strong test player** (`tools/bench/strongPlayer.ts`, keep `goodPlayer.ts` as the cautious reference). Plays like
+   the owner: spends cash as soon as a profitable build is available (small reserve: one month of costs), builds
+   multi-stop lines through towns, adds freight lines (mine/forest/farm to their consumers, Terminal + full load where
+   output is big), picks engines by payback (`paybackEstimate.ts`), adds trains while lines have waiting cargo, upgrades
+   busy single track. Must not go bankrupt in 10 seeds on Normal, 1840 and 1900. Report its net worth, trains, track
+   and cash curve by year next to the good bot's, and how fast cash piles up unspent ("cash idle > 20 % of net worth"
+   is the owner's "cannot build as fast as I make money").
+3. **Economy against real railways (measure first).**
+   a. Measure, per era (1840, 1870, 1900, 1930, 1950), for the strong player on Normal: operating ratio (operating costs
+      / revenue), return on capital (operating profit / capital invested), payback of a new line and of a train, and
+      the cost split (crew, fuel, engine and car upkeep, track upkeep, stations, overheads).
+   b. Find the real figures with sources (web search): operating ratios of British and US railways by decade (roughly
+      50-60 % in the 1840s-60s, 60-70 % around 1900, 70-80 % in the 1920s-50s — verify), returns on railway capital
+      (a few % to ~10 %), the real cost split (maintenance of way, motive power, transportation, general/administration,
+      taxes). Write them in PROGRESS with links.
+   c. Compare. Where a real cost category is missing or far too small in the game, add or correct it from its real
+      source (e.g. general administration and taxes as a share of revenue or of capital; track maintenance per
+      train-mile; station staff; car upkeep). Do not cut fares unless a fare is shown to be above the real one.
+   d. Target, Normal, strong player: operating ratio inside the real range of its era (a game may sit at the low end),
+      return on capital well above real (it is a game) but cash is tight for the first several years: report how many
+      years until "cash idle > 20 % of net worth". Hard must stay harder than Normal by >= 40 % (medians).
+4. **Bands.** Re-run good bot and strong player, 10 seeds, all eras, Normal and Hard (medians), bad bots 3 seeds. Do
+   not set new bands yourself: report the numbers; the owner decides the new bands. Good survives everywhere; the strong
+   player survives on Normal. If a balance test fails, report old/new values and the real cause; do not loosen it.
+5. PROGRESS with tables and sources, SPEC (§9 costs, §5 track joins), e2e (update, never weaken), screenshots. LOOK.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
