@@ -659,6 +659,25 @@ function spend(): void {
 
 // --- the run ----------------------------------------------------------------------------------------------------------
 
+/** The year's running costs by ledger line, in $k, for the cost-split table (trainMaintenance = fuel, servicing, car upkeep). */
+function splitOf(p: LedgerPeriod): string {
+  const keys = [
+    "trainMaintenance",
+    "crewWages",
+    "trackMaintenance",
+    "trackWear",
+    "stationMaintenance",
+    "administration",
+    "propertyTax",
+    "breakdownRepairs",
+    "interest",
+    "incomeTax",
+  ] as const;
+  return keys
+    .map((k) => `${k}=${Math.round(((p as unknown as Record<string, number>)[k] ?? 0) / 1000)}`)
+    .join(",");
+}
+
 let minCash = Infinity;
 let trackTiles = 0;
 const report: string[] = [];
@@ -699,7 +718,7 @@ for (let y = 1; startYear + y <= endYear + 0; y++) {
   const nw = netWorth(state);
   if (idle20 === null && state.cash > 0.2 * nw && y >= 2) idle20 = startYear + y;
   rows.push(
-    `YEAR ${startYear + y} cash ${(state.cash / 1e6).toFixed(2)}M NW ${(nw / 1e6).toFixed(2)}M trains ${state.trains.length} edges ${trackTiles} stations ${state.stations.length} rev ${(rev / 1e6).toFixed(2)}M opcost ${(op / 1e6).toFixed(2)}M opratio ${rev > 0 ? (op / rev).toFixed(2) : "-"} opprofit ${(ledgerOperatingProfit(last) / 1e6).toFixed(2)}M capital ${(state.finance.capitalInvested / 1e6).toFixed(2)}M loans ${(state.finance.loans / 1e6).toFixed(1)}M idle ${((100 * Math.max(0, state.cash)) / Math.max(1, nw)).toFixed(0)}%`,
+    `YEAR ${startYear + y} cash ${(state.cash / 1e6).toFixed(2)}M NW ${(nw / 1e6).toFixed(2)}M trains ${state.trains.length} edges ${trackTiles} stations ${state.stations.length} rev ${(rev / 1e6).toFixed(2)}M opcost ${(op / 1e6).toFixed(2)}M opratio ${rev > 0 ? (op / rev).toFixed(2) : "-"} opprofit ${(ledgerOperatingProfit(last) / 1e6).toFixed(2)}M capital ${(state.finance.capitalInvested / 1e6).toFixed(2)}M loans ${(state.finance.loans / 1e6).toFixed(1)}M idle ${((100 * Math.max(0, state.cash)) / Math.max(1, nw)).toFixed(0)}% stock ${((nw - state.cash + state.finance.loans - 0.5 * state.finance.capitalInvested) / 1e6).toFixed(2)}M split ${splitOf(last)}`,
   );
   if (wanted.has(y))
     report.push(
