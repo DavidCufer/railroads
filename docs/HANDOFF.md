@@ -64,7 +64,7 @@ Read this first, then `CLAUDE.md`, the last ~5 entries of `docs/PROGRESS.md`, an
   panels with word-count limits enforced by `e2e/phase49Words.spec.ts`. Zoom flicker fixed. Toast cap 3.
 - **Earlier**: contracts (45); scenarios, achievements and history (46); a contract income line (47).
 - **Balance** (Phase 54 tables in PROGRESS):
-  - The good bot survives everywhere. 1900 Normal is $31–34M (target 20–34). Hard is ≥ 48 % below Normal.
+  - The good bot survives everywhere. 1900 Normal is $31–34M (target 20–34; **Phase 57: the band is now $30–45M, median of 10 seeds**, Phase 56B measured $38.6M). Hard is ≥ 48 % below Normal.
   - 1840 Normal good bot ≈ $20M (the old reference was ~$4M). Some bad-bot bankrupt bounds are missed.
   - **The owner said "let's forget about those" (2026-10-18).** Do not chase them unless the owner asks.
 

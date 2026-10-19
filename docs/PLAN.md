@@ -2345,7 +2345,7 @@ or flat multipliers. Never loosen a test bound or word limit.
    not tune a fudge to hit it. Report misses openly.
 4. **Balance.** The good bot picks the engine with the best payback for each line (instead of `bestLoco()`, the fastest),
    keeping its backlog/reserve rules. Re-run survival (good + bad bots, 1840/1900/1930/1950, Normal and Hard, 3 seeds).
-   Bounds: good survives everywhere; good 1900 Normal $20-34M; Hard >= 40 % below Normal. If the good bot falls outside
+   Bounds: good survives everywhere; good 1900 Normal $20-34M (Phase 57: now $30-45M on the median of 10 seeds); Hard >= 40 % below Normal. If the good bot falls outside
    $20-34M, stop and report the numbers and the cause for the owner; do not change revenue or loosen the bound.
    Balance tests (`balance*.test.ts`) that fail: report old/new values and the real reason; do not loosen them.
 5. SPEC (§7.7 roster table, §9 costs), PROGRESS with all tables, e2e (update, never weaken; the buy wizard shows the new

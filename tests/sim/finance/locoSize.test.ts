@@ -18,13 +18,23 @@ const loco = (id: string) => locomotiveById(id)!;
 describe("engine price and upkeep follow the real weight (Phase 56)", () => {
   it("steam is priced by weight, diesel and electric by installed power; upkeep is weight times the type's rate", () => {
     for (const l of LOCOMOTIVES) {
+      const rating =
+        (l.type === "electric" ? l.ratedPowerKw : l.ratedPowerHp) ??
+        l.power * (l.type === "steam" ? 0 : POWER_RATING_PER_UNIT[l.type]);
       const raw =
         l.type === "steam"
           ? l.weightTonnes * STEAM_PRICE_PER_TONNE
-          : l.power * POWER_RATING_PER_UNIT[l.type] * POWER_PRICE_PER_RATING[l.type];
+          : rating * POWER_PRICE_PER_RATING[l.type];
       expect(l.cost).toBeCloseTo(raw, -3);
       expect(l.maintenancePerYear).toBeCloseTo(l.weightTonnes * LOCO_UPKEEP_PER_TONNE[l.type], -2);
     }
+  });
+
+  it("the High-Speed Trainset is priced by its real 8.8 MW, not by its game power cap (Phase 57)", () => {
+    const hst = loco("high-speed-trainset");
+    expect(hst.ratedPowerKw).toBe(8800);
+    expect(hst.cost).toBe(528000);
+    expect(hst.cost).toBeGreaterThan(loco("heavy-freight-electric").cost);
   });
 
   it("a Hudson costs about five Americans to buy and keep, a Grasshopper a sixth", () => {

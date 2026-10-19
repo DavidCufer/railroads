@@ -2,6 +2,7 @@
  * synthetic plain map, a cargo, a loco, a distance in km. Used by tests/sim/balanceReport.test.ts. */
 import {
   buildStation,
+  buildImprovement,
   buildTrack,
   buyTrain,
   electrifyTrack,
@@ -48,6 +49,15 @@ export interface RouteSpec {
   shedAtBothEnds?: boolean;
   /** Electrify the line (catenary upkeep is part of the ledger; the electrification itself is capital). */
   electrified?: boolean;
+  /** Phase 57: elevation (0-9) by column along the line, the same on every row; absent: flat. */
+  elevationByX?: (x: number, width: number) => number;
+  /** Phase 57 freight: the first producer's monthly output as a multiple of the base (service growth, SPEC §8). */
+  outputMult?: number;
+  /** Phase 57 freight: further producers of the same type beside the first, each at `outputMult`. */
+  extraProducers?: number;
+  /** Phase 57: loading rule at the first station (default auto) and a Warehouse there (doubles its freight pile). */
+  loadRule?: "auto" | "fullLoad";
+  warehouse?: boolean;
 }
 
 export interface RouteResult {
@@ -104,7 +114,10 @@ export function buildRoute(spec: RouteSpec): { state: GameState; cars: number } 
   const isCity = spec.cargo === "passengers" || spec.cargo === "mail";
   const width = tiles + 3;
   const rows = Array.from({ length: 4 }, () => Array.from({ length: width }, () => "p").join(""));
-  const map = makeTestMap(rows);
+  const elevation = spec.elevationByX
+    ? rows.map(() => Array.from({ length: width }, (_, x) => spec.elevationByX!(x, width)))
+    : undefined;
+  const map = makeTestMap(rows, elevation);
   const state = makeTestState(map, {
     startYear: spec.year,
     seed: spec.seed ?? 1,
@@ -164,6 +177,27 @@ export function buildRoute(spec: RouteSpec): { state: GameState; cars: number } 
     };
     add(0, spec.producer as IndustryType, ax);
     add(1, spec.acceptor as IndustryType, bx);
+    // further producers beside the first, all within a depot's one-tile catchment of the loading station
+    const extraSites: Array<[number, number]> = [
+      [ax + 1, 1],
+      [ax, 3],
+      [ax + 1, 3],
+    ];
+    for (let i = 0; i < (spec.extraProducers ?? 0); i++) {
+      const [x, y] = extraSites[i] as [number, number];
+      map.industryId[tileAt(map, x, y)] = 2 + i;
+      state.industries.push({ id: 2 + i, type: spec.producer as IndustryType, x, y });
+      state.industryEconomy.set(2 + i, {
+        inputStock: {},
+        monthlyOutput: { ...INDUSTRIES[spec.producer as IndustryType].produces },
+      });
+    }
+    for (const econ of [0, ...Array.from({ length: spec.extraProducers ?? 0 }, (_, i) => 2 + i)]) {
+      const e = state.industryEconomy.get(econ)!;
+      for (const c of Object.keys(e.monthlyOutput) as CargoType[])
+        e.monthlyOutput[c] = (e.monthlyOutput[c] ?? 0) * (spec.outputMult ?? 1);
+      e.growthMult = spec.outputMult ?? 1;
+    }
     markProcessorSink(state);
   }
   const path = Array.from({ length: bx - ax + 1 }, (_, i) => tileAt(map, ax + i, trackY));
@@ -175,6 +209,7 @@ export function buildRoute(spec: RouteSpec): { state: GameState; cars: number } 
   const st = spec.stationType ?? (isCity ? "station" : "depot");
   if (!buildStation(state, tileAt(map, ax, trackY), st).ok) throw new Error("station a");
   if (!buildStation(state, tileAt(map, bx, trackY), st).ok) throw new Error("station b");
+  if (spec.warehouse && !buildImprovement(state, 0, "warehouse").ok) throw new Error("warehouse");
   const sa = state.stations[0] as { id: number };
   const sb = state.stations[1] as { id: number; hasEngineShed: boolean };
   if (spec.shedAtBothEnds) sb.hasEngineShed = true;
@@ -187,7 +222,7 @@ export function buildRoute(spec: RouteSpec): { state: GameState; cars: number } 
   );
   if (!bought.ok) throw new Error(`buyTrain ${JSON.stringify(bought)}`);
   const r = setOrders(state, state.trains[0]!.id, [
-    { stationId: sa.id, rule: "auto" },
+    { stationId: sa.id, rule: spec.loadRule ?? "auto" },
     { stationId: sb.id, rule: "auto" },
   ]);
   if (!r.ok) throw new Error("orders");

@@ -13,6 +13,11 @@ export interface LocomotiveDef {
   introYear: number;
   maxSpeedKmh: number;
   power: number;
+  /** Real rated power of the engine this model stands for, in kW (electric) or hp (diesel). Used only for the price
+   * (`locoBasePrice`), and only where `power` is a gameplay cap far below the real rating; absent, the price follows
+   * `power` at `POWER_RATING_PER_UNIT`. */
+  ratedPowerKw?: number;
+  ratedPowerHp?: number;
   /** Most cars it can haul. Phase 48: early engines raised to the historical train lengths (1830s-50s passenger
    * trains ran 6-12 carriages: companies lengthened trains before adding paths, as every train needs its own crew
    * and path). More cars cost speed through the tractive-effort model in `computeTargetSpeed` (power over train weight,
@@ -50,12 +55,15 @@ export const POWER_RATING_PER_UNIT = { diesel: 100, electric: 200 } as const;
 export const POWER_PRICE_PER_RATING = { diesel: 60, electric: 60 } as const;
 
 /** Price at 1830 prices: steam by weight, diesel and electric by installed power (rounded to $500). */
-export function locoBasePrice(spec: Pick<LocoSpec, "type" | "weightTonnes" | "power">): number {
-  const raw =
-    spec.type === "steam"
-      ? spec.weightTonnes * STEAM_PRICE_PER_TONNE
-      : spec.power * POWER_RATING_PER_UNIT[spec.type] * POWER_PRICE_PER_RATING[spec.type];
-  return Math.round(raw / 500) * 500;
+export function locoBasePrice(
+  spec: Pick<LocoSpec, "type" | "weightTonnes" | "power" | "ratedPowerKw" | "ratedPowerHp">,
+): number {
+  if (spec.type === "steam")
+    return Math.round((spec.weightTonnes * STEAM_PRICE_PER_TONNE) / 500) * 500;
+  const rating =
+    (spec.type === "electric" ? spec.ratedPowerKw : spec.ratedPowerHp) ??
+    spec.power * POWER_RATING_PER_UNIT[spec.type];
+  return Math.round((rating * POWER_PRICE_PER_RATING[spec.type]) / 500) * 500;
 }
 /** Phase 56: yearly depot, inspection and overhaul upkeep per tonne at 1830 prices (before the year's running-cost
  * share). A steam engine needed about twice the shed labour of a diesel (boiler washout, valve gear) and electrics
@@ -253,6 +261,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1934,
     maxSpeedKmh: 145,
     power: 12,
+    /** EMC E1/E2 A unit (1937): 2,000 hp, two 1,000 hp engines; game `power` is a gameplay cap. */
+    ratedPowerHp: 2000,
     maxCars: 8,
     weightClass: "medium",
     reliability: 3,
@@ -344,6 +354,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1981,
     maxSpeedKmh: 270,
     power: 16,
+    /** TGV Atlantique (1989): 8,800 kW from two power cars; game `power` is a gameplay cap (16 = 3.2 MW). */
+    ratedPowerKw: 8800,
     maxCars: 10,
     weightClass: "medium",
     reliability: 5,

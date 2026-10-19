@@ -93,6 +93,7 @@ for (const bot of bots)
       );
     }
 
+// Reference band for the good bot (Phase 57, owner decision): 1900 Normal final net worth $30-45M, judged on the median of 10 seeds (SEEDS=10); Hard at least 40 % below Normal.
 // Phase 39 targets, checked separately for the early starts (1840, 1900) and, since Phase 42, the late ones (1930, 1950) (ASSERT=1 exits non-zero when one is missed): the competent bot survives every run on Normal and
 // Hard; the bad bots go bankrupt in at least 50 % of Normal runs and 80 % of Hard runs, and mostly survive on Easy.
 if (process.env["ASSERT"]) {
