@@ -33,13 +33,18 @@ import { landPrices } from "../../src/sim/economy/land";
 import { cityTileAcceptance } from "../../src/sim/economy/cityStats";
 import { calendarFromTicks } from "../../src/sim/time";
 import { stationMonthlyCost, trackEdgeMonthlyCost } from "../../src/sim/finance/costs";
-import { GENERAL_ADMIN_MARKUP, PROPERTY_TAX_RATE } from "../../src/data/economy";
+import * as economy from "../../src/data/economy";
 import type { TrackEdge } from "../../src/sim/track/types";
 import { fixWeightBridges } from "./fixBridges";
 import { estimateFreightPayback, estimatePayback } from "./paybackEstimate";
 import type { City, Industry } from "../../src/sim/economy/types";
 import type { Station } from "../../src/sim/stations/types";
 import type { StationType } from "../../src/data/stations";
+
+// the head office's share of running costs exists from Phase 59's cost proposal on (branch phase-59-costs); 0 before
+const GENERAL_ADMIN_MARKUP =
+  (economy as unknown as Record<string, number | undefined>)["GENERAL_ADMIN_MARKUP"] ?? 0;
+const { PROPERTY_TAX_RATE } = economy;
 
 const region = (process.argv[2] ?? "central-eu") as "central-eu";
 const startYear = Number(process.argv[3] ?? 1900);
