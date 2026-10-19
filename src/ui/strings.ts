@@ -673,6 +673,7 @@ export const strings = {
     trackMaintenance: "Track upkeep",
     trackWear: "Track wear",
     stationMaintenance: "Stations & staff",
+    administration: "Head office",
     propertyTax: "Property tax",
     incomeTax: "Income tax (provisional)",
     breakdownRepairs: "Repairs",
@@ -685,6 +686,8 @@ export const strings = {
         "Platelayers' wages plus ballast, sleepers and rail for every tile; double track and catenary cost more",
       trackWear: "Rail wear caused by the trains that ran: heavy, fast, loaded trains wear it most",
       stationMaintenance: "Building upkeep plus the station staff's wages",
+      administration:
+        "Officers, clerks, accounts, insurance and claims: a share of everything else you spend on running",
       propertyTax: "Local tax on the book value of your track, stations and improvements",
       incomeTax:
         "Corporate tax on the year's operating profit (from the 1910s; losses carry forward). Set aside every month and settled at the year's end",
