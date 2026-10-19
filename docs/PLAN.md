@@ -2424,3 +2424,49 @@ Never loosen a test bound or word limit (the band in item 1 is the owner's decis
 5. PROGRESS with tables, SPEC (§7.4 effort model if changed, §7.7 rating), e2e (update, never weaken), screenshot
    `phase-57-*.png` (a heavy coal train climbing on a hill line, its train panel). LOOK at it.
 Status: [x] 1 [x] 2 [~] 3 (measured, no correction built; target missed, proposal in PROGRESS) [x] 4 [x] 5
+
+## Phase 58 — Engines by job, as in Railroad Tycoon: power sets the useful train length, cargo urgency sets the value of speed
+
+Owner: "OK, do this bigger phase" (2026-10-19), after the Phase 57 freight finding and a look at how Railroad Tycoon
+did it. Sources (orchestrator's web search, 2026-10-19): in RT1 delivery speed matters most for mail, less for passengers
+and fast freight, and bulk freight is paid by quantity, speed giving "little advantage"; engines differ in top speed and
+drawbar horsepower, and more power "pulls more cars without slowing down much" (Grasshopper 20 mph / 500 hp, Mogul
+25 mph / 2,000 hp, Mikado 45 mph / 3,500 hp); RT2 players match engines to jobs (Pacific for flat passenger runs, heavy
+engines for mountain coal); RT3 mail, passengers and perishables decay fast. Phase 57 found the game's real mismatch:
+small engines haul real-length trains (Norris 8 cars) but big ones about a quarter of one (Articulated 22, real 100+;
+Consolidation 12, real 30-40), while big engines are priced like the real ones.
+
+Real mechanisms only; numbers in `src/data` with a one-line justification and source. No new era tables or flat
+multipliers. Never loosen a test bound or word limit. Measure before and after every step with
+`tools/bench/engineCosts.ts` (passengers) and `tools/bench/freight.ts` (coal on a hill line, Terminal + full load).
+
+1. **One train-length scale for every engine.** Replace the hand-set `maxCars` by the real typical train length of the
+   type each engine stands for (cars of that era, one-line source per engine) times **one** stated game scale
+   (`TRAIN_LENGTH_SCALE`, chosen so the early engines keep about their Phase 48 lengths). Big freight engines get
+   proportionally longer trains. Power and grades (`computeTargetSpeed`) already slow a long train: check on the hill
+   bench that a weak engine with a long train crawls up the ridge and a strong one does not, i.e. power decides the
+   *useful* length, the cap only the real limit. Show the before/after table of `maxCars`.
+2. **Stations and loading follow.** `maxTrainLength` (Depot 6 / Station 10 / Terminal 16) and the overlength slowdown:
+   keep the rule (a too-long train loads slowly), and scale the platform lengths with the same `TRAIN_LENGTH_SCALE` if
+   the new freight trains could otherwise never load at full speed anywhere; say which. Rendering: a long train must still
+   draw correctly (check a 40+ car train on screen, curves and stations), and signalling/following must hold (unit tests
+   for a long train through a junction and a passing loop). Performance: measure frame time with the longest train.
+3. **Cargo urgency audit.** Freight already has `urgency`/`decayDays` per cargo and an early-delivery bonus of up to
+   +25 % (`computeRevenue`). Real basis: bulk freight (coal, ore, stone, lumber, grain) was carried on tonnage tariffs,
+   paid per ton-mile whatever the speed; express and perishable goods, mail and passengers paid for speed. Check each
+   cargo's urgency, decay and early bonus against that and correct the clear errors (e.g. no early bonus for bulk). Say
+   which cargoes change and why. Passengers keep their Phase 53 fare rule.
+4. **Measure the roles** (both benches, 1870/1900/1930/1950; small towns and big cities; coal on the hill line with 1 and
+   3 mines at x2.16). Target, as in Railroad Tycoon:
+   - short passenger line: a small, cheap engine pays back fastest (Phase 56 result kept);
+   - long passenger line between big towns: a fast passenger engine is the best buy;
+   - heavy coal on the hill line: a strong freight engine of the era (Consolidation, Mikado, Articulated, a heavy diesel)
+     is the best buy for a full train from 1880 on;
+   - list each engine with the case it wins; most engines should win something. Report misses openly.
+5. **Balance.** Good bot (10 seeds, 1840/1900/1930/1950, Normal and Hard, medians) and bad bots (3 seeds). The good bot
+   should pick freight engines for its freight lines (`chooseLoco` by payback, consist sized by demand). 1900 Normal median
+   in $30-45M; Hard >= 40 % below Normal; good survives everywhere. If missed, report the numbers and cause and stop. If a
+   balance test fails, report old/new values and the real cause; do not loosen it.
+6. PROGRESS with tables, SPEC (§7.4, §7.7, §8 cargo urgency, stations), e2e (update, never weaken), screenshots
+   `phase-58-*.png`: a long coal train with a heavy engine on a hill line, a short local, the buy list. LOOK at them.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
