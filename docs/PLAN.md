@@ -2383,3 +2383,44 @@ Real mechanisms only; numbers in `src/data` with a one-line justification. No ne
 5. PROGRESS with tables, SPEC (§7.7 price rule for diesel/electric, §9 upkeep display), e2e (update, never weaken),
    screenshot `phase-56b-buy-train.png` (the electric/diesel list in 1960 and the upkeep in today's money). LOOK at it.
 Status: [x] 1 [x] 2 [x] 3 [x] 4 (run; the 1900 Normal median is outside the band, reported and stopped) [x] 5
+
+## Phase 57 — New balance band, a real price for the High-Speed Trainset, and a job for freight engines
+
+Owner: "OK, let's do all 3" (2026-10-19), on the orchestrator's proposal after the Phase 56B review:
+(1) accept the Phase 56 level and move the good bot's 1900 Normal band from $20-34M to **$30-45M** (median of 10 seeds);
+(2) price the High-Speed Trainset by its real rating; (3) make heavy freight engines worth buying through real mechanisms.
+
+Real mechanisms only; numbers in `src/data` with a one-line real justification. No new era tables or flat multipliers.
+Never loosen a test bound or word limit (the band in item 1 is the owner's decision and is not a test bound).
+
+1. **Band.** Write the new 1900 Normal band ($30-45M, median of 10 seeds) in PLAN's reference targets / HANDOFF and in the
+   `tools/bench/survival.ts` comment. Other bounds unchanged (good survives everywhere; Hard >= 40 % below Normal).
+2. **High-Speed Trainset price.** Its game `power` (16) is a gameplay cap; the real TGV Atlantique has 8.8 MW. Add an
+   optional `ratedPowerKw` / `ratedPowerHp` to `LocomotiveDef` (the real rating, source note) used **only for price** when
+   present; set it for the High-Speed Trainset (and any other engine whose game `power` is clearly a cap — check each
+   diesel/electric against its real rating and list them). Report old/new prices.
+3. **A job for freight engines (measure first, then build only the clear corrections).**
+   a. *Bench* (`tools/bench/engineCosts.ts` or a new `freight.ts`): a coal line on real terrain — the mine in hills (where
+      the game places mines) to a steel mill in the plains, a real climb on the loaded run — with the mine at the output it
+      reaches after typical service growth (state the years), and a second case with 2-3 mines feeding one line. Every
+      buyable engine of 1870, 1900, 1930, 1950, consist up to its `maxCars`; payback years and profit/yr.
+   b. *Find the missing mechanism* if freight engines (Consolidation, Mikado, Articulated, Road Switcher, Heavy Diesel)
+      still do not win. Check at least:
+      - `LOCO_WEIGHT_UNITS` is 2 for every engine in `computeTargetSpeed`: a 540 t Articulated and an 8 t Grasshopper weigh
+        the same in the effort model. Real: the engine's own weight is part of the train; and adhesion (weight on the driving
+        wheels) limits what an engine can pull up a grade. Use the Phase 56 `weightTonnes` if it is the real mechanism.
+      - Crew per train vs per car: a long freight train needs one footplate crew (check `trainCrewSize`).
+      - Car weight units vs real tonnes (`CAR_WEIGHT_LOADED` 1, `CAR_WEIGHT_EMPTY` 0.4) and `GRADE_EFFORT_FACTOR`.
+      - Industry output against real mines (a 19th-century colliery shipped tens of thousands of tonnes a year).
+   c. *Build* only corrections of clear modelling errors with a real basis (e.g. engine weight in the effort model) and
+      re-measure. **Do not change industry output or any economy scale**: if output volume is the missing piece, write the
+      numbers and a proposal in PROGRESS for the owner and stop there.
+   d. Target: on the hill coal line, a freight engine of its era has the best payback for a full train from 1870 on, while
+      the Phase 56 passenger results (small engine best on short lines; fast engine on long lines) still hold. Report
+      openly if missed.
+4. **Balance.** Re-run the good bot (10 seeds, 1840/1900/1930/1950, Normal and Hard; medians) and the bad bots (3 seeds).
+   1900 Normal median in $30-45M; Hard >= 40 % below Normal. If missed, report numbers and cause and stop (do not tune).
+   If a balance test fails, report old/new values and the real cause; do not loosen it.
+5. PROGRESS with tables, SPEC (§7.4 effort model if changed, §7.7 rating), e2e (update, never weaken), screenshot
+   `phase-57-*.png` (a heavy coal train climbing on a hill line, its train panel). LOOK at it.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
