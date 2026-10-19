@@ -2382,4 +2382,4 @@ Real mechanisms only; numbers in `src/data` with a one-line justification. No ne
    stop (do not change revenue or costs to hit it). Hard >= 40 % below Normal, also on medians.
 5. PROGRESS with tables, SPEC (§7.7 price rule for diesel/electric, §9 upkeep display), e2e (update, never weaken),
    screenshot `phase-56b-buy-train.png` (the electric/diesel list in 1960 and the upkeep in today's money). LOOK at it.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [x] 3 [x] 4 (run; the 1900 Normal median is outside the band, reported and stopped) [x] 5

@@ -1,10 +1,16 @@
 /**
  * Survival table (Phase 39): runs each bot over seeds, start years and difficulties in child processes and prints
- * bankruptcies. `npx tsx tools/bench/survival.ts [seeds=3]`. goodPlayer is read from its text output.
+ * bankruptcies. `npx tsx tools/bench/survival.ts [seeds=3]` or SEEDS=10 (Phase 56B: the good bot's final net worth is
+ * printed as median and min-max, because a single seed or three swing by +-20 %). Env BOTS=, STARTS=, DIFFS= pick cells. goodPlayer is read from its text output.
  */
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
-const seeds = Number(process.argv[2] ?? 3);
+const execFileAsync = promisify(execFile);
+
+/** Seeds run at once (env JOBS, default 1). */
+const jobs = Number(process.env["JOBS"] ?? 1);
+const seeds = Number(process.env["SEEDS"] ?? process.argv[2] ?? 3);
 const bots = (process.env["BOTS"] ?? "good,overbuilder,trainSpammer,leveraged").split(",");
 const difficulties = (process.env["DIFFS"] ?? "easy,normal,hard").split(",");
 const starts = (process.env["STARTS"] ?? "1840,1900,1930,1950").split(",").map(Number);
@@ -15,7 +21,7 @@ interface Result {
   netWorthM: number;
 }
 
-function run(bot: string, start: number, diff: string, seed: number): Result {
+async function run(bot: string, start: number, diff: string, seed: number): Promise<Result> {
   const script = bot === "good" ? "goodPlayer.ts" : "badPlayers.ts";
   const args =
     bot === "good"
@@ -23,11 +29,12 @@ function run(bot: string, start: number, diff: string, seed: number): Result {
       : [bot, String(start), diff, String(start + 16), String(seed)];
   let out: string;
   try {
-    out = execFileSync("npx", ["tsx", `tools/bench/${script}`, ...args], {
-      encoding: "utf8",
-      maxBuffer: 1 << 26,
-      stdio: ["ignore", "pipe", "ignore"],
-    });
+    out = (
+      await execFileAsync("npx", ["tsx", `tools/bench/${script}`, ...args], {
+        encoding: "utf8",
+        maxBuffer: 1 << 26,
+      })
+    ).stdout;
   } catch {
     // the bot could not even afford a first line (Hard, 1900): counts as not started, shown as NaN
     return { bankrupt: false, minCashM: NaN, netWorthM: NaN };
@@ -49,13 +56,31 @@ function run(bot: string, start: number, diff: string, seed: number): Result {
 
 const tally = new Map<string, { bankrupt: number; runs: number; minCash: number }>();
 console.log(
-  "| bot | start | difficulty | bankrupt | min cash $M (per seed) | final NW $M (per seed) |",
+  "| bot | start | difficulty | bankrupt | min cash $M (per seed) | final NW $M (per seed) | final NW $M median [min-max] |",
 );
-console.log("|---|---|---|---|---|---|");
+console.log("|---|---|---|---|---|---|---|");
+
+const median = (xs: number[]): number => {
+  const v = xs.filter((x) => !Number.isNaN(x)).sort((a, b) => a - b);
+  if (v.length === 0) return NaN;
+  const m = v.length >> 1;
+  return v.length % 2 ? v[m]! : (v[m - 1]! + v[m]!) / 2;
+};
+async function runSeeds(bot: string, start: number, diff: string): Promise<Result[]> {
+  const rs: Result[] = [];
+  for (let i = 0; i < seeds; i += jobs) {
+    const batch = Array.from({ length: Math.min(jobs, seeds - i) }, (_, j) =>
+      run(bot, start, diff, i + j + 1),
+    );
+    rs.push(...(await Promise.all(batch)));
+  }
+  return rs;
+}
+
 for (const bot of bots)
   for (const start of starts)
     for (const diff of difficulties) {
-      const rs = Array.from({ length: seeds }, (_, i) => run(bot, start, diff, i + 1));
+      const rs = await runSeeds(bot, start, diff);
       const era = start < 1930 ? "1840-1900" : "1930-1950";
       const t = tally.get(`${bot}|${diff}|${era}`) ?? { bankrupt: 0, runs: 0, minCash: Infinity };
       t.bankrupt += rs.filter((r) => r.bankrupt).length;
@@ -64,7 +89,7 @@ for (const bot of bots)
         if (!Number.isNaN(r.minCashM)) t.minCash = Math.min(t.minCash, r.minCashM);
       tally.set(`${bot}|${diff}|${era}`, t);
       console.log(
-        `| ${bot} | ${start} | ${diff} | ${rs.filter((r) => r.bankrupt).length}/${seeds} | ${rs.map((r) => r.minCashM).join(" / ")} | ${rs.map((r) => r.netWorthM).join(" / ")} |`,
+        `| ${bot} | ${start} | ${diff} | ${rs.filter((r) => r.bankrupt).length}/${seeds} | ${rs.map((r) => r.minCashM).join(" / ")} | ${rs.map((r) => r.netWorthM).join(" / ")} | ${median(rs.map((r) => r.netWorthM)).toFixed(2)} [${Math.min(...rs.map((r) => r.netWorthM)).toFixed(2)}-${Math.max(...rs.map((r) => r.netWorthM)).toFixed(2)}] |`,
       );
     }
 

@@ -406,10 +406,16 @@ when the stretch of track to its next station is safe to run through end to end.
 Names are generic (wheel arrangements / descriptive), not trademarks. `Weight` is the working weight, engine and
 tender (or fuel and equipment), in tonnes, of the real type each model stands for (Phase 56); `Cls` (L/M/H) is the axle
 class (how that weight sits on the rail, §9.5b). **Cost and Maint./yr are derived from the weight** (Phase 56):
-cost = weight × price per tonne by type (steam $900/t, electric $1,350/t, diesel $1,800/t at 1830 prices: builders
-sold steam by weight, electrical equipment cost about 1.5x and a diesel about 2x as much per tonne), maintenance =
-weight × upkeep per tonne (steam $100, diesel $75, electric $50 a year: steam needed about twice the shed labour of a
-diesel). Both in $ at 1830 prices; era inflation applies at purchase (see §9.5).
+cost: **steam by weight** ($900/t at 1830 prices; builders sold steam by weight), **diesel and electric by installed
+power** (Phase 56B: they were sold per horsepower / kW). The game's Power maps to the real rating at one conversion per
+type, fitted to the roster's real engines (diesel 100 hp per unit: F7 1,500 hp = 16, SD40-2 3,000 hp = 26; electric 200
+kW per unit: GG1 3.45 MW = 18, Re 4/4 II 4.7 MW = 24, Re 6/6 7.8 MW = 40), at $60 per hp or kW at 1830 prices (an F7 cost
+about $215k in 1949, $143/hp, / `eraInflation(1949)` 2.43 = $59; a GG1 about $460k in 1934, $133/kW, / 2.25 = $59), so the
+price in the engine's own year is the real one. Maintenance stays by weight (shop labour follows the machine's size)
+= weight × upkeep per tonne (steam $100, diesel $75, electric $50 a year). Both in $ at 1830 prices; era inflation
+applies at purchase (see §9.5). Known gap: the High-Speed Trainset's game Power (16) is far below its real 8.8 MW, so it
+is priced as a 16-unit electric ($192k at 1830 prices; its old price was $600k). The spec sheet, the roster and the buy
+wizard show the price **and the yearly upkeep at the current year's prices** (§9).
 
 | Model | Type | Intro | Max km/h | Power | Max cars | Weight | Cls | Reliab. | Cost | Maint./yr |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -425,16 +431,16 @@ diesel). Both in $ at 1830 prices; era inflation applies at purchase (see §9.5)
 | Mikado 2-8-2 | Steam | 1912 | 75 | 16 | 14 | 180 t | H | 4 | $162k | $18k |
 | Hudson 4-6-4 | Steam | 1927 | 135 | 14 | 10 | 250 t | H | 4 | $225k | $25k |
 | Articulated 4-8-8-4 | Steam | 1941 | 95 | 26 | 22 | 540 t | H | 3 | $486k | $54k |
-| Early Electric | Electric | 1905 | 110 | 12 | 9 | 90 t | M | 3 | $121.5k | $4.5k |
-| Streamliner Diesel | Diesel | 1934 | 145 | 12 | 8 | 130 t | M | 3 | $234k | $9.8k |
-| E-Unit Electric | Electric | 1928 | 160 | 18 | 12 | 210 t | H | 4 | $283.5k | $10.5k |
-| Cab Unit Diesel | Diesel | 1939 | 120 | 16 | 14 | 105 t | M | 4 | $189k | $7.9k |
-| Road Switcher Diesel | Diesel | 1949 | 105 | 19 | 16 | 115 t | M | 5 | $207k | $8.7k |
-| Modern Electric | Electric | 1960 | 180 | 24 | 16 | 90 t | H | 5 | $121.5k | $4.5k |
-| High-Horsepower Diesel | Diesel | 1963 | 125 | 26 | 20 | 180 t | H | 5 | $324k | $13.5k |
-| Heavy Diesel | Diesel | 1976 | 130 | 32 | 24 | 195 t | H | 5 | $351k | $14.7k |
-| High-Speed Trainset | Electric | 1981 | 270 | 16 | 10 | 136 t | M | 5 | $183.5k | $6.8k |
-| Heavy Freight Electric | Electric | 1994 | 140 | 40 | 28 | 120 t | H | 5 | $162k | $6k |
+| Early Electric | Electric | 1905 | 110 | 12 | 9 | 90 t | M | 3 | $144k | $4.5k |
+| Streamliner Diesel | Diesel | 1934 | 145 | 12 | 8 | 130 t | M | 3 | $72k | $9.8k |
+| E-Unit Electric | Electric | 1928 | 160 | 18 | 12 | 210 t | H | 4 | $216k | $10.5k |
+| Cab Unit Diesel | Diesel | 1939 | 120 | 16 | 14 | 105 t | M | 4 | $96k | $7.9k |
+| Road Switcher Diesel | Diesel | 1949 | 105 | 19 | 16 | 115 t | M | 5 | $114k | $8.7k |
+| Modern Electric | Electric | 1960 | 180 | 24 | 16 | 90 t | H | 5 | $288k | $4.5k |
+| High-Horsepower Diesel | Diesel | 1963 | 125 | 26 | 20 | 180 t | H | 5 | $156k | $13.5k |
+| Heavy Diesel | Diesel | 1976 | 130 | 32 | 24 | 195 t | H | 5 | $192k | $14.7k |
+| High-Speed Trainset | Electric | 1981 | 270 | 16 | 10 | 136 t | M | 5 | $192k | $6.8k |
+| Heavy Freight Electric | Electric | 1994 | 140 | 40 | 28 | 120 t | H | 5 | $480k | $6k |
 
 - High-Speed Trainset: passenger & mail cars only.
 - Electric: requires every edge of its route to be electrified; a third cheaper to maintain per tonne than a diesel
@@ -677,8 +683,11 @@ shown to the player where it costs money (Finance cost lines with tooltips, trai
    40 % in 1930, 60 % in 1950, 70 % from 1970) for towns up to 15,000 people, fading linearly to nothing at 40,000,
    at every trip length (`smallTownRoadLoss`, applied in `cityTravelDemand` / `cityTileSupply`). The station panel
    shows one line, "Road competition: −N % since 1920". Nothing changes before 1920.
-7. **Locomotive price and upkeep from real size (Phase 56).** Each model has a real working weight (§7.7). Price = weight ×
-   price per tonne by type (steam $900, electric $1,350, diesel $1,800 at 1830 prices). Yearly upkeep (depot,
+7. **Locomotive price and upkeep from real size (Phase 56, price rule changed in 56B).** Each model has a real working weight
+   (§7.7). Price = weight × $900 for steam; diesel and electric are priced by installed power (§7.7). **Upkeep display
+   (56B):** wherever an engine's price is shown at the current year's prices (buy wizard, roster), its yearly upkeep is
+   shown at the same prices (table figure × `eraInflation(year)`); the train panel's running cost already includes the
+   price level. Yearly upkeep (depot,
    inspection, overhaul) = weight × upkeep per tonne by type (steam $100, diesel $75, electric $50) × the year's running-cost
    share; fuel keeps its Phase 39 form (a yearly fuel budget proportional to that upkeep, spread over tiles and the
    train's weight). **New: a repair bill per tile run**, `weight × $0.04` (steam; diesel $0.03, electric $0.02) at 1830
@@ -1193,3 +1202,4 @@ localization (English only, but keep strings in one `strings.ts` file for later)
 - [Phase 47] §11b: contract rewards and penalties are now ledger lines (untaxed, outside the credit limit); connection subsidies stay negative construction. §10.1: at most 3 toasts on screen, the oldest goes first. §4.4: the New Game screen shows one line for the selected difficulty, built from `DIFFICULTY`. §10: a line whose trains average >= 80 % load (`Train.loadShare`, 30 days of running) with more waiting than one train carries shows "Full trains, N waiting - add a train" in its Lines row, and once per game as a hint card (+ news item `addTrain`). The game-over card shows months under a year.
 - [Phase 55] §7.5 overtaking at stations and passing loops (and loops on double track), the passing-loop entry of the Phase 30A list (the Station tool's Station / Passing loop choice), §10.1 the Main menu row and explanations that stay, §5.3 double track 1.75x (upgrade 0.75x, was 1.6 / 0.6; bridges unchanged).
 - [Phase 56] §7.7: every engine has a real working weight; price and upkeep are derived from it (steam $900/t, electric $1,350/t, diesel $1,800/t; upkeep $100/$50/$75 per tonne a year), so the roster's price range widens (Grasshopper $7k, Hudson $225k, Articulated $486k at 1830 prices). §9.5b: loco tonnes in the wear model and the fuel ratio are the model's own weight (the 18/45/90 t classes are gone), and a repair bill per tile run is new (item 7).
+- [Phase 56B] §7.7: diesel and electric price = installed power (game Power × 100 hp or 200 kW) × $60 at 1830 prices, steam stays by weight; diesels fall to 0.40-0.71 of their Phase 55 price, electrics are back near it (Modern Electric $288k, Heavy Freight $480k); High-Speed Trainset $192k (its game Power is capped). §9: the upkeep shown beside an engine's price is at the current year's prices.

@@ -6267,3 +6267,73 @@ Bounds: **good survives everywhere (0/3 in all eight cells)** and Hard is at lea
 **5. SPEC, e2e, screenshot.** SPEC 7.7 table has weight and the derived cost/upkeep with the two per-tonne rates; 9.5b item 2 (wear tonnes), new item 7 (price and upkeep from size, the repair bill), changelog line. e2e `phase56.spec.ts`: in 1945 the Buy Train list shows a Hudson at 4.5-5.5x an American, an Articulated at more than 9x, a Grasshopper under a quarter, and the Hudson's spec sheet shows more than 4x an American's yearly running cost. Screenshot `docs/screenshots/phase-56-buy-train.png` (opened and checked: the list runs $225k Atlantic ... $1.2M Articulated, Hudson selected with $25k/yr; the spec sheet's yearly figure is the 1830-price upkeep as before this phase).
 
 **Decisions and deviations (no questions asked).** (1) Price and upkeep are derived from the weight at load time, the old per-engine numbers are gone from the data. (2) Fuel keeps its formula; since its budget is proportional to `maintenancePerYear` it now follows weight too. (3) Repair bill uses the running-cost share's early-to-mature blend (existing function, no new table). (4) The bench judges the train's own books (not the line's), small towns of 20,000 as the default fixture; the big-city set is a second pass. (5) The good bot chooses by an estimator, not by simulating, because simulating every engine per line is minutes per game; the estimator is checked against the fixture above. (6) `trainCost` in `tryConnect` keeps the 6-car default (changing it moved a run from 39M to 17M). (7) Heavy freight, most-engines-win and the long-line-fastest targets are missed for the stated mechanism; no fudge added. (8) Modern electrics got cheaper (owner call above). (9) `longHaulScenario.locoId` is bench plumbing only.
+
+## 2026-10-19 - Phase 56B: diesel/electric price by power, upkeep in today's money, silver bound, median-of-10 balance
+
+**State: items 1, 2, 3, 5 done; item 4 run (10 seeds, all eight cells) and it stops at the 1900 Normal band: the median is $38.61M, outside $20-34M. Nothing in revenue or costs was changed to hit it (see below). `npm run check` green; e2e both shards green.**
+
+**1. Diesel and electric priced by installed power.** `locoBasePrice` in `src/data/trains.ts`: steam keeps weight x $900/t; diesel and electric = game `power` x `POWER_RATING_PER_UNIT` (diesel 100 hp, electric 200 kW) x `POWER_PRICE_PER_RATING` ($60 per hp / kW at 1830 prices), rounded to $500, then `eraInflation` at purchase as before.
+- *Conversion* (one per type, fitted to the real engines the roster stands for): diesel F7 1,500 hp = power 16 (94 hp/unit), GP9 1,750 hp = 19 (92), SD40-2 3,000 hp = 26 (115), SD70 4,000 hp = 32 (125); electric GG1 3.45 MW = 18 (192 kW/unit), Re 4/4 II 4.7 MW = 24 (196), Re 6/6 7.8 MW = 40 (195).
+- *Rate and source*: an EMD F7 (1,500 hp) cost about $215k in 1949 = $143/hp; divided by the game's own `eraInflation(1949)` (2.43) = $59. A PRR GG1 (3,450 kW) about $460k in 1934 = $133/kW / 2.25 = $59. Rounded to $60 for both. The consequence is checkable: the price in the engine's own year is the real price (F7-class Cab Unit in 1939: $96k x 2.31 = $222k).
+- *Upkeep for diesel/electric stays by weight*: the source for the Phase 56 rates (shed labour, inspection, overhaul) follows the machine's size, not its rating; nothing in it says otherwise.
+- No new era table, no flat multiplier; `LOCO_PRICE_PER_TONNE` is replaced by `STEAM_PRICE_PER_TONNE`, `POWER_RATING_PER_UNIT`, `POWER_PRICE_PER_RATING` (test in `tests/sim/finance/locoSize.test.ts` updated to the new rule).
+
+Roster, diesel and electric (prices at 1830 prices; steam unchanged from Phase 56):
+| engine | type | power | weight t | 55 price | 56 price | 56B price | 56B / 55 |
+|---|---|---|---|---|---|---|---|
+| Early Electric | electric | 12 | 90 | $120k | $121.5k | $144k | 1.20 |
+| Streamliner Diesel | diesel | 12 | 130 | $180k | $234k | $72k | 0.40 |
+| E-Unit Electric | electric | 18 | 210 | $200k | $283.5k | $216k | 1.08 |
+| Cab Unit Diesel | diesel | 16 | 105 | $170k | $189k | $96k | 0.56 |
+| Road Switcher Diesel | diesel | 19 | 115 | $160k | $207k | $114k | 0.71 |
+| Modern Electric | electric | 24 | 90 | $300k | $121.5k | $288k | 0.96 |
+| High-Horsepower Diesel | diesel | 26 | 180 | $280k | $324k | $156k | 0.56 |
+| Heavy Diesel | diesel | 32 | 195 | $350k | $351k | $192k | 0.55 |
+| High-Speed Trainset | electric | 16 | 136 | $600k | $183.5k | $192k | 0.32 |
+| Heavy Freight Electric | electric | 40 | 120 | $500k | $162k | $480k | 0.96 |
+
+The modern electrics are back where they were (Modern Electric 0.96, Heavy Freight 0.96 of the Phase 55 price). Two things to know: **(a) diesels are now 0.4-0.7 of their old price**: real diesels were cheap per horsepower and the old table had them dearer than the real F7/SD40-2 at the same year; they were bought for running cost, not price. **(b) The High-Speed Trainset is still cheap ($192k, was $600k)**: its game `power` (16) is a gameplay cap far below the real 8.8 MW of a TGV, so a power rule prices it as a 16-unit electric. I did not add a second rating field (not in the item); owner call.
+
+Bench `tools/bench/engineCosts.ts`, 1930 and 1950, all lines, 3 seeds (small towns of 20,000; best buy by case, payback years; 56B). "fastest" is the fastest engine of the era with one car:
+| era | line | 1 car | 3 cars | 6 cars | max consist (>6) | fastest, 1 car |
+|---|---|---|---|---|---|---|
+| 1930 | short | Grasshopper 1.3 | Planet 3.4 | Planet 8.6 | Norris 17.7 | E-Unit never |
+| 1930 | medium | Planet 0.6 | Norris 1.0 | American 2.0 | Ten-Wheeler 2.5 | E-Unit 5.5 (was 7.1) |
+| 1930 | long | Planet 0.5 | Norris 1.0 | American 1.8 (was Early Electric 1.8) | Ten-Wheeler 2.5 | E-Unit 2.5 (was 3.3) |
+| 1930 | coal | Planet 1.2 | Norris 0.9 | American 1.3 | Ten-Wheeler 1.8 | E-Unit 21.8 (was 28.6) |
+| 1950 | short | Grasshopper 1.5 | Planet 4.5 | Planet 13.0 | Norris 40.4 | E-Unit never |
+| 1950 | medium | Planet 0.6 | Norris 1.1 | American 2.2 | Ten-Wheeler 2.9 | E-Unit 7.6 (was 9.9) |
+| 1950 | long | Planet 0.5 | Norris 1.1 | **Streamliner 1.8** | **Streamliner 2.3** | E-Unit 3.3 (was 4.3) |
+| 1950 | coal | Planet 1.3 | Norris 0.8 | **Streamliner 1.2** | **Streamliner 1.2** | E-Unit 16.7 (was 21.9) |
+
+Same, between big cities of 150,000 (`POP=150000`):
+| era | line | 1 car | 3 cars | 6 cars | max consist | fastest, 1 car |
+|---|---|---|---|---|---|---|
+| 1930 | short | Planet 0.8 | Norris 0.6 | American 0.6 | Norris 0.8 | E-Unit 3.2 |
+| 1930 | medium | Planet 0.5 | Norris 0.4 | Mogul 0.3 | Mogul 0.3 | E-Unit 1.2 |
+| 1930 | long | Planet 0.5 | American 0.3 | Atlantic 0.2 | Pacific 0.2 | E-Unit 1.0 |
+| 1950 | short | Planet 0.9 | **Streamliner 0.5** | American 0.7 | Mogul 0.7 | E-Unit 3.7 |
+| 1950 | medium | **Streamliner 0.5** | **Streamliner 0.2** | **Streamliner 0.1** | Early Electric 0.2 | E-Unit 1.3 |
+| 1950 | long | **Streamliner 0.4** | **Streamliner 0.2** | **Streamliner 0.1** | **Streamliner 0.1** | E-Unit 1.1 |
+
+What changed: from 1950 the (now cheaper) diesels win the full-consist cases on long lines and with freight (Streamliner; 1950 medium/long between big cities, coal), the first time a 1930s-40s diesel is the best buy anywhere; electrics still win nowhere as the 6-car choice in 1930 between small towns (their catenary is outside the price), and the fastest engine's (E-Unit's) payback fell 20-25 % on medium/long lines. Early Electric lost its 1930 long-line 6-car win to the American (it costs 1.2x its old price and needs catenary). Cab Unit, Road Switcher and the 1960+ engines were not benched (eras stop at 1950).
+
+**2. Upkeep in today's money.** `engineStats` takes the yearly upkeep as a parameter (default: the table figure, right only beside an 1830 price). Buy wizard: `maintenancePerYear x eraInflation(year)` beside the era price; roster: price and upkeep both at `eraInflation(year)` (it showed the 1830 price and upkeep before, consistently but not like the wizard). The replace-engine list shows only the net price, no upkeep; the train panel's "running cost" already goes through `priceIndex(year)` (= `eraInflation`), so there is no mismatch there. Legend string now says "running cost per year in today's money" (word limit kept). e2e `e2e/phase56b.spec.ts`: Hudson upkeep in 1945 = $25k x `eraInflation(1945)` within 1 %; 1960 Modern Electric / Cab Unit prices match power x rate x inflation within 2 % and Modern Electric's upkeep equals its table figure x `eraInflation(1960)` rounded to $1k.
+
+**3. Silver bound (owner OK via 56B).** `tests/sim/balanceLongHaul.test.ts` 1930 silver: `lateReturn` > 0.7 -> **> 0.6** (measured 0.611); `lateReturn x invested` > 2.3e6 -> **> 2.2e6** (measured 2.283e6, floor one 0.1e6 step below). Reason: Phase 56 made the Hudson (the 1930 "fastest engine") 1.5x as dear and 2x as dear to keep (invested 3.74M, was 3.24M; late profit 2.28M, was 2.44M). The diesel/electric price change does not touch this scenario (steam), so the measured value is unchanged from Phase 56. No other bound changed.
+
+**4. Balance on medians, good bot, 10 seeds** (`SEEDS=10 JOBS=4 BOTS=good npx tsx tools/bench/survival.ts`; new `SEEDS=` (default 3, argv still works), `JOBS=` (seeds in parallel), and a final-NW median [min-max] column). All 80 runs survive (0/10 bankrupt everywhere).
+| start | Normal NW $M median [min-max] | Hard NW $M median [min-max] | Hard below Normal |
+|---|---|---|---|
+| 1840 | 22.32 [21.57-23.41] | 11.52 [8.91-14.08] | 48 % |
+| 1900 | **38.61** [34.26-44.64] | 10.70 [10.20-12.33] | 72 % |
+| 1930 | 11.62 [9.09-20.69] | 6.20 [5.85-6.78] | 47 % |
+| 1950 | 7.44 [6.79-11.71] | 4.30 [3.79-4.89] | 42 % |
+
+Hard is at least 40 % below Normal on every median (1930, 36 % on three seeds in Phase 56, is 47 % on ten; the three-seed figure was noise). 1900 Normal seeds: 42.56 / 34.26 / 38.48 / 39.20 / 36.70 / 37.05 / 38.74 / 44.64 / 37.84 / 39.59.
+
+**1900 Normal median $38.61M is outside the $20-34M band; stopped as instructed, nothing changed to hit it.** Cause (as found in Phase 56, now with ten seeds): not this phase. 1900 has no diesels, and the new price rule only touches the 1905 Early Electric; the three seeds that Phase 56 reported (42.56 / 34.26 / 38.48) are reproduced exactly, so the new rule changed nothing here (I did not check whether the bot ever buys an electric); this is the Phase 56 cost structure (steam by weight, repairs per tile) plus the payback bot, which buys Atlantics nearly everywhere and expands into 58 trains in the good trajectory. Only 1 of 10 seeds (34.26) is inside the band, 9 are above; the spread of ten (34-45) is narrower than the Phase 56 "16 to 43" estimate from perturbation runs, so the median is a stable $38-39M. Decision for the owner: re-centre the band to about $30-45M for the Phase 56 cost structure, or have Phase 56C make the bot's expansion rule smoother / its engine choice dearer. No bot rule, revenue or cost was touched.
+
+**5. Docs and screenshot.** SPEC §7.7 (price rule, table costs, the HST caveat), §9.5 item 7 (upkeep display) and a deviation line; PLAN status. Screenshot `docs/screenshots/phase-56b-buy-train.png` (1960 list, Modern Electric selected: $737k price, $12k/yr upkeep at 1960 prices, Cab Unit $246k, Streamliner $184k): I opened it; the electric/diesel list reads as a clear price ladder and the spec sheet's upkeep is in the same money as the price.
+
+**Decisions and deviations.** (1) Diesel hp-per-unit 100 and electric kW-per-unit 200 chosen by fit to the real engines, not tuned; (2) rate is the real price deflated by the game's own inflation, so prices in the engine's own year are real ones, which is why diesels fall; (3) High-Speed Trainset left cheap, see above; (4) the roster now shows prices at the current year's prices (was the 1830 table price); (5) `survival.ts` seeds run in parallel through async `execFile` (`JOBS=`); results are the same per seed as the sequential version (seed 1 1900 Normal 42.56 both ways).
