@@ -43,6 +43,7 @@ import {
 } from "../../src/sim/finance/costs";
 import { DAYS_PER_YEAR } from "../../src/sim/time";
 import type { GameState } from "../../src/sim/state";
+import type { CargoType } from "../../src/data/cargo";
 
 /** Share of the seats a train carries on a leg (the fixtures measured 75-97 % loads). */
 const FILL = 0.8;
@@ -87,6 +88,56 @@ export function estimatePayback(
   const seatsPeople = passengerSeatsIn(year);
   const revenue = legs * nCars * FILL * fullCarFare * (seatsPeople / CARGO.passengers.capacity);
   const tilesRun = ownLegs * distanceTiles;
+  const costs =
+    locoRunningCostPerYear(loco, 0, year) +
+    carsUpkeepPerYear(cars, year) +
+    trainWagesPerYear(loco, cars, year) +
+    tilesRun *
+      (fuelUnitsPerTile(loco, cars) * fuelEraScale(year) * priceIndex(year) +
+        repairUnitsPerTile(loco) * repairCostPerUnit(loco, 0, year) +
+        wearUnitsPerTile(loco, cars, kmh * AVERAGE_SPEED_SHARE) * wearCostPerUnit(year));
+  const profit = revenue - costs;
+  return { price, revenue, costs, profit, payback: profit > 0 ? price / profit : Infinity };
+}
+
+/** The same payback for a freight train: one loaded leg a year-fraction at a time, the other way empty, limited by what the
+ * source puts out (`carloadsPerYear`). Used by the strong player (strongPlayer.ts) to rank freight lines and pick engines. */
+export function estimateFreightPayback(
+  state: GameState,
+  loco: LocomotiveDef,
+  nCars: number,
+  distanceTiles: number,
+  cargo: CargoType,
+  carloadsPerYear: number,
+): Estimate {
+  const year = calendarFromTicks(state.startYear, state.ticks).year;
+  const cars = Array.from({ length: nCars }, () => {
+    const c = newCar(cargo, year);
+    c.loadedUnits = CARGO[cargo].capacity;
+    return c;
+  });
+  const price = computeBuyTrainPlan(
+    state,
+    loco.id,
+    cars.map(() => cargo),
+  ).cost;
+  // loaded going out (full), empty coming back
+  const weight = LOCO_WEIGHT_UNITS + nCars * CAR_WEIGHT_LOADED;
+  const kmh = loco.maxSpeedKmh * Math.min(1, loco.power / weight);
+  const tilesPerDay = (kmh * AVERAGE_SPEED_SHARE) / KMH_PER_TILE_PER_DAY;
+  const dwellDays = Math.max(MIN_LOADING_TICKS, nCars * 2 * TICKS_PER_CAR_HANDLED) / 24;
+  const cycleDays = (2 * distanceTiles) / tilesPerDay + 2 * dwellDays + turnaroundTicks(loco) / 24;
+  const tripsPerYear = DAYS_PER_YEAR / cycleDays;
+  const carloads = Math.min(tripsPerYear * nCars, carloadsPerYear);
+  const fare = computeRevenue(
+    state,
+    cargo,
+    distanceTiles,
+    distanceTiles / tilesPerDay,
+    loco.maxSpeedKmh,
+  );
+  const revenue = carloads * fare;
+  const tilesRun = tripsPerYear * 2 * distanceTiles;
   const costs =
     locoRunningCostPerYear(loco, 0, year) +
     carsUpkeepPerYear(cars, year) +

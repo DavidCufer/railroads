@@ -1,6 +1,6 @@
 /**
  * Survival table (Phase 39): runs each bot over seeds, start years and difficulties in child processes and prints
- * bankruptcies. `npx tsx tools/bench/survival.ts [seeds=3]` or SEEDS=10 (Phase 56B: the good bot's final net worth is
+ * bankruptcies. `npx tsx tools/bench/survival.ts [seeds=3]` (bots: good, strong, overbuilder, trainSpammer, leveraged) or SEEDS=10 (Phase 56B: the good bot's final net worth is
  * printed as median and min-max, because a single seed or three swing by +-20 %). Env BOTS=, STARTS=, DIFFS= pick cells. goodPlayer is read from its text output.
  */
 import { execFile } from "node:child_process";
@@ -22,11 +22,12 @@ interface Result {
 }
 
 async function run(bot: string, start: number, diff: string, seed: number): Promise<Result> {
-  const script = bot === "good" ? "goodPlayer.ts" : "badPlayers.ts";
-  const args =
-    bot === "good"
-      ? ["central-eu", String(start), diff, String(start + 16), String(seed)]
-      : [bot, String(start), diff, String(start + 16), String(seed)];
+  const text = bot === "good" || bot === "strong"; // these two print text lines; the bad bots print JSON
+  const script =
+    bot === "good" ? "goodPlayer.ts" : bot === "strong" ? "strongPlayer.ts" : "badPlayers.ts";
+  const args = text
+    ? ["central-eu", String(start), diff, String(start + 16), String(seed)]
+    : [bot, String(start), diff, String(start + 16), String(seed)];
   let out: string;
   try {
     out = (
@@ -39,7 +40,7 @@ async function run(bot: string, start: number, diff: string, seed: number): Prom
     // the bot could not even afford a first line (Hard, 1900): counts as not started, shown as NaN
     return { bankrupt: false, minCashM: NaN, netWorthM: NaN };
   }
-  if (bot !== "good") {
+  if (!text) {
     const j = JSON.parse(out.trim().split("\n").pop()!) as {
       bankruptYear: number | null;
       minCashM: number;
@@ -106,7 +107,9 @@ if (process.env["ASSERT"]) {
     const [bot, diff, era] = key.split("|") as [string, string, string];
     const rate = t.bankrupt / t.runs;
     const label = `${bot} ${diff} ${era}: ${t.bankrupt}/${t.runs} bankrupt`;
-    if (bot === "good")
+    if (bot === "strong")
+      check(`${label}, min cash ${t.minCash}M`, diff !== "normal" || t.bankrupt === 0);
+    else if (bot === "good")
       check(`${label}, min cash ${t.minCash}M`, diff === "easy" || t.bankrupt === 0);
     else if (diff === "normal") check(label, rate >= 0.5);
     else if (diff === "hard") check(label, rate >= 0.8);
