@@ -2351,3 +2351,35 @@ or flat multipliers. Never loosen a test bound or word limit.
 5. SPEC (§7.7 roster table, §9 costs), PROGRESS with all tables, e2e (update, never weaken; the buy wizard shows the new
    prices/upkeep), screenshot `phase-56-buy-train.png` (the engine list with the new prices). LOOK at it.
 Status: [x] 1 [x] 2 [x] 3 (targets partly missed, see PROGRESS) [~] 4 (bot done; stopped: good 1900 Normal 34-43M is above the 20-34M band, 1930 Hard gap 36 %; one balanceLongHaul bound red, reported) [x] 5
+
+## Phase 56B — Fix-ups after 56: diesel/electric price by power, upkeep shown in today's money, the silver bound, a steadier balance measure
+
+Owner: "Go 56B" (2026-10-19), on the orchestrator's proposal after the Phase 56 review, which included: lower the
+`balanceLongHaul` 1930 silver bound to 0.6 (the dearer Hudson is what the owner asked for), and judge the good bot's
+1900 Normal band on the median of 10 seeds instead of 3. Items 3-4 are done last, so the owner can still object.
+
+Real mechanisms only; numbers in `src/data` with a one-line justification. No new era tables or flat multipliers.
+
+1. **Diesel and electric price by power, not weight.** Phase 56 priced every engine by tonnes, which made modern
+   electrics far too cheap (High-Speed Trainset $600k -> $184k, Modern Electric $300k -> $122k). Real diesel and electric
+   prices followed installed power (diesels were sold per horsepower; electrics per kW of traction equipment). Steam keeps
+   the Phase 56 weight price. For diesel and electric: price = a rate per unit of installed power (map the game's `power`
+   to horsepower/kW with a stated conversion) era-scaled as today; state the rate and its real source (e.g. a 1950s
+   1,500 hp cab unit's price). Upkeep for diesel/electric stays by weight unless the source says otherwise; say which.
+   Report the new roster table (old 55 price, 56 price, 56B price) and re-run `tools/bench/engineCosts.ts` for 1930 and
+   1950 (all lines) to show what changes in the best-buy table.
+2. **Upkeep shown in today's money.** The Buy Train spec sheet shows a 1945 price ($536k Hudson) next to an 1830-price
+   upkeep ($25k/yr). Show the yearly upkeep at the current year's prices wherever an engine's price is shown at current
+   prices (buy wizard, replace-engine list, roster), and check the train panel's cost figures for the same mismatch. Word
+   limits kept. e2e: the Hudson's upkeep in 1945 equals its data upkeep × `eraInflation(1945)` within rounding.
+3. **Silver bound (owner OK via 56B).** `tests/sim/balanceLongHaul.test.ts` 1930 silver `lateReturn > 0.7` -> `> 0.6`,
+   and `lateReturn × invested > 2.3e6` -> the measured value's floor at one significant step below it (state it). Write old,
+   new and measured values and the reason (Phase 56: the Hudson costs 1.5× and its upkeep 2×) in PROGRESS. No other bound
+   changes. `npm run check` must be fully green at the end.
+4. **Steadier balance measure.** `tools/bench/survival.ts`: a `SEEDS=` (default 3) and, for the good bot, print the
+   median and the min-max of final net worth. Run good bot 1840/1900/1930/1950 Normal and Hard with 10 seeds and report
+   the medians. The 1900 Normal band $20-34M is judged on the median. If the median is outside, report the numbers and
+   stop (do not change revenue or costs to hit it). Hard >= 40 % below Normal, also on medians.
+5. PROGRESS with tables, SPEC (§7.7 price rule for diesel/electric, §9 upkeep display), e2e (update, never weaken),
+   screenshot `phase-56b-buy-train.png` (the electric/diesel list in 1960 and the upkeep in today's money). LOOK at it.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
