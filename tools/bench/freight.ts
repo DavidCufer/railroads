@@ -6,7 +6,7 @@
  * served well grows 8 % a year (`INDUSTRY_GROWTH_RATE_ANCHORS`), so x2.16 is the mine after 10 years, x3 (the cap,
  * `INDUSTRY_GROWTH_MULT_MAX`) after 14. `MINES=3` puts three such mines in one loading station's catchment.
  * Profit is the train's own books as in engineCosts.ts (fares less crew, fuel, upkeep, repairs and track wear).
- * `npx tsx tools/bench/freight.ts`, env STARTS=1870,1900,1930,1950 MULTS=1,2.16,3 MINES=1,3 FACILITY=depot|terminal CARS=3,6,10,14,max SEEDS=1,2 FLAT=1 */
+ * `npx tsx tools/bench/freight.ts`, env STARTS=1870,1900,1930,1950 MULTS=1,2.16,3 MINES=1,3 FACILITY=depot|terminal CARS=3,6,10,14,20,28,40,60,max SEEDS=1,2 FLAT=1 */
 import { buyableLocomotivesIn, type LocomotiveDef } from "../../src/data/trains";
 import { WEAR_ROUTINE_SHARE } from "../../src/data/economy";
 import { advanceHour, buildRoute } from "../../tests/sim/balanceRoutes";
@@ -14,7 +14,7 @@ import { advanceHour, buildRoute } from "../../tests/sim/balanceRoutes";
 const starts = (process.env["STARTS"] ?? "1870,1900,1930,1950").split(",").map(Number);
 const mults = (process.env["MULTS"] ?? "1,2.16,3").split(",").map(Number);
 const mineCounts = (process.env["MINES"] ?? "1,3").split(",").map(Number);
-const carSpecs = (process.env["CARS"] ?? "3,6,10,14,max").split(",");
+const carSpecs = (process.env["CARS"] ?? "3,6,10,14,20,28,40,60,max").split(",");
 const seeds = (process.env["SEEDS"] ?? "1,2").split(",").map(Number);
 const flat = Boolean(process.env["FLAT"]);
 /** FACILITY=depot (default: a Depot, 40 t pile, "auto" loading) or terminal (a Terminal at both ends, a Warehouse at the

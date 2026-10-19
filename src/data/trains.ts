@@ -18,10 +18,12 @@ export interface LocomotiveDef {
    * `power` at `POWER_RATING_PER_UNIT`. */
   ratedPowerKw?: number;
   ratedPowerHp?: number;
-  /** Most cars it can haul. Phase 48: early engines raised to the historical train lengths (1830s-50s passenger
-   * trains ran 6-12 carriages: companies lengthened trains before adding paths, as every train needs its own crew
-   * and path). More cars cost speed through the tractive-effort model in `computeTargetSpeed` (power over train weight,
-   * worse on grades), so a long train is slow on a hill, not free. */
+  /** Phase 58: the real train this model stands for, in cars of its era (source beside each engine). */
+  typicalCars: number;
+  /** Most cars it can haul: `typicalCars` x `TRAIN_LENGTH_SCALE` (derived, see `TRAIN_LENGTH_SCALE`). More cars cost
+   * speed through the tractive-effort model in `computeTargetSpeed` (power over train weight, worse on grades), so a
+   * long train behind a weak engine crawls and the engine's power sets the *useful* length, this cap only the real
+   * limit. Phase 48 had raised the early engines to the historical lengths of the 1830s-50s (6-12 carriages). */
   maxCars: number;
   weightClass: WeightClass;
   /** 1 (worst) – 5 (best). */
@@ -39,7 +41,14 @@ export interface LocomotiveDef {
   doubleEnded?: boolean;
 }
 
-type LocoSpec = Omit<LocomotiveDef, "cost" | "maintenancePerYear">;
+type LocoSpec = Omit<LocomotiveDef, "cost" | "maintenancePerYear" | "maxCars">;
+
+/** Phase 58: game cars per real car, one scale for every engine. A game car is drawn about 10 px long and a full one
+ * holds 20 t of coal or 40-80 passengers, about two of the wagons (8-12 t until the 1890s) or carriages (24-40 seats) of
+ * the 1830s-80s, so a real train of N cars is N / 2 game cars. Chosen so the first engines keep about their Phase 48
+ * lengths (Grasshopper 4, Planet 6, Norris 8, American 10) and the 100-wagon trains of the heavy engines stay below 60
+ * cars, drawn 19 tiles long. */
+export const TRAIN_LENGTH_SCALE = 0.5;
 
 /** Phase 56: steam price per tonne of working weight at 1830 prices. Builders sold steam locomotives by weight (a 4-4-0
  * of 50 t at $45k keeps the old mid-roster price; late steam cost $600-800/t). */
@@ -90,7 +99,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1830,
     maxSpeedKmh: 25,
     power: 2,
-    maxCars: 4,
+    /** B&O trains of the 1830s: 6-10 small four-wheel cars behind a Grasshopper. */
+    typicalCars: 8,
     weightClass: "light",
     reliability: 2,
     /** B&O Grasshopper vertical-boiler 0-4-0, about 7 t, with its wood/water car. */
@@ -103,7 +113,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1832,
     maxSpeedKmh: 35,
     power: 3,
-    maxCars: 6,
+    /** Liverpool & Manchester 1830s: passenger trains of 8-12 carriages (goods trains ran longer behind bigger engines). */
+    typicalCars: 12,
     weightClass: "light",
     reliability: 2,
     /** Stephenson Planet 2-2-0, about 10 t plus a small tender. */
@@ -116,7 +127,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1838,
     maxSpeedKmh: 45,
     power: 4,
-    maxCars: 8,
+    /** Norris engines of the 1840s: 15-20 loaded cars on the level Philadelphia & Columbia line. */
+    typicalCars: 16,
     weightClass: "light",
     reliability: 3,
     /** Norris 4-2-0 (Philadelphia/Baldwin 1838 class), about 12 t plus a 6-8 t tender. */
@@ -129,7 +141,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1848,
     maxSpeedKmh: 60,
     power: 6,
-    maxCars: 10,
+    /** freight trains of the 1860s: 20-25 cars (the same engine ran 8-10 coaches on passenger work). */
+    typicalCars: 20,
     weightClass: "medium",
     reliability: 3,
     /** 4-4-0 of the 1860s: about 28-30 t engine plus a 20 t tender. */
@@ -142,7 +155,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1862,
     maxSpeedKmh: 55,
     power: 9,
-    maxCars: 9,
+    /** freight trains of the 1870s: 25-30 wagons, a little over an American's. */
+    typicalCars: 24,
     weightClass: "medium",
     reliability: 3,
     /** 2-6-0: about 36 t engine plus a 24 t tender. */
@@ -155,7 +169,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1872,
     maxSpeedKmh: 50,
     power: 12,
-    maxCars: 12,
+    /** 1880s-90s freight: 35-45 wagons (a 2-8-0 rated about 1,000-1,200 t on the level). */
+    typicalCars: 40,
     weightClass: "heavy",
     reliability: 3,
     /** 2-8-0: about 55 t engine plus a 30 t tender. */
@@ -168,7 +183,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1880,
     maxSpeedKmh: 75,
     power: 9,
-    maxCars: 8,
+    /** 1880s mixed and passenger trains: 10-16 cars. */
+    typicalCars: 16,
     weightClass: "medium",
     reliability: 4,
     /** 4-6-0 of the 1880s: about 45-50 t engine plus a 28 t tender. */
@@ -181,7 +197,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1895,
     maxSpeedKmh: 100,
     power: 8,
-    maxCars: 6,
+    /** 1900s express: 8-12 heavy coaches. */
+    typicalCars: 12,
     weightClass: "medium",
     reliability: 4,
     /** 4-4-2 (PRR E2/E6 class): about 70 t engine plus a 40 t tender. */
@@ -194,7 +211,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1905,
     maxSpeedKmh: 115,
     power: 11,
-    maxCars: 9,
+    /** 1910s-20s limiteds: 12-18 cars. */
+    typicalCars: 18,
     weightClass: "heavy",
     reliability: 4,
     /** 4-6-2 of the 1910s: about 95-100 t engine plus a 55 t tender. */
@@ -207,7 +225,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1912,
     maxSpeedKmh: 75,
     power: 16,
-    maxCars: 14,
+    /** USRA-era freight: 60-80 cars (about 2,500-3,000 t on the level). */
+    typicalCars: 70,
     weightClass: "heavy",
     reliability: 4,
     /** USRA light 2-8-2: about 120 t engine plus a 60-70 t tender. */
@@ -220,7 +239,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1927,
     maxSpeedKmh: 135,
     power: 14,
-    maxCars: 10,
+    /** 20th Century Limited and its kind, 1930s: 14-20 cars. */
+    typicalCars: 20,
     weightClass: "heavy",
     reliability: 4,
     /** NYC J-3a 4-6-4: 160 t engine plus a 90 t tender. */
@@ -233,7 +253,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1941,
     maxSpeedKmh: 95,
     power: 26,
-    maxCars: 22,
+    /** UP Big Boy: 3,600 t trains of 100+ wagons over Sherman Hill, more on the level. */
+    typicalCars: 120,
     weightClass: "heavy",
     reliability: 3,
     /** UP Big Boy 4-8-8-4: 548 t engine and tender. */
@@ -248,7 +269,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     // firebox, far fewer moving parts) — otherwise a $191k electrification bought nothing.
     maxSpeedKmh: 110,
     power: 12,
-    maxCars: 9,
+    /** DD1 and S-motor electrics at Penn Station / the Hudson tubes: 10-18 car trains. */
+    typicalCars: 18,
     weightClass: "medium",
     reliability: 3,
     /** NYC/PRR direct-current electrics of 1905-10: 85-100 t. */
@@ -263,7 +285,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     power: 12,
     /** EMC E1/E2 A unit (1937): 2,000 hp, two 1,000 hp engines; game `power` is a gameplay cap. */
     ratedPowerHp: 2000,
-    maxCars: 8,
+    /** EMC E-unit streamliners: 12-16 cars (Super Chief, Twin Zephyrs). */
+    typicalCars: 16,
     weightClass: "medium",
     reliability: 3,
     /** EMC E-unit A unit: about 130 t. */
@@ -276,7 +299,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1928,
     maxSpeedKmh: 160,
     power: 18,
-    maxCars: 12,
+    /** PRR GG1: 16-20 car expresses (Congressional, Broadway Limited with extras); 70+ wagons on freight. */
+    typicalCars: 24,
     weightClass: "heavy",
     reliability: 4,
     /** PRR GG1 (2-C+C-2): about 215 t. */
@@ -289,7 +313,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1939,
     maxSpeedKmh: 120,
     power: 16,
-    maxCars: 14,
+    /** one 1,500 hp F7 A unit: about 1,500 t, 45 cars (F7s ran in sets of 2-4 for more). */
+    typicalCars: 44,
     weightClass: "medium",
     reliability: 4,
     /** EMD F7 A unit: about 105 t. */
@@ -302,7 +327,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1949,
     maxSpeedKmh: 105,
     power: 19,
-    maxCars: 16,
+    /** one 1,750 hp GP9: about 1,800 t, 55 cars. */
+    typicalCars: 56,
     weightClass: "medium",
     reliability: 5,
     /** EMD GP7/GP9 road switcher: about 113 t. */
@@ -315,7 +341,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1960,
     maxSpeedKmh: 180,
     power: 24,
-    maxCars: 16,
+    /** Re 4/4 II intercity trains: 12-16 coaches, up to 650-800 t. */
+    typicalCars: 32,
     weightClass: "heavy",
     reliability: 5,
     /** Bo-Bo main-line electric (Re 4/4 II, AEM-7): 80-92 t. */
@@ -328,7 +355,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1963,
     maxSpeedKmh: 125,
     power: 26,
-    maxCars: 20,
+    /** one 3,000 hp SD40-2: 70 cars (coal unit trains of 100+ ran with 3-4 units). */
+    typicalCars: 70,
     weightClass: "heavy",
     reliability: 5,
     /** EMD SD40-2: 184 t. */
@@ -341,7 +369,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1976,
     maxSpeedKmh: 130,
     power: 32,
-    maxCars: 24,
+    /** one 4,000 hp SD70: 90 cars. */
+    typicalCars: 90,
     weightClass: "heavy",
     reliability: 5,
     /** EMD SD70 class: 190-195 t. */
@@ -356,7 +385,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     power: 16,
     /** TGV Atlantique (1989): 8,800 kW from two power cars; game `power` is a gameplay cap (16 = 3.2 MW). */
     ratedPowerKw: 8800,
-    maxCars: 10,
+    /** TGV Atlantique: 10 trailers between two power cars. */
+    typicalCars: 10,
     weightClass: "medium",
     reliability: 5,
     /** TGV Atlantique: two power cars of 68 t. */
@@ -371,7 +401,8 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
     introYear: 1994,
     maxSpeedKmh: 140,
     power: 40,
-    maxCars: 28,
+    /** Re 6/6 / Class 6E on the level: 1,800-2,500 t, 80 wagons. */
+    typicalCars: 80,
     weightClass: "heavy",
     reliability: 5,
     /** Re 6/6 / Class 6E class six-axle electric: 120 t. */
@@ -382,6 +413,7 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
 /** The roster with price (steam: weight; diesel, electric: power) and upkeep (weight) derived. */
 export const LOCOMOTIVES: readonly LocomotiveDef[] = LOCOMOTIVE_SPECS.map((spec) => ({
   ...spec,
+  maxCars: Math.round(spec.typicalCars * TRAIN_LENGTH_SCALE),
   cost: locoBasePrice(spec),
   maintenancePerYear: Math.round((spec.weightTonnes * LOCO_UPKEEP_PER_TONNE[spec.type]) / 50) * 50,
 }));
