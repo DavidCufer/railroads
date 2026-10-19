@@ -233,9 +233,15 @@ Monthly: $10 per edge single, $16 double, +$5 electrified. Bridges: +$50 wood, +
 | Type | Catchment radius | Footprint | Max train length (cars) | Storage per cargo | Cost | Monthly maint. |
 |---|---|---|---|---|---|---|
 | Depot | 1 (3×3) | 1 tile | 6 | 40 units | $15k | $100 |
-| Station | 2 (5×5) | 1 tile | 10 | 80 | $40k | $250 |
-| Terminal | 3 (7×7) | 1 tile | 16 | 150 | $100k | $600 |
+| Station | 2 (5×5) | 1 tile | 20 | 80 | $40k | $250 |
+| Terminal | 3 (7×7) | 1 tile | 60 | 150 | $100k | $600 |
 
+- **Track length (Phase 58):** max train length = real cars the track holds x `TRAIN_LENGTH_SCALE` (Depot 12 -> 6, Station 40 -> 20,
+  Terminal 120 -> 60: typical practice, a halt, a passing siding, a main yard). A longer train still stops and loads at the
+  overlength rate. Its body outside the station's grounds (platform track plus `STATION_YARD_TILES` = 3.5 tiles) is no passing
+  place: the blocks its tail lies in stay held, so trains from the other way wait instead of running through it; two
+  trains too long for a passing place meet as a jam (stuck, with the warning). Followers drive into the yard past a standing
+  train as before.
 - Placed on a tile with existing track (straight or diagonal through-track or a dead-end). Stations
   may be placed in Station mode by tapping a track tile; the catchment overlay is shown while choosing
   (tiles tinted; supplied cargo icons and accepted cargo icons listed in a preview panel).
@@ -422,31 +428,39 @@ left: Early Electric 2.4 MW (DD1 about 2.2-3 MW), E-Unit 3.6 MW (GG1 3.45), Cab 
 Heavy Diesel 3,200 hp (SD70 4,000, 20 % under), Heavy Freight Electric 8 MW (Re 6/6 7.8). The spec sheet, the roster and the buy
 wizard show the price **and the yearly upkeep at the current year's prices** (§9).
 
-| Model | Type | Intro | Max km/h | Power | Max cars | Weight | Cls | Reliab. | Cost | Maint./yr |
+| Model | Type | Intro | Max km/h | Power | Max cars (Phase 58) | Weight | Cls | Reliab. | Cost | Maint./yr |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Grasshopper 0-4-0 | Steam | 1830 | 25 | 2 | 4 | 8 t | L | 2 | $7k | $800 |
 | Planet 2-2-0 | Steam | 1832 | 35 | 3 | 6 | 12 t | L | 2 | $11k | $1.2k |
 | Norris 4-2-0 | Steam | 1838 | 45 | 4 | 8 | 20 t | L | 3 | $18k | $2k |
 | American 4-4-0 | Steam | 1848 | 60 | 6 | 10 | 50 t | M | 3 | $45k | $5k |
-| Mogul 2-6-0 | Steam | 1862 | 55 | 9 | 9 | 60 t | M | 3 | $54k | $6k |
-| Consolidation 2-8-0 | Steam | 1872 | 50 | 12 | 12 | 85 t | H | 3 | $76.5k | $8.5k |
+| Mogul 2-6-0 | Steam | 1862 | 55 | 9 | 12 | 60 t | M | 3 | $54k | $6k |
+| Consolidation 2-8-0 | Steam | 1872 | 50 | 12 | 20 | 85 t | H | 3 | $76.5k | $8.5k |
 | Ten-Wheeler 4-6-0 | Steam | 1880 | 75 | 9 | 8 | 75 t | M | 4 | $67.5k | $7.5k |
 | Atlantic 4-4-2 | Steam | 1895 | 100 | 8 | 6 | 105 t | M | 4 | $94.5k | $10.5k |
 | Pacific 4-6-2 | Steam | 1905 | 115 | 11 | 9 | 150 t | H | 4 | $135k | $15k |
-| Mikado 2-8-2 | Steam | 1912 | 75 | 16 | 14 | 180 t | H | 4 | $162k | $18k |
+| Mikado 2-8-2 | Steam | 1912 | 75 | 16 | 35 | 180 t | H | 4 | $162k | $18k |
 | Hudson 4-6-4 | Steam | 1927 | 135 | 14 | 10 | 250 t | H | 4 | $225k | $25k |
-| Articulated 4-8-8-4 | Steam | 1941 | 95 | 26 | 22 | 540 t | H | 3 | $486k | $54k |
+| Articulated 4-8-8-4 | Steam | 1941 | 95 | 26 | 60 | 540 t | H | 3 | $486k | $54k |
 | Early Electric | Electric | 1905 | 110 | 12 | 9 | 90 t | M | 3 | $144k | $4.5k |
 | Streamliner Diesel | Diesel | 1934 | 145 | 12 | 8 | 130 t | M | 3 | $120k | $9.8k |
 | E-Unit Electric | Electric | 1928 | 160 | 18 | 12 | 210 t | H | 4 | $216k | $10.5k |
-| Cab Unit Diesel | Diesel | 1939 | 120 | 16 | 14 | 105 t | M | 4 | $96k | $7.9k |
-| Road Switcher Diesel | Diesel | 1949 | 105 | 19 | 16 | 115 t | M | 5 | $114k | $8.7k |
+| Cab Unit Diesel | Diesel | 1939 | 120 | 16 | 22 | 105 t | M | 4 | $96k | $7.9k |
+| Road Switcher Diesel | Diesel | 1949 | 105 | 19 | 28 | 115 t | M | 5 | $114k | $8.7k |
 | Modern Electric | Electric | 1960 | 180 | 24 | 16 | 90 t | H | 5 | $288k | $4.5k |
-| High-Horsepower Diesel | Diesel | 1963 | 125 | 26 | 20 | 180 t | H | 5 | $156k | $13.5k |
-| Heavy Diesel | Diesel | 1976 | 130 | 32 | 24 | 195 t | H | 5 | $192k | $14.7k |
-| High-Speed Trainset | Electric | 1981 | 270 | 16 | 10 | 136 t | M | 5 | $528k | $6.8k |
-| Heavy Freight Electric | Electric | 1994 | 140 | 40 | 28 | 120 t | H | 5 | $480k | $6k |
+| High-Horsepower Diesel | Diesel | 1963 | 125 | 26 | 35 | 180 t | H | 5 | $156k | $13.5k |
+| Heavy Diesel | Diesel | 1976 | 130 | 32 | 45 | 195 t | H | 5 | $192k | $14.7k |
+| High-Speed Trainset | Electric | 1981 | 270 | 16 | 5 | 136 t | M | 5 | $528k | $6.8k |
+| Heavy Freight Electric | Electric | 1994 | 140 | 40 | 40 | 120 t | H | 5 | $480k | $6k |
 
+- **Train length (Phase 58).** Max cars = the real typical train of the type each engine stands for (cars of its era, source
+  beside each engine in `src/data/trains.ts`) x **one** game scale, `TRAIN_LENGTH_SCALE` = 0.5 (a game car is 20 t of coal or
+  40-80 passengers, about two of the wagons or carriages of the 1830s-80s). Before: Mogul 9, Consolidation 12, Mikado 14,
+  Articulated 22, Cab Unit 14, Road Switcher 16, High-Horsepower 20, Heavy Diesel 24, Heavy Freight Electric 28, High-Speed
+  Trainset 10 (now 5 cars of 80 seats ~ the TGV's 485); the first four engines (4/6/8/10) and the passenger steam engines
+  keep their lengths. Power and grades (`computeTargetSpeed`) still slow a long train (speed = Power / load), so Power
+  decides the *useful* length and the cap is only the real limit. Crews do not grow with length past a conductor and three
+  brakemen (`MAX_TRAIN_STAFF` = 4 guards).
 - High-Speed Trainset: passenger & mail cars only.
 - Electric: requires every edge of its route to be electrified; a third cheaper to maintain per tonne than a diesel
   (already reflected), no water towers needed.
@@ -485,7 +499,8 @@ wizard show the price **and the yearly upkeep at the current year's prices** (§
 distanceTiles = straight-line (Euclidean) distance between the station where it was loaded and destination
 days          = in-game days since loaded (for passengers: since the journey began, waiting at an interchange included)
 freight and mail (urgent cargo):
-  timeFactor  = days <= expected ? 1.0 + 0.25*(1 - days/expected) : max(0.2, 1 - (days-expected)/(decayDays*2))
+  timeFactor  = days <= expected ? 1.0 + 0.25*(1 - days/expected)   [bulk freight (`tonnage`: coal, ores, wood, grain, oil,
+                steel, lumber, fuel; Phase 58): 1.0 -- paid by the ton-mile, no early bonus; lateness still costs] : max(0.2, 1 - (days-expected)/(decayDays*2))
                 where expected = distanceTiles / speed × urgency + 2   (days; +2 days for loading)
                 speed: 2 tiles/day (≈ a 60 km/h train) for freight; for mail the era's typical train,
                        `eraReferenceTilesPerDay(year)` (Phase 53, `ERA_TRAIN_KMH_ANCHORS` x `TRIP_SPEED_EFFICIENCY`)
@@ -1209,3 +1224,4 @@ localization (English only, but keep strings in one `strings.ts` file for later)
 - [Phase 56] §7.7: every engine has a real working weight; price and upkeep are derived from it (steam $900/t, electric $1,350/t, diesel $1,800/t; upkeep $100/$50/$75 per tonne a year), so the roster's price range widens (Grasshopper $7k, Hudson $225k, Articulated $486k at 1830 prices). §9.5b: loco tonnes in the wear model and the fuel ratio are the model's own weight (the 18/45/90 t classes are gone), and a repair bill per tile run is new (item 7).
 - [Phase 56B] §7.7: diesel and electric price = installed power (game Power × 100 hp or 200 kW) × $60 at 1830 prices, steam stays by weight; diesels fall to 0.40-0.71 of their Phase 55 price, electrics are back near it (Modern Electric $288k, Heavy Freight $480k); High-Speed Trainset $192k (its game Power is capped). §9: the upkeep shown beside an engine's price is at the current year's prices.
 - [Phase 57] §7.7: `ratedPowerKw` / `ratedPowerHp` price an engine by its real rating where game Power is a cap: High-Speed Trainset $528k (was $192k), Streamliner Diesel $120k (was $72k); the other diesels and electrics checked and left. Good-bot 1900 Normal band is $30-45M on the median of ten seeds (was $20-34M). No change to the effort model (§7.4): engine weight in it and a steeper grade were measured and did not help freight engines (PROGRESS Phase 57).
+- [Phase 58] §7.7: `maxCars` = real typical train x one `TRAIN_LENGTH_SCALE` 0.5 (Consolidation 20, Mikado 35, Articulated 60, Cab Unit 22, Road Switcher 28, Heavy Diesel 45, Heavy Freight Electric 40; High-Speed Trainset 5); freight crew capped at a conductor and three brakemen. §6.1: station track lengths 6/20/60 (were 6/10/16) from the same scale; a train longer than its station's grounds keeps its tail's blocks held. §7.5: junction wait queues (a train queued behind one that waits for me does not block me). §8.1: bulk freight is on a tonnage tariff, no early-delivery bonus.

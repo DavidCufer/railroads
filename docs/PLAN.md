@@ -2469,4 +2469,4 @@ multipliers. Never loosen a test bound or word limit. Measure before and after e
    balance test fails, report old/new values and the real cause; do not loosen it.
 6. PROGRESS with tables, SPEC (§7.4, §7.7, §8 cargo urgency, stations), e2e (update, never weaken), screenshots
    `phase-58-*.png`: a long coal train with a heavy engine on a hill line, a short local, the buy list. LOOK at them.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
+Status: [x] 1 [x] 2 [x] 3 [x] 4 (measured; freight-engine targets missed, see PROGRESS) [x] 5 [x] 6

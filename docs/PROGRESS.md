@@ -6420,3 +6420,73 @@ Some bad-bot bounds are missed (1840 Normal 1/3, 1950 Hard 1/3, 1900 leveraged N
 **5. Docs.** SPEC §7.7 (rated power rule and the checked list, the two new prices, table rows) and the change log; PLAN status; HANDOFF band. Screenshot `docs/screenshots/phase-57-coal-climb.png` (1945: an Articulated with 12 coal cars, full, on the ridge of a hill line, its train panel open; I opened it: the train is long and loaded, the hills terrain shows, the panel shows Articulated, 95 km/h, Full load at the mine).
 
 **Decisions and deviations.** (1) Streamliner included in the rated-power fix (40 % under its real 2,000 hp) while High-Horsepower and Heavy Diesel (13 %, 20 % under) were left; the line I drew is "far below, more than a third". (2) Item 3 built no correction: the two real corrections I found (engine weight in the effort model; freight crew by train not by car) either hurt freight or do not change it, and the real cause is price against haul and the facility, which are balance-scale decisions for the owner. (3) The new bench is in `tools/bench/freight.ts`; `engineCosts.ts` is untouched. (4) The e2e price test allows 3 % because the engine list rounds to two figures above $1M.
+
+## 2026-10-19 - Phase 58: one train-length scale, long trains that signal and draw, bulk freight on a tonnage tariff, engines by job (measured; heavy-freight target missed)
+
+**State: items 1-6 done. Balance: good bot 1900 Normal median $38.61M (inside $30-45M), identical per seed to Phase 57 in every cell. `npm run check` and e2e green (see end). The roles target for heavy freight engines is MISSED and reported below; nothing was tuned to hit it.**
+
+**1. One train-length scale.** `LocomotiveDef.typicalCars` (real typical train of the type, cars of its era, source beside each engine) x `TRAIN_LENGTH_SCALE` = 0.5 (a game car = 20 t of coal / 40-80 seats, about two wagons or carriages of the 1830s-80s; chosen so the first engines keep their Phase 48 lengths) = `maxCars`. The real lengths are typical practice from memory, not checked citations.
+| engine | real cars | maxCars before | after |
+|---|---|---|---|
+| Grasshopper / Planet / Norris / American | 8 / 12 / 16 / 20 | 4 / 6 / 8 / 10 | 4 / 6 / 8 / 10 |
+| Mogul | 24 | 9 | 12 |
+| Consolidation | 40 | 12 | 20 |
+| Ten-Wheeler / Atlantic / Pacific / Hudson | 16 / 12 / 18 / 20 | 8 / 6 / 9 / 10 | 8 / 6 / 9 / 10 |
+| Mikado | 70 | 14 | 35 |
+| Articulated | 120 | 22 | 60 |
+| Early Electric / Streamliner / E-Unit / Modern Electric | 18 / 16 / 24 / 32 | 9 / 8 / 12 / 16 | 9 / 8 / 12 / 16 |
+| Cab Unit / Road Switcher | 44 / 56 | 14 / 16 | 22 / 28 |
+| High-Horsepower / Heavy Diesel | 70 / 90 | 20 / 24 | 35 / 45 |
+| Heavy Freight Electric | 80 | 28 | 40 |
+| High-Speed Trainset | 10 | 10 | 5 (5 x 80 seats ~ a TGV's 485) |
+Hill check (`tests/sim/trains/trainLength.test.ts`): 24 loaded cars up the steepest grade: Mogul 0.22 of top speed (crawls), Articulated 0.63; the longest train that holds half speed grows Mogul < Consolidation < Mikado < Articulated. Power decides the useful length (speed = Power/load; throughput saturates at Power x top speed), the cap is only the real limit. Also a real correction the long trains needed: crew guards capped at 4 (`MAX_TRAIN_STAFF`, conductor + three brakemen; a 60-car freight had 15 guards).
+
+**2. Stations and loading.** Track length = real cars x the same scale: Depot 12 -> 6 (unchanged), Station 40 -> 20 (was 10), Terminal 120 -> 60 (was 16), since otherwise no freight engine from 1870 loads at full speed anywhere. Overlength rule kept (2x handling). Real bugs found and fixed with long trains (`tests/sim/trains/longTrain.test.ts`, 10 tests):
+- *Head-on through a long standing tail*: a train stopped at a station dropped every block it held, so one from the other way ran through its 14-tile body. Now the part of the body outside the station's grounds (platform track + `STATION_YARD_TILES` 3.5) keeps its blocks held (`keepProtrudingTail`; also on the deadlock reroute and the stale-reservation check). Two 45-car trains meeting at a Depot passing place now both report stuck (no overlap); at a Terminal one waits in the loop and the other passes.
+- *Junction wait cycles*: a 40-car train's cluster claim sat behind short leaders; the wait lasted 60+ days. `queuedBehindWaiterOf`: a train queued (even through several trains) behind one that waits for me cannot block me. Longest wait in the five legal junction layouts with a 40-car Articulated among shorter trains: 87-207 h (the bad layout 1441 h before). (A first fix that cut claim clusters at a leader made the existing phantom-jam stress test fire its net; dropped.)
+- Followers still drive into a station's yard past a standing train (`nearestLeader` skips standing trains), so a queued follower cannot hold the way out of a terminal; the overlap is the station-yard abstraction, as for short trains, and the new tests exempt only trains both inside a station's grounds.
+- Rendering: a 60-car train is 61 vehicles laid along a curved track, spacing < 0.7 tile and > 0.2 (test). Frame time (e2e, 3 s at 1x): average render 3 cars 0.53 ms vs 60 cars 0.68 ms.
+
+**3. Cargo urgency audit.** Changed: new `CargoDef.tonnage` for coal, iron ore, wood, grain, oil, steel, lumber, fuel (and the two ores, which pay nothing): paid by the ton-mile, **no early-delivery bonus** (it was up to +25 %), lateness still costs. Unchanged and why: passengers (Phase 53 rule), mail 0.8, livestock 1.2, food 1.3, goods 1.6 (paid for speed: express, perishable), silver bars / enriched uranium (urgency 1.0; kept so the long-haul chain tests stay as measured). Urgencies and decay days of bulk (2.5; 20-30 days) are right. Noted, not changed: waiting-pile decay is 30 days for livestock and food too (they spoil in days); a separate knob. Effect: coal profit on the hill line -2 to -20 %, slow engines a little better placed.
+
+**4. Roles (benches: `engineCosts.ts` payback years, 3 seeds; `freight.ts` Terminal + Warehouse + full load, 2 seeds).** Best buy, small towns 20,000 (1 / 3 / 6 cars / max):
+| era | line | 1 | 3 | 6 | max |
+|---|---|---|---|---|---|
+| 1870 | short | Planet 0.6 | Planet 0.5 | Norris 1.0 | Grasshopper 1.0 |
+| 1870 | medium | Planet 0.5 | Norris 0.3 | American 0.4 | Mogul 0.7 |
+| 1900 | medium | Planet 0.5 | Norris 0.4 | American 0.7 | Ten-Wheeler 0.9 |
+| 1900 | long | Planet 0.5 | Norris 0.4 | Ten-Wheeler 0.6 | Ten-Wheeler 0.8 |
+| 1930 | medium | Planet 0.6 | Norris 1.0 | American 2.0 | never |
+| 1950 | long | Planet 0.5 | Norris 1.1 | Cab Unit 1.9 | never |
+(short lines in 1930/1950 never pay with towns of 20,000; "max" is now 20-60 cars, more than small towns fill.) Between big cities 150,000:
+| era | line | 1 | 3 | 6 | max |
+|---|---|---|---|---|---|
+| 1870 | long | Planet 0.4 | Norris 0.3 | Mogul 0.3 | Mogul 0.3 |
+| 1900 | short | Planet 0.7 | Norris 0.5 | Ten-Wheeler 0.5 | Ten-Wheeler 0.5 |
+| 1900 | long | Planet 0.5 | Norris 0.3 | Atlantic 0.2 | Ten-Wheeler 0.2 |
+| 1930 | long | Planet 0.5 | E-Unit 0.3 | E-Unit 0.2 | Early Electric 0.2 |
+| 1950 | medium | Planet 0.6 | Streamliner 0.3 | Cab Unit 0.2 | Streamliner 0.2 |
+| 1950 | long | Planet 0.5 | Streamliner 0.2 | Streamliner 0.2 | Streamliner 0.1 |
+Passenger rows are essentially the Phase 56B/57 results (no passenger mechanism changed): **short line: a small cheap engine wins (kept); long line between big towns: the fast passenger engine wins** (Atlantic/Ten-Wheeler 1900, E-Unit/Early Electric 1930, Streamliner 1950).
+Coal on the hill line, Terminal, x2.16, best payback (best profit per year); 1 mine = 6 car-loads/month, 3 mines = 19:
+| era | 1 mine | 3 mines |
+|---|---|---|
+| 1870 | Mogul x10 0.4 | Mogul x12 0.3 (373k) |
+| 1900 | Ten-Wheeler x8 0.5 (Consolidation x10 334k) | Mogul x12 0.4 (Consolidation x14 411k) |
+| 1930 | Norris x3 0.6 (Ten-Wheeler x8 274k) | Mogul x12 0.5 (E-Unit x10 782k) |
+| 1950 | Ten-Wheeler x8 0.5 (Consolidation x10 379k) | Cab Unit x14 0.3 (Road Switcher x20 1,153k) |
+Before this phase (Phase 57): Mogul x9 / Ten-Wheeler x8 / Early Electric x9 / Cab Unit x14 0.2. Held at 10x the mines' output (bench only) the ranking is the same (1950: Cab Unit x22 0.2, best profit Road Switcher x28 1,636k).
+**Which engine wins which case (by best payback in the tables above and the 1870-1950 grid):** Planet (1-car, all eras), Norris (3-car, all eras; 1950 coal), American (6-car, medium lines, 1930 coal), Mogul (long passenger 1870; coal 1870-1930), Ten-Wheeler (1900 short/medium/long, big cities; 1950 short; coal 1900-1950 small), Atlantic (1900 long, big cities), Early Electric / E-Unit (1930 medium/long, big cities), Streamliner (1950 medium/long, big cities), Cab Unit (1950 six-car long; coal 1950; short big-city 3-car), Grasshopper (1870/1900 short, full train). By best **profit per year** on coal: Consolidation (1900, 1950), E-Unit (1930), Road Switcher (1950). **No win** (payback): Pacific, Hudson, Mikado, Articulated, Road Switcher, and every engine from 1960 (not in the 1950 era window; HST, Heavy Diesel, High-Horsepower, Heavy Freight Electric, Modern Electric not benched). **Target miss, openly:** on the hill coal line the heavy steam freight engines (Consolidation, Mikado, Articulated) never have the best payback; the Consolidation / Road Switcher have the best profit. Causes found: (a) Power x top speed bounds an engine's throughput, so beyond its useful length more cars add nothing (Articulated x60 earns less than x28); (b) price: steam price follows weight, so an Articulated is $1.25M against a Cab Unit's $0.3M for 1.4-1.9x the haul; (c) the Ten-Wheeler (a passenger engine, 75 km/h) hauls coal at 75 km/h, no freight-speed limit exists in the game, and the freight engines' top speeds are 50-75 km/h; (d) one train saturates a mine's supply (19 car-loads a month) at about 12-14 cars. **Experiment, not applied:** the Articulated's Power 26 is 58 % under its real rating by the 100 hp/unit rule of the diesels (a Big Boy ~6,200 hp; its tractive effort 135,375 lbf against a Consolidation's ~34,000 would be about 48); at Power 48 with a Terminal at x10 supply the Articulated x60 is the best profit (1,928k vs Cab Unit 1,595k a year) but payback stays 0.8 vs 0.2. Steam Power across the roster is a tractive-effort scale, not hp (Hudson 14 vs 47 by hp): an owner decision, it moves the passenger and bot results.
+
+**5. Balance (good bot, 10 seeds, medians; bad bots 3 seeds).** The good bot builds passenger lines only (`goodPlayer.ts` turns freight offers down) and sizes consists at <= 6 cars, so it never meets a long train, a freight tariff or a longer platform: every cell is **identical per seed** to Phase 57. I did not add freight lines to the bot (a new bot feature that would move the bands).
+| start | Normal $M median [min-max] | Hard $M median [min-max] | Hard below Normal |
+|---|---|---|---|
+| 1840 | 22.32 [21.57-23.41] | 11.52 [8.91-14.08] | 48 % |
+| 1900 | **38.61** [34.26-44.64] | 10.70 [10.20-12.33] | 72 % |
+| 1930 | 10.28 [9.90-15.69] | 5.62 [4.74-6.22] | 45 % |
+| 1950 | 7.37 [6.97-7.74] | 3.87 [3.46-4.23] | 47 % |
+All 80 runs survive. Bad bots (bankrupt/3): overbuilder 1840 N 1, H 3, 1900 N 3, H 3, 1930 N 3, 1950 N 3, H 3; trainSpammer 3/3/3/3/3/-/3/1; leveraged 1/3/2/3/3/-/3/1 (1840 N, 1840 H, 1900 N, 1900 H, 1930 N, 1930 H, 1950 N, 1950 H); the same pattern as Phase 57 (the old bad-bot misses stay, not chased).
+
+**6. Docs, e2e, screenshots.** SPEC §7.7 table and train-length note, §6.1 station track lengths, §8.1 tonnage tariff, change log. `e2e/phase58.spec.ts` (Buy Train list shows 60 / 35 / 6 cars; a 40-car coal train on the hill line; 60-car vs 3-car render time; a short local). Screenshots `docs/screenshots/phase-58-{buy-list,long-coal,short-local}.png`, all opened: the buy list shows the Articulated with 60 cars; the 40-car train is 13 tiles long on the ridge line with a full hopper strip in the panel; the Planet with its three coaches at a station.
+
+**Decisions and deviations.** (1) Scale 0.5; real lengths are typical practice from memory. (2) High-Speed Trainset falls from 10 to 5 cars (same rule; 5 x 80 seats ~ real seats). (3) Station track lengths 6/20/60 from real 12/40/120 cars. (4) Tail-hold rule: a train too long for its station's grounds is no passing place; two such trains meeting jam (stuck warning) rather than pass through each other. (5) Junction queue rule and crew cap added because long trains exposed them. (6) Not changed: consist-builder passenger suggestion still fills every slot (60 cars for an Articulated); waiting decay of perishables; steam Power scale; freight speed limits (would be an era table). (7) `engineCostsSummary.ts` and `freight.ts` car counts up to 60 added to the benches.

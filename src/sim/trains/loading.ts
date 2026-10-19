@@ -296,7 +296,9 @@ export function computeRevenue(
     const expected = expectedTransitDays(cargo, distanceTiles, year);
     timeFactor =
       days <= expected
-        ? 1 + 0.25 * (1 - days / expected)
+        ? def.tonnage
+          ? 1 // Phase 58: bulk freight is paid by ton-mile, a quick run earns no premium
+          : 1 + 0.25 * (1 - days / expected)
         : Math.max(0.2, 1 - (days - expected) / (def.decayDays * 2));
   }
   return (

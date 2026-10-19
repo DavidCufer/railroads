@@ -91,11 +91,19 @@ describe("computeRevenue", () => {
   }> = [
     // Distances are the pre-Phase-23 tile counts × WORLD_SCALE (same km).
     // coal: urgency 2.5, baseRate 1200, decayDays 30. expected = (8/2)*2.5+2 = 12 days exactly.
+    // Phase 58: coal is paid by the ton-mile, a quick run earns no early bonus (the fare is the flat rate until late).
     {
       cargo: "coal",
       distanceTiles: 8 * WORLD_SCALE,
       days: 6,
-      expected: 1200 * 0.8 * (1 + 0.25 * (1 - 6 / 12)) * F("coal"),
+      expected: 1200 * 0.8 * F("coal"),
+    },
+    // Cargo that is paid for speed keeps the bonus of up to 25 %: food (urgency 1.3, base 2200), expected = (8/2)*1.3+2 = 7.2 days.
+    {
+      cargo: "food",
+      distanceTiles: 8 * WORLD_SCALE,
+      days: 3.6,
+      expected: 2200 * 0.8 * (1 + 0.25 * (1 - 3.6 / 7.2)) * F("food"),
     },
     {
       cargo: "coal",
@@ -151,13 +159,15 @@ describe("computeRevenue", () => {
     const oldTiles = 12;
     const km = oldTiles * 10;
     // (passengers have paid by distance since Phase 53, and mail is measured against the era's train: own tests)
-    for (const cargo of ["coal"] as const) {
+    for (const cargo of ["coal", "food"] as const) {
       for (const days of [3, 9, 30]) {
         const def = CARGO[cargo];
         const expected = (oldTiles / 2) * def.urgency + 2;
         const timeFactor =
           days <= expected
-            ? 1 + 0.25 * (1 - days / expected)
+            ? def.tonnage
+              ? 1
+              : 1 + 0.25 * (1 - days / expected)
             : Math.max(0.2, 1 - (days - expected) / (def.decayDays * 2));
         const before = def.baseRate * (oldTiles / 10) * timeFactor * F(cargo);
         expect(computeRevenue(state, cargo, km / KM_PER_TILE, days)).toBeCloseTo(before, 6);

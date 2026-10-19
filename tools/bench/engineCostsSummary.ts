@@ -29,11 +29,9 @@ for (const start of [...new Set(rows.map((r) => r.start))]) {
         continue;
       }
       const b = c.reduce((a, x) => (x.payback < a.payback ? x : a));
-      cells.push(
-        Number.isFinite(b.payback) ? `${b.engine.split("-")[0]} ${b.payback.toFixed(1)}` : "never",
-      );
+      cells.push(Number.isFinite(b.payback) ? `${b.engine} ${b.payback.toFixed(1)}` : "never");
       if (Number.isFinite(b.payback)) {
-        const k = b.engine.split("-")[0] as string;
+        const k = b.engine as string;
         wins.set(k, [...(wins.get(k) ?? []), `${start}/${line}/${label}`]);
       }
     }

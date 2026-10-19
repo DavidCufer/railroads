@@ -8,6 +8,7 @@ import {
   locomotiveById,
   type LocomotiveDef,
 } from "../../../src/data/trains";
+import { trainCrewSize } from "../../../src/data/economy";
 import { carCapacity } from "../../../src/sim/trains/capacity";
 
 /** Phase 58 item 1: one train-length scale for every engine, and power (not the cap) sets the useful length. */
@@ -81,5 +82,12 @@ describe("train length scale (Phase 58)", () => {
     for (let i = 1; i < lens.length; i++) expect(lens[i]!).toBeGreaterThan(lens[i - 1]!);
     // the cap is only the real limit: a Mogul's useful train is shorter than its cap, an Articulated's is not
     expect(lens[0]!).toBeLessThan(freight[0]!.maxCars);
+  });
+
+  it("a freight crew does not grow with the length of the train past a conductor and three brakemen", () => {
+    const big = locomotiveById("articulated-4-8-8-4")!;
+    expect(trainCrewSize(big, 16)).toBe(trainCrewSize(big, 60));
+    expect(trainCrewSize(big, 60)).toBe(trainCrewSize(big, 22));
+    expect(trainCrewSize(big, 8)).toBeLessThan(trainCrewSize(big, 60));
   });
 });

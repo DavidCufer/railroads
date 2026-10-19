@@ -151,6 +151,10 @@ export function footplateCrew(loco: LocomotiveDef): number {
 
 /** One guard/brakeman/conductor per this many cars (a short train's guard rides with the crew). */
 export const CARS_PER_TRAIN_STAFF = 4;
+/** Phase 58: the most guards a train carries, however long (a conductor and three brakemen: the "full crew" the US states'
+ * laws of the 1900s-10s required on a long freight, and the most any freight crew was). The 100-wagon trains the big
+ * engines now haul (`TRAIN_LENGTH_SCALE`) ran with the same crew as a 20-wagon one. */
+export const MAX_TRAIN_STAFF = 4;
 
 /** Phase 43: how far operating costs have grown into their mature form (0 = the 1830s railway, 1 = a fully staffed,
  * fuel-hungry, ticketed railway). Early lines were run on shoestring crews with cheap wood and coal and a guard for a few
@@ -182,12 +186,12 @@ export function handlingShare(year: number): number {
 export const ATTENDANTS_PER_COACH = 0.75;
 
 /** Everyone on a train: footplate crew plus guards/conductors for the cars, plus the coaches' attendants. A Grasshopper
- * with three wagons has a crew of 2; a 22-wagon articulated freight 3 + 5 = 8. `coaches` is how many of the `cars`
+ * with three wagons has a crew of 2; a 22-wagon articulated freight 3 + 4 = 7, and so is a 60-wagon one. `coaches` is how many of the `cars`
  * carry passengers or mail; their attendants grow in with `realism` (0..1, see `costRealism`). */
 export function trainCrewSize(loco: LocomotiveDef, cars: number, coaches = 0, realism = 1): number {
   return (
     footplateCrew(loco) +
-    Math.floor(cars / CARS_PER_TRAIN_STAFF) +
+    Math.min(MAX_TRAIN_STAFF, Math.floor(cars / CARS_PER_TRAIN_STAFF)) +
     coaches * ATTENDANTS_PER_COACH * realism
   );
 }

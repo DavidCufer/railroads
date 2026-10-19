@@ -65,6 +65,11 @@ export interface CargoDef {
    * plant; "final" cargo (bars, enriched uranium) pays on arrival at the end of the chain, with the distance measured
    * from the *ore's* origin, which the cargo carries all the way. Absent = an ordinary cargo paid on every delivery. */
   chainLeg?: "intermediate" | "final";
+  /** Phase 58: bulk freight paid on a tonnage tariff, so much per ton-mile whatever the speed. Railways quoted coal, ore,
+   * grain, logs, lumber, steel and oil at commodity rates per hundredweight (or ton) per distance, and the shipper paid no
+   * premium for a quick run; speed was sold only as separate premium services (fast freight, perishable, express, mail). Such cargo gets no
+   * early-delivery bonus in `computeRevenue` (a very late delivery still loses fare, as demurrage and claims did). */
+  tonnage?: true;
   /** Phase 40: carried in a secure car (small capacity, costly, higher upkeep). */
   secure?: boolean;
 }
@@ -177,6 +182,7 @@ export const CARGO: Record<CargoType, CargoDef> = {
     baseRate: 1_200,
     decayDays: 30,
     urgency: 2.5,
+    tonnage: true,
     color: "#2A2A2A",
     era: 1830,
   },
@@ -192,6 +198,7 @@ export const CARGO: Record<CargoType, CargoDef> = {
     baseRate: 1_100,
     decayDays: 30,
     urgency: 2.5,
+    tonnage: true,
     color: "#A3583E",
     era: 1830,
   },
@@ -207,6 +214,7 @@ export const CARGO: Record<CargoType, CargoDef> = {
     baseRate: 1_000,
     decayDays: 30,
     urgency: 2.5,
+    tonnage: true,
     color: "#7A5230",
     era: 1830,
     notes: "logs",
@@ -223,6 +231,7 @@ export const CARGO: Record<CargoType, CargoDef> = {
     baseRate: 1_300,
     decayDays: 20,
     urgency: 2.5,
+    tonnage: true,
     color: "#D9B23C",
     era: 1830,
   },
@@ -254,6 +263,7 @@ export const CARGO: Record<CargoType, CargoDef> = {
     baseRate: 1_600,
     decayDays: 30,
     urgency: 2.5,
+    tonnage: true,
     color: "#2E4A2E",
     era: 1860,
   },
@@ -269,6 +279,7 @@ export const CARGO: Record<CargoType, CargoDef> = {
     baseRate: 2_000,
     decayDays: 30,
     urgency: 2.5,
+    tonnage: true,
     color: "#5D7A99",
     era: 1830,
     notes: "processed",
@@ -285,6 +296,7 @@ export const CARGO: Record<CargoType, CargoDef> = {
     baseRate: 1_500,
     decayDays: 30,
     urgency: 2.5,
+    tonnage: true,
     color: "#B08D5E",
     era: 1830,
     notes: "processed",
@@ -333,6 +345,7 @@ export const CARGO: Record<CargoType, CargoDef> = {
     baseRate: 2_000,
     decayDays: 30,
     urgency: 2.5,
+    tonnage: true,
     color: "#E0C93C",
     era: 1890,
     notes: "processed",
@@ -349,6 +362,7 @@ export const CARGO: Record<CargoType, CargoDef> = {
     baseRate: 0, // intermediate leg: paid nothing, the bars carry its value
     decayDays: 60,
     urgency: 2.5,
+    tonnage: true,
     color: "#9AA0A8",
     era: 1830,
     chainLeg: "intermediate",
@@ -384,6 +398,7 @@ export const CARGO: Record<CargoType, CargoDef> = {
     baseRate: 0,
     decayDays: 60,
     urgency: 2.5,
+    tonnage: true,
     color: "#8FB04A",
     era: 1940,
     chainLeg: "intermediate",
