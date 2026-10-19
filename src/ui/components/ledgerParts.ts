@@ -61,6 +61,7 @@ export function costParts(period: LedgerPeriod): StackedBarPart[] {
     ["trainMaintenance", f.trainMaintenance, period.trainMaintenance],
     ["crewWages", f.crewWages, period.crewWages],
     ["trackMaintenance", f.trackMaintenance, period.trackMaintenance],
+    ["administration", f.administration, period.administration],
     ["trackWear", f.trackWear, period.trackWear],
     ["stationMaintenance", f.stationMaintenance, period.stationMaintenance],
     ["propertyTax", f.propertyTax, period.propertyTax],

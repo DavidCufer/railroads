@@ -244,6 +244,15 @@ export const STATION_UPKEEP_MONTHLY: Record<"depot" | "station" | "terminal", nu
  * ballast, sleepers and rail (general prices). */
 export const TRACK_LABOUR_SHARE = 0.7;
 
+/** Phase 59: general administration. The head office (officers, accountants, clerks, solicitors, insurance, stationery and
+ * the claims department) is a cost no train or station books. A one-railway report of 1901 split its operating
+ * expenses into way and structures 22 %, equipment 17 %, conducting transportation 47 % and general 14 %; the head
+ * office costs follow the size of the operation it administers, so it is charged as this share of every other operating
+ * cost (wages, fuel, upkeep, repairs), not of income and not of tax. 0.14 of the total is 0.14 / 0.86 of the rest. */
+export const GENERAL_ADMIN_SHARE_OF_EXPENSES = 0.14;
+export const GENERAL_ADMIN_MARKUP =
+  GENERAL_ADMIN_SHARE_OF_EXPENSES / (1 - GENERAL_ADMIN_SHARE_OF_EXPENSES);
+
 // --- 3. Locomotive complexity, teething troubles and wear -------------------------------------------
 
 /** A new model has a teething period: its first `TEETHING_YEARS` on the market it is one reliability step worse

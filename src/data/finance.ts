@@ -178,6 +178,8 @@ export interface LedgerPeriod {
   /** Wages of train crews (Economic model v2). */
   crewWages: number;
   trackMaintenance: number;
+  /** Phase 59: the head office, charged as a share of the other running costs (`GENERAL_ADMIN_MARKUP`). */
+  administration: number;
   /** Wear of the rails from the trains that ran on them (Economic model v2). */
   trackWear: number;
   stationMaintenance: number;
@@ -201,6 +203,7 @@ export function emptyLedgerPeriod(): LedgerPeriod {
     trainMaintenance: 0,
     crewWages: 0,
     trackMaintenance: 0,
+    administration: 0,
     trackWear: 0,
     stationMaintenance: 0,
     propertyTax: 0,
@@ -234,6 +237,7 @@ export function ledgerOperatingCosts(p: LedgerPeriod): number {
     p.trainMaintenance +
     p.crewWages +
     p.trackMaintenance +
+    p.administration +
     p.trackWear +
     p.stationMaintenance +
     p.propertyTax +

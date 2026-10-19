@@ -45,6 +45,7 @@ import {
   repayPrincipal,
 } from "./credit";
 import {
+  GENERAL_ADMIN_MARKUP,
   PROPERTY_TAX_RATE,
   WEAR_ROUTINE_SHARE,
   incomeTaxRate,
@@ -152,10 +153,15 @@ export function monthlyFinanceStep(state: GameState): void {
   addExpense(state, "stationMaintenance", stationMaint);
   addExpense(state, "trainMaintenance", trainMaint);
   addExpense(state, "crewWages", crewWages);
+  // Phase 59: the head office, in proportion to what it administers (everything but tax and interest)
+  const administration =
+    (trackMaint + stationMaint + trainMaint + crewWages + trackWear) * GENERAL_ADMIN_MARKUP;
+  addExpense(state, "administration", administration);
   const propertyTax = (state.finance.capitalInvested * PROPERTY_TAX_RATE * diff.taxMult) / 12;
   addExpense(state, "propertyTax", propertyTax);
   addExpense(state, "trackWear", trackWear);
-  state.cash -= trackMaint + stationMaint + trainMaint + crewWages + trackWear + propertyTax;
+  state.cash -=
+    trackMaint + stationMaint + trainMaint + crewWages + trackWear + administration + propertyTax;
 
   if (state.finance.loans > 0) {
     const interest = state.finance.loans * (interestRate(state, netWorth(state)) / 12);

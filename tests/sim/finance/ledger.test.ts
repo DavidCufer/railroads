@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { DIFFICULTY } from "../../../src/data/finance";
-import { PROPERTY_TAX_RATE, WAGE_1830, wageIndex, priceIndex } from "../../../src/data/economy";
-import { MAINTENANCE_SINGLE } from "../../../src/data/track";
+import {
+  GENERAL_ADMIN_MARKUP,
+  PROPERTY_TAX_RATE,
+  WAGE_1830,
+  wageIndex,
+  priceIndex,
+} from "../../../src/data/economy";
+import { MAINTENANCE_SINGLE, SECTION_GANG_MEN, SECTION_LENGTH_KM } from "../../../src/data/track";
 import { stationMonthlyCost, trackEdgeMonthlyCost } from "../../../src/sim/finance/costs";
 import { buildStation, buildTrack, buyTrain } from "../../../src/sim/commands";
 import {
@@ -57,8 +63,10 @@ describe("monthlyFinanceStep", () => {
     expect(expectedStation).toBeCloseTo(15 + (1 * WAGE_1830) / 12, 5);
     const expectedPropertyTax = (state.finance.capitalInvested * PROPERTY_TAX_RATE) / 12;
     expect(expectedPropertyTax).toBeGreaterThan(0);
+    // Phase 59: the head office is a share of the other running costs (no trains here)
+    const expectedAdmin = (expectedTrack + expectedStation) * GENERAL_ADMIN_MARKUP;
     expect(state.cash).toBeCloseTo(
-      cashBefore - expectedTrack - expectedStation - expectedPropertyTax,
+      cashBefore - expectedTrack - expectedStation - expectedAdmin - expectedPropertyTax,
       5,
     );
     expect(state.finance.thisMonth.trackMaintenance).toBe(0); // rolled over into a fresh period
@@ -202,6 +210,12 @@ describe("wages outrun prices (Economic model v2)", () => {
     ] as const) {
       expect(wageIndex(b) / priceIndex(b)).toBeGreaterThan(wageIndex(a) / priceIndex(a));
     }
+  });
+
+  it("fixed track upkeep is a section gang: seven men to ten miles, at the wage (Phase 59)", () => {
+    const menPerTile = (SECTION_GANG_MEN * 5) / SECTION_LENGTH_KM; // a tile is 5 km
+    // labour is 70 % of the upkeep: the gang's wages are 0.7 of the monthly figure
+    expect(MAINTENANCE_SINGLE * 0.7 * 12).toBeCloseTo(menPerTile * WAGE_1830, 5);
   });
 
   it("the same station and track cost relatively more in wages the later it is", () => {
