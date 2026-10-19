@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   LOCOMOTIVES,
-  LOCO_PRICE_PER_TONNE,
+  POWER_PRICE_PER_RATING,
+  POWER_RATING_PER_UNIT,
+  STEAM_PRICE_PER_TONNE,
   LOCO_UPKEEP_PER_TONNE,
   locomotiveById,
 } from "../../../src/data/trains";
@@ -14,9 +16,13 @@ import {
 const loco = (id: string) => locomotiveById(id)!;
 
 describe("engine price and upkeep follow the real weight (Phase 56)", () => {
-  it("price and yearly upkeep are the weight times the type's rate", () => {
+  it("steam is priced by weight, diesel and electric by installed power; upkeep is weight times the type's rate", () => {
     for (const l of LOCOMOTIVES) {
-      expect(l.cost).toBeCloseTo(l.weightTonnes * LOCO_PRICE_PER_TONNE[l.type], -3);
+      const raw =
+        l.type === "steam"
+          ? l.weightTonnes * STEAM_PRICE_PER_TONNE
+          : l.power * POWER_RATING_PER_UNIT[l.type] * POWER_PRICE_PER_RATING[l.type];
+      expect(l.cost).toBeCloseTo(raw, -3);
       expect(l.maintenancePerYear).toBeCloseTo(l.weightTonnes * LOCO_UPKEEP_PER_TONNE[l.type], -2);
     }
   });

@@ -9,6 +9,7 @@ import {
   type LocomotiveDef,
   type LocomotiveType,
 } from "../data/trains";
+import { eraInflation } from "../data/finance";
 import type { GameState } from "../sim/state";
 import { calendarFromTicks } from "../sim/time";
 import { h } from "./h";
@@ -163,7 +164,14 @@ export function openRosterSheet(container: HTMLElement, state: GameState): Sheet
                 glyph,
               )
             : null,
-          engineStats(def, best, def.cost),
+          engineStats(
+            def,
+            best,
+            def.cost * eraInflation(year),
+            undefined,
+            undefined,
+            def.maintenancePerYear * eraInflation(year),
+          ),
           h("div", { className: "roster-owned-line" }, icon("trains", "icon-sm"), r.owned(count)),
           h("p", { className: "roster-note" }, strings.locoNotes[def.id] ?? ""),
         ),

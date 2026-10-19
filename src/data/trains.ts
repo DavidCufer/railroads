@@ -24,7 +24,7 @@ export interface LocomotiveDef {
   /** Working weight, engine and tender (or fuel and equipment), tonnes, of the real type this model stands for. Price,
    * upkeep, fuel and track wear all follow it. */
   weightTonnes: number;
-  /** Derived from `weightTonnes` (see `LOCO_PRICE_PER_TONNE`), at 1830 prices. */
+  /** Derived (see `locoBasePrice`: steam by weight, diesel and electric by power), at 1830 prices. */
   cost: number;
   /** Derived from `weightTonnes` (see `LOCO_UPKEEP_PER_TONNE`), at 1830 prices. */
   maintenancePerYear: number;
@@ -36,14 +36,27 @@ export interface LocomotiveDef {
 
 type LocoSpec = Omit<LocomotiveDef, "cost" | "maintenancePerYear">;
 
-/** Phase 56: price per tonne of working weight at 1830 prices. Builders sold steam locomotives by weight (a 4-4-0 of
- * 50 t at $45k keeps the old mid-roster price); electrical equipment cost about 1.5x and a diesel engine about 2x as
- * much per tonne (GG1 about $1070/t, EMD E7 about $1640/t, against $600-800/t for a late steam engine). */
-export const LOCO_PRICE_PER_TONNE: Record<LocomotiveType, number> = {
-  steam: 900,
-  electric: 1350,
-  diesel: 1800,
-};
+/** Phase 56: steam price per tonne of working weight at 1830 prices. Builders sold steam locomotives by weight (a 4-4-0
+ * of 50 t at $45k keeps the old mid-roster price; late steam cost $600-800/t). */
+export const STEAM_PRICE_PER_TONNE = 900;
+/** Phase 56B: diesels and electrics were sold by installed power, not weight, so their price is power x a rate. The
+ * game's `power` stands for the real engine's rating at one conversion per type, fitted to the roster's real engines:
+ * diesel 100 hp per unit (EMD F7 1,500 hp = 16, GP9 1,750 hp = 19, SD40-2 3,000 hp = 26, SD70 4,000 hp = 32), electric
+ * 200 kW per unit (GG1 3.45 MW = 18, Re 4/4 II 4.7 MW = 24, Re 6/6 7.8 MW = 40). */
+export const POWER_RATING_PER_UNIT = { diesel: 100, electric: 200 } as const;
+/** Phase 56B: price per hp (diesel) or kW (electric) at 1830 prices, so that the price in the engine's own year is the
+ * real one: an EMD F7 (1,500 hp) cost about $215k in 1949, $143/hp, / `eraInflation(1949)` 2.43 = $59; a PRR GG1
+ * (3,450 kW) about $460k in 1934, $133/kW, / `eraInflation(1934)` 2.25 = $59. Rounded to $60 for both. */
+export const POWER_PRICE_PER_RATING = { diesel: 60, electric: 60 } as const;
+
+/** Price at 1830 prices: steam by weight, diesel and electric by installed power (rounded to $500). */
+export function locoBasePrice(spec: Pick<LocoSpec, "type" | "weightTonnes" | "power">): number {
+  const raw =
+    spec.type === "steam"
+      ? spec.weightTonnes * STEAM_PRICE_PER_TONNE
+      : spec.power * POWER_RATING_PER_UNIT[spec.type] * POWER_PRICE_PER_RATING[spec.type];
+  return Math.round(raw / 500) * 500;
+}
 /** Phase 56: yearly depot, inspection and overhaul upkeep per tonne at 1830 prices (before the year's running-cost
  * share). A steam engine needed about twice the shed labour of a diesel (boiler washout, valve gear) and electrics
  * the least (no boiler or engine): the 30 % saving the old Early Electric note quoted, widened by weight. */
@@ -354,10 +367,10 @@ const LOCOMOTIVE_SPECS: readonly LocoSpec[] = [
   },
 ];
 
-/** The roster with price and upkeep derived from each engine's real weight. */
+/** The roster with price (steam: weight; diesel, electric: power) and upkeep (weight) derived. */
 export const LOCOMOTIVES: readonly LocomotiveDef[] = LOCOMOTIVE_SPECS.map((spec) => ({
   ...spec,
-  cost: Math.round((spec.weightTonnes * LOCO_PRICE_PER_TONNE[spec.type]) / 500) * 500,
+  cost: locoBasePrice(spec),
   maintenancePerYear: Math.round((spec.weightTonnes * LOCO_UPKEEP_PER_TONNE[spec.type]) / 50) * 50,
 }));
 

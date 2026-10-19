@@ -503,7 +503,7 @@ export const strings = {
       running: "Running cost",
       perYear: "/yr",
       legend:
-        "Top speed, power, maximum cars, reliability, and running cost per year. Bars compare with the best engine on offer today.",
+        "Top speed, power, maximum cars, reliability, and running cost per year in today's money. Bars compare with the best engine on offer today.",
     },
     /** Train panel v2 (STYLE §11.2). */
     panel: {

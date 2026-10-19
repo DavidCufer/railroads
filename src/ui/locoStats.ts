@@ -64,13 +64,15 @@ function statRow(r: StatRow): HTMLElement {
   );
 }
 
-/** `price` is the era-adjusted purchase price; `keys` picks a subset (new-engine card shows 3). */
+/** `price` is the era-adjusted purchase price and `upkeep` the yearly upkeep at the same year's prices (default: the
+ * table's 1830 figure, only right next to an 1830 price); `keys` picks a subset (new-engine card shows 3). */
 export function engineStats(
   def: LocomotiveDef,
   best: BestOf,
   price: number,
   keys?: readonly string[],
   units: Units = loadSettings().units,
+  upkeep: number = def.maintenancePerYear,
 ): HTMLElement {
   const s = strings.trains.stats;
   const rows: StatRow[] = [
@@ -115,7 +117,7 @@ export function engineStats(
       key: "running",
       icon: "wrench",
       label: s.running,
-      value: `${formatMoney(def.maintenancePerYear)}${s.perYear}`,
+      value: `${formatMoney(upkeep)}${s.perYear}`,
       fraction: def.maintenancePerYear / best.maintenancePerYear,
       cost: true,
     },

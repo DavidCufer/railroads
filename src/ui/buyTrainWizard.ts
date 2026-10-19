@@ -10,7 +10,7 @@ import {
   type LocomotiveDef,
   type LocomotiveType,
 } from "../data/trains";
-import { LOAN_INCREMENT } from "../data/finance";
+import { LOAN_INCREMENT, eraInflation } from "../data/finance";
 import { KM_PER_TILE } from "../data/scale";
 import {
   buyTrain,
@@ -355,13 +355,14 @@ export function openBuyTrainPanel(
               ),
             ]
           : []),
-        engineStats(loco, best, priceOf(loco), [
-          "speed",
-          "power",
-          "cars",
-          "reliability",
-          "running",
-        ]),
+        engineStats(
+          loco,
+          best,
+          priceOf(loco),
+          ["speed", "power", "cars", "reliability", "running"],
+          undefined,
+          loco.maintenancePerYear * eraInflation(year),
+        ),
       );
       nextBtn.disabled = false;
       const nextLabel = nextBtn.lastElementChild;
