@@ -110,6 +110,9 @@ function reserve(): number {
 /** What the bot will still borrow: a third of net worth at most, and at most half the lenders' limit, so a panic (which cuts
  * the limit to 60 %) or a lean year does not leave debt over the limit, the lenders call it, and the call empties the cash. */
 function borrowRoom(): number {
+  // the very first line is financed from the start-up credit, as any player does: nothing yet to lose to a panic
+  if (lines.length === 0)
+    return Math.max(0, 0.9 * commands.creditLimit(state) - state.finance.loans);
   const room = Math.min(
     BORROW_LIMIT_SHARE * commands.creditLimit(state),
     MAX_DEBT_SHARE * netWorth(state),
@@ -327,9 +330,13 @@ function paxProject(city: City, hub: City): Project | null {
   const loco = bestPaxLoco([city, hub], d);
   const cars = paxConsist(loco.id, paxCars([city, hub]));
   const trainCost = commands.computeBuyTrainPlan(state, loco.id, cars).cost;
-  const total = leg.trackCost + stationCost(leg.ta, ta) + stationCost(leg.tb, tb) + 2 * trainCost;
+  const fixed = leg.trackCost + stationCost(leg.ta, ta) + stationCost(leg.tb, tb);
+  // two trains to start; a poor start (Hard) that cannot pay for two buys one and the second when cash allows
+  const nTrains =
+    lines.length === 0 && state.cash + borrowRoom() < fixed + 2 * trainCost + reserve() ? 1 : 2;
+  const total = fixed + nTrains * trainCost;
   const profit =
-    2 * loco.profit -
+    nTrains * loco.profit -
     lineUpkeepPerYear(
       leg.edges,
       [ta, tb],
@@ -364,8 +371,7 @@ function paxProject(city: City, hub: City): Project | null {
       lines.push(line);
       connected.add(city.id);
       connected.add(hub.id);
-      addTrain(line);
-      addTrain(line);
+      for (let i = 0; i < nTrains; i++) addTrain(line);
       return true;
     },
   };
@@ -493,20 +499,20 @@ function freightProject(prod: Industry, cargo: CargoType, output: number): Proje
   };
 }
 
-function bootstrapProject(): Project | null {
+function bootstrapProjects(): Project[] {
   const cities = state.cities
     .filter((c) => c.tiles.length > 0)
     .sort((p, q) => q.population - p.population)
     .slice(0, 10);
-  let best: Project | null = null;
+  const out: Project[] = [];
   for (const a of cities)
     for (const b of cities) {
       const d = dist(cityCentre(a), cityCentre(b));
       if (a.id >= b.id || d > MAX_LINE_TILES || d < 8) continue;
       const p = paxProject(a, b);
-      if (p && (!best || p.payback < best.payback)) best = p;
+      if (p) out.push(p);
     }
-  return best;
+  return out;
 }
 
 let candidateCache: { tick: number; projects: Project[] } | null = null;
@@ -517,8 +523,7 @@ function candidates(): Project[] {
   const projects: Project[] = [];
   const hubs = state.cities.filter((c) => connected.has(c.id) && c.tiles.length > 0);
   if (hubs.length === 0) {
-    const p = bootstrapProject();
-    if (p) projects.push(p);
+    projects.push(...bootstrapProjects());
   } else {
     const towns = state.cities
       .filter((c) => c.tiles.length > 0 && c.population >= 6_000 && !connected.has(c.id))
@@ -558,6 +563,16 @@ function candidates(): Project[] {
     }
   }
   projects.sort((p, q) => p.payback - q.payback);
+  if (process.env["V"] === "2")
+    console.log(
+      year(),
+      "candidates",
+      projects
+        .slice(0, 6)
+        .map((p) => `${p.label} pb ${p.payback.toFixed(1)} total ${Math.round(p.total / 1000)}k`)
+        .join(" | "),
+      `cash ${Math.round(state.cash / 1000)}k room ${Math.round(borrowRoom() / 1000)}k`,
+    );
   candidateCache = { tick: state.ticks, projects };
   return projects;
 }
@@ -567,7 +582,8 @@ function buildBest(): boolean {
   // a project costs at least a station pair and a train: do not plan (the bot's main cost) before that is in reach
   if (state.cash + borrowRoom() < 150_000) return false;
   const list = candidates().filter((p) => p.payback <= MAX_PAYBACK_YEARS);
-  for (const p of list.slice(0, 3)) {
+  // the first line: any the company can pay for (a poor start, Hard, may afford only the cheaper ones)
+  for (const p of lines.length === 0 ? list : list.slice(0, 3)) {
     if (state.cash + borrowRoom() < p.total + reserve()) continue;
     if (candidateCache) candidateCache.projects = candidateCache.projects.filter((q) => q !== p);
     if (process.env["V"])
