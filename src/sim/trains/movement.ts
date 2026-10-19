@@ -17,6 +17,7 @@
  * already passed, without waiting for the whole thing to clear.
  */
 import {
+  CAR_LENGTH_TILES,
   CAR_WEIGHT_EMPTY,
   CAR_WEIGHT_LOADED,
   CURVE_SPEED_FACTOR,
@@ -27,7 +28,9 @@ import {
   DEADLOCK_STUCK_DAYS,
   DEAD_END_REVERSE_HOURS,
   GRADE_EFFORT_FACTOR,
+  LOCO_LENGTH_TILES,
   LOCO_WEIGHT_UNITS,
+  STATION_YARD_TILES,
   MAX_SPEED_FACTOR,
   FOLLOW_GAIN_KMH_PER_TILE,
   FOLLOW_MIN_GAP_TILES,
@@ -200,6 +203,29 @@ function releaseTrailingBlocks(train: Train): void {
   }
 }
 
+/** Phase 58: tiles of `train`'s body outside `station`'s grounds when it stands there (0 for any train that fits the
+ * platform track and yard, which is every train of the first eras at a Station and every train at a Terminal). */
+export function tailProtrusion(train: Train, station: Station): number {
+  const grounds =
+    LOCO_LENGTH_TILES +
+    STATION_TYPE_DEFS[station.type].maxTrainLength * CAR_LENGTH_TILES +
+    STATION_YARD_TILES;
+  return Math.max(0, trainLengthTiles(train) - grounds);
+}
+
+/** A train stopped at a station stands in its passing loop and holds nothing (SPEC §7.5), except where its body sticks
+ * out of the station's grounds: the blocks that part still lies in stay held, so a train from the other way is not run
+ * through it (Phase 58, trains of 30-60 cars at stations built for 6-20). */
+function keepProtrudingTail(train: Train, station: Station | undefined): void {
+  const out = station ? tailProtrusion(train, station) : 0;
+  if (out <= 0) {
+    train.heldBlocks = [];
+    return;
+  }
+  const tail = train.distanceTraveled - out;
+  train.heldBlocks = train.heldBlocks.filter((hb) => tail < hb.enteredAtDistance + hb.lengthTiles);
+}
+
 function advanceDistance(train: Train, tiles: number): void {
   train.distanceTraveled += tiles;
   releaseTrailingBlocks(train);
@@ -262,6 +288,9 @@ export function nearestLeader(
   for (const mine of train.heldBlocks) {
     for (const t of trains) {
       if (t.id === train.id) continue;
+      // A train standing at a station is no leader: the follower runs into the station's yard past it, as short trains
+      // always have (a follower stopped behind a long standing tail would hold the way out of a terminal).
+      if (t.route.length === 1) continue;
       for (const hb of t.heldBlocks) {
         if (hb.blockId !== mine.blockId || hb.direction !== mine.direction) continue;
         // A train that has since turned round (it holds this block the other way, entered later)
@@ -782,7 +811,8 @@ function checkDeadlockTimeout(
   train.route = result ?? [start];
   train.routeIndex = 0;
   train.edgeProgress = 0;
-  train.heldBlocks = [];
+  // (A train too long for its station keeps the blocks its tail lies in: rerouting does not move the tail.)
+  keepProtrudingTail(train, runtime.stationsByTile.get(start));
   delete train.sectionTargetStationId;
   if (!result) {
     setStatus(train, "noRoute");
@@ -802,7 +832,7 @@ function arriveAtStation(state: GameState, train: Train, station: Station): void
   train.route = [station.tile];
   train.routeIndex = 0;
   train.edgeProgress = 0;
-  train.heldBlocks = [];
+  keepProtrudingTail(train, station);
   dropClaims(train);
   delete train.sectionTargetStationId;
   delete train.waitingForStationId;
@@ -1044,7 +1074,7 @@ function handleMoving(
         // Stopped in a station, the train stands in its passing loop: its tail no longer holds the line it
         // came in on. Holding it made two trains meeting head-on at a through-station block each other's
         // tails for ever (PLAN 28A, Bug 4's followers sat behind such a pair).
-        if (runtime.stationTiles.has(a)) train.heldBlocks = [];
+        if (runtime.stationTiles.has(a)) keepProtrudingTail(train, runtime.stationsByTile.get(a));
         checkDeadlockTimeout(state, train, runtime, loco, attempt.blockingBlockId);
         return;
       }

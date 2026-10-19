@@ -529,6 +529,12 @@ export const DEAD_END_REVERSE_HOURS = 6;
  * interlock thought the tail was). */
 export const CAR_LENGTH_TILES = 10 / 32;
 export const LOCO_LENGTH_TILES = 0.6;
+/** Phase 58: how far a station's own grounds (its yard throat and holding tracks) reach beyond its platform track, in
+ * tiles. A train that stands at a station is inside it as long as its body lies within the platform track plus this much;
+ * a longer train (a 40-car freight at a Depot) sticks out onto the line, where its tail still holds the blocks it lies in
+ * and is no passing place for trains running the other way. The 3.5 tiles are the radius within which two trains count as
+ * standing in the same station throughout the geometry checks (a car is 0.3 tile, so about eleven cars). */
+export const STATION_YARD_TILES = 3.5;
 
 // --- Orders / loading (SPEC §7.2, §6.1 "load/unload 50% slower" overlength penalty) --------------
 

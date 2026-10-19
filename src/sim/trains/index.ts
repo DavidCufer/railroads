@@ -1,7 +1,7 @@
 /** Public surface of the trains sim module (SPEC §7) — see types.ts/route.ts/blocks.ts/movement.ts
  * for the pieces. `stepTrains` is the tick entrypoint main.ts's game loop calls. */
 import { computeBlocks, type BlockPartition } from "./blocks";
-import { remapReservations, stepTrain, type TrainRuntime } from "./movement";
+import { remapReservations, stepTrain, tailProtrusion, type TrainRuntime } from "./movement";
 import { releaseClaims } from "./crossing";
 import { edgeKey } from "../track/graph";
 import type { GameState } from "../state";
@@ -82,7 +82,11 @@ export function clearStaleReservations(state: GameState): number {
       );
       if (id !== undefined) routeBlocks.add(id);
     }
-    if (train.heldBlocks.some((hb) => !routeBlocks.has(hb.blockId))) {
+    // (A train too long for the station it stands in keeps the blocks its tail lies in, behind the start of its route.)
+    const at = runtime.stationsByTile.get(train.route[train.routeIndex] as number);
+    const tailOutside =
+      at !== undefined && train.edgeProgress === 0 && tailProtrusion(train, at) > 0;
+    if (!tailOutside && train.heldBlocks.some((hb) => !routeBlocks.has(hb.blockId))) {
       problems.push("holds blocks that are not on its route");
     }
     if (train.sectionTargetStationId !== undefined) {

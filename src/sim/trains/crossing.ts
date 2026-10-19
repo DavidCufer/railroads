@@ -87,6 +87,26 @@ export function isAheadOnSharedBlock(front: Train, back: Train): boolean {
   return false;
 }
 
+/** Phase 58: whether `other` is stuck, directly or through a queue of trains each behind the next, behind a train that
+ * waits for `train` to take a junction. `other` then cannot reach any node before `train` does, so its claims must not
+ * stall `train`: the queue is `train`'s own wait-for cycle (long trains make the queues long, a 40-car train claims
+ * junctions its short leaders have yet to pass). */
+function queuedBehindWaiterOf(train: Train, other: Train, all: readonly Train[]): boolean {
+  const seen = new Set<number>([other.id]);
+  const stack = [other];
+  while (stack.length > 0) {
+    const back = stack.pop() as Train;
+    for (const front of all) {
+      if (front.id === train.id || seen.has(front.id)) continue;
+      if (!isAheadOnSharedBlock(front, back)) continue;
+      if (front.crossingWait?.trainIds.includes(train.id)) return true;
+      seen.add(front.id);
+      stack.push(front);
+    }
+  }
+  return false;
+}
+
 /** Hours a train waits at a junction before it checks whether it is in a wait-for cycle. */
 export const CROSSING_PATIENCE_TICKS = 720;
 
@@ -237,6 +257,7 @@ export function updateCrossing(
       // two trains leaving a station in the same tick, or one running back over its own tail
       // after reversing at a dead end).
       if (isAheadOnSharedBlock(train, other)) continue;
+      if (queuedBehindWaiterOf(train, other, state.trains)) continue;
       for (const oc of other.nodeClaims) {
         for (const mc of mine)
           if (oc.node === mc.node && !compatible(state, mc.node, mc, oc)) blockers.add(other.id);

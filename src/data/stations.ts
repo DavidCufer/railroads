@@ -1,5 +1,7 @@
 /** Station types (SPEC §6.1). Balance numbers only — logic lives in src/sim/stations. */
 
+import { TRAIN_LENGTH_SCALE } from "./trains";
+
 export const STATION_TYPES = ["depot", "station", "terminal"] as const;
 
 export type StationType = (typeof STATION_TYPES)[number];
@@ -22,12 +24,25 @@ export interface StationTypeDef {
   loadSpeedMult: number;
 }
 
+/** Phase 58: the longest train each station type takes without cutting it, in real cars, times the one
+ * `TRAIN_LENGTH_SCALE` (the same scale as the engines' `maxCars`). Typical practice, not a surveyed figure: a Depot is a
+ * halt with a short siding, 12 cars (6 game cars, as before); a Station has a passing siding for the long freights of its
+ * line, 40 cars (10 game cars before, which no freight engine from 1870 fitted); a Terminal has yard tracks for the longest
+ * main-line freight, 120 cars (the Articulated's 120-wagon trains, so no engine of the roster outruns the biggest yard). */
+export const STATION_TRACK_REAL_CARS: Record<StationType, number> = {
+  depot: 12,
+  station: 40,
+  terminal: 120,
+};
+const platformCars = (t: StationType): number =>
+  Math.round(STATION_TRACK_REAL_CARS[t] * TRAIN_LENGTH_SCALE);
+
 export const STATION_TYPE_DEFS: Record<StationType, StationTypeDef> = {
   depot: {
     id: "depot",
     name: "Depot",
     catchmentRadius: 1,
-    maxTrainLength: 6,
+    maxTrainLength: platformCars("depot"),
     storagePerCargo: 40,
     cost: 15_000,
     trainCapacity: 2,
@@ -37,7 +52,7 @@ export const STATION_TYPE_DEFS: Record<StationType, StationTypeDef> = {
     id: "station",
     name: "Station",
     catchmentRadius: 2,
-    maxTrainLength: 10,
+    maxTrainLength: platformCars("station"),
     storagePerCargo: 80,
     cost: 40_000,
     trainCapacity: 3,
@@ -47,7 +62,7 @@ export const STATION_TYPE_DEFS: Record<StationType, StationTypeDef> = {
     id: "terminal",
     name: "Terminal",
     catchmentRadius: 3,
-    maxTrainLength: 16,
+    maxTrainLength: platformCars("terminal"),
     storagePerCargo: 150,
     cost: 100_000,
     trainCapacity: 5,
