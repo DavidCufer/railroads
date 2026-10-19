@@ -32,13 +32,16 @@ export function showDragCostLabel(
   viewportH: number,
   /** Replaces the money figure (bulldoze: "+$3k", or why there is nothing to remove). */
   text?: string,
+  /** Why a red drag is refused, one short line beside the figure. */
+  reason?: string,
 ): void {
   const el = ensureCostLabel(container);
   el.textContent = text ?? formatMoney(cost);
+  if (reason && !ok) el.textContent += ` · ${reason}`;
   el.classList.toggle("build-cost-blocked", !ok);
 
   const OFFSET_Y = 46;
-  const labelW = 90;
+  const labelW = reason && !ok ? 250 : 90;
   const labelH = 28;
   let left = screenX - labelW / 2;
   let top = screenY - OFFSET_Y - labelH;

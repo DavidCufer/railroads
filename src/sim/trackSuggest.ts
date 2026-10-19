@@ -47,6 +47,29 @@ function tileDistance(w: number, a: number, b: number): number {
   return Math.hypot((a % w) - (b % w), Math.floor(a / w) - Math.floor(b / w));
 }
 
+/** Track tiles reached by following the line `tile` sits on, up to `radius` tiles of track either way, nearest first
+ * (through plain 2-leg nodes only: a join slid along the same line, not onto a branch). */
+function alongLine(state: GameState, tile: number, radius: number): number[] {
+  const graph = state.trackGraph;
+  const w = state.map.width;
+  const out: Array<{ t: number; d: number }> = [];
+  for (const first of graph.neighborsOf(tile)) {
+    let prev = tile;
+    let cur = first;
+    let dist = tileDistance(w, tile, first);
+    while (dist <= radius) {
+      out.push({ t: cur, d: dist });
+      const next = graph.neighborsOf(cur);
+      if (next.length !== 2) break;
+      const after = next[0] === prev ? (next[1] as number) : (next[0] as number);
+      dist += tileDistance(w, cur, after);
+      prev = cur;
+      cur = after;
+    }
+  }
+  return out.sort((a, b) => a.d - b.d).map((o) => o.t);
+}
+
 export function suggestLegalConnection(
   state: GameState,
   start: number,
@@ -73,6 +96,38 @@ export function suggestLegalConnection(
       graph.edgesAt(goal).length > 0,
     ),
   ].filter((t, i, a) => a.indexOf(t) === i);
+
+  // First choice: slide the join along the line the drag ended on (or started on) to the nearest tile where it is
+  // legal — what a player would do by hand — before considering any other line.
+  const slide = (
+    fixedStart: number,
+    fixedGoal: number,
+    miss: (t: number) => number,
+    moved: number[],
+  ) => {
+    for (const t of moved) {
+      const [a, b] = moved === sStarts ? [t, fixedGoal] : [fixedStart, t];
+      if (a === b) continue;
+      const path = findBuildPath(state.map, a, b, year, {
+        respectTurns: { graph, stationTiles },
+        land,
+        searchPadding: 6 * WORLD_SCALE,
+      });
+      if (!path || path.length < 2) continue;
+      const plan = computeBuildPlan(state, path, bridge);
+      if (plan.valid && plan.toBuild.length > 0) return { path, plan, miss: miss(t) };
+    }
+    return null;
+  };
+  const sStarts =
+    graph.edgesAt(start).length > 0 ? alongLine(state, start, SUGGEST_JOIN_RADIUS) : [];
+  const sGoals = graph.edgesAt(goal).length > 0 ? alongLine(state, goal, SUGGEST_JOIN_RADIUS) : [];
+  const slideGoal = slide(start, goal, (t) => tileDistance(w, t, goal), sGoals);
+  const slideStart = slide(start, goal, (t) => tileDistance(w, t, start), sStarts);
+  const slid = [slideGoal, slideStart]
+    .filter((r): r is NonNullable<typeof r> => r !== null)
+    .sort((a, b) => a.miss - b.miss)[0];
+  if (slid) return { path: slid.path, plan: slid.plan };
 
   const pairs: Array<{ s: number; g: number; miss: number }> = [];
   for (const s of starts.slice(0, 10)) {

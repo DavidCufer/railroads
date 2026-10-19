@@ -102,6 +102,14 @@ export const strings = {
     suggestedTitle: "Smallest legal connection",
     suggestedToast: (reason: string) =>
       `${reason}. Here is the smallest legal connection — tap Build to lay it.`,
+    /** One short line beside the red cost label while dragging (PLAN Phase 59 item 1). */
+    dragReasons: {
+      sharpTurn: "Too sharp to join here",
+      midTileCrossing: "Can't cross mid-tile",
+      junctionOnBend: "Can't join on a bend",
+      tooManyBranches: "One branch per side only",
+      junctionsTooClose: "Junction too close to another",
+    },
     reasons: {
       "no-path": "Drag to draw a path first",
       blocked: "No valid route or bridge there",

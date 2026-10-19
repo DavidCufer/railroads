@@ -803,6 +803,13 @@ function main(): void {
     return v ? strings.build.reasons[v.kind] : undefined;
   }
 
+  /** The short reason for a red track drag, when a build rule (not just a missing route) refuses it. */
+  function dragRuleReason(plan: BuildPlan): string | undefined {
+    if (plan.sharpSteps.length > 0) return strings.build.dragReasons.sharpTurn;
+    const v = plan.layoutViolations[0];
+    return v ? strings.build.dragReasons[v.kind] : undefined;
+  }
+
   function updateDragVisuals(canvasX: number, canvasY: number): void {
     if (!dragState) return;
     const sharp = dragState.mode === "track" ? badSteps(dragState.plan as BuildPlan) : [];
@@ -834,6 +841,9 @@ function main(): void {
         : removal
           ? `+${formatMoney(dragState.cost)}`
           : undefined,
+      dragState.mode === "track" && !dragState.ok
+        ? dragRuleReason(dragState.plan as BuildPlan)
+        : undefined,
     );
   }
 
