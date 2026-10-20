@@ -2621,4 +2621,4 @@ UI/render only (`src/ui`, `src/render`, strings): no sim or balance change, so i
    (a small engine with a tool van, a crane wagon from about 1870, a motor/diesel later), drawn procedurally and cached
    like the engines; also in the panel thumbnail if it has one. Screenshot `phase-63-repair-crew.png` at zoom 1 and 2.
 6. PROGRESS, SPEC (§10 UI), e2e (update, never weaken), LOOK at every screenshot.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
+Status: [x] 1 [x] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6

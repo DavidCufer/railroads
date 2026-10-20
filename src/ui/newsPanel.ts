@@ -239,7 +239,7 @@ export function openNewsPanel(
                 : h("span", { className: `news-thumb tone-${meta.tone}` }, icon(meta.icon));
               const focusTile = onFocus ? newsFocusTile(state, item) : null;
               const editTrain =
-                item.kind === "fewStops" && state.trains.some((t) => t.id === item.trainId)
+                "trainId" in item && state.trains.some((t) => t.id === item.trainId)
                   ? item.trainId
                   : undefined;
               return cardRow({
@@ -272,8 +272,6 @@ export function openNewsPanel(
         ];
 
   markAllNewsRead(state);
-  // Two-tap confirm, same style as Sell: the first tap only arms the button.
-  let armed = false;
   const clearBtn = footerButton({
     icon: "trash",
     ariaLabel: strings.news.clearAll,
@@ -282,12 +280,6 @@ export function openNewsPanel(
     className: "news-clear-btn btn-danger",
     disabled: items.length === 0,
     onClick: () => {
-      if (!armed) {
-        armed = true;
-        clearBtn.classList.remove("fbtn-icon");
-        clearBtn.append(h("span", null, strings.news.clearAllConfirm));
-        return;
-      }
       clearAllNews(state);
       onChange();
       openNewsPanel(container, state, onChange, onFocus);

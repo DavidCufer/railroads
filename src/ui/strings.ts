@@ -863,7 +863,6 @@ export const strings = {
     button: "News",
     empty: "No news yet.",
     clearAll: "Clear all",
-    clearAllConfirm: "Clear all news?",
     times: (n: number) => `×${n}`,
     kinds: {
       newLocomotive: (locoName: string) => `New engine: ${locoName}`,

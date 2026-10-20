@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import "./gameWindow";
+import { lineWithTrain } from "./p30bHelpers";
 
 /** Phase 26B screenshots and checks: news, junction art, station Build tab, Help, map edge. */
 test.use({ deviceScaleFactor: 2 });
@@ -102,7 +103,7 @@ async function setup(page: Page): Promise<void> {
 }
 
 test.describe("Phase 26B — news", () => {
-  test("Clear all with two-tap confirm, and collapsed repeats show a count", async ({ page }) => {
+  test("Clear all in one tap, and collapsed repeats show a count", async ({ page }) => {
     await setup(page);
     await page.evaluate(() => {
       const s = window.__game!.getState() as unknown as {
@@ -120,12 +121,25 @@ test.describe("Phase 26B — news", () => {
     await expect(page.getByText(/Traffic jam near .* ×3/)).toBeVisible();
     await page.screenshot({ path: shot("news-collapsed") });
     await page.locator(".news-clear-btn").click();
-    await expect(page.getByText("Clear all news?")).toBeVisible();
-    await page.screenshot({ path: shot("news-clear-confirm") });
-    await page.locator(".news-clear-btn").click();
     await expect(page.getByText("No news yet.")).toBeVisible();
     expect(await page.evaluate(() => window.__game!.getNewsCount())).toBe(0);
     await page.screenshot({ path: shot("news-cleared") });
+  });
+
+  test("train news is tappable and opens its train; a missing train is not", async ({ page }) => {
+    const { trainId: id } = await lineWithTrain(page);
+    await page.evaluate((id) => {
+      const s = window.__game!.getState() as unknown as { news: Array<Record<string, unknown>> };
+      s.news.push(
+        { id: 1, tick: 100, kind: "breakdown", trainId: id },
+        { id: 2, tick: 200, kind: "breakdown", trainId: 99999 },
+      );
+    }, id);
+    await page.locator(".news-button").click();
+    await page.waitForTimeout(350);
+    await expect(page.locator(".news-item.tappable")).toHaveCount(1);
+    await page.locator(".news-item.tappable").click();
+    await expect(page.locator(".panel-title, .panel h2").first()).toContainText(/Train/);
   });
 });
 
