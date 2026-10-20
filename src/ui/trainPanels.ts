@@ -45,7 +45,7 @@ import {
   coachCount,
   trainWagesPerYear,
 } from "../sim/finance/costs";
-import { costRealism, trainCrewSize } from "../data/economy";
+import { attendantsPerCoach, trainCrewSize } from "../data/economy";
 import { lineSummaries, trainsNeeded } from "../sim/finance/lines";
 import { addTrainHint } from "../sim/finance/lineHints";
 import { booksProfit, trainProfitPerYear, trainProfitStatus } from "../sim/trains/profit";
@@ -567,7 +567,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
           statTile({
             icon: "coin",
             value: `${formatMoney(wages)}${strings.trains.stats.perYear}`,
-            caption: `${p.wagesPerYear} · ${p.crewOf(l ? trainCrewSize(l, t.cars.length, coachCount(t.cars), costRealism(year)) : 0)}`,
+            caption: `${p.wagesPerYear} · ${p.crewOf(l ? trainCrewSize(l, t.cars.length, coachCount(t.cars), attendantsPerCoach(year)) : 0)}`,
           }),
           statTile({
             icon: "track",
