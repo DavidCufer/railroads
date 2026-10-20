@@ -2538,4 +2538,33 @@ owner decides. Track/station build cost toward real (about 1/20 of real per km t
    yr 3/10/16, return on capital, years to cash > 20 % of NW. Bad bots 3 seeds. Do not set bands; write the table.
 3. SPEC (§9 costs: section gangs, head office), PROGRESS with tables, e2e (update, never weaken), screenshot
    `phase-60-finance.png` (finance panel with Head office and track upkeep). LOOK at it.
+Status: [x] 1 (orchestrator, f7d11b0) [x] 2 (numbers in docs/bench/phase60*.md and PROGRESS; no bands set) [x] 3
+
+## Phase 61 — Real staffing and running costs by era (replace the tuned `COST_REALISM_ANCHORS`)
+
+Owner: "Go" (2026-10-20), after the Phase 60 numbers. `COST_REALISM_ANCHORS` (src/data/economy.ts: 0.21 in 1830, 0.2 in
+1870, **0.05 in 1900**, 0.12 in 1930, **0 in 1950**) was picked in Phases 43/53 by sweeping values until the good bot
+survived: no real basis. It blends "early" and "mature" crew shifts, coach attendants, servicing/fuel and the station
+handling share, so 1900 and 1950 run on 1830s skeleton costs. Phase 60 strong player, Normal: operating ratio y16 0.34 /
+0.39 / 0.41 / 0.57 / 0.56 (1840 / 1870 / 1900 / 1930 / 1950) against real 0.43-0.53 (1840s-50s), ~0.63 (1901), ~0.74
+(1927-50); idle cash > 20 % of NW after 2 years in 1900 and 1950.
+
+Real mechanisms only; every number in `src/data` with a one-line justification **and a source**. Never loosen a test
+bound or word limit; if a balance test fails, report old/new values and the real cause and stop (the owner decides).
+Benches in pieces of at most ~15 minutes, each pushed to `docs/bench/phase61.md`.
+
+1. **Replace the table with what it stands for, from history.** Remove `COST_REALISM_ANCHORS` / `costRealism` /
+   `blend`. For each quantity it blended, use the real figure of the era (sourced; interpolated between sourced years):
+   - crew shifts per train per day (single crew 1830s-60s; shift working / hours-of-service laws later — e.g. US 1907
+     Hours of Service Act, 1916 Adamson eight-hour day; British 1890s hours inquiries);
+   - attendants per passenger/mail car (guards only early; conductors, brakemen, porters, dining/sleeping staff later);
+   - servicing/fuel share and fuel per tile (wood/cheap coal early, bought coal and oil later; real fuel prices by era);
+   - station handling share of fares (ticket clerks, porters, agents' commission).
+   Each must rise as the real one did (a later railway is never cheaper to staff than an earlier one at the same size).
+   Wages already follow the era; do not double count.
+2. **Measure** (strong player 10 seeds Normal, 5 Hard; good bot 5 seeds; bad bots 3 seeds, 1840/1900/1950 only):
+   operating ratio y3/10/16, return on capital, NW medians, bankruptcies, years to cash > 20 % NW. Target: operating ratio
+   inside or close to the real range of each era; strong player survives Normal everywhere; Hard harder than Normal in
+   every era. Report misses; do not tune.
+3. PROGRESS (tables, sources), SPEC §9, e2e (never weaken). No bands set: the orchestrator proposes, the owner decides.
 Status: [ ] 1 [ ] 2 [ ] 3

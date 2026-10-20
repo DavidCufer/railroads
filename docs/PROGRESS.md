@@ -6614,3 +6614,16 @@ Decisions: return on capital = year's operating profit / (capital invested in tr
 | strong | normal | 1950 | 10 | 1 | 21.46 [9.70-47.44] | 0.28 / 0.55 / 0.56 | 0.35 / 0.16 / 0.16 | 2.0; 3 |
 | strong | hard | 1840 | 10 | 0 | 12.45 [9.33-13.17] | 0.29 / 0.48 / 0.32 | 0.25 / 0.12 / 0.27 | 2.0; 0 |
 | strong | hard | 1870 | 4 | 0 | 25.69 [23.50-28.93] | 0.26 / 0.40 / 0.54 | 0.35 / 0.19 / 0.11 | 16.0; 3 |
+
+## 2026-10-20 - Phase 60 results (orchestrator): real-cost economy, strong player as the reference
+Strong player (10 seeds Normal, 5 Hard), final NW $M median [min-max]; operating ratio y16; years to idle cash > 20 % NW:
+| start | Normal | Hard | op ratio y16 (N) | real | idle cash (N) |
+|---|---|---|---|---|---|
+| 1840 | 22.6 [20.7-29.3] | 12.5 | 0.34 | 0.43-0.53 | 11 y |
+| 1870 | 23.4 [20.8-32.4] | 24.9 | 0.39 | ? | never in 7/10 |
+| 1900 | 54.3 [27.6-101.3] | 8.5 | 0.41 | ~0.63 | 2 y |
+| 1930 | 8.0 [6.4-11.6] | 4.8 (1/5 bankrupt) | 0.57 | ~0.74 | 5 y |
+| 1950 | 21.5 [9.7-47.4] (1/10 bankrupt) | 2.8 (3/5 bankrupt) | 0.56 | ~0.74 | 2 y |
+Good bot (10 seeds, 0 bankrupt): Normal 13.2 / 62.8 / 12.5 / 7.2 / 5.5, Hard 5.3 / 40.7 / 8.2 / 4.3 / 3.3. Bad bots: bankrupt
+in nearly every cell (exceptions trainSpammer/leveraged 1950 Hard 1/3; 1930 Hard cannot start). Raw rows:
+`docs/bench/phase60.md`, `docs/bench/phase60-good-bad.md`. No bands set. Next: Phase 61 replaces `COST_REALISM_ANCHORS`.
