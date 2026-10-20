@@ -6671,3 +6671,20 @@ in nearly every cell (exceptions trainSpammer/leveraged 1950 Hard 1/3; 1930 Hard
 6. SPEC §10.2 updated. Screenshots: `phase-63-industry-panel.png`, `phase-63-repair-crew.png` (1880, zoom 2), `-zoom1.png`, `-1850/-1920/-1960.png`; all looked at. Known nit: the crane jib end sits close to the beacon.
 
 Checks: `npm run check` green (932 unit tests); e2e shard 1/2 136 passed, shard 2/2 136 passed. Word-limit spec unchanged and passing; panel word counts went down. New e2e: `e2e/phase63.spec.ts`, train-news tap in `phase26b`, updated `phase33`, `phase34`, `phase38`.
+## 2026-10-20 - Phase 61 item 1 (second pass): fuel constant derived; ONE balance test still red, stopped (branch `phase-61-costs`)
+
+**Done as decided by the orchestrator.** `RUNNING_COST_SHARE` (fuel + servicing) is now one derived figure, **0.22** (was 2.8 on the first branch commit; old tuned blend 0.45 -> 2.8). Derivation is beside the constant in `src/data/economy.ts`: target fuel = 8 % of operating expenses (NBER c4617: 6-10 % for US Class I, 1920s-30s). Measured once with a temporary instrument (not committed), strong player, Normal, seed 1, 1900 / 1930 / 1950, complete years, interest taken out and the 14 % head-office markup divided out:
+| start | years | fuel F k$ | servicing S k$ | everything else O k$ | fuel share of operating expenses at 2.8 |
+|---|---|---|---|---|---|
+| 1900 | 4 | 1,814 | 229 | 1,427 | 52-54 % |
+| 1930 | 2 | 480 | 82 | 706 | 37-39 % |
+| 1950 | 2 | 1,083 | 80 | 897 | 52-53 % |
+Pooled k = 0.08 O / (F - 0.08 (F + S)) = 0.079; 2.8 x 0.079 = 0.22. Caveat: those three runs **went bankrupt in 2-4 years** on the 2.8 economy (a thin start, one or two lines), so the sample is small and start-up heavy; the figure was checked once and not iterated, as instructed. Crew shifts (1.71 -> 3.0) and 0.5 attendants from 1870 kept; **the attendant source is weak** (two railfan forum threads: a porter "often responsible for two cars"; Pullman porters from 1867).
+
+**`npm run check` on the branch: 931 pass, 1 fails** (the five red tests of the first pass are now four green, one red):
+| test | bound | main | branch |
+|---|---|---|---|
+| `balanceLongHaul` 1930 silver `lateReturn` | > 0.5 | 0.515 | **0.493** |
+The next line of that test (silver money a year `lateReturn x invested` > 1.8e6, measured 1.926e6 on main) is not reached, so unknown. Passing now: coal-route 1.5x, 1900 chain `lateReturn`, gold goal ratio, Hard 1920 route profit.
+**Real cause.** One train on a third-of-the-map line carries that line's whole track gang, head office, and now a crew of 3 shifts instead of about 1.9 in 1930 (shift hours 14 -> 8 after 1917) plus a fuel bill of 8 % of costs instead of 2-3 % of the old mature rate; the old bound had 3 % headroom and the new crew alone costs more than that. It is the same twin-bound family as Phase 60.
+**Decision for the owner:** lower the 1930 silver `lateReturn` bound 0.5 -> 0.45 (one 0.05 step under 0.493), then check the `x invested` line (floor 1.8e6), or tell me otherwise. I did not touch any bound. Items 2-3 not started; main untouched and green. Branch left as is.
