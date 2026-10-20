@@ -2568,3 +2568,28 @@ Benches in pieces of at most ~15 minutes, each pushed to `docs/bench/phase61.md`
    every era. Report misses; do not tune.
 3. PROGRESS (tables, sources), SPEC §9, e2e (never weaken). No bands set: the orchestrator proposes, the owner decides.
 Status: [ ] 1 [ ] 2 [ ] 3
+
+## Phase 62 — Passenger shares that follow town size; a better repair-crew vehicle (after Phase 61)
+
+Owner play-test 7 (2026-10-20, Normal, 1838-1845; `docs/playtests/pt7-*.jpg`): "Much better than before. Still, feels
+like I have a little more money on Normal." (Phase 61 handles costs.) "Is it OK that the same number of passengers wait
+for each station?" (`pt7-where-passengers-go.jpg`: Ljubljana sends 11/mo, 25 % each, to Vienna, Venice, Trieste and Graz,
+although Vienna is several times Graz.) "Graphics for the repair car are quite bad, need to improve them a bit."
+
+Real mechanisms only; numbers in `src/data` with a one-line justification and source. Never loosen a test bound or word
+limit; if a balance test fails, report old/new and the cause and stop (owner decides).
+
+1. **Passenger shares by destination.** Cause to confirm: `capShares` (src/sim/stations/passengerFlows.ts) water-fills
+   gravity shares to `PAIR_DEMAND.maxShare` 0.2 over every town in range; with 5-6 towns in range every big destination
+   sits at the cap, so served towns come out equal. The cap has no real basis. Replace it with the real mechanism: the
+   gravity model (trips ∝ population × distance decay, with the existing exponent and source) plus **intervening
+   opportunities** / competing destinations (a town's pull is shared with the nearer towns along the way; Stouffer 1940,
+   or a doubly-constrained gravity model) so a metropolis does not take everything without an arbitrary cap. A bigger,
+   nearer town must draw more than a smaller, farther one. Unit tests: Vienna > Graz from Ljubljana in the owner's case;
+   a metropolis among small towns gets a large but not total share. Re-run the passenger benches (S4 express + locals,
+   `explore.ts`) and the strong player (5 seeds Normal, 1840/1900) and report.
+2. **Repair-crew vehicle art** (src/render/repairCrews.ts): a recognisable 19th-century repair/breakdown train in the
+   STYLE.md Part 3 engraved style (a small engine or handcar with a tool van / crane wagon, era-appropriate later), drawn
+   procedurally and cached like the engines. Screenshot `phase-62-repair-crew.png` at zoom 1 and 2. LOOK at it.
+3. PROGRESS, SPEC (§8.1 passenger shares), e2e (never weaken).
+Status: [ ] 1 [ ] 2 [ ] 3
