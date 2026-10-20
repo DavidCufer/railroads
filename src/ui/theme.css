@@ -4784,22 +4784,6 @@ select {
 }
 
 /* ---------- Phase 34: departure spacing ---------- */
-.tl-gap {
-  display: flex;
-  align-items: center;
-  gap: var(--gap-2);
-  margin: 2px 0 2px 34px;
-  font-size: var(--fs-xs);
-  color: var(--paper-dim);
-}
-.tl-gap-label {
-  flex: 1;
-}
-.tl-gap-value {
-  min-width: 52px;
-  text-align: center;
-  color: var(--text);
-}
 .line-block {
   margin-bottom: var(--gap-2);
 }

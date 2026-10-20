@@ -21,7 +21,6 @@ import {
   editConsist,
   replaceLocomotive,
   sellTrain,
-  setOrderGap,
   setOrderRule,
   spaceTrainsEvenly,
   setOrders,
@@ -463,7 +462,6 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
                 return {
                   name: stationName(state, o.stationId),
                   rule: o.rule,
-                  gapDays: o.minGapDays,
                   ...(passed && t.orders.length < 8
                     ? {
                         note: {
@@ -487,11 +485,6 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
               marker: timelineMarker(t),
               passengers: t.cars.some((c) => c.cargoType === "passengers"),
               onRule: applyRule,
-              onGap: (i, days) => {
-                const result = setOrderGap(state, trainId, i, days);
-                if (!result.ok) showToast(container, strings.build.reasons[result.reason], "warn");
-                fillTab();
-              },
               onRemove: (i) =>
                 changeOrders(t.orders.filter((_, j) => j !== i).map((o) => ({ ...o }))),
               onMove: (i, dir) => {

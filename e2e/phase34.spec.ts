@@ -182,7 +182,7 @@ async function gaps(page: Page): Promise<Array<Array<number | undefined>>> {
 }
 
 test.describe("Phase 34 — train spacing and the Lines view", () => {
-  test("a stop's gap stepper and 'Space trains evenly' set minGapDays through commands", async ({
+  test("'Space trains evenly' sets minGapDays through commands", async ({
     page,
   }) => {
     const { a, b } = await lineWorld(page);
@@ -201,14 +201,8 @@ test.describe("Phase 34 — train spacing and the Lines view", () => {
     );
     const trains = await page.evaluate(() => window.__game!.getTrains());
     await page.evaluate((id) => window.__game!.debugOpenTrain(id), trains[0]!.id);
-    await expect(page.locator('[data-testid="tl-gap"]').first()).toBeVisible();
-    await page.locator('[data-testid="tl-gap"]').first().getByRole("button").nth(1).click();
-    await expect(page.locator('[data-testid="tl-gap-value"]').first()).toHaveText("1 day");
-    await page.locator('[data-testid="tl-gap"]').first().getByRole("button").nth(1).click();
-    await expect(page.locator('[data-testid="tl-gap-value"]').first()).toHaveText("2 days");
-    expect((await gaps(page))[0]![0]).toBe(2);
+    await expect(page.locator('[data-testid="tl-gap"]')).toHaveCount(0);
     await page.waitForTimeout(300);
-    await page.screenshot({ path: shot("route-gap-stepper") });
 
     await page.locator(".panel").getByRole("button", { name: "Close" }).first().click();
     await page.waitForTimeout(400);

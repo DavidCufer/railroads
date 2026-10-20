@@ -347,17 +347,6 @@ function economyBody(
   ];
 }
 
-function cargoAmounts(amounts: Partial<Record<CargoType, number>>): string {
-  const parts: string[] = [];
-  for (const cargo of CARGO_TYPES) {
-    const n = amounts[cargo] ?? 0;
-    if (n < 0.5) continue;
-    const def = CARGO[cargo];
-    parts.push(`${Math.round(n)}${def.unit ? ` ${def.unit}` : ""} ${def.name.toLowerCase()}`);
-  }
-  return parts.join(", ");
-}
-
 /** Processor books whose "details" are open (kept across live re-renders). */
 const openProcessorDetails = new Set<number>();
 
