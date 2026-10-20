@@ -6627,3 +6627,33 @@ Strong player (10 seeds Normal, 5 Hard), final NW $M median [min-max]; operating
 Good bot (10 seeds, 0 bankrupt): Normal 13.2 / 62.8 / 12.5 / 7.2 / 5.5, Hard 5.3 / 40.7 / 8.2 / 4.3 / 3.3. Bad bots: bankrupt
 in nearly every cell (exceptions trainSpammer/leveraged 1950 Hard 1/3; 1930 Hard cannot start). Raw rows:
 `docs/bench/phase60.md`, `docs/bench/phase60-good-bad.md`. No bands set. Next: Phase 61 replaces `COST_REALISM_ANCHORS`.
+
+## 2026-10-20 - Phase 61 item 1: STOPPED, five balance tests fail (code is on branch `phase-61-costs`, not on main)
+
+**Status.** Item 1 implemented on branch `phase-61-costs` (commit "Phase 61 item 1 (red...)"); `COST_REALISM_ANCHORS`, `costRealism`, `blend`, `fuelEraScale`, `FUEL_PER_TILE_*` and `RUNNING_COST_SHARE_EARLY` are gone. Items 2-3 (bench, SPEC §9) not started: measuring a red economy that the owner has not accepted would waste hours. Main is untouched and green. No test bound was changed.
+
+**What the branch does (all in `src/data/economy.ts`).**
+| quantity | old (tuned blend) | new | source / reason |
+|---|---|---|---|
+| crew shifts per train | 1 -> 2 by `costRealism` | 24 h / shift hours: 14 h (1877, 1893) -> 8 h (1917+) = 1.71 -> 3.0 | 1877 Royal Commission: drivers 4-5 h overtime on a 10 h day; 1893 Board of Trade 14 h; 1919 British eight-hour day; Adamson Act 1916 (8 h basis). No source before 1877: first row held |
+| attendants per passenger/mail car | 0 -> 0.75 | 0 (<=1860) -> 0.5 (>=1870) | Pullman porters from 1867; a porter "often responsible for two cars" (weak, forum). No source for later growth: held |
+| fuel + servicing per tile/year | 0.45 -> 2.8 share, fuel per tile x0.02 -> 1 | one figure, 2.8 / 0.7 fuel, every era | no source found for a rise in the real fuel bill; US fuel 6-10 % of operating expenses in the 1920s-30s; coal at the mine $1.04 (1900), $1.12 (1910) |
+| handling share of fares | 0 -> 0.11 | 0.11 every era | station staff were 18 % of US railway employees in 1899; North London Railway had station clerks and porters on opening (1850) |
+
+**Result of `npm run check` on the branch: 927 pass, 5 fail (all pass on main).**
+| test | bound | main | branch |
+|---|---|---|---|
+| `balance.test` fully improved coal route / unimproved | <= 1.5 | passes | **2.21** |
+| `balanceLongHaul` 1900 chain `lateReturn` | > 0.5 | 0.537 | **0.323** (payback line not reached) |
+| `balanceLongHaul` 1930 silver `lateReturn` | > 0.5 | 0.515 | **0.055** |
+| `goalCalibration` gold netWorth 260M by 1930, ratio | <= 3 | passes | **4.55** |
+| `economicModel` Hard route 1920 profit | > 0 | passes | **-110,463** |
+
+**Real cause (measured by backing out one change at a time, `balanceLongHaul`).** Crew shifts back to 2: 0.324 / 0.059 (no change). Fuel+servicing share 2.8 -> 0.5: 1900 passes (>0.5), 1930 silver 0.445. So the fall is the **fuel/servicing figure**, not the crews. The old table gave 1900 a realism of 0.05 and 1930 of 0.12, i.e. fuel per tile at 2-3 % of the "mature" rate (the mature rate is 48x the early rate); making the mature rate apply in every era is the full cost of the Phase 43 "mature" calibration, which was never a measured figure for 1900 or 1930. The sourced anchors I could find do not support either end: they say fuel is 6-10 % of operating expenses (NBER) and coal's real price was flat, so the correct answer is probably a **third value** (fuel per tile set so fuel is ~8 % of running costs in 1900-1950), but that is a calibration against a share, which needs the owner's OK as a method.
+
+**Decisions for the owner.**
+1. Allow calibrating `FUEL_REF_TILES_PER_YEAR`/`RUNNING_COST_SHARE` so fuel is 6-10 % of operating expenses (NBER c4617) in 1900-1950 (one constant, no table), then re-measure; or give the sourced fuel-per-tonne-mile and coal-price series you want used.
+2. Crew shifts (1.7 -> 3.0) and 0.5 attendants are in and cost little in these tests; keep as is?
+3. Bounds are untouched; once fuel is settled I will report which of the five still fail.
+
+**Sources (web search; what could be confirmed).** Statute and case text of the Hours of Service Act of 4 Mar 1907 (16 h on duty, 10 h rest): supreme.justia.com/cases/federal/us/244/336, leg.wa.gov/media/1erdhpuq/1907c20.pdf; Adamson Act 1916 (8 h basis): en.wikipedia.org/wiki/Adamson_Act, law.justia.com/cases/federal/us/253/206; British hours: ignitingtheflameofunity.yolasite.com/1877.php (4-5 h overtime), /1893.php (Board of Trade, 14 h), /1919.php and ictu.ie/blog/1919-marked-start-eight-hour-day-irish-railways-significant-centenary-anniversary-workers (eight-hour day 1919); railway employees 1899 (928,924; agents 80,787; other station 88,910; engineers 89,970; conductors 28,282): nebnewspapers.unl.edu/lccn/sn96080161/1901-05-09/ed-1/seq-1; North London Railway 1850 opening staff: railwaymen-nlr.org.uk/general-notes/; fuel 6-10 % of US operating expenses: nber.org/chapters/c4617.pdf; Britain fuel about 25 % of locomotive costs (Gresley, c.1931): nature.com/articles/127409a0; coal at the mine $1.04 (1900), $1.12 (1910): ecology.iww.org/node/676 (secondary); retail bituminous from $8.81 in Jan 1920: fred.stlouisfed.org/data/M04047USM238NNBR; crew of five (engineer, fireman, conductor, two brakemen), porter for two cars: forum.trains.com/t/size-to-steam-crews/207609, forum.trains.com/t/titles-or-names-given-to-workers-on-classic-passenger-trains/204706 (forums, weak); full-crew laws (>3 cars two brakemen, ND 1943 >4 cars five-man crew): attorneygeneral.nd.gov/wp-content/uploads/2023/04/50-144July-31.pdf. **Not found:** railway fuel burn per ton-mile by era, a railway coal price series before 1920, an hours series before 1877, a night-running history for 1830-60, station-staff cost share by era. Pages on www.railwayaccidents.port.ac.uk and www.ictu.ie could not be fetched from this container.
