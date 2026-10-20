@@ -46,7 +46,7 @@ import { cargoChip, cargoDemandTile } from "./infoPanels";
 import { h } from "./h";
 import type { FlowPeriod } from "../sim/stations/flow";
 import { acceptorsOf } from "../sim/stations/acceptors";
-import { INDUSTRIES } from "../data/industries";
+import { INDUSTRIES, inputStorageCap } from "../data/industries";
 import { locoArt } from "./trainArt";
 import { cargoIcon, icon, type IconName } from "./icons";
 import { cardList, cardRow } from "./components/cardRow";
@@ -389,48 +389,58 @@ function processingSection(state: GameState, station: Station): Node[] {
     const inputs = Object.keys(def.consumes) as CargoType[];
     const products = Object.keys(def.produces) as CargoType[];
     const productNames = cargoNames(products, "all");
-    const received = cargoAmounts(status.receivedLast);
-    const made = cargoAmounts(status.madeLast);
-    const stock = cargoAmounts(status.stock);
-    const lines: Node[] = [
+    const amount = (cargo: CargoType, n: number): string => {
+      const unit = CARGO[cargo].unit;
+      return `${Math.round(n)}${unit ? ` ${unit}` : ""}`;
+    };
+    const missingSet = new Set<CargoType>(status.needsAny ? inputs : status.missing);
+    const onWaySet = new Set<CargoType>(status.onTheWay);
+    const inCells: Node[] = inputs.map((cargo) => {
+      const have = status.stock[cargo] ?? 0;
+      const cap = inputStorageCap(def, cargo);
+      const isFull = have >= cap;
+      const tone = isFull ? "full" : missingSet.has(cargo) ? "missing" : "";
+      return h(
+        "div",
+        { className: `recipe-cell recipe-in ${tone}`.trim(), "data-cargo": cargo },
+        cargoIcon(cargo, "cargo-icon-lg"),
+        h("span", { className: "recipe-amount" }, amount(cargo, have)),
+        h(
+          "span",
+          { className: `recipe-gauge ${tone}`.trim() },
+          h("span", {
+            className: "recipe-gauge-fill",
+            style: { width: `${Math.min(100, (have / cap) * 100)}%` },
+          }),
+        ),
+        isFull
+          ? h("span", { className: "recipe-tag" }, t.full)
+          : missingSet.has(cargo)
+            ? h("span", { className: "recipe-tag" }, icon("warning", "icon-xs"))
+            : onWaySet.has(cargo)
+              ? h("span", { className: "recipe-tag", title: t.onTheWay }, icon("trains", "icon-xs"))
+              : h("span", { className: "recipe-tag" }),
+      );
+    });
+    const joined: Node[] = [];
+    inCells.forEach((cell, i) => {
+      if (i > 0)
+        joined.push(h("span", { className: "recipe-op" }, def.recipeMode === "any" ? "/" : "+"));
+      joined.push(cell);
+    });
+    const outCells: Node[] = products.map((cargo) =>
       h(
         "div",
-        { className: "panel-row processing-row" },
-        received ? t.last(received, made, status.monthsAgo ?? 0) : t.nothingYet,
+        { className: "recipe-cell recipe-out", "data-cargo": cargo },
+        cargoIcon(cargo, "cargo-icon-lg"),
+        h(
+          "span",
+          { className: "recipe-amount" },
+          status.monthsAgo === undefined ? "–" : amount(cargo, status.madeLast[cargo] ?? 0),
+        ),
+        h("span", { className: "recipe-tag" }, t.perMonth),
       ),
-    ];
-    if (stock)
-      lines.push(
-        h("div", { className: "panel-row processing-stock" }, t.stock(stock, status.full)),
-      );
-    if (status.needsAny) {
-      lines.push(
-        h(
-          "div",
-          { className: "chip warn-chip processing-missing" },
-          icon("warning", "icon-xs"),
-          t.needsAny(cargoNames(inputs, "any")),
-        ),
-      );
-    } else if (status.missing.length > 0) {
-      lines.push(
-        h(
-          "div",
-          { className: "chip warn-chip processing-missing" },
-          icon("warning", "icon-xs"),
-          t.missing(cargoNames(status.missing, "all")),
-        ),
-      );
-    }
-    if (status.onTheWay.length > 0) {
-      lines.push(
-        h(
-          "div",
-          { className: "panel-row processing-onway" },
-          t.onTheWay(cargoNames(status.onTheWay, "all")),
-        ),
-      );
-    }
+    );
     const details = h(
       "details",
       {
@@ -441,12 +451,18 @@ function processingSection(state: GameState, station: Station): Node[] {
           else openProcessorDetails.delete(id);
         },
       },
-      h("summary", null, t.details),
+      h("summary", { "aria-label": t.details }, icon("info", "icon-xs")),
       h("div", { className: "panel-row hint" }, t.note(productNames)),
     );
     out.push(
-      section(t.heading(def.name, productNames, cargoNames(inputs, def.recipeMode)), [
-        ...lines,
+      section(def.name, [
+        h(
+          "div",
+          { className: "recipe-row" },
+          h("div", { className: "recipe-inputs" }, ...joined),
+          h("span", { className: "recipe-arrow" }, "→"),
+          ...outCells,
+        ),
         details,
       ]),
     );

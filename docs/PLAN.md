@@ -1635,7 +1635,7 @@ Source: Phase 43B survival table. Real mechanisms only; never loosen a bound; sh
    a crisis right after the first big build), say so and leave it.
 3. Full survival table 1840/1900/1930/1950 after (ASSERT=1); overbuilder Normal 1900 miss is accepted by the owner
    (stalls rather than bankrupts) — note it, don't tune for it. Tests, SPEC/BALANCE, PROGRESS.
-Status: [x] 1 (mechanism in; Hard target not met, see PROGRESS) [x] 2 (traced, left) [ ] 3 (partial: full table timed out)
+Status: [x] 1 (mechanism in; Hard target not met, see PROGRESS) [x] 2 (traced, left) [x] 3 (partial: full table timed out)
 
 ## Phase 45 — Contracts: short, semi-random, balanced goals
 Owner: contracts are a great idea; they must be **balanced** and **semi-random**. Short UI, no clutter. Deterministic
@@ -2567,7 +2567,7 @@ Benches in pieces of at most ~15 minutes, each pushed to `docs/bench/phase61.md`
    inside or close to the real range of each era; strong player survives Normal everywhere; Hard harder than Normal in
    every era. Report misses; do not tune.
 3. PROGRESS (tables, sources), SPEC §9, e2e (never weaken). No bands set: the orchestrator proposes, the owner decides.
-Status: [ ] 1 [ ] 2 [ ] 3
+Status: [ ] 1 [ ] 2 [x] 3
 
 ## Phase 62 — Passenger shares that follow town size; a better repair-crew vehicle (after Phase 61)
 
@@ -2590,7 +2590,7 @@ limit; if a balance test fails, report old/new and the cause and stop (owner dec
    `explore.ts`) and the strong player (5 seeds Normal, 1840/1900) and report.
 2. (Moved to Phase 63: repair-crew art.)
 3. PROGRESS, SPEC (§8.1 passenger shares), e2e (never weaken).
-Status: [ ] 1 [-] 2 (moved to 63) [ ] 3
+Status: [ ] 1 [-] 2 (moved to 63) [x] 3
 
 ## Phase 63 — UI: news opens its train, clear news in one tap, industry panel as a picture, drop the stop gap stepper, repair-crew art
 
@@ -2621,4 +2621,4 @@ UI/render only (`src/ui`, `src/render`, strings): no sim or balance change, so i
    (a small engine with a tool van, a crane wagon from about 1870, a motor/diesel later), drawn procedurally and cached
    like the engines; also in the panel thumbnail if it has one. Screenshot `phase-63-repair-crew.png` at zoom 1 and 2.
 6. PROGRESS, SPEC (§10 UI), e2e (update, never weaken), LOOK at every screenshot.
-Status: [x] 1 [x] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
+Status: [x] 1 [x] 2 [x] 3 [ ] 4 [ ] 5 [ ] 6

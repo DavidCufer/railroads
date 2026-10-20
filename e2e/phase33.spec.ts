@@ -127,9 +127,7 @@ test.describe("Phase 33", () => {
     await centerOn(page, 160, 246, 1.2);
     await page.evaluate((id) => window.__game!.debugOpenStation(id), ids[2]!);
     await page.waitForTimeout(400);
-    await expect(page.locator(".processing-row").first()).toContainText(
-      /(Last month|months ago): /,
-    );
+    await expect(page.locator(".recipe-out .recipe-amount").first()).toContainText(/\d/);
     await page.screenshot({ path: shot("processing-books") });
     await page.screenshot({ path: "docs/screenshots/phase-34-processor-books.png" });
 

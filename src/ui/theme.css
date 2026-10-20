@@ -4746,10 +4746,6 @@ select {
   color: var(--paper-dim);
   font-size: var(--fs-xs);
 }
-.processing-onway {
-  color: var(--paper-dim);
-  font-size: var(--fs-s);
-}
 
 /* ---------- Phase 34: shared text input + the in-game text prompt ---------- */
 .input {
@@ -5367,4 +5363,78 @@ select {
 }
 .game-over-card {
   border-top: 4px solid var(--oxblood);
+}
+
+/* Phase 63: processor recipe diagram (inputs with stock gauges -> output) */
+.recipe-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+}
+.recipe-inputs {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  flex-wrap: wrap;
+}
+.recipe-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 64px;
+  padding: var(--gap-2);
+  background: var(--ink-700);
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+.recipe-cell.full {
+  border-color: var(--brass);
+}
+.recipe-cell.missing {
+  border-color: var(--signal);
+}
+.recipe-op,
+.recipe-arrow {
+  color: var(--brass);
+  font-size: var(--fs-l, 18px);
+}
+.recipe-amount {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-s);
+}
+.recipe-gauge {
+  align-self: stretch;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--ink-600);
+  overflow: hidden;
+}
+.recipe-gauge-fill {
+  display: block;
+  height: 100%;
+  background: var(--go);
+}
+.recipe-gauge.full .recipe-gauge-fill {
+  background: var(--brass);
+}
+.recipe-gauge.missing .recipe-gauge-fill {
+  background: var(--signal);
+}
+.recipe-tag {
+  min-height: 14px;
+  font-size: var(--fs-xs);
+  color: var(--paper-dim);
+  display: inline-flex;
+  align-items: center;
+}
+.recipe-cell.full .recipe-tag {
+  color: var(--brass);
+}
+.recipe-cell.missing .recipe-tag {
+  color: var(--signal-lt);
+}
+/* Dark cargo (coal) vanishes on the tinted tile; the recipe picture uses a pale tile for every cargo. */
+.recipe-cell .cargo-icon {
+  background: #d9d0b8 !important;
 }

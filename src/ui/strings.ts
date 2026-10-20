@@ -253,16 +253,9 @@ export const strings = {
     },
     /** PLAN Phase 33: a processor in the catchment (Steel Mill …) — what it got and made last month. */
     processing: {
-      /** "Food plant · makes food from grain or livestock" */
-      heading: (name: string, products: string, inputs: string) =>
-        `${name} · makes ${products} from ${inputs}`,
-      last: (received: string, made: string, monthsAgo: number) =>
-        `${monthsAgo === 0 ? "Last month" : `${monthsAgo + 1} months ago`}: ${received}${made ? ` → ${made}` : " → nothing made"}`,
-      nothingYet: "Nothing delivered yet",
-      stock: (list: string, full: boolean) => `Stock: ${list}${full ? " (full)" : ""}`,
-      needsAny: (list: string) => `Needs ${list}`,
-      missing: (list: string) => `Missing: ${list}`,
-      onTheWay: (list: string) => `On the way: ${list}`,
+      full: "full",
+      perMonth: "/mo",
+      onTheWay: "On the way",
       details: "details",
       note: (product: string) => `Deliveries are made into ${product} at the end of each month.`,
     },

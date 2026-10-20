@@ -72,9 +72,10 @@ async function openStationBy(
   await page.waitForTimeout(400);
 }
 
-test("a full Food Plant says Stock ... (full)", async ({ page }) => {
+test("a full Food Plant shows a full gauge", async ({ page }) => {
   await openStationBy(page, "foodPlant", true);
-  await expect(page.locator(".processing-stock").first()).toHaveText("Stock: 240 t grain (full)");
+  await expect(page.locator(".recipe-cell.full").first()).toContainText("240 t");
+  await expect(page.locator(".recipe-cell.full .recipe-tag").first()).toHaveText("full");
   await page.screenshot({ path: "docs/screenshots/phase-38-processor-full.png" });
 });
 
