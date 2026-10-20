@@ -23,16 +23,11 @@ interface Job {
   seed: number;
 }
 const jobs: Job[] = [];
-for (const [bot, seeds] of [
-  ["strong", 10],
-  ["good", 10],
-  ["overbuilder", 3],
-  ["trainSpammer", 3],
-  ["leveraged", 3],
-] as const)
-  for (const diff of DIFFS)
-    for (const start of STARTS)
-      for (let seed = 1; seed <= seeds; seed++) jobs.push({ bot, start, diff, seed });
+// The good and bad bots run in the orchestrator's container; here only the strong player (10 seeds Normal, 5 Hard).
+for (const diff of DIFFS)
+  for (const start of STARTS)
+    for (let seed = 1; seed <= (diff === "normal" ? 10 : 5); seed++)
+      jobs.push({ bot: "strong", start, diff, seed });
 
 const HEADER =
   "| bot | start | diff | seed | bankrupt | min cash $M | final NW $M | op ratio y3 | y10 | y16 | return on capital y3 | y10 | y16 | cash>20% NW year (years from start) |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n";
