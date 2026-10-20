@@ -409,7 +409,7 @@ when the stretch of track to its next station is safe to run through end to end.
 
 - Each locomotive model has `reliability` 1–5. Monthly breakdown chance = base (0.5%, 1%, 2%, 4%, 7%
   for reliability 5…1) × (1 + age/20 years) × (0.5 if serviced at an Engine Shed in the last 60 days).
-- Breakdown: train stops where it is; a repair crew (handcar → motor trolley → service truck) drives from the nearest Engine Shed
+- Breakdown: train stops where it is; a repair crew (handcar → motor trolley → service truck; drawn from Phase 63 as a small engine with a tool van, a crane wagon from 1870, a motor tractor with crane from 1900, a road-rail truck from 1950) drives from the nearest Engine Shed
   station (else the first station, slow) — repair time = dispatch + travel + 2–5 fix days; cost $5k + $120/tile (era-scaled). (Phase 26A)
 - Obsolescence: once a model is > 25 years past introduction, maintenance +50%. Steam maintenance
   +50% after 1955, and steam models can't be bought after 1960.
@@ -782,7 +782,8 @@ and the last one keeps the first decades playable. Measured results: docs/PROGRE
 7. **Single track has capacity, and a way to add it.** A **passing loop** (`buildPassingLoop`, $12k at 1830 prices, a station-like
    section splitter with no staff or catchment, on plain straight track, single or (Phase 55) double) lets opposing trains meet mid-line and a fast train overtake a slow one (§7.5). With the Station tool a tap on such a tile offers **Station / Passing loop**.
    An order option **minimum days between departures** (`TrainOrder.minGapDays`, 0 / ½ / 1 / 2 / 3) spaces trains instead of
-   convoys; the train holds its departure with "Holding for departure slot".
+   convoys; the train holds its departure with "Holding for departure slot". (Phase 63: the per-stop stepper is gone from the
+   Route tab; only "Space trains evenly" sets it, saves keep any gap they have.)
 8. **Servicing by distance.** Breakdown chance is ×0.5 fresh from an Engine Shed and rises by +1.0 for every interval run since
    (`SERVICE_INTERVAL_KM` steam 8,000 / diesel 30,000 / electric 50,000), capped at ×3.5; any stop at a station with a shed
    services the train (8 hours, only once ≥ 10 % of the interval has run). Sheds along long lines matter.
@@ -959,10 +960,16 @@ All tap targets ≥ 44 CSS px. Respect Android safe-area insets.
 ### 10.2 Key panels
 
 - **Station panel**: name (rename), type & upgrade button, improvements (buy), waiting cargo bars,
-  supplies/accepts lists, trains serving it, catchment overlay toggle.
+  supplies/accepts lists, trains serving it, catchment overlay toggle. A processing industry in the catchment
+  (steel mill, factory …) is drawn as a recipe picture (Phase 63): input cargo tiles with a stock gauge each
+  (a coloured "full" cap, a warning mark when missing, a small train mark when a train is bringing it), an arrow,
+  and the output with last month's amount; the one-line explanation sits behind (i).
 - **Train panel**: loco model & age & reliability, consist (car icons; add/remove/reorder while at a
   station), orders editor (tap stations on map to add while "Edit orders" is active), current status
   (moving/loading/waiting for block/broken down), this-year and lifetime revenue/profit, Replace Loco, Sell.
+  The Route tab has no per-stop spacing stepper (Phase 63); "Space trains evenly" on the Lines view sets the gap.
+- **News panel**: every item about a train opens that train (chevron shown only while the train exists), town /
+  industry / jam items focus the map; "Clear all" empties the list in one tap, no confirmation (Phase 63).
 - **Buy train dialog**: loco list filtered by availability & fuel type, stats, "New!" badges;
   car picker; orders defaulting to "the station you're at → tap next station".
 - **City panel**: population, tier, growth trend arrow, supplies/demands, Civic Investment button.

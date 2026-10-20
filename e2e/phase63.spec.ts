@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import "./gameWindow";
+import { build, centerOn, clearArea, range, setup, station } from "./p30bHelpers";
 
 /** Phase 63: the processor on a station's Cargo tab is a recipe picture (inputs with stock gauges -> output). */
 test.use({ deviceScaleFactor: 2 });
@@ -91,3 +92,79 @@ test("steel mill panel is a recipe picture with a full gauge and an on-the-way m
   await expect(page.locator(".processing-row")).toHaveCount(0);
   await page.screenshot({ path: "docs/screenshots/phase-63-industry-panel.png" });
 });
+
+/** Phase 63: the repair-crew train in each era, drawn beside a broken-down train. */
+for (const [year, name] of [
+  [1850, "repair-crew-1850"],
+  [1880, "repair-crew"],
+  [1920, "repair-crew-1920"],
+  [1960, "repair-crew-1960"],
+] as const) {
+  test(`repair crew train art, ${year}`, async ({ page }) => {
+    await setup(page);
+    await page.evaluate(
+      (y) =>
+        window.__game?.regenerate({
+          seed: 12345,
+          size: "medium",
+          waterLevel: "normal",
+          startYear: y,
+        }),
+      year,
+    );
+    await page.evaluate(() => window.__game!.debugSetCash(50_000_000));
+    await page.evaluate(() => window.__game!.setSpeed(0));
+    await clearArea(page, 50, 100, 20, 40);
+    await build(
+      page,
+      range(41, (i) => ({ x: 55 + i, y: 30 })),
+    );
+    await station(page, 55, 30);
+    await station(page, 95, 30);
+    const trainId = await page.evaluate(() => {
+      const g = window.__game!;
+      const st = g.getState() as unknown as {
+        stations: Array<{ id: number; tile: number; hasEngineShed: boolean }>;
+      };
+      st.stations[0]!.hasEngineShed = true;
+      const [a, b] = st.stations.map((s) => s.id) as [number, number];
+      for (const loco of ["atlantic-4-4-2", "american-4-4-0", "grasshopper-0-4-0"]) {
+        const r = g.buyTrain(a, loco, ["coal", "coal"]);
+        if (!r.ok || r.trainId === undefined) continue;
+        g.setOrders(r.trainId, [
+          { stationId: a, rule: "passThrough" },
+          { stationId: b, rule: "passThrough" },
+        ]);
+        return r.trainId;
+      }
+      throw new Error("buy failed");
+    });
+    await page.evaluate(() => window.__game!.runDays(8));
+    await page.evaluate((id) => window.__game!.debugBreakdown(id, 12), trainId);
+    await page.evaluate(() => window.__game!.runDays(3));
+    const at = await page.evaluate(() => {
+      const st = window.__game!.getState() as unknown as {
+        ticks: number;
+        map: { width: number };
+        trains: Array<{
+          repairCrew?: {
+            startTick: number;
+            dispatchTicks: number;
+            travelTicks: number;
+            path: number[];
+          };
+        }>;
+      };
+      const crew = st.trains[0]!.repairCrew!;
+      const f = Math.min(1, (st.ticks - crew.startTick - crew.dispatchTicks) / crew.travelTicks);
+      const tile = crew.path[Math.floor(f * (crew.path.length - 1))]!;
+      return { x: tile % st.map.width, y: Math.floor(tile / st.map.width) };
+    });
+    await centerOn(page, at.x, at.y, 2);
+    await page.screenshot({ path: `docs/screenshots/phase-63-${name}.png` });
+    if (year === 1880) {
+      await centerOn(page, at.x, at.y, 1);
+      await page.screenshot({ path: "docs/screenshots/phase-63-repair-crew-zoom1.png" });
+    }
+  });
+}
