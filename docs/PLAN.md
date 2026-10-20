@@ -2572,7 +2572,7 @@ Status: [ ] 1 [ ] 2 [ ] 3
 ## Phase 62 — Passenger shares that follow town size; a better repair-crew vehicle (after Phase 61)
 
 Owner play-test 7 (2026-10-20, Normal, 1838-1845; `docs/playtests/pt7-*.jpg`): "Much better than before. Still, feels
-like I have a little more money on Normal." (Phase 61 handles costs.) "Is it OK that the same number of passengers wait
+like I have a little more money on Normal." The owner clarified: "I meant a little too much money" (Normal is still slightly too easy; Phase 61 handles costs). "Is it OK that the same number of passengers wait
 for each station?" (`pt7-where-passengers-go.jpg`: Ljubljana sends 11/mo, 25 % each, to Vienna, Venice, Trieste and Graz,
 although Vienna is several times Graz.) "Graphics for the repair car are quite bad, need to improve them a bit."
 
