@@ -637,6 +637,15 @@ Revenue: passengers, mail, freight (per cargo type).
 Expenses: train maintenance, track maintenance, station maintenance, breakdown repairs, interest,
 construction (track, stations, improvements, electrification — capital), rolling stock purchases (capital).
 
+Phase 60 (running costs measured against real railways, Phase 59 sources in PROGRESS):
+- **Track upkeep is a section gang.** The fixed monthly charge per track tile is the wages of a gang of `SECTION_GANG_MEN` (4) men
+  for a section of `SECTION_LENGTH_KM` (24 km) at the era's wage plus the materials' share (`src/data/track.ts`). Double track is 1.6x
+  (shorter sections), electrification +0.5x. What heavy traffic adds is the track wear charge. Shown as "Track upkeep" in the finance panel.
+- **Head office.** `administration` (ledger line "Head office"): `GENERAL_ADMIN_SHARE_OF_EXPENSES` (0.14, a one-railway report of
+  1901; a single source) of total operating cost, charged as a markup on wages, fuel, upkeep, repairs and wear (`src/data/economy.ts`).
+- Operating ratio for a strong player is now about 0.3-0.5 (real: 0.43-0.53 in the 1840s-50s, 0.63 in 1901, 0.74 in 1927-50).
+  Construction cost per km is still about a twentieth of real and is not part of this change.
+
 ### 9.3 Net worth
 
 `cash − loans + 50% of (track + station + improvement build cost) + locomotive/car value (depreciating
