@@ -109,3 +109,15 @@ Read this first, then `CLAUDE.md`, the last ~5 entries of `docs/PROGRESS.md`, an
   completed by the orchestrator (PROGRESS).
 - Item 4 (engine choice) was a report only: `tools/bench/engineCosts.ts`. Finding: fuel-by-power changes profit <= 5 % and
   reorders nothing; price/maintenance against revenue is the real lever. **Awaiting owner decision** before any change.
+
+## Update 2026-10-20: Phases 56-59 shipped (all reviewed by the orchestrator)
+- 56/56B/57: engine price and upkeep from real size (steam by weight, diesel/electric by real rated power); upkeep shown in
+  today's money; 1900 Normal band $30-45M (median of 10 seeds, owner); silver bound 0.6 (owner).
+- 58: one train-length scale (maxCars from real train lengths x 0.5), longer stations (Depot 6 / Station 20 / Terminal 60),
+  long-train signalling fixes, bulk freight on a tonnage tariff. Heavy steam freight engines still never best payback
+  (owner may want steam Power from real tractive effort).
+- 59: track joins say why they are red; suggestion slides along the line. `tools/bench/strongPlayer.ts` (plays like the
+  owner). Economy measured against real railways: game operating ratio 0.17-0.37 (real 0.43-0.75), return on capital
+  22-58 % (real 3.5-5 %). A cost fix (section-gang track upkeep + 14 % head office) is on branch `phase-59-costs`, NOT
+  main: it fails two long-haul bounds (0.537/0.515 vs 0.6). **Awaiting owner decision** (merge + new bounds/bands; also
+  track/station build cost is ~1/20 of real per km, the biggest lever for "money piles up").
