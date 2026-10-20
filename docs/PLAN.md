@@ -2519,3 +2519,23 @@ table is allowed only where each row has a real source. Never loosen a test boun
    player survives on Normal. If a balance test fails, report old/new values and the real cause; do not loosen it.
 5. PROGRESS with tables and sources, SPEC (§9 costs, §5 track joins), e2e (update, never weaken), screenshots. LOOK.
 Status: [x] 1 [x] 2 [x] 3 (measured; cost fix on branch phase-59-costs, tests red, owner decides) [x] 4 (numbers, no bands set) [x] 5
+
+## Phase 60 — Merge the real running costs (section gangs, head office); new reference player for balance
+
+Owner: "OK, do this, yes" (2026-10-20) on the orchestrator's proposal after Phase 59: (1) merge branch `phase-59-costs`
+with the **4-man** section gang (4 men per 24 km) and the 14 % head office, and lower the two long-haul `lateReturn`
+bounds that it breaks from 0.6 to **0.5** (owner OK, only these two: `tests/sim/balanceLongHaul.test.ts` 1900 chain and
+1930 silver chain); (2) base the balance bands on the strong player from now on: measure, the orchestrator proposes, the
+owner decides. Track/station build cost toward real (about 1/20 of real per km today) is **not** in this phase.
+
+1. **Merge.** Bring `phase-59-costs` (commit 4976fcf) onto current main (merge or cherry-pick, resolve conflicts). Keep
+   `SECTION_GANG_MEN` 4, `SECTION_LENGTH_KM` 24, `GENERAL_ADMIN_SHARE_OF_EXPENSES` 0.14 with their sources. Lower only the
+   two named bounds to 0.5; write old/new/measured and the reason in PROGRESS. Every other test must pass unchanged; if
+   another one fails, report it with the real cause and stop (do not loosen it). Finance panel shows "Head office" and the
+   track upkeep line; word limits kept. Old saves load.
+2. **Measure (pieces of at most ~15 minutes, each pushed to `docs/bench/phase60.md` as it finishes).** Strong player and
+   good bot, 10 seeds, 1840/1870/1900/1930/1950, Normal and Hard: final NW median [min-max], bankruptcies, operating ratio
+   yr 3/10/16, return on capital, years to cash > 20 % of NW. Bad bots 3 seeds. Do not set bands; write the table.
+3. SPEC (§9 costs: section gangs, head office), PROGRESS with tables, e2e (update, never weaken), screenshot
+   `phase-60-finance.png` (finance panel with Head office and track upkeep). LOOK at it.
+Status: [ ] 1 [ ] 2 [ ] 3
