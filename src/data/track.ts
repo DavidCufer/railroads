@@ -1,5 +1,6 @@
 /** Track building balance numbers (SPEC §5.3, §5.4). Logic lives in src/sim/track. */
-import { WORLD_SCALE } from "./scale";
+import { KM_PER_TILE, WORLD_SCALE } from "./scale";
+import { TRACK_LABOUR_SHARE, WAGE_1830 } from "./economy";
 import type { Terrain } from "../sim/map/terrain";
 
 export type BridgeType = "wood" | "stone" | "steel";
@@ -75,10 +76,24 @@ export const WOODEN_BRIDGE_MAX_WEIGHT_CLASS = "medium";
 /** Yearly chance a wooden bridge washes out in a flood event (SPEC §5.3) — used from Phase 8. */
 export const WOODEN_BRIDGE_WASHOUT_CHANCE_PER_YEAR = 0.01;
 
-/** Monthly maintenance (SPEC §5.4), scaled by era inflation. */
-export const MAINTENANCE_SINGLE = 10 / WORLD_SCALE;
-export const MAINTENANCE_DOUBLE = 16 / WORLD_SCALE;
-export const MAINTENANCE_ELECTRIFIED_SURCHARGE = 5 / WORLD_SCALE;
+/** Monthly maintenance (SPEC §5.4), scaled by the wage and price indices (`trackEdgeMonthlyCost`).
+ * Phase 59: the fixed part of track upkeep is the section gang. Track was kept by a gang under a foreman that walked and
+ * kept up one section, and the gang followed the workload: "as few as four men but as many as thirty", a section five to
+ * seven miles of single track or three to four of double on busy lines, up to ten to fifteen miles for a gang on a quiet
+ * one (a Ma & Pa Railroad foreman and five to seven men to about ten miles; a Canadian National section of about ten;
+ * Alabama gangs of ten to fifteen; bridges left to a separate gang). The fixed charge is the lightest of those, four men
+ * to fifteen miles (24 km), at the era's wage plus the materials' share (`TRACK_LABOUR_SHARE`); what heavy traffic adds
+ * (the bigger gang, the rail and sleeper renewal) is the track wear charge. Before this the fixed upkeep was 5 a month a
+ * tile, a fortieth of the real maintenance of way (US railroads spent 211 million dollars on way and structures in 1900
+ * on 193,346 miles of line, about 1,090 dollars a mile a year; see PROGRESS Phase 59 for the sources). Double track needs
+ * a gang for a shorter section (three to four miles against five to seven: 1.6 times the men per mile); electrification
+ * adds a half. */
+export const SECTION_GANG_MEN = 4;
+export const SECTION_LENGTH_KM = 24;
+export const MAINTENANCE_SINGLE =
+  (((SECTION_GANG_MEN * KM_PER_TILE) / SECTION_LENGTH_KM) * WAGE_1830) / 12 / TRACK_LABOUR_SHARE;
+export const MAINTENANCE_DOUBLE = MAINTENANCE_SINGLE * 1.6;
+export const MAINTENANCE_ELECTRIFIED_SURCHARGE = MAINTENANCE_SINGLE * 0.5;
 export const MAINTENANCE_BRIDGE: Record<BridgeType, number> = {
   wood: 50,
   stone: 30,
