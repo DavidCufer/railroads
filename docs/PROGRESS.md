@@ -6598,3 +6598,19 @@ only these three, all in `tests/sim/balanceLongHaul.test.ts`: 1900 chain `lateRe
 (measured 1.926e6). Reason: one train on a third-of-the-map line now carries that line's real track gang and head office.
 `ledger.test` fixtures include the head-office charge (mechanism, not a bound). `npm run check` 932 green; e2e 133 + 132 green.
 Items 2-3 (10-seed bands numbers, finance screenshot) still to do.
+
+## 2026-10-20 - Phase 60 items 2-3: PARTIAL (bench stopped at 65 of about 290 runs by the 2-hour background limit; item 3 screenshot/e2e not done)
+
+**Status.** Item 1 is on main (f7d11b0, by the orchestrator). Item 2: driver `tools/bench/phase60.ts` (one piece = about 12 min, 4 runs at once, appends raw rows to `docs/bench/phase60.md`, skips runs already in the file; rerun until it prints DONE), summary `tools/bench/phase60Summary.ts`, and `goodPlayer.ts` now prints the same `YEAR`/`IDLE20` rows as the strong player. The chain of pieces was killed by the harness's longest background time limit (2 h) after 65 runs; its note says not to restart, so I did not. All finished rows are pushed. SPEC §9.2 updated (section gangs, head office). **Not done:** the rest of the benches (strong Hard 1870 6 seeds, 1900-1950; good bot all; bad bots all), the `phase-60-finance.png` screenshot and its e2e, the PLAN tick. PLAN status line left unticked.
+Decisions: return on capital = year's operating profit / (capital invested in track and stations + the bots' "stock" value); "cash>20% NW" = years from the start, "never" runs counted separately (the median ignores them). No test bound was changed by me.
+
+**Strong player so far (`npx tsx tools/bench/phase60Summary.ts`), 10 seeds unless the runs column says otherwise:**
+| bot | diff | start | runs | bankrupt | final NW $M median [min-max] | op ratio y3 / y10 / y16 | return on capital y3 / y10 / y16 | cash>20% NW, years (median; never) |
+|---|---|---|---|---|---|---|---|---|
+| strong | normal | 1840 | 10 | 0 | 22.61 [20.66-29.29] | 0.38 / 0.42 / 0.34 | 0.21 / 0.20 / 0.29 | 11.0; 0 |
+| strong | normal | 1870 | 10 | 0 | 23.37 [20.80-32.36] | 0.39 / 0.47 / 0.39 | 0.19 / 0.17 / 0.25 | 15.0; 7 |
+| strong | normal | 1900 | 10 | 0 | 54.31 [27.62-101.33] | 0.26 / 0.41 / 0.41 | 0.32 / 0.22 / 0.28 | 2.0; 0 |
+| strong | normal | 1930 | 10 | 0 | 8.00 [6.41-11.64] | 0.49 / 0.53 / 0.57 | 0.16 / 0.17 / 0.15 | 5.0; 3 |
+| strong | normal | 1950 | 10 | 1 | 21.46 [9.70-47.44] | 0.28 / 0.55 / 0.56 | 0.35 / 0.16 / 0.16 | 2.0; 3 |
+| strong | hard | 1840 | 10 | 0 | 12.45 [9.33-13.17] | 0.29 / 0.48 / 0.32 | 0.25 / 0.12 / 0.27 | 2.0; 0 |
+| strong | hard | 1870 | 4 | 0 | 25.69 [23.50-28.93] | 0.26 / 0.40 / 0.54 | 0.35 / 0.19 / 0.11 | 16.0; 3 |
