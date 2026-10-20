@@ -6578,3 +6578,14 @@ Misses against the Phase 39 target (Normal >= 50 %, Hard >= 80 %), 3 seeds so on
 - Decisions: the cost fix is a branch, not main (see 3c); the 7-men figure and the 14 % head office are single-source numbers and flagged as such; hard-to-reproduce details: the bench ran across two container restarts (jobs resumed; finished files are kept).
 - Bot version note: the strong player's first-line financing fix landed during the main batch; it only changes starts that could not pay for two trains (Hard 1900), whose ten runs were re-run with it.
 - `tools/bench/survival.ts` runs `strong` (BOTS=strong).
+
+## 2026-10-20 - Phase 60 item 1: STOPPED, a third long-haul bound fails after the merge (merge is on branch `phase-60-costs`, not on main)
+
+**Status.** Item 1 done on branch `phase-60-costs` (cherry-pick of `4976fcf` onto main; the only conflict was `tools/bench/strongPlayer.ts`, where main's newer strong player was kept; the two `lateReturn` bounds 0.6 -> 0.5 in `tests/sim/balanceLongHaul.test.ts`). Items 2 and 3 not started. Main is untouched and green. Per the rules (only those two bounds may change; any other failure: report and stop) I did not push the merge to main.
+
+**Result of `npm run check` on the branch:** 931 pass, **1 fails**: `tests/sim/balanceLongHaul.test.ts` "1930 silver and 1950 uranium: the big prize, uranium the bigger", line 40:
+`expect(silver.lateReturn * silver.invested).toBeGreaterThan(2.2e6)` -> measured **1.926e6** (bound 2.2e6; main measured about 2.283e6). The two `lateReturn > 0.5` bounds pass (1900 chain and 1930 silver chain). Nothing else fails.
+
+**Cause.** Same as the two named bounds: the silver chain is one train over a line a third of the map long, carrying the whole fixed upkeep (4-man section gang per 24 km) plus the 14 % head office alone; late yearly return in dollars falls from 2.28e6 to 1.93e6 (-16 %). It is the absolute-dollar twin of the `lateReturn` ratio bound that the owner already agreed to lower; it was not named in the plan. The uranium comparison on the next lines (uranium > 1.4x silver) was not reached, so unknown.
+
+**Decision needed from owner:** allow `silver.lateReturn * silver.invested` floor 2.2e6 -> 1.8e6 (one 0.1e6 step under the 1.926e6 measured, as in Phase 56B), then check the uranium 1.4x line. With that the merge would be ready to push (rebase `phase-60-costs` onto main, e2e shards, screenshot, then items 2-3).
