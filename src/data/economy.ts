@@ -213,12 +213,14 @@ export function crewShifts(year: number): number {
 }
 
 /** The part of `LocomotiveDef.maintenancePerYear` that is fuel, oil, water and depot servicing (the rest of
- * the old figure was the crew, which is now paid as wages). Scales with general prices. Phase 61: one figure for every
- * era (it was blended from 0.45 to 2.8 by a tuned table); no source for a rise in the real fuel bill per tile was found: US Class I
- * railways spent 6-10 % of operating expenses on locomotive fuel through the 1920s-30s (NBER c4617), bituminous coal at the
- * mine was $1.04 a ton in 1900 and $1.12 in 1910 (Minerals Yearbook, via IWW), and engines got more efficient as coal got
- * dearer, so the fuel bill per ton-mile did not climb 48-fold. */
-export const RUNNING_COST_SHARE = 2.8;
+ * the old figure was the crew, which is now paid as wages). Scales with general prices. Phase 61: ONE figure for every
+ * era, derived from a real share instead of a tuned table: US Class I railways spent 6-10 % of all operating expenses on
+ * locomotive fuel in the 1920s-30s (NBER c4617, nber.org/chapters/c4617.pdf), so fuel is set to 8 %. Derivation: the strong
+ * player (Normal, seed 1, main economy plus Phase 61 crews) in 1900, 1930 and 1950, complete years, with this figure at 2.8,
+ * spent fuel F = 3,377 k, servicing S = 391 k and everything else O = 3,030 k (head office and interest taken out; fuel
+ * was 37-54 % of operating expenses); fuel and servicing both scale with this figure k, so 8 % needs
+ * k = 0.08 O / (F - 0.08 (F + S)) = 0.079 times the old value: 2.8 x 0.079 = 0.22. Checked once, not iterated. */
+export const RUNNING_COST_SHARE = 0.22;
 export function runningCostShare(_year: number): number {
   return RUNNING_COST_SHARE;
 }
