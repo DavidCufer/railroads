@@ -16,3 +16,7 @@ Return on capital = operating profit of the year / (capital invested in track an
 | strong | 1870 | normal | 1 | no | 0.02 | 20.8 | 0.39 | 0.46 | 0.45 | 0.19 | 0.18 | 0.19 | never |
 | strong | 1840 | normal | 10 | no | 0.02 | 20.66 | 0.34 | 0.43 | 0.37 | 0.24 | 0.20 | 0.25 | 14 |
 | strong | 1870 | normal | 2 | no | 0.01 | 23.01 | 0.39 | 0.51 | 0.46 | 0.23 | 0.15 | 0.18 | 3 |
+| strong | 1870 | normal | 6 | no | 0.02 | 22.57 | 0.39 | 0.47 | 0.41 | 0.18 | 0.17 | 0.23 | never |
+| strong | 1870 | normal | 5 | no | 0.01 | 21.04 | 0.41 | 0.48 | 0.5 | 0.17 | 0.16 | 0.16 | never |
+| strong | 1870 | normal | 4 | no | 0.03 | 31.58 | 0.39 | 0.45 | 0.33 | 0.19 | 0.18 | 0.33 | 16 |
+| strong | 1870 | normal | 3 | no | 0.02 | 23.73 | 0.4 | 0.47 | 0.39 | 0.18 | 0.17 | 0.25 | never |
