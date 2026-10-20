@@ -47,7 +47,7 @@ import { STATION_TYPE_DEFS } from "../../src/data/stations";
 import { netWorth } from "../../src/sim/finance/ledger";
 import { activePanic, fuelPriceMult } from "../../src/sim/finance/panics";
 import { creditLimitFor } from "../../src/sim/finance/credit";
-import { ledgerRevenue } from "../../src/data/finance";
+import { ledgerOperatingCosts, ledgerOperatingProfit, ledgerRevenue } from "../../src/data/finance";
 import type { GameState } from "../../src/sim/state";
 import type { City } from "../../src/sim/economy/types";
 import type { Station } from "../../src/sim/stations/types";
@@ -508,6 +508,8 @@ function snapshot(label: string): void {
 }
 
 let totalRevenue = 0;
+const yearRows: string[] = []; // Phase 60: same YEAR/IDLE20 rows as strongPlayer, for the operating ratio and return on capital
+let idle20: number | null = null;
 bootstrap();
 const wanted = new Set([1, 2, 3, 4, 5, 8, 10, 13, 16, 20, 25, 30]);
 for (let y = 1; startYear + y <= endYear; y++) {
@@ -543,6 +545,16 @@ for (let y = 1; startYear + y <= endYear; y++) {
       break;
     }
     if (state.scenario && state.scenario.status !== "active") break;
+  }
+  {
+    const ly = state.finance.lastYear;
+    const rev = ledgerRevenue(ly);
+    const op = ledgerOperatingCosts(ly);
+    const nw = netWorth(state);
+    if (idle20 === null && state.cash > 0.2 * nw && y >= 2) idle20 = startYear + y;
+    yearRows.push(
+      `YEAR ${startYear + y} cash ${(state.cash / 1e6).toFixed(2)}M NW ${(nw / 1e6).toFixed(2)}M trains ${state.trains.length} rev ${(rev / 1e6).toFixed(2)}M opcost ${(op / 1e6).toFixed(2)}M opratio ${rev > 0 ? (op / rev).toFixed(2) : "-"} opprofit ${(ledgerOperatingProfit(ly) / 1e6).toFixed(2)}M capital ${(state.finance.capitalInvested / 1e6).toFixed(2)}M loans ${(state.finance.loans / 1e6).toFixed(1)}M stock ${((nw - state.cash + state.finance.loans - 0.5 * state.finance.capitalInvested) / 1e6).toFixed(2)}M`,
+    );
   }
   if (wanted.has(y)) snapshot(`Jan ${startYear + y}`);
   if (state.finance.bankrupt) break;
@@ -586,6 +598,8 @@ if (state.scenario)
 console.log(`# ${region} ${startYear} ${difficulty} seed ${seed}`);
 console.log(report.join("\n"));
 if (process.env.V) console.log(state.trains.map((t) => `${t.locoModelId}:${t.status}`).join(" "));
+console.log(yearRows.join("\n"));
+console.log(`IDLE20 ${idle20 ?? "never"}`);
 console.log(`MINCASH ${(minCash / 1e6).toFixed(2)}`);
 // Phase 56: which engines the bot ended up running
 const engineCounts = new Map<string, number>();
