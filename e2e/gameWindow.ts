@@ -21,6 +21,7 @@ export interface LedgerPeriod {
   freight: number;
   trainMaintenance: number;
   trackMaintenance: number;
+  administration: number; // Phase 60: "Head office"
   stationMaintenance: number;
   breakdownRepairs: number;
   interest: number;
