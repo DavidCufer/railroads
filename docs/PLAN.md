@@ -2588,8 +2588,37 @@ limit; if a balance test fails, report old/new and the cause and stop (owner dec
    nearer town must draw more than a smaller, farther one. Unit tests: Vienna > Graz from Ljubljana in the owner's case;
    a metropolis among small towns gets a large but not total share. Re-run the passenger benches (S4 express + locals,
    `explore.ts`) and the strong player (5 seeds Normal, 1840/1900) and report.
-2. **Repair-crew vehicle art** (src/render/repairCrews.ts): a recognisable 19th-century repair/breakdown train in the
-   STYLE.md Part 3 engraved style (a small engine or handcar with a tool van / crane wagon, era-appropriate later), drawn
-   procedurally and cached like the engines. Screenshot `phase-62-repair-crew.png` at zoom 1 and 2. LOOK at it.
+2. (Moved to Phase 63: repair-crew art.)
 3. PROGRESS, SPEC (§8.1 passenger shares), e2e (never weaken).
-Status: [ ] 1 [ ] 2 [ ] 3
+Status: [ ] 1 [-] 2 (moved to 63) [ ] 3
+
+## Phase 63 — UI: news opens its train, clear news in one tap, industry panel as a picture, drop the stop gap stepper, repair-crew art
+
+Owner play-test 7 (2026-10-20; `docs/playtests/pt7-news.jpg`, `pt7-steelmill-panel*.jpg`): "If there are news regarding a
+train, tapping on this news should open the train. No need to confirm when clearing news. This [industry] info on the
+station is not very user friendly, way too much text, need a better way to represent it graphically. We can remove the
+settings for how many days to wait between trains at a stop, I never use it." Plus Phase 62 item 2: "graphics for the
+repair car are quite bad".
+UI/render only (`src/ui`, `src/render`, strings): no sim or balance change, so it can run beside Phase 61. Word limits
+(`e2e/phase49Words.spec.ts`) kept or lowered, never raised. STYLE.md Part 3 look.
+
+1. **News opens its subject.** Every news item about a train (breakdown, "nobody accepts", stuck, worn out, ...) is a
+   tap target that opens that train's panel (as town/industry news already open their place); the item shows a chevron.
+   If the train no longer exists, the tap does nothing and the chevron is not shown. e2e.
+2. **Clear all news in one tap** (no "Clear all news?" step). Strings tidied. e2e updated (not weakened: it checks the
+   list is empty after one tap).
+3. **Industry panel as a picture** (station Cargo tab for a processing industry, e.g. the steel mill): replace the text
+   lines ("Makes steel from coal and iron ore", "Last month: 38 t coal, 75 t iron ore -> 38 t steel", "Stock: 21 t coal,
+   240 t iron ore (full)", "On the way: coal", the details note) with a small recipe diagram: input cargo icons with a
+   stock gauge each (fill = stock / capacity, "full" as a coloured cap, a small truck/train mark when some is on the way),
+   an arrow, the output icon with last month's amount. Numbers stay as short labels (e.g. "38 t"); explanations go
+   behind (i). Same treatment for raw producers (output gauge) and for towns' demand chips where it fits. Word count of
+   the panel must go down. Screenshots `phase-63-industry-panel.png` (steel mill with one input full, one on the way).
+4. **Remove the per-stop "days between departures" stepper** from the train Route tab (the calendar row with - / + under
+   each stop). Keep the line-level "Space trains evenly" button (one tap, it sets the gap itself). Old saves keep any gap
+   they have; the sim is unchanged. e2e for the stepper removed, the Space-evenly e2e kept.
+5. **Repair-crew vehicle art** (`src/render/repairCrews.ts`): a recognisable repair/breakdown train in the engraved style
+   (a small engine with a tool van, a crane wagon from about 1870, a motor/diesel later), drawn procedurally and cached
+   like the engines; also in the panel thumbnail if it has one. Screenshot `phase-63-repair-crew.png` at zoom 1 and 2.
+6. PROGRESS, SPEC (§10 UI), e2e (update, never weaken), LOOK at every screenshot.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
