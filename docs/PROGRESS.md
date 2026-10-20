@@ -6589,3 +6589,12 @@ Misses against the Phase 39 target (Normal >= 50 %, Hard >= 80 %), 3 seeds so on
 **Cause.** Same as the two named bounds: the silver chain is one train over a line a third of the map long, carrying the whole fixed upkeep (4-man section gang per 24 km) plus the 14 % head office alone; late yearly return in dollars falls from 2.28e6 to 1.93e6 (-16 %). It is the absolute-dollar twin of the `lateReturn` ratio bound that the owner already agreed to lower; it was not named in the plan. The uranium comparison on the next lines (uranium > 1.4x silver) was not reached, so unknown.
 
 **Decision needed from owner:** allow `silver.lateReturn * silver.invested` floor 2.2e6 -> 1.8e6 (one 0.1e6 step under the 1.926e6 measured, as in Phase 56B), then check the uranium 1.4x line. With that the merge would be ready to push (rebase `phase-60-costs` onto main, e2e shards, screenshot, then items 2-3).
+
+## 2026-10-20 - Phase 60 item 1: real running costs merged (orchestrator)
+Merged branch `phase-60-costs` (section-gang track upkeep: 4 men per 24 km at the era's wage plus materials; 14 % head office
+on running costs, ledger line "Head office"; sources in Phase 59 3b/3c). Bounds changed, all with the owner's OK (2026-10-20),
+only these three, all in `tests/sim/balanceLongHaul.test.ts`: 1900 chain `lateReturn` > 0.6 -> > 0.5 (measured 0.537);
+1930 silver `lateReturn` > 0.6 -> > 0.5 (measured 0.515); 1930 silver money a year `lateReturn x invested` > 2.2e6 -> > 1.8e6
+(measured 1.926e6). Reason: one train on a third-of-the-map line now carries that line's real track gang and head office.
+`ledger.test` fixtures include the head-office charge (mechanism, not a bound). `npm run check` 932 green; e2e 133 + 132 green.
+Items 2-3 (10-seed bands numbers, finance screenshot) still to do.

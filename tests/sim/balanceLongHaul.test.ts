@@ -36,8 +36,9 @@ describe("long-haul chain balance (Phase 40)", () => {
     // Phase 56B (owner OK): was 0.7, measured 0.611 (the 1930 fastest engine, the Hudson, costs 1.5x and its upkeep 2x).
     expect(silver.lateReturn).toBeGreaterThan(0.5);
     // Phase 54 (owner OK): was 2.5e6, measured 2.44e6 (the same turnaround cost). Phase 56B (owner OK): was 2.3e6,
-    // measured 2.283e6, floor one step (0.1e6) below it.
-    expect(silver.lateReturn * silver.invested).toBeGreaterThan(2.2e6);
+    // measured 2.283e6, floor one step (0.1e6) below it. Phase 60 (owner OK 2026-10-20): was 2.2e6, measured 1.926e6
+    // after the real running costs (section-gang track upkeep, head office), floor one step below.
+    expect(silver.lateReturn * silver.invested).toBeGreaterThan(1.8e6);
     expect(uranium.lateReturn * uranium.invested).toBeGreaterThan(
       1.4 * silver.lateReturn * silver.invested,
     );
