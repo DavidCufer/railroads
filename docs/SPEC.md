@@ -182,6 +182,12 @@ difficulty (Easy/Normal/Hard, §9.6), starting cash shown.
 
 Build toolbar modes: **Track**, **Double**, **Electrify** (era-gated), **Station**, **Bulldoze**, **Info**.
 
+- **Track joins (Phase 59):** a drag that joins an existing line is checked by the same build rules as any other (sharp turn,
+  mid-tile crossing, junction shape, junction spacing of 2 tiles). A turnout off a diagonal line at 45° is legal; what refuses
+  a join near another turnout is the spacing rule (room for the turnout curve), not the angle. A red drag always says why in one
+  short line beside the cost label ("Junction too close to another", "Too sharp to join here", ...). "Smallest legal connection"
+  first slides the join along the line the drag started or ended on (up to 4 tiles of track, nearest first) and only then
+  searches other lines.
 - **Track mode**: touch-and-drag from any tile. The path follows the finger, snapped to the 8
   directions (use A* on the grid between the drag start and current tile, preferring straight lines
   and cheaper terrain, with a penalty for direction changes; this makes dragging on a phone feel good).
@@ -223,6 +229,9 @@ Bridges:
 
 Monthly: $10 per edge single, $16 double, +$5 electrified. Bridges: +$50 wood, +$30 stone, +$40 steel.
 (Scale by era inflation.)
+
+**Phase 59 finding (not applied on `main`, see §9.5f):** the real fixed upkeep of a line is a section gang, about forty times
+the figure above; the proposal is on branch `phase-59-costs`.
 
 ---
 
@@ -1225,3 +1234,5 @@ localization (English only, but keep strings in one `strings.ts` file for later)
 - [Phase 56B] §7.7: diesel and electric price = installed power (game Power × 100 hp or 200 kW) × $60 at 1830 prices, steam stays by weight; diesels fall to 0.40-0.71 of their Phase 55 price, electrics are back near it (Modern Electric $288k, Heavy Freight $480k); High-Speed Trainset $192k (its game Power is capped). §9: the upkeep shown beside an engine's price is at the current year's prices.
 - [Phase 57] §7.7: `ratedPowerKw` / `ratedPowerHp` price an engine by its real rating where game Power is a cap: High-Speed Trainset $528k (was $192k), Streamliner Diesel $120k (was $72k); the other diesels and electrics checked and left. Good-bot 1900 Normal band is $30-45M on the median of ten seeds (was $20-34M). No change to the effort model (§7.4): engine weight in it and a steeper grade were measured and did not help freight engines (PROGRESS Phase 57).
 - [Phase 58] §7.7: `maxCars` = real typical train x one `TRAIN_LENGTH_SCALE` 0.5 (Consolidation 20, Mikado 35, Articulated 60, Cab Unit 22, Road Switcher 28, Heavy Diesel 45, Heavy Freight Electric 40; High-Speed Trainset 5); freight crew capped at a conductor and three brakemen. §6.1: station track lengths 6/20/60 (were 6/10/16) from the same scale; a train longer than its station's grounds keeps its tail's blocks held. §7.5: junction wait queues (a train queued behind one that waits for me does not block me). §8.1: bulk freight is on a tonnage tariff, no early-delivery bonus.
+- [Phase 59] §5.2 track joins: a red build drag names its reason in one line beside the cost ("Junction too close to another", ...); "smallest legal connection" slides the join along the drag's own line before searching other lines. The 2-tile junction spacing rule is kept (a 45° join off a diagonal is legal).
+- [Phase 59] §9 costs measured against real railways (PROGRESS Phase 59): the game's operating ratio is 0.2-0.3 (real 0.43-0.75 by era) and it has no general-administration cost; fixed track upkeep is about a fortieth of the real section-gang cost. The correction (section-gang upkeep, §5.4, and a "Head office" ledger line of 14 % of the other running costs, §9.2) is implemented on branch `phase-59-costs` and **not on main**: it fails two long-haul balance tests (`lateReturn` > 0.6 has 2 % headroom) that may not be loosened. The strong test player (`tools/bench/strongPlayer.ts`) is the new reference for a fast, owner-like player.

@@ -2518,4 +2518,4 @@ table is allowed only where each row has a real source. Never loosen a test boun
    not set new bands yourself: report the numbers; the owner decides the new bands. Good survives everywhere; the strong
    player survives on Normal. If a balance test fails, report old/new values and the real cause; do not loosen it.
 5. PROGRESS with tables and sources, SPEC (§9 costs, §5 track joins), e2e (update, never weaken), screenshots. LOOK.
-Status: [x] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [x] 3 (measured; cost fix on branch phase-59-costs, tests red, owner decides) [x] 4 (numbers, no bands set) [x] 5

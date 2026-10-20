@@ -6498,3 +6498,83 @@ All 80 runs survive. Bad bots (bankrupt/3): overbuilder 1840 N 1, H 3, 1900 N 3,
 - **Smallest legal connection** first slides the join along the line the drag started/ended on (track followed through plain 2-leg nodes, up to 4 tiles of track, nearest first) and returns the best legal slide; only if none is legal does it fall back to the old pair search (which could detour to another line). Tested: the suggestion starts on the same line within 2 tiles of the drag end.
 - Could not see the owner's save, so the exact tile offsets are my reconstruction; the e2e screenshots `phase-59-track-join-red.png` / `phase-59-track-join.png` show the same look as the owner's (red with reason, then a green join one step along the same line).
 - `npm run check` green; e2e shard 1/2 133 passed; shard 2/2 131 passed, `stress.spec.ts` (perf) failed once under load and passed alone (no perf code touched).
+
+## 2026-10-19/20 - Phase 59 items 2-5: strong player, economy against real railways (measured; the cost fix is a proposal on a branch), bands
+
+**Status.** Item 1 done and pushed (above). Item 2 done (`tools/bench/strongPlayer.ts`). Item 3: measured and compared in full, the corrections are **implemented but not on `main`**: they push two balance tests red and I may not loosen them, so they sit on branch `phase-59-costs` (see 3c). Item 4: numbers below, no bands set. Main is green (`npm run check`, e2e shards).
+
+### 2. The strong player (`tools/bench/strongPlayer.ts`; `goodPlayer.ts` is unchanged)
+Every ten days it ranks the candidate projects by payback (track + stations + first trains over the trains' yearly profit less the new line's own upkeep: `paybackEstimate.ts`, new `estimateFreightPayback`) and builds the best affordable one (payback <= 9 years); reserve = one month of operating costs; borrows up to a third of net worth and half the lenders' limit (a panic cuts the limit to 60 %, and a call on debt over the limit empties the cash: the first version went bankrupt that way). Projects: passenger lines (a new town extends the nearest line through it, multi-stop, else its own line), freight lines (raw producers and processors to the industries or towns that take the cargo, Terminals and full load where output >= 8 car-loads a month), then trains where cargo is piling up (only if the extra train pays back), doubling busy lines, Post Office/Hotel in big towns. First line from the start-up credit (one train if two are too dear; Hard 1900 never started before this).
+Survival, Normal, 10 seeds: **1840 0/10 bankrupt, 1900 0/10** (also 1870, 1930, 1950 Normal 0/10). Hard: 1950 2/10 bankrupt (not required).
+
+Final net worth, $M, median of 10 [min-max], 16 years, main economy:
+
+| start | good Normal | strong Normal | good Hard | strong Hard | Hard below Normal (good / strong) |
+|---|---|---|---|---|---|
+| 1840 | 22.32 [21.6-23.4] | 27.55 [25.7-28.6] | 11.52 | 19.29 | 48 % / 30 % |
+| 1870 | 77.25 [72.6-80.4] | 48.43 [42.5-55.7] | 50.62 | 44.09 | **34 %** / **9 %** |
+| 1900 | 38.61 [34.3-44.6] | 79.50 [66.2-99.8] | 10.70 | 12.76 | 72 % / 84 % |
+| 1930 | 10.28 [9.9-15.7] | 48.33 [30.3-122.7] | 5.62 | 6.83 | 45 % / 86 % |
+| 1950 | 7.37 [7.0-7.7] | 41.64 [25.7-63.3] | 3.87 | 3.27 (2/10 bankrupt) | 47 % / 92 % |
+
+Strong Normal, medians of 10 seeds (last year = year 16): trains / track edges / revenue $M: 1840 110 / 1000 / 6.0; 1870 134 / 959 / 10.9; 1900 74 / 880 / 13.1; 1930 54 / 852 / 13.2; 1950 51 / 889 / 13.2. The good bot at 1900 ends with 58 trains and about 10.6 $M revenue.
+Cash curve, strong player 1900 Normal seed 1 ($M cash / net worth at year end): 1901 0.05 / 1.7, 1903 0.9 / 4.6, 1905 0.2 / 10.8, 1907 4.1 / 27.1, 1908 17.5 / 39.7, 1910 41 / 62.6, 1913 78 / 97.7, 1916 115 / 132.8 (the 12-year medians above are lower because a bot that runs out of profitable projects, payback <= 9 years, piles up cash).
+**Cash idle > 20 % of net worth ("cannot build as fast as I make money"), years from the start until a year end first has cash > 20 % of net worth (after year 2), median of 10, Normal:** 1840 10, 1870 13, 1900 10, 1930 11, 1950 13 (never in 16 years in 1 of 10 for 1950). Hard: 3, 4.5, 6, 2, 2 (a poor start has little cash in absolute terms, the 20 % is of a small net worth). So on the **main economy cash is tight for about ten years, then piles up**; the owner's report is the same thing seen earlier, because a human has more profitable lines than this bot.
+Things the bot does not do (deliberately simple): electrification, transfers/Warehouses, contracts, selling trains.
+
+### 3a. Measured, strong player, Normal, main economy (medians over 10 seeds)
+| start | op. ratio (cost/revenue), yr 3 / 6 / 10 / 16 | operating profit / (track+stations+rolling stock), yr 3 / 10 / 16 | cost split of running costs, year 16 | payback of a new line / of a freight line (bot's estimate) | years to cash > 20 % NW |
+|---|---|---|---|---|---|
+| 1840 | 0.22 / 0.25 / 0.26 / 0.22 | 35 % / 28 % / 42 % (track and stations only, rolling stock not printed in those runs) | not printed | pax 0.7 yr, extension 0.2 | 10 |
+| 1870 | 0.27 / 0.34 / 0.30 / 0.24 | 24 % / 23 % / 32 % | fuel+servicing+car upkeep 55, crews 18, track upkeep 7, track wear 4, stations 11, tax 3, repairs 2 (%) | pax 0.9 | 13 |
+| 1900 | 0.18 / 0.24 / 0.24 / 0.26 | 123 % / 57 % / 58 % (stations+track only) | the 1916 seed-1 run: fuel etc. 54, crews 10, track upkeep 8, wear 14, stations 9, tax 3 | pax 0.6, freight 3-8 | 10 |
+| 1930 | 0.32 / 0.27 / 0.30 / 0.25 | 25 % / 24 % / 31 % | 41 / 10 / 8 / wear 29 / 7 / 3 / 2 | pax 0.7 | 11 |
+| 1950 | 0.17 / 0.28 / 0.31 / 0.30 | 37 % / 22 % / 26 % | 28 / 9 / 9 / wear 42 / 6 / 3 / 2 | pax 0.6 | 13 |
+(Bot payback figures are `estimatePayback` of the chosen project, plan track + stations + trains over fares less running costs and the line's upkeep; the freight 3-8 is 1900 only.)
+
+### 3b. Real figures (web search; what I could confirm, and what I could not)
+- Britain, working expenses as a share of receipts (operating ratio): about 43 % for 1849 (Household Words estimate from several major companies) [djo.org.uk/household-words/volume-i/page-482.html], 47-53 % in 1856 (Yeats, in the Spectator, 7 June 1856) [archive.spectator.co.uk/article/7th-june-1856/32/railways]; **63 % for all British railways in 1901** (Holt Schooling, quoted in The Railway Magazine July 1903; Furness 51 % to Great Central 70 %) [rogerfarnworth.com/2024/09/17/railway-statistics-the-railway-magazine-july-1903-and-a-brief-look-at-modern-figures/].
+- US Class I, operating ratio: **74.5 % in 1950** (american-rails.com/1950s.html), 74.54 % in 1927 (NBER, c4957 "Steam railroads"), about 73.5 % in December 1941 (FRED M09046, derived), 95 % under federal control in 1920. Not found: 1900, 1870 (the 1870s-1900 "60-70 %" in the plan is unconfirmed; only the British 63 % for 1901 is).
+- Return on capital: British railways, weighted return on capital employed **4.81 % (1872), 3.85 % (1892), 3.54 % (1912)**, below the cost of capital after the mid-1870s (Arnold and McCartney; Mitchell, Chambers and Crafts) [warwick.ac.uk/fac/soc/economics/staff/nfrcrafts/working_papers/mitchell_et_al.pdf]; LMS 1938 2.7 %; US railroads' rate of return averaged **4.1 % in the 1940s, 3.7 % in the 1950s**, 2.8 % in the 1960s (AAR, "A Short History of U.S. Freight Railroads", aar.org/wp-content/uploads/2018/05/AAR-Short-History-American-Freight-Railroads.pdf).
+- Cost split: one US line's 1901 report: way and structures 22 %, equipment 17 %, conducting transportation 47 %, general 14 % of operating expenses (Wisconsin railroad commissioner's report, search.library.wisc.edu/digital/AJRGQ23AVMTJRZ87); wages were 61.4 % of all US railroad operating expenses in 1895 (Department of Labor); fixed costs about two thirds of total cost in the 1880s (Chandler, The Visible Hand p. 134).
+- Maintenance of way, US: **211.2 M$ in 1900, 275.0 in 1905, 368.5 in 1910** (NBER via FRED A02F4CUSA398NNBR) on **193,346 miles of line in 1900** (american-rails.com/1900s.html) = about **1,090 $ a mile (680 $/km) a year in 1900**. Railroad employment passed one million by 1900 (american-rails.com/1900s.html): more than 5 employees per mile of line.
+- Section gangs: foreman plus five to seven men to about ten miles on the Ma & Pa Railroad; sections of 5-7 miles single track and 3-4 double track in an early-1900s trackman's account; ten miles (Canadian National); 10-15 miles in Alabama; gangs "as few as four men but as many as thirty" (maandparailroad.com/tour_toolhouse.php; newspapers.lib.utah.edu id=1544925; encyclopediaofalabama.org/?p=14934).
+
+### 3c. Comparison and what I did
+| | real | game (main, strong player Normal) |
+|---|---|---|
+| operating ratio | 1840s 43-53 %, 1900 about 63 %, 1920s-50s about 74 % | **0.17-0.37 in every era**, 0.2-0.3 typically |
+| return on capital | 3.5-5 % | **22-58 %** a year on track + stations + rolling stock |
+| maintenance of way | 680 $/km a year in 1900 | game 1900 (1916 run seed 1): track upkeep + wear 0.8 M$ on about 5,800 km = about 140 $/km, in game dollars (which are 1.84x 1830 dollars in 1900; real 1900 dollars about 1830 ones): **about a ninth to a fortieth of real** (fixed upkeep alone: a fortieth) |
+| head office / general | 14 % of expenses (one line) | **no cost category at all** |
+| revenue per route-km | about 4,800 $ in 1900 (my arithmetic from the 1.49 G$ revenue I remember; not confirmed by a source found) | about 3,000 $ (not above real: **no fare was shown to be above the real one, none was cut**) |
+| capital per km | tens of thousands of $ a mile | about 3.5 k$ per km of track (1900): the game's track is very cheap relative to what it earns |
+So the gap is on the cost side and it is two missing or far-too-small categories, plus one finding I may not act on:
+1. **Way and structures too small** (fixed upkeep 5 $ a month a tile, a section gang's wages are about 40 times that).
+2. **General administration missing.**
+3. **Capital: track and stations cost about a twentieth of the real cost per km while earning about a third of real revenue per km**, which is the main reason return on capital is 10x real and cash piles up. This is a construction-cost balance question outside "operating categories"; I did not touch it. It is the lever that fits "I can build faster than I make money" best.
+
+**Implemented on branch `phase-59-costs` (commit 4976fcf, not merged):** `src/data/track.ts`: `MAINTENANCE_SINGLE` = a section gang (`SECTION_GANG_MEN` 4 men, `SECTION_LENGTH_KM` 24: the lightest gang over the longest section reported) at the era's wage plus the materials share; double 1.6x (3-4 vs 5-7 miles), electrified +0.5x. `src/data/economy.ts`: `GENERAL_ADMIN_SHARE_OF_EXPENSES` 0.14 (the one line's figure; one source, so the weakest number here) charged as `administration` (new ledger line "Head office", shown in the finance panel) on wages, fuel, upkeep, repairs and wear. The full-strength version (7 men to 16 km, as the Ma & Pa railroad) makes **six** balance tests fail; the light one (what the branch has) fails **two**, both in `tests/sim/balanceLongHaul.test.ts`:
+| test | bound | main | branch (4 men / 24 km + 14 % head office) | branch without the head office |
+|---|---|---|---|---|
+| 1900 chain "strong, paid back within three years": `lateReturn` | > 0.6 | passes (about 0.61) | **0.537** | 0.563 |
+| 1930 silver chain: `lateReturn` | > 0.6 | 0.611 | **0.515** | 0.542 |
+Real cause: the chain test is one train hauling over a line a third of the map long, so it carries the whole fixed upkeep alone, and the old bound has under 2 % headroom (0.611 vs 0.6). Any real cost added to a long line breaks it; this is also why `tests/sim/balance.test.ts` "fully improved coal route within 1.5x" flips at 3 gang men (ratio 1.27 with none, 1.40 at 2, 1.53 at 3: a lower base profit raises the ratio). Per the rules I did not loosen either. **Owner decision needed:** merge `phase-59-costs` with new long-haul bounds (or a long-haul scenario with realistic traffic), and say whether the stronger 7-men gang should be used (it also needs balance re-bands).
+Effect of the branch economy (3 seeds, strong Normal, year 16): operating ratio 1840 0.34, 1870 0.45, 1900 0.43, 1930 0.55, 1950 0.53 (real 0.43-0.53 / ? / 0.63 / 0.74 / 0.74: now inside or just under the real range for 1840-1900, still below it for 1930-50); strong player net worth medians (3 seeds) Normal 1840 23.0, 1870 23.0, 1900 42.6, 1930 7.9, 1950 25.0 (1 of 3 bankrupt in 1950); Hard 1840 11.8, 1900 8.5, 1930 4.3 (1/3 bankrupt), 1950 2.6 (3/3 bankrupt). Good bot on the branch economy (3 seeds, no bankruptcy anywhere): Normal 12.2 / 63.3 / 11.9 / 7.1 / 5.3, Hard 5.1 / 42.0 / 8.3 / 4.5 / 3.1 (1840 / 1870 / 1900 / 1930 / 1950): the good bot's 1900 Normal falls from 38.6 to 11.9, **outside the 30-45 band**.
+3d target check: on the **branch** the operating ratio is in the real range for the early eras and the strong player's cash is tight longer; on **main** it is not (0.2-0.3). Hard is at least 40 % below Normal for the good bot on main in every era but 1870 (34 %), and for the strong bot only in 1900, 1930, 1950.
+
+### 4. Bands (numbers only; no band set by me), main economy
+Good bot, 10 seeds, final NW $M median [min-max]: see the table in item 2 (all 100 runs survive, MINCASH >= 0.08 M). Strong bot, 10 seeds per cell: survives Normal everywhere; Hard 0/10 bankrupt except 1950 (2/10).
+Bad bots, 3 seeds, bankruptcies (target: Normal >= 50 %, Hard >= 80 %), main economy:
+| bot | 1840 N/H | 1870 N/H | 1900 N/H | 1930 N/H | 1950 N/H |
+|---|---|---|---|---|---|
+| overbuilder | 1/3, 3/3 | 2/3, 2/3 | 3/3, 3/3 | 3/3, did not start | 3/3, 3/3 |
+| trainSpammer | 3/3, 3/3 | 3/3, 3/3 | 3/3, 3/3 | 3/3, did not start | 3/3, 1/3 |
+| leveraged | 1/3, 3/3 | 2/3, 3/3 | 2/3, 3/3 | 3/3, did not start | 3/3, 1/3 |
+Misses against the Phase 39 target (Normal >= 50 %, Hard >= 80 %), 3 seeds so only a rough guide: overbuilder 1840 Normal 1/3, 1870 Hard 2/3; leveraged 1840 Normal 1/3; trainSpammer 1950 Hard 1/3 and leveraged 1950 Hard 1/3; the bad bots' Hard 1930 cell cannot afford a first line (NaN, as before). These are unchanged by this phase (no sim change on main).
+
+### 5. Files and decisions
+- Item 1 (pushed): `src/sim/trackSuggest.ts` (`alongLine`, the slide), `src/main.ts` + `src/ui/buildHud.ts` + `strings.build.dragReasons`, tests `tests/sim/track/joinV.test.ts`, `e2e/phase59.spec.ts`, screenshots `docs/screenshots/phase-59-track-join*.png` (looked at: red with the reason beside the cost; green join next to the drag's end). I could not see the owner's save; at the screenshot's zoom a tile is about 130 px, which matches a join one diagonal step (1.41 tiles) from the branch junction, refused by the 2-tile junction spacing rule (a drawing/interlock rule, kept). A 45° join itself is legal.
+- Decisions: the cost fix is a branch, not main (see 3c); the 7-men figure and the 14 % head office are single-source numbers and flagged as such; hard-to-reproduce details: the bench ran across two container restarts (jobs resumed; finished files are kept).
+- Bot version note: the strong player's first-line financing fix landed during the main batch; it only changes starts that could not pay for two trains (Hard 1900), whose ten runs were re-run with it.
+- `tools/bench/survival.ts` runs `strong` (BOTS=strong).
