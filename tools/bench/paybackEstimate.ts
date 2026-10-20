@@ -11,12 +11,7 @@
  * Used by the good bot (goodPlayer.ts) to pick an engine per line; checked against the fixtures in PROGRESS Phase 56. */
 import { calendarFromTicks } from "../../src/sim/time";
 import { CARGO, passengerSeatsIn } from "../../src/data/cargo";
-import {
-  eraReferenceTilesPerDay,
-  fuelEraScale,
-  PARTY_SIZE,
-  priceIndex,
-} from "../../src/data/economy";
+import { eraReferenceTilesPerDay, PARTY_SIZE, priceIndex } from "../../src/data/economy";
 import {
   KMH_PER_TILE_PER_DAY,
   LOCO_WEIGHT_UNITS,
@@ -93,7 +88,7 @@ export function estimatePayback(
     carsUpkeepPerYear(cars, year) +
     trainWagesPerYear(loco, cars, year) +
     tilesRun *
-      (fuelUnitsPerTile(loco, cars) * fuelEraScale(year) * priceIndex(year) +
+      (fuelUnitsPerTile(loco, cars) * priceIndex(year) +
         repairUnitsPerTile(loco) * repairCostPerUnit(loco, 0, year) +
         wearUnitsPerTile(loco, cars, kmh * AVERAGE_SPEED_SHARE) * wearCostPerUnit(year));
   const profit = revenue - costs;
@@ -143,7 +138,7 @@ export function estimateFreightPayback(
     carsUpkeepPerYear(cars, year) +
     trainWagesPerYear(loco, cars, year) +
     tilesRun *
-      (fuelUnitsPerTile(loco, cars) * fuelEraScale(year) * priceIndex(year) +
+      (fuelUnitsPerTile(loco, cars) * priceIndex(year) +
         repairUnitsPerTile(loco) * repairCostPerUnit(loco, 0, year) +
         wearUnitsPerTile(loco, cars, kmh * AVERAGE_SPEED_SHARE) * wearCostPerUnit(year));
   const profit = revenue - costs;

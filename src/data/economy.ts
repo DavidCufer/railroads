@@ -156,59 +156,71 @@ export const CARS_PER_TRAIN_STAFF = 4;
  * engines now haul (`TRAIN_LENGTH_SCALE`) ran with the same crew as a 20-wagon one. */
 export const MAX_TRAIN_STAFF = 4;
 
-/** Phase 43: how far operating costs have grown into their mature form (0 = the 1830s railway, 1 = a fully staffed,
- * fuel-hungry, ticketed railway). Early lines were run on shoestring crews with cheap wood and coal and a guard for a few
- * carriages, so a thin 1840s train could still pay its way at a low load; by 1900 shift crews, attendants, station
- * staff and bought-in fuel put the break-even at about 45 % full. Everything below blends between the two ends by this. */
-export const COST_REALISM_ANCHORS: Anchors = [
-  [1830, 0.21],
-  [1870, 0.2],
-  [1900, 0.05],
-  [1930, 0.12],
-  [1950, 0],
-];
-export function costRealism(year: number): number {
-  return interpolateYear(COST_REALISM_ANCHORS, year);
-}
-const blend = (early: number, mature: number, year: number): number =>
-  early + (mature - early) * costRealism(year);
-
 /** Station staff selling the ticket, loading the luggage and cleaning the coach, plus the agents' commission, take this
  * share of every passenger and mail fare once costs are mature (traffic expenses were a fifth to a quarter of a
  * nineteenth-century railway's costs and followed the traffic). Freight is handled by the shipper and the wagon's brakeman. */
 export const HANDLING_SHARE_OF_FARES = 0.11;
-export function handlingShare(year: number): number {
-  return HANDLING_SHARE_OF_FARES * costRealism(year);
+/** Phase 61: the same in every era. Station labour was already 18 % of US railway employees in 1899 (80,787 agents + 88,910
+ * other station employees of 928,924) and a station clerk, porter and pointsman were on the staff list of the North London
+ * Railway when it opened in 1850, so there is no sourced era when a passenger fare went unhandled. */
+export function handlingShare(_year: number): number {
+  return HANDLING_SHARE_OF_FARES;
 }
 
-/** A passenger or mail car has its own attendant (guard, ticket collector, porter, mail clerk) once costs are mature;
- * early trains just had a guard per `CARS_PER_TRAIN_STAFF` cars. Freight wagons only need that brakeman. */
-export const ATTENDANTS_PER_COACH = 0.75;
+/** Attendants (porter, conductor's assistant, mail clerk) per passenger or mail car, by year. None before the Pullman
+ * Palace Car Company put a porter in each sleeping car (1867); a porter was "often responsible for two cars", so a half
+ * per coach afterwards. Ramped over 1860-70, held at 0.5: no source for later growth was found (the 5-man crew of
+ * engineer, fireman, conductor and two brakemen is the guards already counted by `CARS_PER_TRAIN_STAFF`). */
+export const ATTENDANTS_PER_COACH_ANCHORS: Anchors = [
+  [1860, 0],
+  [1870, 0.5],
+];
+export function attendantsPerCoach(year: number): number {
+  return interpolateYear(ATTENDANTS_PER_COACH_ANCHORS, year);
+}
 
 /** Everyone on a train: footplate crew plus guards/conductors for the cars, plus the coaches' attendants. A Grasshopper
- * with three wagons has a crew of 2; a 22-wagon articulated freight 3 + 4 = 7, and so is a 60-wagon one. `coaches` is how many of the `cars`
- * carry passengers or mail; their attendants grow in with `realism` (0..1, see `costRealism`). */
-export function trainCrewSize(loco: LocomotiveDef, cars: number, coaches = 0, realism = 1): number {
+ * with three wagons has a crew of 2; a 22-wagon articulated freight 3 + 4 = 7, and so is a 60-wagon one. `coaches` is how
+ * many of the `cars` carry passengers or mail; each has `attendantsPerCoach` (see `attendantsPerCoach(year)`). */
+export function trainCrewSize(
+  loco: LocomotiveDef,
+  cars: number,
+  coaches = 0,
+  attendantsPerCoachNow = 0,
+): number {
   return (
     footplateCrew(loco) +
     Math.min(MAX_TRAIN_STAFF, Math.floor(cars / CARS_PER_TRAIN_STAFF)) +
-    coaches * ATTENDANTS_PER_COACH * realism
+    coaches * attendantsPerCoachNow
   );
 }
 
-/** A train is in service round the clock (waiting at a platform or a signal included) and a crew works about 8-12 hours,
- * so a mature railway keeps this many crews on the payroll per train; wages run for every hour the train is owned. */
-export const CREW_SHIFTS_PER_TRAIN = 2;
+/** Longest shift a crew worked, hours, by year. Britain: drivers worked 4-5 hours of overtime on a 10-hour day in 1877
+ * (Royal Commission, so 14-15), the Board of Trade pushed duty down to 14 hours a day in 1893, the eight-hour day for
+ * enginemen came on 1 Jan / 1 Feb 1919; US: the Adamson Act of 1916 made eight hours the basis of the day (1917). The US
+ * Hours of Service Act of 1907 (16 hours on duty, then 10 off) is a ceiling above the British 14, so not a row. Before
+ * 1877 no source was found, so the first row is held. */
+export const CREW_SHIFT_HOURS_ANCHORS: Anchors = [
+  [1877, 14],
+  [1893, 14],
+  [1917, 8],
+];
+/** A train in the sim is in service round the clock (waiting at a platform or a signal included), so it keeps 24 hours
+ * of crew on the payroll a day; crews on the payroll per train = 24 / the era's shift. */
+export const TRAIN_SERVICE_HOURS_PER_DAY = 24;
 export function crewShifts(year: number): number {
-  return blend(1, CREW_SHIFTS_PER_TRAIN, year);
+  return TRAIN_SERVICE_HOURS_PER_DAY / interpolateYear(CREW_SHIFT_HOURS_ANCHORS, year);
 }
 
 /** The part of `LocomotiveDef.maintenancePerYear` that is fuel, oil, water and depot servicing (the rest of
- * the old figure was the crew, which is now paid as wages). Scales with general prices. Early / mature values. */
-export const RUNNING_COST_SHARE_EARLY = 0.45;
+ * the old figure was the crew, which is now paid as wages). Scales with general prices. Phase 61: one figure for every
+ * era (it was blended from 0.45 to 2.8 by a tuned table); no source for a rise in the real fuel bill per tile was found: US Class I
+ * railways spent 6-10 % of operating expenses on locomotive fuel through the 1920s-30s (NBER c4617), bituminous coal at the
+ * mine was $1.04 a ton in 1900 and $1.12 in 1910 (Minerals Yearbook, via IWW), and engines got more efficient as coal got
+ * dearer, so the fuel bill per ton-mile did not climb 48-fold. */
 export const RUNNING_COST_SHARE = 2.8;
-export function runningCostShare(year: number): number {
-  return blend(RUNNING_COST_SHARE_EARLY, RUNNING_COST_SHARE, year);
+export function runningCostShare(_year: number): number {
+  return RUNNING_COST_SHARE;
 }
 /** Phase 39: how much of that running cost is fuel and water burnt per tile run (the rest — servicing, oil, depot —
  * is paid by the year whether the engine moves or not). Fuel scales with the train's weight, so a long line of
@@ -217,13 +229,6 @@ export const FUEL_SHARE_OF_RUNNING = 0.7;
 /** The yearly mileage a busy train is costed at: a locomotive hauling its full consist's reference weight for this
  * many tiles a year burns its whole fuel budget (`maintenancePerYear × RUNNING_COST_SHARE × FUEL_SHARE_OF_RUNNING`). */
 export const FUEL_REF_TILES_PER_YEAR = 300;
-/** Early railways burnt a fraction of that per tile (the Phase 39 calibration: 0.45 share, 60 % fuel, 2000 tiles). The
- * fuel units a train books are at the mature rate; this scales them down for the year. */
-const FUEL_PER_TILE_EARLY = (RUNNING_COST_SHARE_EARLY * 0.6) / 2000;
-const FUEL_PER_TILE_MATURE = (RUNNING_COST_SHARE * FUEL_SHARE_OF_RUNNING) / FUEL_REF_TILES_PER_YEAR;
-export function fuelEraScale(year: number): number {
-  return blend(FUEL_PER_TILE_EARLY, FUEL_PER_TILE_MATURE, year) / FUEL_PER_TILE_MATURE;
-}
 /** Cars of the reference consist are this full on average when fuel is costed. */
 export const FUEL_REF_LOAD_FRACTION = 0.6;
 

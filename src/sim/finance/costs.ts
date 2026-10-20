@@ -8,9 +8,8 @@ import {
   CAR_AXLE_FACTOR,
   CAR_EMPTY_TONS,
   CAR_LOAD_TONS,
-  costRealism,
+  attendantsPerCoach,
   crewShifts,
-  fuelEraScale,
   handlingShare,
   runningCostShare,
   ELECTRIC_WEAR_MULT,
@@ -82,7 +81,7 @@ export function locoRunningCostPerYear(
   );
 }
 
-/** Fuel and water burnt for one tile of running at mature costs and 1830 prices (`fuelEraScale` brings it down for early years): the engine's yearly fuel budget spread over
+/** Fuel and water burnt for one tile of running at 1830 prices: the engine's yearly fuel budget spread over
  * `FUEL_REF_TILES_PER_YEAR`, times the train's weight over the weight of a full-length consist of average load.
  * An empty short train burns little, a long loaded one a lot; a stationary train burns none. */
 export function fuelUnitsPerTile(loco: LocomotiveDef, cars: readonly TrainCar[]): number {
@@ -123,7 +122,6 @@ export function fuelCostPerYearEstimate(loco: LocomotiveDef, cars: number, year:
     loco.maintenancePerYear *
     RUNNING_COST_SHARE *
     FUEL_SHARE_OF_RUNNING *
-    fuelEraScale(year) *
     (tons / refTons) *
     priceIndex(year)
   );
@@ -153,7 +151,7 @@ export function trainWagesPerYear(
   year: number,
 ): number {
   return (
-    trainCrewSize(loco, cars.length, coachCount(cars), costRealism(year)) *
+    trainCrewSize(loco, cars.length, coachCount(cars), attendantsPerCoach(year)) *
     crewShifts(year) *
     annualWage(year)
   );

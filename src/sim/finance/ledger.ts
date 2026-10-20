@@ -49,7 +49,6 @@ import {
   PROPERTY_TAX_RATE,
   WEAR_ROUTINE_SHARE,
   incomeTaxRate,
-  fuelEraScale,
   priceIndex,
 } from "../../data/economy";
 import { PASSING_LOOP_UPKEEP_MONTHLY } from "../../data/stations";
@@ -125,11 +124,7 @@ export function monthlyFinanceStep(state: GameState): void {
     const loco = locomotiveById(train.locoModelId);
     if (!loco) continue;
     const ageYears = mechanicalAgeYears(state, train);
-    const fuel =
-      (train.fuelUnits ?? 0) *
-      fuelEraScale(year) *
-      priceIndex(year) *
-      fuelPriceMult(state, loco.type);
+    const fuel = (train.fuelUnits ?? 0) * priceIndex(year) * fuelPriceMult(state, loco.type);
     train.fuelUnits = 0;
     const repairs = (train.repairUnits ?? 0) * repairCostPerUnit(loco, ageYears, year);
     train.repairUnits = 0;
