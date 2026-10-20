@@ -182,9 +182,7 @@ async function gaps(page: Page): Promise<Array<Array<number | undefined>>> {
 }
 
 test.describe("Phase 34 — train spacing and the Lines view", () => {
-  test("'Space trains evenly' sets minGapDays through commands", async ({
-    page,
-  }) => {
+  test("'Space trains evenly' sets minGapDays through commands", async ({ page }) => {
     const { a, b } = await lineWorld(page);
     await page.evaluate(
       ({ a, b }) => {
