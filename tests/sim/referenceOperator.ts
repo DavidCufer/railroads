@@ -73,6 +73,8 @@ export interface OperatorYear {
   year: number;
   fleet: number;
   revenue: number;
+  /** Operating profit of the year (the cash it adds), what `annualProfit` goals are checked against. */
+  profit: number;
   netWorth: number;
 }
 
@@ -101,9 +103,10 @@ export function referenceOperator(
     trainValue += buy * m.price * scale;
     fleet += buy;
     const revenue = fleet * m.revenue * scale * ROUTE_QUALITY;
-    cash += fleet * m.profit * scale * ROUTE_QUALITY;
+    const profit = fleet * m.profit * scale * ROUTE_QUALITY;
+    cash += profit;
     trainValue *= 0.95;
-    out.push({ year, fleet, revenue, netWorth: cash + 0.5 * capex + trainValue });
+    out.push({ year, fleet, revenue, profit, netWorth: cash + 0.5 * capex + trainValue });
   }
   return out;
 }

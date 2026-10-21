@@ -11,16 +11,17 @@
 import * as commands from "../../src/sim/commands";
 import { PAIR_DEMAND, TRAVEL_RANGE_ANCHORS, TRIPS_PER_HEAD_ANCHORS } from "../../src/data/economy";
 
-// PAIR="distanceExponent,sizeExponent,minDistanceTiles" overrides the passenger-destination table for tuning
+// PAIR="distanceExponent,sizeExponent,minDistanceTiles,maxShare" overrides the passenger-destination table for tuning
 // runs; TRIPS=<factor> scales the trips-per-head table; RANGE=<factor> scales the travel range.
 if (process.env["PAIR"]) {
-  const [dist, size, minDist] = process.env["PAIR"]
+  const [dist, size, minDist, maxShare] = process.env["PAIR"]
     .split(",")
     .map((v) => (v.trim() === "" ? undefined : Number(v)));
   Object.assign(PAIR_DEMAND, {
     distanceExponent: dist ?? PAIR_DEMAND.distanceExponent,
     sizeExponent: size ?? PAIR_DEMAND.sizeExponent,
     minDistanceTiles: minDist ?? PAIR_DEMAND.minDistanceTiles,
+    maxShare: maxShare ?? PAIR_DEMAND.maxShare,
   });
 }
 if (process.env["TRIPS"]) {
@@ -45,6 +46,7 @@ import { findBuildPath } from "../../src/sim/track/pathfind";
 import { buyableLocomotivesIn, locomotiveById } from "../../src/data/trains";
 import { STATION_TYPE_DEFS } from "../../src/data/stations";
 import { netWorth } from "../../src/sim/finance/ledger";
+import { headline } from "./headline";
 import { activePanic, fuelPriceMult } from "../../src/sim/finance/panics";
 import { creditLimitFor } from "../../src/sim/finance/credit";
 import { ledgerOperatingCosts, ledgerOperatingProfit, ledgerRevenue } from "../../src/data/finance";
@@ -604,6 +606,8 @@ console.log(`# ${region} ${startYear} ${difficulty} seed ${seed}`);
 console.log(report.join("\n"));
 if (process.env.V) console.log(state.trains.map((t) => `${t.locoModelId}:${t.status}`).join(" "));
 console.log(yearRows.join("\n"));
+// Phase 64: the headline is yearly operating profit and revenue (completed years 5 / 10 / 16), not cash or net worth.
+console.log(headline(yearRows, startYear));
 console.log(`IDLE20 ${idle20 ?? "never"}`);
 console.log(
   `LAYUP laidUp ${layUp.stats.laidUp} returned ${layUp.stats.returned} stillLaid ${state.trains.filter((t) => t.laidUp).length} of ${state.trains.length}`,

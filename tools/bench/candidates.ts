@@ -25,7 +25,7 @@ for (const nm of names) {
       distance: octileTileDistance(at(src), at(c), w),
     }))
     .filter((c) => c.distance <= travelRangeTiles(year));
-  const shares = destinationShares(src.population, cands);
+  const shares = destinationShares(cands);
   const total = [...shares.values()].reduce((a, b) => a + b, 0);
   const rows = [...shares]
     .sort((a, b) => b[1] - a[1])

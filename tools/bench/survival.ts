@@ -5,6 +5,7 @@
  */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { yearFigures } from "./headline";
 
 const execFileAsync = promisify(execFile);
 
@@ -19,7 +20,11 @@ interface Result {
   bankrupt: boolean;
   minCashM: number;
   netWorthM: number;
+  /** Operating profit and revenue $M of completed years 5 / 10 / 16 (the headline; NaN where not reached or no books). */
+  profitM: [number, number, number];
+  revenueM: [number, number, number];
 }
+const NO_BOOKS = { profitM: [NaN, NaN, NaN], revenueM: [NaN, NaN, NaN] } as const;
 
 async function run(bot: string, start: number, diff: string, seed: number): Promise<Result> {
   const text = bot === "good" || bot === "strong"; // these two print text lines; the bad bots print JSON
@@ -38,7 +43,7 @@ async function run(bot: string, start: number, diff: string, seed: number): Prom
     ).stdout;
   } catch {
     // the bot could not even afford a first line (Hard, 1900): counts as not started, shown as NaN
-    return { bankrupt: false, minCashM: NaN, netWorthM: NaN };
+    return { bankrupt: false, minCashM: NaN, netWorthM: NaN, ...NO_BOOKS };
   }
   if (!text) {
     const j = JSON.parse(out.trim().split("\n").pop()!) as {
@@ -46,20 +51,34 @@ async function run(bot: string, start: number, diff: string, seed: number): Prom
       minCashM: number;
       netWorthM: number;
     };
-    return { bankrupt: j.bankruptYear !== null, minCashM: j.minCashM, netWorthM: j.netWorthM };
+    return {
+      bankrupt: j.bankruptYear !== null,
+      minCashM: j.minCashM,
+      netWorthM: j.netWorthM,
+      ...NO_BOOKS,
+    };
   }
   const m = /MINCASH (-?[\d.]+)/.exec(out);
   const nw = /NW (-?[\d.]+)M/g;
   let last = 0;
   for (let x = nw.exec(out); x; x = nw.exec(out)) last = Number(x[1]);
-  return { bankrupt: out.includes("BANKRUPT"), minCashM: m ? Number(m[1]) : NaN, netWorthM: last };
+  const rows = out.split("\n").filter((l) => l.startsWith("YEAR "));
+  const at = (k: "profitM" | "revenueM"): [number, number, number] =>
+    [5, 10, 16].map((i) => yearFigures(rows, start, i)?.[k] ?? NaN) as [number, number, number];
+  return {
+    bankrupt: out.includes("BANKRUPT"),
+    minCashM: m ? Number(m[1]) : NaN,
+    netWorthM: last,
+    profitM: at("profitM"),
+    revenueM: at("revenueM"),
+  };
 }
 
 const tally = new Map<string, { bankrupt: number; runs: number; minCash: number }>();
 console.log(
-  "| bot | start | difficulty | bankrupt | min cash $M (per seed) | final NW $M (per seed) | final NW $M median [min-max] |",
+  "| bot | start | difficulty | bankrupt | operating profit $M y5 / y10 / y16 (median) | revenue $M y5 / y10 / y16 (median) | min cash $M (per seed) | final NW $M median [min-max] |",
 );
-console.log("|---|---|---|---|---|---|---|");
+console.log("|---|---|---|---|---|---|---|---|");
 
 const median = (xs: number[]): number => {
   const v = xs.filter((x) => !Number.isNaN(x)).sort((a, b) => a - b);
@@ -89,8 +108,10 @@ for (const bot of bots)
       for (const r of rs)
         if (!Number.isNaN(r.minCashM)) t.minCash = Math.min(t.minCash, r.minCashM);
       tally.set(`${bot}|${diff}|${era}`, t);
+      const med3 = (k: "profitM" | "revenueM"): string =>
+        [0, 1, 2].map((i) => median(rs.map((r) => r[k][i]!)).toFixed(2)).join(" / ");
       console.log(
-        `| ${bot} | ${start} | ${diff} | ${rs.filter((r) => r.bankrupt).length}/${seeds} | ${rs.map((r) => r.minCashM).join(" / ")} | ${rs.map((r) => r.netWorthM).join(" / ")} | ${median(rs.map((r) => r.netWorthM)).toFixed(2)} [${Math.min(...rs.map((r) => r.netWorthM)).toFixed(2)}-${Math.max(...rs.map((r) => r.netWorthM)).toFixed(2)}] |`,
+        `| ${bot} | ${start} | ${diff} | ${rs.filter((r) => r.bankrupt).length}/${seeds} | ${med3("profitM")} | ${med3("revenueM")} | ${rs.map((r) => r.minCashM).join(" / ")} | ${median(rs.map((r) => r.netWorthM)).toFixed(2)} [${Math.min(...rs.map((r) => r.netWorthM)).toFixed(2)}-${Math.max(...rs.map((r) => r.netWorthM)).toFixed(2)}] |`,
       );
     }
 

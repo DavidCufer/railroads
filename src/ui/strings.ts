@@ -929,7 +929,7 @@ export const strings = {
     types: {
       connect: (cities: string) => `Connect ${cities} by rail`,
       annualRevenue: (amount: string) => `Annual revenue ${amount}`,
-      netWorth: (amount: string) => `Net worth ${amount}`,
+      annualProfit: (amount: string) => `Yearly profit ${amount}`,
       cityTier: (city: string, tier: string) => `${city} reaches ${tier}`,
       delivered: (amount: number, cargo: string) =>
         `Deliver ${amount} carloads of ${cargo} in a year`,

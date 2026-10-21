@@ -9,6 +9,8 @@ import { emptyTrainProfit } from "../sim/trains/profit";
 import type { TrainProfit } from "../sim/trains/types";
 import type { GameState, StationCargoPile } from "../sim/state";
 import { CARGO } from "../data/cargo";
+import { strongPlayerAmount } from "../data/goals";
+import type { Goal } from "../sim/goals/types";
 import type { GameMap } from "../sim/map/types";
 import { TrackGraph } from "../sim/track/graph";
 import { PARTY_SIZE } from "../data/economy";
@@ -131,6 +133,19 @@ function normalizeFinance(f: SerializedFinanceStateV1): GameState["finance"] {
   };
 }
 
+/** Phase 64: a saved net-worth goal (cash counted, so it rewarded hoarding) becomes the matching yearly-profit goal
+ * for its tier and year (`strongPlayerAmount`: gold the mature-company level, earlier tiers year 5). */
+function convertLegacyGoal(goal: Goal): Goal {
+  const def = goal.def as { type: string; byYear?: number };
+  if (def.type !== "netWorth") return goal;
+  const byYear = def.byYear ?? 1900;
+  const yearIndex = goal.tier === "gold" ? 16 : 5;
+  return {
+    ...goal,
+    def: { type: "annualProfit", amount: strongPlayerAmount("profit", yearIndex, byYear), byYear },
+  };
+}
+
 export function deserializeGameState(data: SerializedGameStateV3): GameState {
   const map = deserializeMap(data.map);
   const trackGraph = new TrackGraph();
@@ -182,9 +197,9 @@ export function deserializeGameState(data: SerializedGameStateV3): GameState {
     mapContentVersion: data.mapContentVersion,
     ...(data.regionId !== undefined ? { regionId: data.regionId } : {}),
     pendingCityFoundings: data.pendingCityFoundings,
-    goals: data.goals,
+    goals: data.goals.map(convertLegacyGoal),
     goalsCompleted: new Set(data.goalsCompleted),
-    pendingGoalCelebrations: data.pendingGoalCelebrations,
+    pendingGoalCelebrations: data.pendingGoalCelebrations.map(convertLegacyGoal),
     cargoDeliveredThisYear: data.cargoDeliveredThisYear,
     cargoDeliveredBestYear: data.cargoDeliveredBestYear,
     contracts: data.contracts ?? createContractsState(data.seed),

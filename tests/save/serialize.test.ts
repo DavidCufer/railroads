@@ -6,6 +6,7 @@
  * mid-route, an outstanding loan, goals/goalsCompleted, and news.
  */
 import { booksProfit, emptyTrainProfit } from "../../src/sim/trains/profit";
+import { strongPlayerAmount } from "../../src/data/goals";
 import { ledgerOperatingCosts } from "../../src/data/finance";
 import { monthlyFinanceStep } from "../../src/sim/finance/ledger";
 import { describe, expect, it } from "vitest";
@@ -133,7 +134,7 @@ function richFixture(): GameState {
   const goal: Goal = {
     id: "g1",
     tier: "bronze",
-    def: { type: "netWorth", amount: 5_000_000, byYear: 1870 },
+    def: { type: "annualProfit", amount: 5_000_000, byYear: 1870 },
   };
   state.goals = [goal];
   state.goalsCompleted = new Set(["g1"]);
@@ -178,6 +179,21 @@ describe("save round trip", () => {
     const restored = deserializeGameState(roundTripped);
 
     expect(restored).toEqual(original);
+  });
+
+  it("loads a saved net-worth goal as the matching yearly-profit goal (Phase 64)", () => {
+    const original = richFixture();
+    const serialized = JSON.parse(JSON.stringify(serializeGameState(original)));
+    serialized.goals[0].def = { type: "netWorth", amount: 25_000_000, byYear: 1870 };
+    serialized.goals[0].tier = "gold";
+    serialized.pendingGoalCelebrations[0].def = serialized.goals[0].def;
+    const loaded = deserializeGameState(serialized);
+    expect(loaded.goals[0]?.def).toEqual({
+      type: "annualProfit",
+      amount: strongPlayerAmount("profit", 16, 1870),
+      byYear: 1870,
+    });
+    expect(loaded.pendingGoalCelebrations[0]?.def.type).toBe("annualProfit");
   });
 
   it("base64-packs the map's typed arrays losslessly, including negative Int16/Int32 values", () => {
