@@ -3628,6 +3628,18 @@ button.rule-chip:active {
 .train-status-line.problem .train-status-text {
   color: var(--signal-lt);
 }
+.train-layup-btn {
+  margin-left: auto;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--brass);
+  background: transparent;
+  color: var(--text);
+}
+.train-layup-btn:disabled {
+  opacity: 0.4;
+}
 .train-status-text {
   font-weight: 600;
   min-width: 0;

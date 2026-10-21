@@ -365,13 +365,39 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
     const p = strings.trains.panel;
 
     const heroHost = h("div", { className: "train-live" });
+    // Phase 66: icon-only (the panel's word count stays); the words are its label and tooltip.
+    const layUpButton = (t: Train): HTMLElement => {
+      const label = t.laidUp ? strings.trains.backInService : strings.trains.layUp;
+      return h(
+        "button",
+        {
+          className: "train-layup-btn",
+          "aria-label": label,
+          title: label,
+          disabled: !!t.laidUp && t.returnTicksLeft !== undefined,
+          onClick: () => {
+            const result = t.laidUp
+              ? returnTrainToService(state, trainId)
+              : layUpTrain(state, trainId);
+            if (!result.ok) {
+              showToast(container, strings.build.reasons[result.reason], "warn");
+              return;
+            }
+            fillLive();
+          },
+        },
+        icon(t.laidUp ? "arrowRight" : "pause", "icon-sm"),
+      );
+    };
     const fillLive = (): void => {
       const t = state.trains.find((x) => x.id === trainId);
       if (!t) return;
       const stuck = [...undeliverableCars(state, t)];
+      const status = statusLine(state, t, loco);
+      status.append(layUpButton(t));
       heroHost.replaceChildren(
         heroStrip(state, t),
-        statusLine(state, t, loco),
+        status,
         ...[
           warningsLine(
             [
@@ -728,23 +754,6 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
           kind: "secondary",
           className: "train-replace-btn",
           onClick: () => openReplaceLocoPanel(container, state, trainId),
-        }),
-        footerButton({
-          icon: "pause",
-          label: train.laidUp ? strings.trains.backInService : strings.trains.layUp,
-          kind: "secondary",
-          className: "train-layup-btn",
-          disabled: !!train.laidUp && train.returnTicksLeft !== undefined,
-          onClick: () => {
-            const result = train.laidUp
-              ? returnTrainToService(state, trainId)
-              : layUpTrain(state, trainId);
-            if (!result.ok) {
-              showToast(container, strings.build.reasons[result.reason], "warn");
-              return;
-            }
-            render();
-          },
         }),
         sellBtn,
       ],
