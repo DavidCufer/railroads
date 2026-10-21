@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { DIFFICULTY, emptyLedgerPeriod } from "../../../src/data/finance";
 import { takeLoan } from "../../../src/sim/commands";
 import {
-  creditCall,
   creditLimitFor,
   creditTerms,
   interestRate,
@@ -112,16 +111,10 @@ describe("Phase 44: Hard lenders punish risky leverage", () => {
     expect(riskExcess(s, 1_000_000)).toBe(0);
   });
 
-  it("adds a premium and calls the debt above the threshold, harder the further past it", () => {
+  it("adds a premium above the threshold (the debt itself is never called, Phase 67)", () => {
     const calm = past("hard", 250_000);
     const risky = past("hard", 700_000);
     const rate = (s: GameState): number => interestRate(s, 1_000_000);
     expect(rate(risky) - rate(calm)).toBeGreaterThan(DIFFICULTY.hard.riskPremiumMax * 0.4 - 0.01);
-    const call = (s: GameState): number => creditCall(s, 1_000_000);
-    // make the credit limit itself irrelevant (huge earnings) so only the risk rule calls
-    for (const s of [calm, risky, past("hard", 900_000)]) s.finance.thisMonth.passengers = 1e9;
-    expect(call(calm)).toBe(0);
-    expect(call(risky)).toBeCloseTo(200_000 * (0.25 + 0.75 * 0.4), 0);
-    expect(call(past("hard", 900_000))).toBeGreaterThan(call(risky));
   });
 });

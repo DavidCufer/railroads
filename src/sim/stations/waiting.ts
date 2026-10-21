@@ -19,6 +19,7 @@ export const serviceKey = (stationId: number, firstLeg: number): string =>
 export function serviceRates(state: GameState): ServiceRates {
   const rates: ServiceRates = new Map();
   for (const train of state.trains) {
+    if (train.laidUp) continue; // Phase 67: a stored train gives no service
     if (!train.cars.some((c) => c.cargoType === "passengers") || train.orders.length < 2) continue;
     const roundTrip = Math.max(1, estimateRoundTripDays(state, train));
     const visits = new Map<number, number>();

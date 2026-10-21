@@ -5,14 +5,13 @@
  */
 import {
   LOAN_INCREMENT,
-  LOAN_TERM_MONTHS,
   ledgerExpenses,
   ledgerInvestments,
   ledgerNetProfit,
   ledgerRevenue,
 } from "../data/finance";
 import { creditLimit, repayLoan, takeLoan } from "../sim/commands";
-import { creditTerms } from "../sim/finance/credit";
+import { creditTerms, currentLoanTermMonths } from "../sim/finance/credit";
 import { netWorth } from "../sim/finance/ledger";
 import { operatingLast30Days, operatingTrailing } from "../sim/finance/operating";
 import type { GameState } from "../sim/state";
@@ -149,8 +148,8 @@ export function openFinancePanel(container: HTMLElement, state: GameState): void
           strings.finance.borrowTerms(
             formatMoney(LOAN_INCREMENT),
             `${(rate * 100).toFixed(1)} %`,
-            LOAN_TERM_MONTHS / 12,
-            formatMoney(LOAN_INCREMENT / LOAN_TERM_MONTHS),
+            currentLoanTermMonths(state) / 12,
+            formatMoney(LOAN_INCREMENT / currentLoanTermMonths(state)),
           ),
         ),
       );

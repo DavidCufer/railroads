@@ -4,19 +4,18 @@
  */
 import {
   COVER_PREMIUM_MAX,
-  CREDIT_CALL_FRACTION,
   INTEREST_COVER_FULL,
   CREDIT_LIMIT_EARNINGS_MULT,
   CREDIT_LIMIT_FRACTION,
   CREDIT_LIMIT_MIN,
   CREDIT_STARTUP_MONTHS,
   DIFFICULTY,
-  LOAN_TERM_MONTHS,
-  RISK_CALL_MIN,
+  LOAN_TERM_DEFAULT_MONTHS,
+  loanTermMonths,
   ledgerTradeProfit,
 } from "../../data/finance";
 import { panicCreditMult } from "./panics";
-import { DAYS_PER_MONTH, HOURS_PER_DAY } from "../time";
+import { calendarFromTicks, DAYS_PER_MONTH, HOURS_PER_DAY } from "../time";
 import type { GameState } from "../state";
 
 /** Net worth as the ledger computes it — passed in to avoid a cycle with ledger.ts. */
@@ -88,19 +87,6 @@ export function interestRate(state: GameState, netWorth: number): number {
   );
 }
 
-/** Loans the lenders call this month: a share of what is owed above the credit limit (never in the start-up period). */
-export function creditCall(state: GameState, netWorth: number): number {
-  if (state.ticks < CREDIT_STARTUP_MONTHS * DAYS_PER_MONTH * HOURS_PER_DAY) return 0;
-  const excess = state.finance.loans - creditLimitFor(state, netWorth);
-  const limitCall = excess > 0 ? excess * CREDIT_CALL_FRACTION : 0;
-  // Phase 44: on Hard, lenders also call debt above the risk threshold, harder the further past it (one call, the larger).
-  const risk = riskExcess(state, netWorth);
-  const over =
-    state.finance.loans - DIFFICULTY[state.difficulty].riskDebtRatio * Math.max(0, netWorth);
-  const riskCall = risk > 0 ? over * (RISK_CALL_MIN + (1 - RISK_CALL_MIN) * risk) : 0;
-  return Math.min(state.finance.loans, Math.max(limitCall, riskCall));
-}
-
 /** Operating profit before interest over the last twelve completed months (plus the month so far). */
 export function earningsBeforeInterest(state: GameState): number {
   let total = 0;
@@ -130,13 +116,14 @@ export function earnedCreditLimit(state: GameState, netWorth: number): number {
 export function principalDue(state: GameState): number {
   const loans = state.finance.loans;
   if (loans <= 0) return 0;
-  return Math.min(loans, state.finance.amortMonthly ?? loans / LOAN_TERM_MONTHS);
+  return Math.min(loans, state.finance.amortMonthly ?? loans / LOAN_TERM_DEFAULT_MONTHS);
 }
 
 /** Pays this month's scheduled principal out of the loan book (not cash) and returns it; the instalment stays level. */
 export function amortise(state: GameState): number {
   const due = principalDue(state);
-  state.finance.amortMonthly = state.finance.amortMonthly ?? state.finance.loans / LOAN_TERM_MONTHS;
+  state.finance.amortMonthly =
+    state.finance.amortMonthly ?? state.finance.loans / LOAN_TERM_DEFAULT_MONTHS;
   state.finance.loans -= due;
   if (state.finance.loans <= 0.005) {
     state.finance.loans = 0;
@@ -145,9 +132,15 @@ export function amortise(state: GameState): number {
   return due;
 }
 
-/** Books a new bond of `amount`: the loan book grows and the monthly schedule rises by `amount ÷ term`. */
+/** Months a bond issued now runs (by the calendar year). */
+export function currentLoanTermMonths(state: GameState): number {
+  return loanTermMonths(calendarFromTicks(state.startYear, state.ticks).year);
+}
+
+/** Books a new bond of `amount`: the loan book grows and the monthly schedule rises by `amount ÷ term`. Nothing in
+ * the book is ever called when the limit later falls (Phase 67). */
 export function issueLoan(state: GameState, amount: number): void {
-  state.finance.amortMonthly = principalDue(state) + amount / LOAN_TERM_MONTHS;
+  state.finance.amortMonthly = principalDue(state) + amount / currentLoanTermMonths(state);
   state.finance.loans += amount;
 }
 

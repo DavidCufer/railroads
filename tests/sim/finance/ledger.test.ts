@@ -19,7 +19,6 @@ import {
 } from "../../../src/sim/finance/ledger";
 import {
   coverPremium,
-  creditCall,
   insolvencyDaysLeft,
   interestRate,
   issueLoan,
@@ -83,21 +82,22 @@ describe("monthlyFinanceStep", () => {
 
     monthlyFinanceStep(state);
 
-    // Phase 39: the bonds amortise, so the month also pays 1/120 of the principal
-    expect(cashBefore - state.cash).toBeCloseTo(1_200_000 * (rate / 12) + 10_000, 5);
-    expect(state.finance.loans).toBeCloseTo(1_190_000, 5);
+    // Phase 39: the bonds amortise, so the month also pays 1/360 of the principal (Phase 67: 30-year default term)
+    expect(cashBefore - state.cash).toBeCloseTo(1_200_000 * (rate / 12) + 1_200_000 / 360, 5);
+    expect(state.finance.loans).toBeCloseTo(1_200_000 - 1_200_000 / 360, 5);
   });
 
-  it("repays a bond over ten years in equal monthly slices (Phase 39)", () => {
+  it("repays a bond over its era's term in equal monthly slices (Phase 39, 67: 30 years in 1830, 25 from 1930)", () => {
     const state = makeTestState(makeTestMap(["p"]), { difficulty: "normal", cash: 5_000_000 });
     issueLoan(state, 1_200_000);
     state.cash += 1_200_000;
-    expect(principalDue(state)).toBeCloseTo(10_000, 5);
+    expect(principalDue(state)).toBeCloseTo(1_200_000 / 360, 5);
     for (let i = 0; i < 12; i++) monthlyFinanceStep(state);
-    expect(state.finance.loans).toBeCloseTo(1_080_000, 3);
+    expect(state.finance.loans).toBeCloseTo(1_200_000 * (1 - 12 / 360), 3);
     // early repayment shrinks the instalment in proportion
     repayPrincipal(state, 540_000);
-    expect(principalDue(state)).toBeCloseTo(5_000, 3);
+    const left = 1_200_000 * (1 - 12 / 360);
+    expect(principalDue(state)).toBeCloseTo((1_200_000 / 360) * ((left - 540_000) / left), 3);
   });
 
   it("the $500k start-up credit floor ends after two years (Phase 39)", () => {
@@ -263,18 +263,33 @@ describe("wages outrun prices (Economic model v2)", () => {
     expect(limit("hard", true)).toBe(600_000);
   });
 
-  it("lenders call part of the debt above a shrunken limit and charge more for thin cover (Phase 39)", () => {
+  it("a shrunken limit calls nothing; thin cover still costs more (Phase 39, Phase 67)", () => {
     const state = makeTestState(makeTestMap(["p"]), { difficulty: "normal", cash: 3_000_000 });
     state.ticks = 25 * 30 * 24;
     state.finance.thisMonth.passengers = 100_000; // earnings 100k: limit 500k, cover well under 3
     issueLoan(state, 1_000_000);
     state.cash += 1_000_000;
-    expect(creditCall(state, netWorth(state))).toBeGreaterThan(0);
+    expect(state.finance.loans).toBeGreaterThan(computeCreditLimit(state));
     expect(coverPremium(state)).toBeCloseTo(0.08 * (1 - 100_000 / 60_000 / 3), 5); // cover 1.67 of 3
     const before = state.finance.loans;
+    const cash = state.cash;
     monthlyFinanceStep(state);
-    expect(state.finance.loans).toBeLessThan(before - 10_000); // the instalment plus the call
-    expect(state.news.some((n) => n.kind === "loansCalled")).toBe(true);
+    // only the scheduled instalment (1/360 of the book, 1830 start) leaves the book, nothing is called
+    expect(state.finance.loans).toBeCloseTo(before - before / 360, 0);
+    expect(state.news.some((n) => n.kind === "loansCalled")).toBe(false);
+    expect(state.cash).toBeGreaterThan(cash - 1_000_000);
+  });
+
+  it("a panic cuts the credit limit but calls no bond (Phase 67)", () => {
+    const state = makeTestState(makeTestMap(["p"]), { difficulty: "normal", cash: 3_000_000 });
+    state.ticks = 25 * 30 * 24;
+    state.finance.thisMonth.passengers = 5_000_000;
+    issueLoan(state, 1_000_000);
+    state.cash += 1_000_000;
+    state.finance.thisMonth.passengers = 0; // earnings gone: limit falls to nothing
+    for (let i = 0; i < 6; i++) monthlyFinanceStep(state);
+    expect(state.finance.loans).toBeCloseTo(1_000_000 - (6 * 1_000_000) / 360, 0);
+    expect(state.news.some((n) => n.kind === "loansCalled")).toBe(false);
   });
 
   it("counts the days left of the insolvency grace (Phase 39)", () => {

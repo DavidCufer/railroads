@@ -134,18 +134,30 @@ export const CREDIT_STARTUP_MONTHS = 24;
  * interest at the base rate) below `INTEREST_COVER_FULL` adds up to `COVER_PREMIUM_MAX` to the rate, rising as cover falls. */
 export const INTEREST_COVER_FULL = 3;
 export const COVER_PREMIUM_MAX = 0.08;
-/** Phase 39: when the limit falls below the loans (earnings fell, a panic) lenders call this share of the excess each
- * month, out of cash. */
-export const CREDIT_CALL_FRACTION = 0.25;
-/** Phase 44: share of the debt above the risk threshold that lenders call in a month at the threshold; it rises
- * linearly to the whole excess as debt reaches the whole of net worth. */
-export const RISK_CALL_MIN = 0.25;
 /** Phase 41: the end of start-up credit is announced this many months ahead. */
 export const CREDIT_STARTUP_WARNING_MONTHS = 3;
 /** Phase 41: debt over the limit is announced at most once per this many days. */
 export const CREDIT_OVER_LIMIT_NEWS_GAP_DAYS = 90;
-/** Phase 39: loans are bonds. Each $ borrowed is repaid in equal monthly principal over this many months. */
-export const LOAN_TERM_MONTHS = 120;
+/** Phase 67: loans are long-term bonds that lenders cannot call; the credit limit only limits NEW borrowing. Term in
+ * years by the year of issue, rows [first year, years], ascending. Justification: 19th-century US railway first-mortgage
+ * bonds ran about 20-30 years (Central Pacific 6 % of 1873 due 1892; Green Bay, Winona & St Paul 6 % firsts due 1906 and
+ * 1911; Central Pacific's US-guaranteed bonds ~30 years); by the 1940s terms were "thirty and fewer years" (Cox Rail
+ * bond glossary, secondary source). Weakly sourced: see PROGRESS Phase 67. Each $ is repaid in equal monthly principal
+ * over the term (a sinking fund), not as one bullet, so the books need no per-bond list. */
+export const LOAN_TERM_YEARS: ReadonlyArray<readonly [number, number]> = [
+  [1830, 30],
+  [1930, 25],
+];
+
+/** Months a bond issued in `year` runs. */
+export function loanTermMonths(year: number): number {
+  let years = 30;
+  for (const [from, y] of LOAN_TERM_YEARS) if (year >= from) years = y;
+  return years * 12;
+}
+
+/** Term given to loans in saves that predate bonds having their own schedule (Phase 67 default). */
+export const LOAN_TERM_DEFAULT_MONTHS = 30 * 12;
 /** Credit from earnings (Phase 30A): lenders lend against cash flow, not only against what the company owns. The
  * limit is the lower of `CREDIT_LIMIT_FRACTION` of net worth and `CREDIT_LIMIT_EARNINGS_MULT` × the last twelve
  * months' operating profit before interest (the interest cover a lender wants), but never below `CREDIT_LIMIT_MIN`. */

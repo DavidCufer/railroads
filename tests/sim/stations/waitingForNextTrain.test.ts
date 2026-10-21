@@ -54,6 +54,21 @@ describe("the waiting cap", () => {
     expect(serviceRates(state).get(serviceKey(a!, 999))).toBeUndefined();
   });
 
+  it("a laid-up train gives no service (Phase 67)", () => {
+    const { state, stationIds } = lineWithStops(3, 12, 1860);
+    for (const s of state.stations) s.hasEngineShed = true;
+    const [a, b] = stationIds;
+    expect(buyTrain(state, a!, "american-4-4-0", ["passengers"]).ok).toBe(true);
+    const t = state.trains[state.trains.length - 1] as Train;
+    setOrders(state, t.id, [
+      { stationId: a!, rule: "auto" },
+      { stationId: b!, rule: "auto" },
+    ]);
+    expect(serviceRates(state).get(serviceKey(a!, b!))).toBeGreaterThan(0);
+    t.laidUp = true;
+    expect(serviceRates(state).get(serviceKey(a!, b!))).toBeUndefined();
+  });
+
   it("people over the cap are counted as unserved demand", () => {
     const { state, stationIds } = lineWithStops(3, 12, 1860);
     for (const s of state.stations) s.hasEngineShed = true;

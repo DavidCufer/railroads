@@ -36,14 +36,7 @@ import {
 } from "./costs";
 import { NET_WORTH_HISTORY_MAX_SAMPLES } from "./types";
 import { fuelPriceMult, panicStartingNow } from "./panics";
-import {
-  amortise,
-  creditCall,
-  creditLimitFor,
-  interestRate,
-  issueLoan,
-  repayPrincipal,
-} from "./credit";
+import { amortise, creditLimitFor, interestRate, issueLoan } from "./credit";
 import {
   GENERAL_ADMIN_MARKUP,
   LAID_UP_SERVICING_SHARE,
@@ -171,14 +164,6 @@ export function monthlyFinanceStep(state: GameState): void {
     state.cash -= interest;
     // Phase 39: the bonds amortise — the month's slice of principal is paid out of cash, whether or not there is any.
     state.cash -= amortise(state);
-  }
-
-  // Phase 39: lenders call part of what exceeds the (shrunken) credit limit, out of cash.
-  const called = creditCall(state, netWorth(state));
-  if (called > 0) {
-    repayPrincipal(state, called);
-    state.cash -= called;
-    pushNews(state, { kind: "loansCalled", amount: called });
   }
 
   accrueIncomeTax(state);
