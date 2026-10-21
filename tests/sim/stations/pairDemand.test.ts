@@ -1,6 +1,6 @@
 /** PLAN Phase 35 / 35C / 54: passengers are split over the towns the station's trains call at directly by gravity, wait in one pile, and board by the towns of the train's stops. */
 import { describe, expect, it } from "vitest";
-import { PARTY_SIZE, tripsPerHeadPerMonth } from "../../../src/data/economy";
+import { PAIR_DEMAND, PARTY_SIZE, tripsPerHeadPerMonth } from "../../../src/data/economy";
 import { accrueDailyCargo } from "../../../src/sim/economy/cargoFlow";
 import { Boarding, takePassengers } from "../../../src/sim/stations/boarding";
 import { waitingCap } from "../../../src/sim/stations/waiting";
@@ -109,31 +109,38 @@ describe("station economy with reachability", () => {
     const routes = (e?.passengerRoutes ?? []).reduce((s, r) => s + r.perMonth, 0);
     expect(e?.supply.passengers).toBeCloseTo(routes, 9);
     const unconnected = (e?.passengerUnconnected ?? []).reduce((s, u) => s + u.perMonth, 0);
-    // Phase 62: of the town's trips the part S / (m + S) finds a destination (S = people in the two towns in range,
-    // m = the origin's own 12 000): 24 000 / 36 000 = 2/3; the rest is not generated.
-    expect(routes + unconnected).toBeCloseTo((e?.passengerDemand ?? 0) * (2 / 3), 6);
+    // Phase 53 volume rule, kept in Phase 62: two towns in range take at most 2 x maxShare of the total; the rest is not
+    // generated.
+    expect(routes + unconnected).toBeCloseTo(
+      (e?.passengerDemand ?? 0) * 2 * PAIR_DEMAND.maxShare,
+      6,
+    );
     expect(e?.passengerPool).toBeCloseTo(routes, 9); // one pile, fed at the connected rate
   });
 
   it("a metropolis draws a large but not total share, and a town with few places to go makes fewer trips (Phase 62)", () => {
     // A metropolis (400 000) and four villages (3 000), the origin 12 000: gravity puts most trips on the metropolis, but
-    // the villages keep theirs and the whole is S / (m + S) of the town's demand, never all of it.
+    // the villages keep theirs (the volume is the old rule's, so five towns in range add up to the whole demand).
     const { economies } = world([3, 40, 12, 20, 28, 36], [12000, 400000, 3000, 3000, 3000, 3000]);
     const e = economies([pax(0, 1, 2, 3, 4, 5)]).get(0);
     const demand = e?.passengerDemand ?? 0;
     const routes = e?.passengerRoutes ?? [];
     const sum = routes.reduce((s, r) => s + r.perMonth, 0);
-    expect(sum).toBeCloseTo((demand * 412000) / (12000 + 412000), 6);
+    expect(sum).toBeCloseTo(demand, 6);
+    // no 20 % cap on one destination any more
+    expect(routes.find((r) => r.cityId === 1)?.perMonth ?? 0).toBeGreaterThan(
+      demand * PAIR_DEMAND.maxShare * 2,
+    );
     const toMetropolis = routes.find((r) => r.cityId === 1)?.perMonth ?? 0;
     expect(toMetropolis).toBeGreaterThan(sum * 0.5);
     expect(toMetropolis).toBeLessThan(sum * 0.99);
     for (const r of routes.filter((x) => x.cityId !== 1)) expect(r.perMonth).toBeGreaterThan(0);
-    // One village in range: its 3 000 people are all there is to travel to, so the town makes a small part of its trips.
+    // One village in range: the volume is the old rule's 20 % of the town's trips, all of them to that village.
     const lone = world([3, 20], [12000, 3000])
       .economies([pax(0, 1)])
       .get(0);
     expect(lone?.passengerRoutes?.[0]?.perMonth).toBeCloseTo(
-      ((lone?.passengerDemand ?? 0) * 3000) / 15000,
+      (lone?.passengerDemand ?? 0) * PAIR_DEMAND.maxShare,
       9,
     );
   });

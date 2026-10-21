@@ -2,8 +2,7 @@
  * Where a station's passengers go (PLAN Phase 35, rewritten in Phase 54, SPEC §9.5d). Pure.
  *
  * The station's part of its town's total travel demand (population x trips per head, SPEC §9.5d) is split over the towns
- * within the era's travel range by the radiation model (`radiationShares`: destination size, and the nearer towns that
- * compete for the trip). Only the shares of towns the
+ * within the era's travel range by an uncapped gravity share (`destinationShares`). Only the shares of towns the
  * station's trains call at *directly* are generated (no change of train is counted); the rest is the "unserved demand"
  * the station panel hints at. The people who are generated wait in one pile (cargoFlow.ts) and split over the stops of
  * the train that takes them when they board (boarding.ts).
@@ -45,31 +44,50 @@ export function gravityWeight(population: number, distanceTiles: number): number
   );
 }
 
-/** Share of the town's total travel demand each candidate takes (Phase 62; replaces the 20 % cap). Two real mechanisms,
- * no free parameter beyond the gravity table:
- *  - *Where*: the gravity weights (size / distance, `PAIR_DEMAND`) normalised over the candidates. A bigger or nearer town
- *    draws more, and every other town in range competes for the same trips, so a metropolis cannot take them all.
- *  - *How many*: the radiation model's total (Simini et al., Nature 484, 2012; Stouffer's intervening opportunities,
- *    1940): of the trips of a town of population `m`, the part S / (m + S) finds a destination among the S people living
- *    in the candidate towns. With few towns around, people travel less; the shares add up to it (< 1). */
+/** How much of the town's total travel demand is generated at all: the gravity shares normalised to 1 and water-filled to
+ * `maxShare` (Phase 53's volume rule, kept unchanged in Phase 62 so passenger volume is the same on every map). The
+ * excess of a capped share goes to the others; what no candidate can take is not generated, so a town with few places to
+ * go makes fewer trips. Returns the sum of the capped shares, 0..1. */
+export function cappedVolume(weights: ReadonlyMap<number, number>, maxShare: number): number {
+  let total = 0;
+  for (const w of weights.values()) total += w;
+  if (total <= 0) return 0;
+  const shares = new Map<number, number>();
+  for (const [id, w] of weights) shares.set(id, w / total);
+  for (let pass = 0; pass <= weights.size; pass++) {
+    let excess = 0;
+    let free = 0;
+    for (const v of shares.values()) {
+      if (v > maxShare + 1e-12) excess += v - maxShare;
+      else if (v < maxShare - 1e-12) free += v;
+    }
+    if (excess <= 1e-12) break;
+    for (const [id, v] of shares) {
+      if (v > maxShare) shares.set(id, maxShare);
+      else if (v < maxShare - 1e-12 && free > 0) shares.set(id, v + (excess * v) / free);
+    }
+  }
+  let sum = 0;
+  for (const v of shares.values()) sum += Math.min(v, maxShare);
+  return sum;
+}
+
+/** Share of the town's total demand each candidate takes (Phase 62): the volume (`cappedVolume`) split by plain,
+ * uncapped gravity weights, so every town in range competes for the same trips and a bigger or nearer one draws more. */
 export function destinationShares(
-  originPopulation: number,
   candidates: ReadonlyArray<{ id: number; population: number; distance: number }>,
 ): Map<number, number> {
-  const shares = new Map<number, number>();
-  const m = Math.max(1, originPopulation);
-  let all = 0;
-  let sum = 0;
   const weights = new Map<number, number>();
+  let sum = 0;
   for (const c of candidates) {
-    all += c.population;
     const w = gravityWeight(c.population, c.distance);
     weights.set(c.id, w);
     sum += w;
   }
-  if (all <= 0 || sum <= 0) return shares;
-  const found = all / (m + all);
-  for (const [id, w] of weights) shares.set(id, (found * w) / sum);
+  const shares = new Map<number, number>();
+  if (sum <= 0) return shares;
+  const volume = cappedVolume(weights, PAIR_DEMAND.maxShare);
+  for (const [id, w] of weights) shares.set(id, (volume * w) / sum);
   return shares;
 }
 
@@ -107,8 +125,7 @@ export function computePassengerFlows(
     if (distance <= range || target.has(city.id))
       candidates.push({ id: city.id, population: city.population, distance });
   }
-  const origin = cities.find((c) => c.id === source.cityId);
-  const shares = destinationShares(origin?.population ?? 1, candidates);
+  const shares = destinationShares(candidates);
   if (shares.size === 0) return undefined;
   const routes: PassengerRoute[] = [];
   const unconnected: PassengerFlows["unconnected"] = [];

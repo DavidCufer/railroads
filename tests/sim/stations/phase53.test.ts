@@ -1,7 +1,7 @@
 /** PLAN Phase 53: fewer travellers each paying more; fair shares. (A direct destination drawing more than the same town
  * via a change is `throughJourneys.test.ts` "Phase 48 changes deter travel", which holds unchanged.) */
 import { describe, expect, it } from "vitest";
-import { tripsPerHeadPerMonth } from "../../../src/data/economy";
+import { PAIR_DEMAND, tripsPerHeadPerMonth } from "../../../src/data/economy";
 import { computePassengerFlows } from "../../../src/sim/stations/passengerFlows";
 import { createGameState } from "../../../src/sim/state";
 
@@ -35,7 +35,7 @@ describe("Phase 53 passenger demand", () => {
     expect(toMilan).toBeLessThan(2 * trainSeats * 1.25);
   });
 
-  it("shares follow size and distance, and the town's total is the radiation model's S / (m + S) (Phase 62)", () => {
+  it("shares follow size and distance, uncapped, and the town's total is the old volume (Phase 62)", () => {
     const venice = point(0, "Venice");
     const milan = point(1, "Milan");
     const trieste = point(2, "Trieste");
@@ -57,12 +57,11 @@ describe("Phase 53 passenger demand", () => {
     const people = (id: number) => all.find((r) => r.cityId === id)?.perMonth ?? 0;
     // Milan is more than five times Trieste's size: it draws more even if it is farther
     expect(people(milan.cityId)).toBeGreaterThan(people(trieste.cityId));
-    // everything in range shares S / (m + S) of the town total: fewer than all trips, more than none
+    // the biggest destination is not held at the old 20 % cap
+    expect(people(milan.cityId)).toBeGreaterThan(demand * PAIR_DEMAND.maxShare);
+    // the total is what the capped shares added up to: never above n x maxShare, never all of the demand with few towns
     const sum = all.reduce((a, r) => a + r.perMonth, 0);
-    const inRange = new Set(all.map((r) => r.cityId));
-    const m = city("Venice").population;
-    const big = state.cities.filter((c) => inRange.has(c.id)).reduce((a, c) => a + c.population, 0);
-    expect(sum).toBeCloseTo((demand * big) / (m + big), 6);
+    expect(sum).toBeLessThanOrEqual(all.length * PAIR_DEMAND.maxShare * demand + 1e-9);
     expect(sum).toBeLessThan(demand);
   });
 });
