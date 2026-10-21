@@ -2669,4 +2669,4 @@ pushed to `docs/bench/phase65.md`.
    op ratio, bankruptcies, Hard vs Normal. Target: strong player survives Normal in every era; Hard harder than Normal.
    Report misses; do not tune. If 1930/1950 Normal still fail, report the cause (no start-cash change in this phase).
 3. PROGRESS (tables, sources), SPEC (§9 panics), tests (update fixtures for the new per-panic data; never weaken).
-Status: [ ] 1 [ ] 2 [ ] 3
+Status: [x] 1 [x] 2 [x] 3

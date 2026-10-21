@@ -6768,3 +6768,79 @@ Replacing the 20 % passenger-share cap (gravity split + radiation-model trip tot
 ## 2026-10-21 - Phase 62 item 1: variant (d) also stopped (two tests red); branch `phase-62-shares`
 
 Volume kept (old cap's total), split by uncapped gravity (Vienna > Graz fixed): the six balance tests are green but `phase53` Venice-Milan "1-2 trains" (old about 249, new 630 vs bound 500) and `goalCalibration` gold ceiling (old 2.54, new 3.25 vs 3) fail. Report and options: `docs/PROGRESS.md` on the branch. `main` has no code change; Phase 62 not ticked.
+
+## 2026-10-21 - Phase 65: each panic as deep as it really was (items 1-3 done; targets MISSED in 1930 Normal and in Hard-vs-Normal; nothing tuned)
+
+**Status.** Item 1 on main (2b2097f): `PANICS` in `src/data/panics.ts` now carries per-panic `depth`, `months` and `basis`; `PANIC_DEPTH_RANGE` and `PANIC_MONTHS_RANGE` are gone; the seed draws only +-15 % noise (`PANIC_NOISE`) around the figure; the difficulty factors (depth x0.6/1/1.3, length x0.7/1/1.25, cap `PANIC_DEPTH_MAX` 0.6) are unchanged. The test "falls 20-40 %, lasts 12-24 months" was replaced by "each panic is within the noise of its own table entry" plus "recessions are not all as deep as the Great Depression" (a stricter test, no bound loosened). `npm run check` green. Item 2: `tools/bench/phase65.ts` / `phase65Summary.ts`, 126 runs (strong 10 seeds Normal / 5 Hard, good 5 seeds, all five eras, 17 pieces, each pushed), raw rows in `docs/bench/phase65.md`. Item 3: this entry, SPEC §9. No start-cash change, no bands set, no test bound changed.
+
+### Per-panic figures and how well each is backed (`basis` in the table)
+| panic | depth | months | basis | evidence |
+|---|---|---|---|---|
+| 1837, 1857, 1884 | 0.08 | 24 / 18 / 18 | nearest | no series reached; mean of 1873 (0.05) and 1893 (0.11) |
+| 1847, 1866 (GB, central EU) | 0.05 | 12 | nearest | financial panics; British traffic kept growing (recalled, not checked), so the 1873 value |
+| 1873 | 0.05 | 24 | sourced (weak) | 13 big US roads' freight ton-miles rose 7.48 -> 7.73 bn (1873-74) and 8.74 bn (1876), net earnings flat ($183.8 M 1873, $185.5 M 1875); the hurt was rates and construction (-78 % 1872-75), not traffic |
+| 1893 | 0.11 | 24 | sourced | NBER quarterly US gross earnings summed: $357 M (1893) -> $317 M (1894) = -11 % |
+| 1907 | 0.12 | 18 | sourced | same series: $900 M (1907) -> $794 M (1908) = -12 % |
+| 1920 | 0.26 | 18 | derived | operating revenue $6.23 bn (1920) -> $5.57 bn (1921) = -10.6 % while revenue per freight ton-mile rose 1.07 -> 1.29 cents, so volume about 0.894/1.206 = -26 % (freight only; passenger fell less) |
+| 1929 | 0.30 | 24 | derived | ton-miles 450.2 bn (1929) -> 235.3 bn (1932) = -48 %, spread over three years; 1929 carries the first part, 1931 the trough, played one after the other (`activePanic` returns the first in force) |
+| 1931 | 0.48 | 30 | sourced | same ton-miles (-48 %); passenger-miles 1932 36.7 % and passenger revenue 48.3 % below 1930 |
+| 1937 | 0.20 | 18 | sourced | ton-miles 362.8 bn (1937) -> 291.9 bn (1938) = -19.5 % |
+| 1948, 1953, 1957, 1960 | 0.15, 0.10, 0.11, 0.04 | 15, 12, 15, 12 | recalled | AAR/ICC Class I ton-miles as remembered (1948-49 -17 %, 1953-54 -10 %, 1957-58 -11 %, 1960-61 -4 %); NOT re-checked (see below). The orchestrator's 8-10 % for 1953/57 agrees; 1960 "a few %" agrees |
+| 1973, 1979, 1981 | 0.12, 0.10, 0.10 | 18 | recalled | 1974-75 about -12 %, 1979-80 about -14 %, 1981-82 about -10 %; only the 1980 total (919.0 bn, Railway Age/AAR) was seen again |
+
+**Verified against the orchestrator's guesses.** 1893 -12 %: sourced -11 %. 1907-08 -10 %: sourced -12 %. 1929-32 -50 % over three years: sourced -48 %. 1937-38 -18 %: sourced -19.5 %. 1953-54 / 1957-58 -8 to -10 %: recalled -10 / -11 %, not verified. 1960-61 a few %: recalled -4 %. New finding: 1920-21 was a deep volume fall (-26 %, derived), and 1873 was shallow in traffic.
+
+**What could not be done.** The container's proxy blocked fred.stlouisfed.org, nber.org, census.gov, hsus.cambridge.org and Wikipedia, so no table could be opened; every number marked sourced/derived came from WebSearch result summaries of those pages, and the "recalled" rows are from memory. A later session with open internet should replace the `recalled` rows (AAR *Railroad Facts*, HSUS Df, BTS "U.S. Ton-Miles of Freight") and check the 1920 derivation. British figures (Mitchell) were not found at all (search returned only a monthly FRED passenger series and a 1921 monthly freight-receipts series: Apr-Jun 1921 about 40-45 % below Jan-Mar, the coal lockout, not used); no GB-specific depth is therefore in the table. Gross earnings include rate changes, so for 1893/1907 the sourced depth mixes volume and price; `months` is my reading of "first fall to back near the old level" (the model's fall is a step with a 6-month ramp, which overstates the average fall of a gradual slide such as 1929-32, hence the 1929/1931 split).
+
+### Results (strong 10 seeds Normal / 5 Hard, good 5 seeds; `npx tsx tools/bench/phase65Summary.ts`)
+| bot | diff | start | runs | bankrupt | revenue $M y5 / y10 / y16 (median) | operating profit $M y5 / y10 / y16 (median) | final NW $M median [min-max] | op ratio y3 / y10 / y16 | return on capital y3 / y10 / y16 | cash>20% NW, years (median; never) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| strong | hard | 1840 | 5 | 0 | 0.74 / 1.13 / 5.96 | 0.46 / 0.54 / 3.61 | 10.29 [9.49-11.82] | 0.36 / 0.52 / 0.38 | 0.23 / 0.13 / 0.24 | 2.0; 0 |
+| strong | hard | 1870 | 5 | 0 | 2.02 / 3.26 / 5.52 | 1.40 / 1.47 / 1.76 | 14.42 [11.77-20.57] | 0.45 / 0.53 / 0.67 | 0.23 / 0.15 / 0.10 | 3.0; 0 |
+| strong | hard | 1900 | 5 | 1 | 0.50 / 0.51 / 0.92 | 0.20 / 0.12 / 0.34 | 1.42 [1.13-5.50] | 0.47 / 0.76 / 0.81 | 0.20 / 0.07 / 0.07 | 2.0; 0 |
+| strong | hard | 1930 | 5 | 1 | 0.45 / 0.51 / 1.94 | 0.24 / 0.21 / 0.78 | 3.24 [1.15-3.38] | 0.85 / 0.60 / 0.59 | 0.03 / 0.16 / 0.18 | 2.0; 0 |
+| strong | hard | 1950 | 5 | 2 | 1.10 / 1.22 / 1.35 | 0.54 / 0.35 / 0.16 | 2.14 [1.99-2.15] | 0.46 / 0.71 / 0.88 | 0.34 / 0.11 / 0.06 | 3.0; 0 |
+| strong | normal | 1840 | 10 | 0 | 1.25 / 3.09 / 7.18 | 0.69 / 1.59 / 4.34 | 18.59 [16.60-26.35] | 0.42 / 0.48 / 0.40 | 0.21 / 0.17 / 0.26 | 2.0; 0 |
+| strong | normal | 1870 | 10 | 0 | 1.56 / 2.24 / 5.13 | 0.80 / 0.70 / 2.05 | 8.79 [6.87-13.08] | 0.51 / 0.69 / 0.60 | 0.19 / 0.10 / 0.15 | -; 10 |
+| strong | normal | 1900 | 10 | 0 | 2.96 / 5.77 / 10.46 | 1.48 / 2.10 / 2.90 | 18.55 [14.12-31.38] | 0.46 / 0.62 / 0.71 | 0.24 / 0.15 / 0.13 | 15.5; 8 |
+| strong | normal | 1930 | 10 | 7 | 1.25 / 1.31 / 2.99 | 0.48 / 0.25 / 1.09 | 1.89 [1.39-4.36] | 0.82 / 0.80 / 0.63 | 0.06 / 0.08 / 0.22 | 6.0; 6 |
+| strong | normal | 1950 | 10 | 2 | 4.87 / 6.61 / 7.87 | 2.17 / 1.49 / 1.11 | 9.61 [6.55-12.48] | 0.46 / 0.80 / 0.85 | 0.41 / 0.10 / 0.07 | 3.5; 2 |
+| good | hard | 1840 | 5 | 0 | 0.46 / 0.60 / 2.04 | 0.26 / 0.22 / 1.27 | 3.81 [3.20-3.89] | 0.39 / 0.63 / 0.38 | 0.25 / 0.08 / 0.26 | 2.0; 0 |
+| good | hard | 1870 | 5 | 0 | 1.33 / 4.29 / 9.50 | 0.98 / 2.66 / 5.43 | 31.22 [29.07-35.41] | 0.27 / 0.38 / 0.43 | 0.39 / 0.24 / 0.20 | 2.0; 0 |
+| good | hard | 1900 | 5 | 0 | 0.70 / 1.39 / 2.43 | 0.50 / 0.83 / 0.82 | 6.05 [5.58-6.65] | 0.34 / 0.40 / 0.66 | 0.45 / 0.20 / 0.10 | 2.0; 0 |
+| good | hard | 1930 | 5 | 0 | 0.48 / 0.66 / 1.08 | 0.27 / 0.42 / 0.37 | 2.44 [2.37-2.45] | 0.80 / 0.36 / 0.67 | 0.04 / 0.36 / 0.10 | 2.0; 0 |
+| good | hard | 1950 | 5 | 0 | 0.57 / 0.84 / 1.18 | 0.28 / 0.52 / 0.40 | 2.43 [2.37-2.52] | 0.48 / 0.38 / 0.66 | 0.26 / 0.35 / 0.11 | 2.0; 0 |
+| good | normal | 1840 | 5 | 0 | 0.66 / 1.56 / 5.81 | 0.27 / 0.78 / 3.88 | 11.45 [9.72-11.89] | 0.49 / 0.50 / 0.33 | 0.16 / 0.17 / 0.31 | 2.0; 0 |
+| good | normal | 1870 | 5 | 0 | 2.78 / 9.09 / 9.21 | 1.74 / 5.63 / 5.22 | 50.79 [50.19-53.17] | 0.33 / 0.37 / 0.42 | 0.37 / 0.27 / 0.26 | 2.0; 0 |
+| good | normal | 1900 | 5 | 0 | 1.16 / 2.37 / 3.41 | 0.58 / 0.87 / 0.86 | 6.17 [5.64-10.98] | 0.49 / 0.62 / 0.75 | 0.23 / 0.12 / 0.07 | 2.0; 0 |
+| good | normal | 1930 | 5 | 0 | 0.56 / 0.95 / 2.69 | 0.27 / 0.29 / 1.02 | 3.86 [2.98-4.49] | 0.96 / 0.69 / 0.62 | 0.01 / 0.13 / 0.18 | 2.0; 0 |
+| good | normal | 1950 | 5 | 3 | 0.76 / 1.05 / 1.10 | 0.16 / 0.16 / 0.21 | 1.70 [1.68-2.27] | 0.63 / 0.85 / 0.81 | 0.16 / 0.06 / 0.10 | 2.0; 0 |
+
+### Bankruptcies, Phase 61 (flat 20-40 %) -> Phase 65 (per-panic)
+| bot | diff | 1840 | 1870 | 1900 | 1930 | 1950 |
+|---|---|---|---|---|---|---|
+| strong | normal | 0/10 -> 0/10 | 0/10 -> 0/10 | 0/10 -> 0/10 | **4/10 -> 7/10** | **8/10 -> 2/10** |
+| strong | hard | 0/5 -> 0/5 | 1/5 -> 0/5 | 5/5 -> 1/5 | 3/5 -> 1/5 | 4/5 -> 2/5 |
+| good | normal | 0/5 -> 0/5 | 0/5 -> 0/5 | 0/5 -> 0/5 | 0/5 -> 0/5 | 5/5 -> 3/5 |
+| good | hard | 0/5 every era, both phases | | | | |
+
+### Against the targets (misses reported, nothing tuned)
+- **Strong player survives Normal in every era: MISS in 1930 (7/10) and 1950 (2/10).** 1840 / 1870 / 1900 are 0/10.
+- **1950 Normal improved** from 8/10 to 2/10: the 1953, 1957 and 1960 recessions are now 4-11 % deep. The two remaining bankruptcies are 1958 (seed 7, Suez shock) and 1960 (seed 3). The good bot still loses 3/5 in 1954 (min cash -0.05 to -0.08, final NW 1.7), in the 1953 recession, now only 10 % deep: that is a thin early company, not the panic.
+- **1930 Normal got worse**, 4/10 -> 7/10, and the cause is this phase's own data: the Banking crisis of 1931 is now 0.48 deep for 30 months (was 0.2-0.4 for 12-24), so 4 of the 7 bankruptcies are 1932-33 (seeds 2, 3, 5, 8, 9; min cash -0.01 to -0.17) and 3 are 1938 (1937 recession, 0.20 for 18 months, was 0.2-0.4 for 12-24). A 1930 start meets the real Great Depression trough in months 12-42. This is the real depth; the strong bot cannot survive a -48 % traffic fall with mostly fixed costs in its first three years,. Reported, not tuned.
+- **Hard harder than Normal: MISS.** 1930: strong Hard 1/5 bankrupt, NW 3.24 vs Normal 7/10, NW 1.89 (cause not investigated; Hard's 0.48 x 1.3 is capped at 0.6 so it is only 25 % deeper than Normal's, and 5 seeds against 10 is a small sample). 1870: strong Hard NW 14.4 vs Normal 8.8 (Normal has idle cash in 10 of 10 runs, as in Phase 61). 1950: strong Hard 2/5 vs Normal 2/10 (equal rates); good bot 1950 Normal 3/5 bankrupt vs Hard 0/5 (as in Phase 61). Hard is deeper in every panic by construction; the seed-to-seed spread in survival is larger than the difference.
+- Operating ratio of the strong player Normal, year 16: 0.40 / 0.60 / 0.71 / 0.63 / 0.85 for 1840 / 1870 / 1900 / 1930 / 1950 (Phase 61: 0.40 / 0.61 / 0.71 / 0.70 / 0.76); real about 0.74 for 1927-50. 1950's 0.85 is the survivors of 1973-81.
+
+### Decisions
+- Treated each panic's `depth` as the peak-to-trough fall of the sourced series (conservative toward reality, harsher than an average-fall reading) and kept the difficulty factors and the 0.6 cap as they were.
+- Kept 1929 and 1931 as two sequential entries rather than one long panic, because the model's step-then-ramp shape would otherwise hold -48 % for three years from the first month.
+- Split nothing for passenger vs freight: the model has one demand factor for all cargo, so passenger-specific series were only used as a cross-check.
+- Bad bots were not re-run (they go bankrupt in every cell, Phase 60/61); the phase-61 bench's bad-bot rows stay as the reference.
+- `recalled` and `nearest` rows are flagged in the data; no figure is claimed as sourced that I did not see in a search result.
+
+### Sources (as found by search; the pages themselves could not be opened from the container)
+- FRED/NBER Macrohistory: gross earnings of railroads (quarterly) https://fred.stlouisfed.org/data/Q0315BUSQ144NNBR ; total operating revenue, Class I https://fred.stlouisfed.org/data/M03016USM144NNBR ; revenue per freight ton-mile, all railroads https://fred.stlouisfed.org/data/A0303BUSA259NNBR ; railroad revenue freight ton-miles (annual: 1929 450.2 bn, 1932 235.3 bn, 1937 362.8 bn, 1938 291.9 bn) https://fred.stlouisfed.org/data/A033CBUSA253NNBR ; passenger-miles https://fred.stlouisfed.org/data/M03010USM429NNBR ; GB freight receipts (monthly, 1921) https://fred.stlouisfed.org/data/M03084GBM590NNBR ; GB passenger traffic https://fred.stlouisfed.org/data/M031AAGBM428NNBR
+- Passenger-miles 1932 -36.7 % and passenger revenue -48.3 % vs 1930: Cornell Law Review 21(2), Feb 1936, https://scholarship.law.cornell.edu/cgi/viewcontent.cgi?article=2417&context=clr
+- 1873-76 ton-miles and net earnings of 13 roads: "Some data on railroads, 1860-1920", http://cprr.org/Museum/Railroad_Statistics.pdf ; Panic of 1873 background https://www.american-rails.com/1870s.html
+- 1956 rail freight 655.9 bn ton-miles, +44 % on 1929; 1958 recession decline in carloadings: https://www.fhwa.dot.gov/interstate/freight.cfm ; https://www.american-rails.com/1950s.html ; 1980 ton-miles 918.96 bn: https://www.trains.com/trn/railroads/maps/class-i-railroad-work-volume-1978-2008/ ; BTS ton-miles 1960-2022 https://www.bts.gov/browse-statistical-products-and-data/info-gallery/class-i-railroad-system-mileage-and-ton-miles-0
+- Not reached (to check next): Historical Statistics of the US Df series https://hsus.cambridge.org/ ; Census 1949 compendium ch. K https://www2.census.gov/library/publications/1949/compendia/hist_stats_1789-1945/hist_stats_1789-1945-chK.pdf ; NBER post-war railroads https://www.nber.org/system/files/chapters/c9072/c9072.pdf ; Mitchell, British Historical Statistics, Transport and Communications table 7.
