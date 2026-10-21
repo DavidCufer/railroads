@@ -2622,3 +2622,25 @@ UI/render only (`src/ui`, `src/render`, strings): no sim or balance change, so i
    like the engines; also in the panel thumbnail if it has one. Screenshot `phase-63-repair-crew.png` at zoom 1 and 2.
 6. PROGRESS, SPEC (§10 UI), e2e (update, never weaken), LOOK at every screenshot.
 Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6
+
+## Phase 64 — Goals and balance by profit and revenue, not cash (after Phase 61's numbers)
+
+Owner (2026-10-21): "The goal of total cash does not seem OK to me. We should strive for profit or revenue, not cash. We
+want players to spend money to build things, not hoard it." Today `netWorth` = cash - loans + **0.5** x construction +
+rolling stock (`NET_WORTH_CONSTRUCTION_FRACTION`), so every $1 spent on track lowers net worth by $0.50: a net-worth goal
+(`src/data/goals.ts` gold 1870 $25M, gold 1930 $260M, silver 1920 $50M; random gold `startingCash x 77`) rewards hoarding.
+
+1. **Goal types.** Replace the `netWorth` goal type with **`annualProfit`** (operating profit of a completed calendar
+   year: revenue - running costs, as the Finance overview defines it; no construction) and keep `annualRevenue`. Every
+   region goal and the random gold goal that used net worth becomes an `annualProfit` (or `annualRevenue`) goal. Amounts:
+   from the Phase 61 strong player's yearly operating profit / revenue medians at the goal's year (state the source row);
+   the orchestrator checks them with the owner before merging. Goals panel and toasts: short labels ("Yearly profit $4M by
+   1900"); strings in strings.ts; word limits kept. Old saves: a stored `netWorth` goal converts to the matching
+   `annualProfit` goal on load.
+2. **Other uses of net worth that steer play:** list every place (achievements, company history ranking, scenario wins,
+   game-over, credit limit) and change only those that reward hoarding to profit/revenue, saying which; credit limit
+   stays (lenders look at assets and earnings). Report the list.
+3. **Bench headline:** `strongPlayer`/`goodPlayer`/`survival` print yearly operating profit and revenue (years 5/10/16) as
+   the headline; bands from now on are on profit and revenue (owner decides the numbers).
+4. Tests (update goal tests to the new type; never weaken), e2e, SPEC §11, PROGRESS.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
