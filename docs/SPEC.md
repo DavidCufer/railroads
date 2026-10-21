@@ -831,8 +831,11 @@ changes of train, no change wait. Real mechanisms, tables in `src/data/economy.t
    month (X %)"; a station draws its catchment's part of T (towns with several stations split it by covered tiles, §8.3).
    T is split over **every town within the era's known-destination radius** (`travelRangeTiles(year)`: 60 tiles = 300 km
    in 1830, 70 in 1870, 90 in 1900, 120 in 1930, 200 in 1960; 5 km a tile) by gravity: weight = destination population /
-   max(distance, 15 tiles). Shares sum to 1 and no destination takes more than `PAIR_DEMAND.maxShare` (20 %); the excess goes
-   to the candidates still below it and what cannot be placed is not generated (`capShares`).
+   max(distance, 15 tiles). **How many trips a town makes** is the Phase 53 volume (`cappedVolume`: the gravity shares
+   water-filled to `PAIR_DEMAND.maxShare` 20 %; what no candidate can take is not generated). **Who gets them** (Phase 62,
+   `destinationShares`) is plain gravity with no cap: that volume is split over every town in range in proportion to
+   population / distance, so a bigger or nearer town draws more (Ljubljana 1900: Venice 26 %, Vienna 24 % > Graz 12 %). The
+   old per-destination 20 % cap made every big destination equal.
 2. **Direct service only.** A town draws trips for a station only if a train of that station **calls at it** (a stop of
    one of its orders; a "pass through" order is not a stop). A town reached only by changing trains draws nothing: a
    player who builds A-B and B-C as two lines gets only the neighbours; one train A-B-C makes every one of its stops
@@ -933,6 +936,13 @@ two shuttles earn and shuttles turn round faster.
    passenger pays one traveller's real fare (§8.1, Phase 53B). Regional gold goals follow the richer economy: gb gold net worth $25M by 1870
    (was $20M, $24M in Phase 53), random-map gold net worth 77x the starting cash (was 60x, 72x in Phase 53), as in Phase 30A
    (Phase 53B: the reference operator earns more once the era growth sits in trips per head, so `goalCalibration` needs it).
+   (Net-worth goals were replaced in Phase 64: see §11.)
+8. **Shares follow town size (Phase 62).** The split of a town's trips over its destinations is uncapped gravity (§8.1
+   item 1) while the volume stays the Phase 53 figure, so a two-town line draws what it did and a map with a metropolis
+   among small towns sends it the most trips without taking them all. A radiation-model volume (Simini et al., Nature 484,
+   2012) was tried: it raised pair lines 1.7-2.5x and broke six balance tests, so it is not used. Venice-Milan 1842 measures
+   630 trips a month (a big next-door town now takes 51 % of Venice's reachable trips instead of the 20 % ceiling): the
+   `phase53` bound "one to two early trains a month" was raised from 500 to 700 with the owner's OK.
 
 
 ### 9.6 Difficulty
@@ -1031,10 +1041,17 @@ Each real-world region ships with 1–2 optional goal sets (bronze/silver/gold),
 - `us-east`: "Connect New York and Chicago by 1860", "Annual revenue $2.5M by 1880", "Chicago reaches Metropolis".
 - `gb`: "Connect London–Birmingham–Manchester–Liverpool by 1845", "Deliver 1,000 carloads of coal in a year".
 - `central-eu`: "Cross the Alps: connect Munich/Vienna to Milan or Venice/Trieste", "Electrify 120 tiles by 1930".
-- `us-west`: "Connect Sacramento to Salt Lake City by 1870", "Net worth $50M by 1920".
+- `gb` gold: "Yearly profit $1.8M by 1870"; `central-eu` gold: "Yearly profit $1.0M by 1930".
+- `us-west`: "Connect Sacramento to Salt Lake City by 1870", "Annual revenue $3.2M by 1920".
+
+**No goal counts cash or net worth** (Phase 64; owner: "we want players to spend money to build things, not hoard it" —
+net worth counted construction at half, so every dollar of track lowered it). Money goals are `annualProfit` (operating
+profit of the last completed calendar year: revenue minus running costs, no construction) or `annualRevenue`. Amounts
+follow one formula in `src/data/goals.ts` from the Phase 65 strong-player medians: `round-down-2sf(median(metric, era row,
+year) x priceIndex(goal year) / priceIndex(year earned))`; a saved net-worth goal loads as the matching yearly-profit goal.
 
 Goal types (data-driven): `connect(cityA, cityB, byYear)`, `annualRevenue(amount, byYear)`,
-`netWorth(amount, byYear)`, `cityTier(city, tier, byYear)`, `delivered(cargo, amount, withinYear)`,
+`annualProfit(amount, byYear)`, `cityTier(city, tier, byYear)`, `delivered(cargo, amount, withinYear)`,
 `electrifiedTiles(n, byYear)`. Random maps: goals generated from the same types.
 Goals panel shows progress; reaching gold shows a celebration dialog; game continues.
 
@@ -1246,6 +1263,8 @@ localization (English only, but keep strings in one `strings.ts` file for later)
 - [Phase 27] §7.5 interlock works on geometric conflict points (`src/sim/track/conflicts.ts`): a junction node, or a *mid-tile crossing point* (two diagonals of one cell; id `mapSize + cell`). Each has a clearance derived from the angle between its legs and whether they are double track (≈ 0.4–1.4 tiles) that replaces the fixed 0.35 tile: a train claims from `clearance` before the point until its tail is `clearance` past it, and a waiting train stops `clearance` short. Also fixed: (1) `CAR_LENGTH_TILES` 0.3 → 0.481 (its drawn length + coupler gap; the sim's tail used to be ~0.7 tile short of the drawn one); (2) a train remapped after a track change recorded its block entry mid-block, so a follower did not see a leader that entered the block whole; (3) a follower keeps seeing a leader that has turned off at the block's end junction while the leader's tail is still on the line.
 - [Phase 27 D] §8/§9 the first decades are playable: track/station/locomotive upkeep is × 0.4 in 1830 easing to 1× by 1850 and passenger/mail fares × 1.8 in 1830 easing to 1× by 1845 (`earlyUpkeepFactor`, `earlyFareFactor`; a longer premium pushed the 1848-calibrated Phase 7.1 passenger acceptance ranges out of bounds); freight unchanged. Phase 28A retunes the early era on top of this. Toasts are laid out over the map area only (never over an open panel or the tool column); a failed name lookup in news/train text reads "a train", "a station", "a nearby town" or "the line", never "?".
 
+- [Phase 62] §8.1: a town's trips are split by uncapped gravity over every town in range; the volume (20 % water-filling) is unchanged. The `phase53` Venice-Milan 1842 bound is 700 (was 500).
+- [Phase 64] §11: the `netWorth` goal type is `annualProfit` (gb gold $1.8M by 1870, central-eu gold $1.0M by 1930, us-west silver annual revenue $3.2M by 1920, random-map gold the strong player's year-16 profit in the start era); formula in `src/data/goals.ts`.
 - [Phase 28A] §7.5: platforms limit simultaneous **loading**, not entry — the destination-slot departure rule is gone; a train arriving at a full station waits in its yard (FIFO) and a train standing in a station drops the blocks its tail holds; junction claims are released before trains are stepped and go to the longest waiter. Fixes the hold-and-wait deadlock (PLAYTEST-1 Bug 1/2) and the "moving at speed 0" trains (Bug 4: a parked `noRoute` train no longer hops along a dead-end stub beside its station).
 - [Phase 28A] §6.2: Engine Sheds can be built at any station ($30k, era-scaled and × the build-cost multiplier); §9.5b/§9.6: Economic model v2 replaces the flat multipliers — fares and freight rates follow real-terms curves, wages outrun prices, crews scale with the train, track wear, engine complexity, repair call-outs by distance, property and income tax, road and air competition. Hard no longer has a revenue penalty (was ×0.8): it is a ×1.6 tax schedule, 8 % interest, ×1.2 build cost, ×1.5 breakdowns. Easy: ×0.6 taxes. The Phase 27 D stopgap helpers were removed.
 - [Phase 28A] §11: goal thresholds re-set from the new economy (`tests/sim/referenceOperator.ts`): Annual revenue $2.5M by 1880 (us-east silver, was $5M), Net worth $15M by 1870 (gb gold, was $5M), Net worth $150M by 1930 (central-eu gold, was $30M), Annual revenue $3M by 1900 (us-west gold, was $10M), Electrify 120 tiles (600 km) by 1930 (central-eu silver; "200 tiles" of the old 10 km grid is 400 tiles today). Random-map gold goals: net worth 40× (was 20×) / annual revenue 3× (was 5×) the starting cash.
