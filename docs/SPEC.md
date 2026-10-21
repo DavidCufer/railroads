@@ -667,11 +667,16 @@ news item and a banner give the months left (Phase 39: grace 4 on Easy, 3 on Nor
 back at or above zero resets the count; when the grace is spent → "Bankruptcy" game-over dialog (options: load last
 autosave, new game). Easy difficulty: no bankruptcy, just can't spend.
 
-**Financial panics (Phase 39).** Historical crashes (1837, 1847*, 1857, 1866*, 1873, 1884, 1893, 1907, 1920, 1929, 1937; * =
-GB and central Europe only) each happen, per game, with the difficulty's probability, in a month drawn from the seed
-(never in the first 12 months). A panic lasts 12-24 months and cuts demand for every cargo by 20-40 % (easing off over
-its last 6 months); the credit limit is multiplied by the difficulty's panic credit factor while it lasts. Depth and length
-scale with the difficulty (§9.6). Deterministic per seed: `src/sim/finance/panics.ts` stores nothing.
+**Financial panics (Phase 39, depths Phase 65).** Historical crashes (1837, 1847*, 1857, 1866*, 1873, 1884, 1893, 1907, 1920,
+1929, 1931, 1937, 1948, 1953, 1957, 1960, 1973, 1979, 1981; * = GB and central Europe only) each happen, per game, with the
+difficulty's probability, in a month drawn from the seed (never in the first 12 months). Each panic has its own depth and
+length in `src/data/panics.ts`, taken from the real fall in railway traffic or earnings (US gross earnings 1893 -11 %, 1907
+-12 %; 1920-21 freight volume about -26 %; ton-miles 1929-32 -48 % (split into the 1929 and 1931 panics), 1937-38 -19.5 %;
+post-war recessions -4 to -15 %; 1873 and the pre-1890 panics a few %), with the seed adding only +-15 % noise. Each entry
+says whether its figure is sourced, derived, recalled or the nearest sourced panic (PROGRESS Phase 65). Demand for every
+cargo falls by that share (easing off over the last 6 months); the credit limit is multiplied by the difficulty's panic
+credit factor while it lasts. Depth and length scale with the difficulty (§9.6; depth capped at 60 %). Deterministic per
+seed: `src/sim/finance/panics.ts` stores nothing.
 
 **Running costs (Phase 39).** Fuel is 60 % of a locomotive's running cost and is paid per tile run, scaled by the
 train's weight (engine class plus cars, loaded cars heavier); the rest (servicing, oil, depot) is paid by the year. A train
