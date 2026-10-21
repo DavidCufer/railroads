@@ -2625,6 +2625,13 @@ Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6
 
 ## Phase 64 — Goals and balance by profit and revenue, not cash (after Phase 61's numbers)
 
+**Start from branch `phase-62-shares`** (Phase 62 item 1: volume unchanged, split by uncapped gravity; Venice-Milan bound
+500 -> 700 with owner OK). Its one remaining red test, `goalCalibration` (gold goal within sight, ratio <= 3, now 3.25),
+concerns the net-worth gold goal this phase replaces: rewrite it for the new goal types (same intent: every gold goal
+reachable by the reference operator within a ratio of 3), never loosen it. Merge 62 + 64 to main together, and tick both.
+Goal amounts: derive from the Phase 65 strong-player medians (`docs/bench/phase65.md`; write the formula), push the
+branch, and **stop before merging** so the orchestrator can show the owner the amounts.
+
 Owner (2026-10-21): "The goal of total cash does not seem OK to me. We should strive for profit or revenue, not cash. We
 want players to spend money to build things, not hoard it." Today `netWorth` = cash - loans + **0.5** x construction +
 rolling stock (`NET_WORTH_CONSTRUCTION_FRACTION`), so every $1 spent on track lowers net worth by $0.50: a net-worth goal
@@ -2670,3 +2677,31 @@ pushed to `docs/bench/phase65.md`.
    Report misses; do not tune. If 1930/1950 Normal still fail, report the cause (no start-cash change in this phase).
 3. PROGRESS (tables, sources), SPEC (§9 panics), tests (update fixtures for the new per-panic data; never weaken).
 Status: [x] 1 [x] 2 [x] 3
+
+## Phase 66 — Lay up trains in a slump (what real railways did in the Depression)
+
+Owner: "Go" (2026-10-21) after Phase 65: a 1930 start meets the real Great Depression (-48 % traffic 1931-32) and the
+strong player goes bankrupt in 7/10 Normal runs, because a train pays its full crew and servicing even half-empty or idle.
+Real railways laid up engines and laid off crews: US railway employment about 1.7 M (1929) -> about 1.0 M (1933) and the
+operating ratio only rose from about 0.72 to 0.77 (verify with sources).
+
+Real mechanisms only; numbers in `src/data` with a one-line justification and source. Never loosen a test bound; if a
+balance test fails, report old/new and cause and stop on a branch `phase-66-layup` (owner decides).
+
+1. **Lay up / return to service** (commands `layUpTrain`, `returnTrainToService`, `{ok}`/`{ok:false, reason}`): a train
+   stopped at a station with a depot/engine shed (or any station: say which, with the real basis) is laid up: it holds no
+   platform or block, pays **no crew wages** and only a laid-up share of its servicing (stored engines were greased and
+   inspected: source the share), still ages and still counts in net worth. Returning takes a stated time (fire-up /
+   recrew, e.g. a day or two) and resumes its orders. Saves: old saves load with no train laid up.
+2. **UI.** Train panel: one "Lay up" / "Back in service" button (strings.ts, word limits kept); a laid-up train is drawn
+   parked/greyed at its station and the Trains list shows it as "Laid up". During a panic, one news line once per panic:
+   "Traffic down N % — lay up trains on losing lines" (tap opens the Trains list).
+3. **Bots.** `strongPlayer.ts`: in a panic, lay up the trains of lines whose operating profit is negative over the last
+   2-3 months (keep at least one train per line), return them when the panic ends or the line's waiting traffic needs
+   them. `goodPlayer.ts` the same, simpler. Bad bots unchanged.
+4. **Measure** (strong 10 seeds Normal / 5 Hard, good 5 seeds, all eras; pieces to `docs/bench/phase66.md`): bankruptcies,
+   revenue and operating profit y5/10/16, op ratio, Hard vs Normal. Target: strong player survives Normal in every era
+   (1930 included); Hard harder than Normal. Report misses; do not tune.
+5. e2e (lay up and return; never weaken), PROGRESS (tables, sources), SPEC (§7, §9), screenshot `phase-66-laid-up.png`
+   (a laid-up train and the button). LOOK at it.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
