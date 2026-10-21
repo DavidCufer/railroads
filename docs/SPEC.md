@@ -646,6 +646,15 @@ Phase 60 (running costs measured against real railways, Phase 59 sources in PROG
 - Operating ratio for a strong player is now about 0.3-0.5 (real: 0.43-0.53 in the 1840s-50s, 0.63 in 1901, 0.74 in 1927-50).
   Construction cost per km is still about a twentieth of real and is not part of this change.
 
+Phase 61 (the tuned `COST_REALISM_ANCHORS` early-to-mature blend is gone; sources in PROGRESS Phase 61):
+- **Crews on the payroll per train** = 24 hours of service / the era's shift (`CREW_SHIFT_HOURS_ANCHORS`: 14 h to 1893, 8 h from 1917,
+  linear between; British Royal Commission 1877, Board of Trade 1893, eight-hour day 1919, US Adamson Act 1916): 1.7 shifts before 1893, 3.0 from 1917.
+- **Attendants per passenger or mail car**: 0 before 1860, 0.5 from 1870 (Pullman porters from 1867, one per two cars; a weak source).
+- **Fuel and servicing**: one figure for every era (`RUNNING_COST_SHARE` 0.22), derived so that locomotive fuel is 8 % of operating
+  expenses (NBER: 6-10 % for US Class I in the 1920s-30s). **Station handling** of passenger and mail fares: 0.11 in every era.
+- Strong player, Normal, year 16: operating ratio 0.40 / 0.61 / 0.71 / 0.70 / 0.76 (1840 / 1870 / 1900 / 1930 / 1950; real 0.43-0.53 /
+  ? / 0.63 / 0.74 / 0.74). Bankruptcy of the strong player: Normal 1930 4 of 10, 1950 8 of 10 (see PROGRESS).
+
 ### 9.3 Net worth
 
 `cash − loans + 50% of (track + station + improvement build cost) + locomotive/car value (depreciating
@@ -729,7 +738,7 @@ shown to the player where it costs money (Finance cost lines with tooltips, trai
    inspection, overhaul) = weight × upkeep per tonne by type (steam $100, diesel $75, electric $50) × the year's running-cost
    share; fuel keeps its Phase 39 form (a yearly fuel budget proportional to that upkeep, spread over tiles and the
    train's weight). **New: a repair bill per tile run**, `weight × $0.04` (steam; diesel $0.03, electric $0.02) at 1830
-   prices, grown with the same early-to-mature share, age and obsolescence factors as the servicing (US railroads booked
+   prices, with the same age and obsolescence factors as the servicing (Phase 61: no early-to-mature blend) (US railroads booked
    steam repairs per locomotive-mile, and the bill rose with engine size). Booked monthly in the train's running costs
    (`Train.repairUnits`, tonne-tiles; absent in older saves). Effect: a Hudson (250 t) costs five Americans (50 t) to buy
    and about five to keep, a Grasshopper (8 t) a sixth; on a short line a small slow engine pays back first, on a long
@@ -1252,3 +1261,4 @@ localization (English only, but keep strings in one `strings.ts` file for later)
 - [Phase 58] §7.7: `maxCars` = real typical train x one `TRAIN_LENGTH_SCALE` 0.5 (Consolidation 20, Mikado 35, Articulated 60, Cab Unit 22, Road Switcher 28, Heavy Diesel 45, Heavy Freight Electric 40; High-Speed Trainset 5); freight crew capped at a conductor and three brakemen. §6.1: station track lengths 6/20/60 (were 6/10/16) from the same scale; a train longer than its station's grounds keeps its tail's blocks held. §7.5: junction wait queues (a train queued behind one that waits for me does not block me). §8.1: bulk freight is on a tonnage tariff, no early-delivery bonus.
 - [Phase 59] §5.2 track joins: a red build drag names its reason in one line beside the cost ("Junction too close to another", ...); "smallest legal connection" slides the join along the drag's own line before searching other lines. The 2-tile junction spacing rule is kept (a 45° join off a diagonal is legal).
 - [Phase 59] §9 costs measured against real railways (PROGRESS Phase 59): the game's operating ratio is 0.2-0.3 (real 0.43-0.75 by era) and it has no general-administration cost; fixed track upkeep is about a fortieth of the real section-gang cost. The correction (section-gang upkeep, §5.4, and a "Head office" ledger line of 14 % of the other running costs, §9.2) is implemented on branch `phase-59-costs` and **not on main**: it fails two long-haul balance tests (`lateReturn` > 0.6 has 2 % headroom) that may not be loosened. The strong test player (`tools/bench/strongPlayer.ts`) is the new reference for a fast, owner-like player.
+- [Phase 61] §9 running costs: shift hours, attendants, one fuel+servicing figure and one handling share replace the tuned `COST_REALISM_ANCHORS` blend (operating ratio of a strong player on Normal now 0.40-0.76 at year 16); the 1930 silver chain bound is 0.45 (owner OK). Bench: docs/bench/phase61.md.

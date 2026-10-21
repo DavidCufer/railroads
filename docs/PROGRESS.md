@@ -6695,3 +6695,68 @@ one fuel+servicing constant 0.22 derived from the NBER 8 % fuel share, handling 
 `COST_REALISM_ANCHORS` removed). Bound changed with the owner's OK (2026-10-21), only this one:
 `balanceLongHaul` 1930 silver `lateReturn` > 0.5 -> > 0.45 (measured 0.493). The silver money-a-year line (> 1.8e6) passes.
 `npm run check` 932 green; e2e 136 + 136 green. Items 2-3 (bench, SPEC) to do.
+
+## 2026-10-21 - Phase 61 items 2-3: measured (177 runs, `docs/bench/phase61.md`); the strong player goes bankrupt in 4 of 10 on Normal 1930 and 8 of 10 on Normal 1950
+
+**Status.** Item 1 is on main (01c638b, owner OK for the 1930 silver `lateReturn` bound 0.45). Item 2 done: `tools/bench/phase61.ts` (pieces of about 13 minutes, 16+ pieces, each pushed), `tools/bench/phase61Summary.ts` (this table). Item 3: SPEC §9 (new Phase 61 block), PLAN ticked. No test bound changed in this part; no band set. Headline columns are **yearly revenue and operating profit** (years 5 / 10 / 16, the completed year; medians; bankrupt runs have no later years, so the year-10 and year-16 medians are of survivors only), net worth next to them, as asked.
+
+### Results (strong 10 seeds Normal / 5 Hard, good 5 seeds, bad bots 3 seeds in 1840 / 1900 / 1950; `npx tsx tools/bench/phase61Summary.ts`)
+| bot | diff | start | runs | bankrupt | revenue $M y5 / y10 / y16 (median) | operating profit $M y5 / y10 / y16 (median) | final NW $M median [min-max] | op ratio y3 / y10 / y16 | return on capital y3 / y10 / y16 | cash>20% NW, years (median; never) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| strong | hard | 1840 | 5 | 0 | 0.74 / 0.99 / 4.72 | 0.46 / 0.44 / 2.78 | 8.69 [7.69-9.76] | 0.36 / 0.55 / 0.39 | 0.23 / 0.11 / 0.23 | 2.0; 0 |
+| strong | hard | 1870 | 5 | 1 | 1.26 / 2.87 / 4.28 | 0.80 / 1.35 / 0.98 | 12.89 [11.40-13.47] | 0.45 / 0.54 / 0.77 | 0.23 / 0.15 / 0.06 | 3.0; 0 |
+| strong | hard | 1900 | 5 | 5 | 0.50 / 0.56 / - | 0.20 / 0.17 / - | 1.41 [1.38-2.11] | 0.47 / 0.70 / - | 0.20 / 0.11 / - | 2.0; 0 |
+| strong | hard | 1930 | 5 | 3 | 0.52 / 0.51 / 1.27 | 0.22 / 0.18 / 0.35 | 1.31 [1.30-3.47] | 0.59 / 0.63 / 0.75 | 0.13 / 0.13 / 0.11 | 2.0; 0 |
+| strong | hard | 1950 | 5 | 4 | 0.71 / 1.23 / 1.29 | 0.22 / 0.41 / 0.12 | 1.90 [1.77-2.00] | 0.46 / 0.68 / 0.91 | 0.34 / 0.15 / 0.04 | 3.0; 0 |
+| strong | normal | 1840 | 10 | 0 | 1.25 / 2.90 / 7.08 | 0.69 / 1.49 / 4.21 | 17.83 [15.48-25.96] | 0.42 / 0.48 / 0.40 | 0.21 / 0.17 / 0.26 | 2.0; 0 |
+| strong | normal | 1870 | 10 | 0 | 1.19 / 2.21 / 5.06 | 0.54 / 0.76 / 1.98 | 8.65 [6.84-11.37] | 0.51 / 0.66 / 0.61 | 0.19 / 0.11 / 0.15 | 4.0; 7 |
+| strong | normal | 1900 | 10 | 0 | 2.96 / 5.14 / 9.66 | 1.48 / 1.79 / 2.68 | 16.81 [11.52-31.38] | 0.46 / 0.64 / 0.71 | 0.24 / 0.15 / 0.12 | 15.0; 9 |
+| strong | normal | 1930 | 10 | 4 | 1.29 / 1.29 / 2.92 | 0.36 / 0.23 / 0.87 | 3.48 [1.97-4.30] | 0.66 / 0.82 / 0.70 | 0.14 / 0.08 / 0.16 | 11.5; 4 |
+| strong | normal | 1950 | 10 | 8 | 4.01 / 5.52 / 8.04 | 1.44 / 0.97 / 1.96 | 7.63 [6.52-10.29] | 0.46 / 0.83 / 0.76 | 0.41 / 0.08 / 0.13 | 4.0; 1 |
+| good | hard | 1840 | 5 | 0 | 0.46 / 0.54 / 1.56 | 0.26 / 0.23 / 0.89 | 3.23 [3.07-4.77] | 0.39 / 0.59 / 0.42 | 0.25 / 0.10 / 0.21 | 2.0; 0 |
+| good | hard | 1870 | 5 | 0 | 0.80 / 3.57 / 6.80 | 0.46 / 2.17 / 3.30 | 22.30 [17.27-27.63] | 0.27 / 0.39 / 0.54 | 0.39 / 0.23 / 0.12 | 2.0; 0 |
+| good | hard | 1900 | 5 | 0 | 0.70 / 1.42 / 2.85 | 0.50 / 0.86 / 1.12 | 6.13 [5.67-7.17] | 0.34 / 0.41 / 0.61 | 0.45 / 0.23 / 0.13 | 2.0; 0 |
+| good | hard | 1930 | 5 | 0 | 0.57 / 0.71 / 1.16 | 0.35 / 0.47 / 0.51 | 2.72 [2.58-2.96] | 0.56 / 0.34 / 0.56 | 0.15 / 0.37 / 0.16 | 2.0; 0 |
+| good | hard | 1950 | 5 | 0 | 0.37 / 0.64 / 0.87 | 0.10 / 0.34 / 0.53 | 2.51 [2.23-2.75] | 0.48 / 0.48 / 0.39 | 0.26 / 0.29 / 0.40 | 2.0; 0 |
+| good | normal | 1840 | 5 | 0 | 0.66 / 1.25 / 5.60 | 0.27 / 0.58 / 3.67 | 10.27 [7.16-11.40] | 0.49 / 0.54 / 0.34 | 0.16 / 0.14 / 0.30 | 2.0; 0 |
+| good | normal | 1870 | 5 | 0 | 1.92 / 8.39 / 8.35 | 1.04 / 5.24 / 4.58 | 46.48 [43.42-51.61] | 0.33 / 0.38 / 0.45 | 0.37 / 0.27 / 0.23 | 2.0; 0 |
+| good | normal | 1900 | 5 | 0 | 1.16 / 2.36 / 3.13 | 0.58 / 1.01 / 0.74 | 6.29 [5.98-7.15] | 0.49 / 0.59 / 0.76 | 0.23 / 0.14 / 0.07 | 2.0; 0 |
+| good | normal | 1930 | 5 | 0 | 0.87 / 1.02 / 2.55 | 0.27 / 0.40 / 0.84 | 4.32 [3.82-4.43] | 0.59 / 0.61 / 0.67 | 0.17 / 0.16 / 0.12 | 2.0; 0 |
+| good | normal | 1950 | 5 | 5 | 0.57 / 1.15 / - | 0.15 / 0.24 / - | 1.66 [1.64-1.87] | 0.63 / 0.79 / - | 0.16 / 0.08 / - | 2.0; 0 |
+| overbuilder | hard | 1840 | 3 | 3 | - / - / - | - / - / - | 0.02 [0.02-0.02] | - / - / - | - / - / - | -; 0 |
+| overbuilder | hard | 1900 | 3 | 3 | - / - / - | - / - / - | -0.17 [-0.17--0.17] | - / - / - | - / - / - | -; 0 |
+| overbuilder | hard | 1950 | 3 | 3 | - / - / - | - / - / - | 0.13 [0.13-0.13] | - / - / - | - / - / - | -; 0 |
+| overbuilder | normal | 1840 | 3 | 3 | - / - / - | - / - / - | 0.31 [0.31-0.31] | - / - / - | - / - / - | -; 0 |
+| overbuilder | normal | 1900 | 3 | 3 | - / - / - | - / - / - | 0.39 [0.39-0.39] | - / - / - | - / - / - | -; 0 |
+| overbuilder | normal | 1950 | 3 | 3 | - / - / - | - / - / - | 0.66 [0.66-0.66] | - / - / - | - / - / - | -; 0 |
+| trainSpammer | hard | 1840 | 3 | 3 | - / - / - | - / - / - | 0.42 [0.42-0.44] | - / - / - | - / - / - | -; 0 |
+| trainSpammer | hard | 1900 | 3 | 3 | - / - / - | - / - / - | 1.40 [1.40-1.41] | - / - / - | - / - / - | -; 0 |
+| trainSpammer | hard | 1950 | 3 | 3 | - / - / - | - / - / - | 1.19 [0.99-1.23] | - / - / - | - / - / - | -; 0 |
+| trainSpammer | normal | 1840 | 3 | 3 | - / - / - | - / - / - | 0.73 [0.72-0.73] | - / - / - | - / - / - | -; 0 |
+| trainSpammer | normal | 1900 | 3 | 3 | - / - / - | - / - / - | 1.18 [1.18-1.18] | - / - / - | - / - / - | -; 0 |
+| trainSpammer | normal | 1950 | 3 | 3 | - / - / - | - / - / - | 1.52 [1.52-1.53] | - / - / - | - / - / - | -; 0 |
+| leveraged | hard | 1840 | 3 | 3 | - / - / - | - / - / - | 1.06 [0.98-1.07] | - / - / - | - / - / - | -; 0 |
+| leveraged | hard | 1900 | 3 | 3 | - / - / - | - / - / - | 1.40 [1.40-1.41] | - / - / - | - / - / - | -; 0 |
+| leveraged | hard | 1950 | 3 | 3 | - / - / - | - / - / - | 1.19 [0.99-1.23] | - / - / - | - / - / - | -; 0 |
+| leveraged | normal | 1840 | 3 | 3 | - / - / - | - / - / - | 1.25 [1.19-1.27] | - / - / - | - / - / - | -; 0 |
+| leveraged | normal | 1900 | 3 | 3 | - / - / - | - / - / - | 1.18 [1.18-1.18] | - / - / - | - / - / - | -; 0 |
+| leveraged | normal | 1950 | 3 | 3 | - / - / - | - / - / - | 1.52 [1.52-1.53] | - / - / - | - / - / - | -; 0 |
+
+Bad bots: bankrupt in every cell (18 of 18 runs each at Normal and Hard), same as Phase 60.
+
+### Against the targets (misses reported, nothing tuned)
+- **Operating ratio, strong Normal, year 16** (survivors): 0.40 / 0.61 / 0.71 / 0.70 / 0.76 for 1840 / 1870 / 1900 / 1930 / 1950; real 0.43-0.53 (1840s-50s), about 0.63 (1901), about 0.74 (1927-50). Inside or close in every era (1870 has no real figure). Year 3 is lower (0.42-0.66) and year 10 higher (0.48-0.83).
+- **Strong player survives Normal everywhere: MISS.** Bankrupt Normal: 1840 0/10, 1870 0/10, 1900 0/10, **1930 4/10, 1950 8/10**. Hard: 1840 0/5, 1870 1/5, 1900 5/5, 1930 3/5, 1950 4/5. The good bot: Normal 1950 **5/5**, all other cells 0; Hard 0 everywhere.
+- **Hard harder than Normal in every era: MISS in two cells.** Strong player final net worth: 1870 Hard 12.9 vs Normal 8.7 (Hard higher; Normal 1870 is the era where cash is idle for ever in 7 of 10 runs); good bot 1950 Normal bankrupt 5/5 while Hard survives 5/5; good 1900 Hard 6.1 vs Normal 6.3 (a tie).
+- Net worth fell a lot against Phase 60 (strong Normal medians 22.6 / 23.4 / 54.3 / 8.0 / 21.5 then, 17.8 / 8.7 / 16.8 / 3.5 / 7.6 now), as costs rose to real ratios.
+
+### Cause of the 1930 and 1950 bankruptcies (found, nothing changed)
+They cluster in the scheduled recessions: Normal 1930 starts go under in 1937-38 (Recession of 1937, 4 of 4 bankruptcies), Normal 1950 starts in 1954 (good bot, Recession of 1953) and 1958-61 (strong player; Suez oil shock 1957, Recession of 1960); `src/data/panics.ts`. Example, strong player Normal 1950 seed 4: yearly revenue $4.1M + 0.4M mail in the last year against $7.0M the year before, with the same 20 trains and 15 stations, while running costs stay at $4.8M, so the operating ratio goes from 0.70 (1958) to 1.07 (1959), operating profit -$0.3M, cash -$0.7M, bankrupt. Running costs of the bot's network are mostly fixed against traffic (station upkeep and staff 12-18 %, track upkeep 17 %, crews 19 %, head office 11 %; track wear 13 % and fuel follow traffic), so a demand fall of about a third in a panic turns a 0.70 operating ratio into a loss, and the lender cut to the credit limit then calls the debt. At year 10 the bankrupt runs already have operating ratios 0.8-1.07 (the survivors 0.7-0.8): costs have grown with the network while revenue has not kept pace. I did not test the panic depth directly; the revenue fall in seed 4 is measured, the panic as its cause is from the dates.
+
+### Decisions
+- Used the orchestrator's instruction to keep the fuel constant at the NBER 8 % anchor and not iterate; headline switched to revenue and profit as the owner asked.
+- Medians of years 10 and 16 are of the runs that reached them; the `runs` and `bankrupt` columns show how many that is.
+- Bad-bot rows have no yearly books (their driver prints only the bankruptcy and net worth).
+
+### Sources (Phase 61; links as found, a few could not be fetched from the container)
+Shift hours: ignitingtheflameofunity.yolasite.com/1877.php (Royal Commission 1877: 4-5 hours of overtime on a 10-hour day), /1893.php (Board of Trade, 14 hours), /1919.php and ictu.ie/blog/1919-marked-start-eight-hour-day-irish-railways-significant-centenary-anniversary-workers (eight-hour day 1919); Adamson Act 1916: en.wikipedia.org/wiki/Adamson_Act, law.justia.com/cases/federal/us/253/206; Hours of Service Act 1907 (16 hours): supreme.justia.com/cases/federal/us/244/336. Attendants (weak, railfan forums): forum.trains.com/t/size-to-steam-crews/207609, forum.trains.com/t/titles-or-names-given-to-workers-on-classic-passenger-trains/204706; full-crew laws: attorneygeneral.nd.gov/wp-content/uploads/2023/04/50-144July-31.pdf. Handling: 1899 railway employees (nebnewspapers.unl.edu/lccn/sn96080161/1901-05-09/ed-1/seq-1), North London Railway 1850 staff (railwaymen-nlr.org.uk/general-notes/). Fuel: 6-10 % of US Class I operating expenses (nber.org/chapters/c4617.pdf); about 25 % of British locomotive costs (nature.com/articles/127409a0); coal at the mine $1.04 (1900), $1.12 (1910) (ecology.iww.org/node/676, secondary). Real operating ratios: Phase 59 (3b).

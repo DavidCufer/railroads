@@ -2643,4 +2643,4 @@ rolling stock (`NET_WORTH_CONSTRUCTION_FRACTION`), so every $1 spent on track lo
 3. **Bench headline:** `strongPlayer`/`goodPlayer`/`survival` print yearly operating profit and revenue (years 5/10/16) as
    the headline; bands from now on are on profit and revenue (owner decides the numbers).
 4. Tests (update goal tests to the new type; never weaken), e2e, SPEC §11, PROGRESS.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+Status: [x] 1 [x] 2 [x] 3 [ ] 4
