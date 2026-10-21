@@ -2733,4 +2733,4 @@ balance test fails, report old/new and cause and stop on a branch `phase-67` (ow
    medians: say which year index and why). Table of old -> new for the owner in PROGRESS; push and STOP before merging
    item 4 (branch `phase-67-goals`) so the orchestrator can show the owner the amounts. Items 1-3 go to main when green.
 5. PROGRESS, SPEC (§9 finance, §11 goals), e2e (never weaken).
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [x] 3 [ ] 4 [x] 5

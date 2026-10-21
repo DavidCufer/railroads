@@ -625,12 +625,16 @@ stream (no other map changes), after the ordinary industries and `ensureIndustry
   months' operating profit before interest (lenders lend against cash flow), never below $500k (Phase 30A, §9.5c).
   Interest = base rate 6%/year (Easy 4%, Hard 8%) **plus a leverage premium** (§9.5c), charged monthly on the whole loan
   book. Repay anytime in $100k increments.
-- **Phase 39: loans are bonds.** Each loan repays in equal monthly principal over 10 years (120 months); the month's
-  instalment comes out of cash. The $500k floor on the credit limit is start-up credit and ends after 24 months; after that
-  the limit is `creditMult` × the lower of 50 % of net worth and 5× trailing earnings (zero for a company that earns
-  nothing and owns nothing). Interest also carries a cover premium (up to +8 points) when earnings before interest are
-  under 3× the base interest. If the limit falls below the debt (earnings fell, a panic) lenders call 25 % of the excess
-  each month out of cash.
+- **Phase 39 / 67: loans are long-term bonds.** Each loan repays in equal monthly principal over the bond's term, set by
+  the year of issue (`LOAN_TERM_YEARS`: 30 years from 1830, 25 from 1930; saves without a schedule use 30); the month's
+  instalment comes out of cash. The Borrow line shows the term. **Lenders never call a bond** (Phase 67): the credit
+  limit, which falls with earnings and in a panic, only limits *new* borrowing; repaying early stays allowed. The $500k
+  floor on the limit is start-up credit and ends after 24 months; after that the limit is `creditMult` × the lower of
+  50 % of net worth and 5× trailing earnings (zero for a company that earns nothing and owns nothing). Interest also
+  carries a cover premium (up to +8 points) when earnings before interest are under 3× the base interest, and on Hard a
+  risk premium above a debt-to-net-worth threshold. A company is bankrupt when cash stays negative past the grace
+  period because interest, instalments or running costs cannot be paid (a forced loan covers a shortfall only within the
+  limit).
 - No stock market, no shares, no competitors.
 
 ### 9.2 Ledger categories (tracked per month and per year)
@@ -1290,3 +1294,4 @@ localization (English only, but keep strings in one `strings.ts` file for later)
 - [Phase 61] §9 running costs: shift hours, attendants, one fuel+servicing figure and one handling share replace the tuned `COST_REALISM_ANCHORS` blend (operating ratio of a strong player on Normal now 0.40-0.76 at year 16); the 1930 silver chain bound is 0.45 (owner OK). Bench: docs/bench/phase61.md.
 - [Phase 65] §9 panics: each panic has its own sourced depth and length (US 1893 -11 %, 1907 -12 %, 1931 -48 %, 1937 -19.5 %, post-war -4 to -15 %), seed noise +-15 %; the flat 20-40 % / 12-24 months is gone. Strong player Normal: 1950 now 2/10 bankrupt (was 8/10), 1930 7/10 (was 4/10, the 1931 trough is real). Bench: docs/bench/phase65.md.
 - [Phase 66] §7.6 trains can be laid up and returned to service (`layUpTrain`, `returnTrainToService`; new train fields `laidUp`, `returnTicksLeft`, `laidUpTicks`, status `laidUp`, optional so old saves load unchanged). §9 crew wages and servicing are prorated by days laid up. The bots lay up trains of lines with negative train-level profit over 3 months during a panic. Result: no change to survival in 1930 Normal (7/10 bankrupt, the credit squeeze and fixed track and station costs are what kills, not train costs). Bench: docs/bench/phase66.md.
+- [Phase 67] §9.1 loans are long-term bonds (30 years, 25 from 1930), never called when the credit limit falls; §8.1 laid-up trains give no passenger service (`serviceRates`). PROGRESS Phase 67 for sources and the re-measure.
