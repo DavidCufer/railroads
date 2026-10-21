@@ -5,8 +5,7 @@
 import {
   PANICS,
   PANIC_DEPTH_MAX,
-  PANIC_DEPTH_RANGE,
-  PANIC_MONTHS_RANGE,
+  PANIC_NOISE,
   PANIC_QUIET_MONTHS,
   PANIC_RECOVERY_MONTHS,
 } from "../../data/panics";
@@ -41,10 +40,8 @@ export function panicSchedule(state: GameState): Panic[] {
     const rng = createRng((state.seed ^ Math.imul(def.year, 2654435761)) >>> 0);
     const happens = nextFloat(rng) < diff.panicChance;
     const monthInYear = Math.floor(nextFloat(rng) * MONTHS_PER_YEAR);
-    const depth0 =
-      PANIC_DEPTH_RANGE[0] + nextFloat(rng) * (PANIC_DEPTH_RANGE[1] - PANIC_DEPTH_RANGE[0]);
-    const months0 =
-      PANIC_MONTHS_RANGE[0] + nextFloat(rng) * (PANIC_MONTHS_RANGE[1] - PANIC_MONTHS_RANGE[0]);
+    const depth0 = def.depth * (1 + (nextFloat(rng) * 2 - 1) * PANIC_NOISE);
+    const months0 = def.months * (1 + (nextFloat(rng) * 2 - 1) * PANIC_NOISE);
     const startMonth = (def.year - state.startYear) * MONTHS_PER_YEAR + monthInYear;
     if (!happens || startMonth < PANIC_QUIET_MONTHS) continue;
     out.push({

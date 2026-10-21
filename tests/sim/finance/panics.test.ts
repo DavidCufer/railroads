@@ -10,6 +10,7 @@ import {
 import { computeCreditLimit, monthlyFinanceStep } from "../../../src/sim/finance/ledger";
 import { accrueDailyCargo } from "../../../src/sim/economy/cargoFlow";
 import { strings } from "../../../src/ui/strings";
+import { PANICS, PANIC_NOISE } from "../../../src/data/panics";
 import type { Difficulty } from "../../../src/data/finance";
 
 const MONTH = 30 * 24;
@@ -43,15 +44,23 @@ describe("financial panics (Phase 39)", () => {
     expect(easy.depth).toBeLessThan(normal.depth * 0.7);
   });
 
-  it("falls 20-40 % on Normal, lasts 12-24 months, starts in its year", () => {
+  it("each panic falls and lasts as long as its sourced figure (within the seeded noise), starting in its year", () => {
     for (let seed = 1; seed <= 20; seed++)
       for (const p of panicSchedule(mk(seed))) {
-        expect(p.depth).toBeGreaterThanOrEqual(0.2);
-        expect(p.depth).toBeLessThanOrEqual(0.4);
-        expect(p.months).toBeGreaterThanOrEqual(12);
-        expect(p.months).toBeLessThanOrEqual(24);
+        const def = PANICS.find((d) => d.year === p.year)!;
+        expect(p.depth).toBeGreaterThanOrEqual(def.depth * (1 - PANIC_NOISE) - 1e-9);
+        expect(p.depth).toBeLessThanOrEqual(def.depth * (1 + PANIC_NOISE) + 1e-9);
+        expect(p.months).toBeGreaterThanOrEqual(Math.floor(def.months * (1 - PANIC_NOISE)));
+        expect(p.months).toBeLessThanOrEqual(Math.ceil(def.months * (1 + PANIC_NOISE)));
         expect(1850 + Math.floor(p.startMonth / 12)).toBe(p.year);
       }
+  });
+
+  it("recessions are not all as deep as the Great Depression", () => {
+    const depth = (y: number) => PANICS.find((d) => d.year === y)!.depth;
+    expect(depth(1931)).toBeGreaterThan(0.4);
+    for (const y of [1953, 1957, 1960]) expect(depth(y)).toBeLessThan(0.15);
+    expect(PANICS.every((d) => d.depth > 0 && d.months >= 12)).toBe(true);
   });
 
   it("cuts demand and the credit limit while it lasts, and posts news at the start", () => {
