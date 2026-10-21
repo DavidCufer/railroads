@@ -35,6 +35,7 @@ import { calendarFromTicks } from "../../src/sim/time";
 import { stationMonthlyCost, trackEdgeMonthlyCost } from "../../src/sim/finance/costs";
 import * as economy from "../../src/data/economy";
 import type { TrackEdge } from "../../src/sim/track/types";
+import { createLayUpPolicy } from "./layUp";
 import { fixWeightBridges } from "./fixBridges";
 import { estimateFreightPayback, estimatePayback } from "./paybackEstimate";
 import type { City, Industry } from "../../src/sim/economy/types";
@@ -88,6 +89,7 @@ interface Line {
   /** Freight: carloads a month the source puts out when the line was built. */
   carloadsPerMonth: number;
 }
+const layUp = createLayUpPolicy({ returnOnTraffic: true });
 const lines: Line[] = [];
 const connected = new Set<number>();
 const servedIndustries = new Set<number>();
@@ -621,6 +623,7 @@ function addTrainsWhereWaiting(): boolean {
     const load = line.kind === "pax" ? (40 / PARTY_SIZE) * cars : CARGO[line.cargo].capacity * cars;
     const cap = line.kind === "pax" ? 8 : 6;
     if (line.trains.length >= cap || waiting(line) <= load) continue;
+    if (layUp.lineHasLaidUp(state, line.trains)) continue; // bring a laid-up train back first
     // a train is worth adding only if it pays for itself within the payback the bot accepts
     const d = lineDistance(line);
     const e =
@@ -707,9 +710,11 @@ for (let y = 1; startYear + y <= endYear + 0; y++) {
   for (let m = 0; m < 12; m++) {
     for (let k = 0; k < 3; k++) {
       day(10);
+      layUp.manage(state);
       spend();
     }
     fixWeightBridges(state);
+    layUp.sample(state);
     if (m % 3 === 0) housekeeping();
     if (m === 5) improvements();
     repayIfIdle();
@@ -755,6 +760,7 @@ console.log(`# strong ${region} ${startYear} ${difficulty} seed ${seed}`);
 console.log(report.join("\n"));
 console.log(rows.join("\n"));
 console.log(`TIME total ${Math.round((Date.now() - T0) / 1000)}s sim ${Math.round(simMs / 1000)}s`);
+console.log(`LAYUP laidUp ${layUp.stats.laidUp} returned ${layUp.stats.returned}`);
 console.log(`MINCASH ${(minCash / 1e6).toFixed(2)}`);
 console.log(
   `IDLE20 ${idle20 ?? "never"} idleMonthShare ${(idleMonths / Math.max(1, months)).toFixed(2)}`,

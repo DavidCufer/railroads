@@ -35,6 +35,7 @@ if (process.env["RANGE"]) {
 import { ERA_START_CASH_MULT } from "../../src/data/finance";
 // ERAMULT=off: every era starts with the plain difficulty cash (the numbers before Phase 41).
 if (process.env["ERAMULT"] === "off") (ERA_START_CASH_MULT as unknown as unknown[][]).length = 0;
+import { createLayUpPolicy } from "./layUp";
 import { fixWeightBridges } from "./fixBridges";
 import { estimatePayback } from "./paybackEstimate";
 import { PARTY_SIZE } from "../../src/data/economy";
@@ -507,6 +508,7 @@ function snapshot(label: string): void {
   );
 }
 
+const layUp = createLayUpPolicy({ returnOnTraffic: false });
 let totalRevenue = 0;
 const yearRows: string[] = []; // Phase 60: same YEAR/IDLE20 rows as strongPlayer, for the operating ratio and return on capital
 let idle20: number | null = null;
@@ -517,7 +519,11 @@ for (let y = 1; startYear + y <= endYear; y++) {
   totalRevenue += ledgerRevenue(state.finance.lastYear);
   yearlyPlanning();
   for (let m = 0; m < 12; m++) {
-    day(30);
+    for (let k = 0; k < 3; k++) {
+      day(10);
+      layUp.manage(state);
+    }
+    layUp.sample(state);
     fixWeightBridges(state);
     minCash = Math.min(minCash, state.cash);
     if (state.ticks >= 24 * 30 * 24)
@@ -600,6 +606,7 @@ console.log(report.join("\n"));
 if (process.env.V) console.log(state.trains.map((t) => `${t.locoModelId}:${t.status}`).join(" "));
 console.log(yearRows.join("\n"));
 console.log(`IDLE20 ${idle20 ?? "never"}`);
+console.log(`LAYUP laidUp ${layUp.stats.laidUp} returned ${layUp.stats.returned}`);
 console.log(`MINCASH ${(minCash / 1e6).toFixed(2)}`);
 // Phase 56: which engines the bot ended up running
 const engineCounts = new Map<string, number>();

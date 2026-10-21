@@ -2,7 +2,7 @@
  * Per-line books (PLAN Phase 30B): a *line* is the set of trains that share the same set of stops.
  * Pure aggregation over the per-train books; nothing here is saved or feeds back into the sim.
  */
-import { priceIndex } from "../../data/economy";
+import { LAID_UP_SERVICING_SHARE, priceIndex } from "../../data/economy";
 import { locomotiveById } from "../../data/trains";
 import type { GameState } from "../state";
 import { calendarFromTicks, DAYS_PER_MONTH, DAYS_PER_YEAR, HOURS_PER_DAY } from "../time";
@@ -62,10 +62,13 @@ function accruedCosts(state: GameState, train: Train): number {
   const monthTicks = HOURS_PER_DAY * DAYS_PER_MONTH;
   const sinceMonthStart = state.ticks % monthTicks;
   const owned = Math.min(sinceMonthStart, state.ticks - booksStartTick(train));
+  // Phase 66: the part of the month spent laid up pays no crew and only the stored engine's care.
+  const idle = Math.min(1, (train.laidUpTicks ?? 0) / monthTicks);
   const monthly =
-    (locoRunningCostPerYear(loco, mechanicalAgeYears(state, train), year) +
-      carsUpkeepPerYear(train.cars, year) +
-      trainWagesPerYear(loco, train.cars, year)) /
+    ((locoRunningCostPerYear(loco, mechanicalAgeYears(state, train), year) +
+      carsUpkeepPerYear(train.cars, year)) *
+      (1 - idle * (1 - LAID_UP_SERVICING_SHARE)) +
+      trainWagesPerYear(loco, train.cars, year) * (1 - idle)) /
     12;
   const fuel = (train.fuelUnits ?? 0) * priceIndex(year) * fuelPriceMult(state, loco.type);
   const repairs =
