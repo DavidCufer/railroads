@@ -11,17 +11,16 @@
 import * as commands from "../../src/sim/commands";
 import { PAIR_DEMAND, TRAVEL_RANGE_ANCHORS, TRIPS_PER_HEAD_ANCHORS } from "../../src/data/economy";
 
-// PAIR="distanceExponent,sizeExponent,minDistanceTiles,maxShare" overrides the passenger-destination table for tuning
+// PAIR="distanceExponent,sizeExponent,minDistanceTiles" overrides the passenger-destination table for tuning
 // runs; TRIPS=<factor> scales the trips-per-head table; RANGE=<factor> scales the travel range.
 if (process.env["PAIR"]) {
-  const [dist, size, minDist, maxShare] = process.env["PAIR"]
+  const [dist, size, minDist] = process.env["PAIR"]
     .split(",")
     .map((v) => (v.trim() === "" ? undefined : Number(v)));
   Object.assign(PAIR_DEMAND, {
     distanceExponent: dist ?? PAIR_DEMAND.distanceExponent,
     sizeExponent: size ?? PAIR_DEMAND.sizeExponent,
     minDistanceTiles: minDist ?? PAIR_DEMAND.minDistanceTiles,
-    maxShare: maxShare ?? PAIR_DEMAND.maxShare,
   });
 }
 if (process.env["TRIPS"]) {

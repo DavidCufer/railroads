@@ -599,20 +599,16 @@ export function tripsPerHeadPerMonth(year: number): number {
   return interpolateYear(TRIPS_PER_HEAD_ANCHORS, year);
 }
 
-/** The total is split over every town within `travelRangeTiles(year)` (the destinations people know of) by a gravity
- * share: weight = destination population / max(distance, `minDistanceTiles`)^`distanceExponent`. Shares sum to 1 over
- * the candidates, no single destination takes more than `maxShare` of the total unless it is the only town in range,
- * and a station generates the total x the shares of the towns the network *reaches*. Nearer and bigger takes most; a
- * far small town gets little. */
+/** Gravity weight of a destination: population^`sizeExponent` / max(distance, `minDistanceTiles`)^`distanceExponent`
+ * (the classic gravity form, Zipf 1946; exponent 1 on both is its textbook value). Phase 62 replaced the 20 % cap on one
+ * destination's share by intervening opportunities and the radiation model's trip total (`destinationShares`, SPEC 8.1):
+ * a station generates the total x the shares of the towns the network *reaches*. */
 export const PAIR_DEMAND = {
   distanceExponent: 1,
   /** Exponent of the destination's population in its weight (1 = proportional). */
   sizeExponent: 1,
   /** Towns nearer than this weigh as if at this distance (tiles of 5 km): stops a next-door village dominating. */
   minDistanceTiles: 15,
-  /** Largest share of the town total one destination can take (unless it is the only candidate). Phase 51: 0.2 (was
-   * 0.5): real towns sent travellers to many places, so no single partner fills train after train. */
-  maxShare: 0.2,
 };
 
 /** Phase 51: people wait only for the next train. A destination's waiting pile holds `demand per day x service
