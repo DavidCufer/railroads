@@ -2590,7 +2590,7 @@ limit; if a balance test fails, report old/new and the cause and stop (owner dec
    `explore.ts`) and the strong player (5 seeds Normal, 1840/1900) and report.
 2. (Moved to Phase 63: repair-crew art.)
 3. PROGRESS, SPEC (§8.1 passenger shares), e2e (never weaken).
-Status: [ ] 1 [-] 2 (moved to 63) [ ] 3
+Status: [x] 1 [-] 2 (moved to 63) [x] 3
 
 ## Phase 63 — UI: news opens its train, clear news in one tap, industry panel as a picture, drop the stop gap stepper, repair-crew art
 
@@ -2650,7 +2650,7 @@ rolling stock (`NET_WORTH_CONSTRUCTION_FRACTION`), so every $1 spent on track lo
 3. **Bench headline:** `strongPlayer`/`goodPlayer`/`survival` print yearly operating profit and revenue (years 5/10/16) as
    the headline; bands from now on are on profit and revenue (owner decides the numbers).
 4. Tests (update goal tests to the new type; never weaken), e2e, SPEC §11, PROGRESS.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+Status: [x] 1 [x] 2 [x] 3 [x] 4
 
 ## Phase 65 — Each crisis as deep as it really was
 
