@@ -7026,7 +7026,7 @@ Formula unchanged from Phase 64 (`strongPlayerAmount`: median x priceIndex(goal 
 
 ### Why the test is red (cause, not tuned)
 1. **The reference operator is now far below the strong bot.** `tests/sim/referenceOperator.ts` (the calibration's model of an able player, Phase 28A) was not changed by Phase 62; the strong bot's profit after the gravity split is 2.4-4x higher in 1870/1900 (see the 1900 section of the Phase 67 entry above), so a goal set from the bot's medians lands 2-5x above the model in gb 1870 and us-west 1920. Either the reference operator must be re-calibrated to the post-62 bot, or the goals set between the two. Owner's decision; I changed neither the operator nor a bound.
-2. **The 1930 row is the Depression-and-war row.** Its y16 profit median is $0.10M (the strong bot earns 0.49 / 0.21 / 0.10 at y5 / y10 / y16: the 1930s start loses money to the Depression and the Hard-ish post-1945 costs). So central-eu gold (1930) falls to $92k, a goal the first line meets, and the random-map 1930 gold to $0.11M. Do not ship it. Options: use the y5 median (0.49M) for the 1930 row, or make the goal year/era row independent of the Depression; not decided here.
+2. **The 1930 row is a weak row.** Its y16 profit median is $0.10M (the strong bot earns 0.49 / 0.21 / 0.10 at y5 / y10 / y16: cause not investigated; the row's runs start in the Depression). So central-eu gold (1930) falls to $92k, a goal the first line meets, and the random-map 1930 gold to $0.11M. Do not ship it. Options: use the y5 median (0.49M) for the 1930 row, or make the goal year/era row independent of the Depression; not decided here.
 3. The random-map default gold (1830 start, 1880 goal) is 3.22x the operator (limit 3).
 
 ### What changed (all on this branch)
