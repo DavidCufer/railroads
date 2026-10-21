@@ -17,8 +17,8 @@ export function describeGoal(state: GameState, goal: Goal): string {
       return strings.goals.types.connect(def.cityIds.map((id) => cityName(state, id)).join(" – "));
     case "annualRevenue":
       return strings.goals.types.annualRevenue(formatMoney(def.amount));
-    case "netWorth":
-      return strings.goals.types.netWorth(formatMoney(def.amount));
+    case "annualProfit":
+      return strings.goals.types.annualProfit(formatMoney(def.amount));
     case "cityTier":
       return strings.goals.types.cityTier(
         cityName(state, def.cityId),

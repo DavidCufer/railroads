@@ -107,15 +107,33 @@ describe("evaluateGoal", () => {
     expect(status.current).toBe(1200);
   });
 
-  it("netWorth: complete once cash (net worth) reaches the target", () => {
+  it("annualProfit: operating profit of a completed year; hoarded cash and an unfinished year do not count", () => {
     const { state } = stateWithTwoCities();
     const goal: Goal = {
       id: "g",
       tier: "gold",
-      def: { type: "netWorth", amount: 2_000_000, byYear: 1900 },
+      def: { type: "annualProfit", amount: 2_000_000, byYear: 1900 },
     };
+    state.cash = 50_000_000; // cash is not profit
+    state.finance.thisYear = { ...emptyLedgerPeriod(), passengers: 9_000_000 };
     expect(evaluateGoal(state, goal).complete).toBe(false);
-    state.cash = 5_000_000;
+
+    // 3M revenue less 1.5M running costs = 1.5M profit: not yet.
+    state.finance.lastYear = {
+      ...emptyLedgerPeriod(),
+      passengers: 3_000_000,
+      crewWages: 1_500_000,
+    };
+    const short = evaluateGoal(state, goal);
+    expect(short.complete).toBe(false);
+    expect(short.current).toBe(1_500_000);
+
+    // Construction is not a running cost: spending on track does not lower it.
+    state.finance.lastYear = {
+      ...emptyLedgerPeriod(),
+      passengers: 2_500_000,
+      construction: 4_000_000,
+    };
     expect(evaluateGoal(state, goal).complete).toBe(true);
   });
 
@@ -170,7 +188,7 @@ describe("evaluateGoal", () => {
     const goal: Goal = {
       id: "g",
       tier: "bronze",
-      def: { type: "netWorth", amount: 999_999_999, byYear: 1831 },
+      def: { type: "annualProfit", amount: 999_999_999, byYear: 1831 },
     };
     state.ticks = HOURS_PER_DAY * DAYS_PER_YEAR * 5; // well past 1831
     const status = evaluateGoal(state, goal);

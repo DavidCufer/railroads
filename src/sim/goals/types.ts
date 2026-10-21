@@ -10,14 +10,14 @@ import type { GoalTier } from "../../data/goals";
 
 export type { GoalTier };
 
-/** SPEC §11's six goal types, verbatim, plus a generalization of `connect(cityA, cityB, byYear)`
+/** SPEC §11's six goal types (Phase 64: `netWorth` became `annualProfit`), plus a generalization of `connect(cityA, cityB, byYear)`
  * to `cityIds: number[]` (2+ cities that must all be mutually reachable by rail) — needed to
  * express gb's "Connect London-Birmingham-Manchester-Liverpool" example, which names four cities,
  * not two. A 2-element array is exactly SPEC's original pairwise case. */
 export type GoalDef =
   | { type: "connect"; cityIds: number[]; byYear: number }
   | { type: "annualRevenue"; amount: number; byYear: number }
-  | { type: "netWorth"; amount: number; byYear: number }
+  | { type: "annualProfit"; amount: number; byYear: number }
   | { type: "cityTier"; cityId: number; tier: CityTier; byYear: number }
   | { type: "delivered"; cargo: CargoType; amount: number; withinYear: number }
   | { type: "electrifiedTiles"; amount: number; byYear: number };

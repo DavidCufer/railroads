@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { buildStation, buildTrack, computeBuildPlan } from "../../../src/sim/commands";
 import { dailyGoalsStep } from "../../../src/sim/economy/goalTracking";
 import { GOAL_LAND_GRANT_1830, goalLandGrant } from "../../../src/data/economy";
+import { emptyLedgerPeriod } from "../../../src/data/finance";
 import { makeTestMap, makeTestState, tileAt } from "../track/helpers";
 import type { GameState } from "../../../src/sim/state";
 
@@ -10,8 +11,9 @@ function world(): GameState {
   const map = makeTestMap(["pppppppppppp"]);
   const state = makeTestState(map, { startYear: 1860, cash: 1e9 });
   state.goals = [
-    { id: "g-bronze", tier: "bronze", def: { type: "netWorth", amount: 1, byYear: 1900 } },
+    { id: "g-bronze", tier: "bronze", def: { type: "annualProfit", amount: 1, byYear: 1900 } },
   ];
+  state.finance.lastYear = { ...emptyLedgerPeriod(), passengers: 10 };
   return state;
 }
 

@@ -29,6 +29,7 @@ import {
   type LedgerPeriod,
 } from "../../src/data/finance";
 import { netWorth } from "../../src/sim/finance/ledger";
+import { headline } from "./headline";
 import { landPrices } from "../../src/sim/economy/land";
 import { cityTileAcceptance } from "../../src/sim/economy/cityStats";
 import { calendarFromTicks } from "../../src/sim/time";
@@ -754,6 +755,8 @@ void STATION_TYPE_DEFS;
 console.log(`# strong ${region} ${startYear} ${difficulty} seed ${seed}`);
 console.log(report.join("\n"));
 console.log(rows.join("\n"));
+// Phase 64: the headline is yearly operating profit and revenue (completed years 5 / 10 / 16), not cash or net worth.
+console.log(headline(rows, startYear));
 console.log(`TIME total ${Math.round((Date.now() - T0) / 1000)}s sim ${Math.round(simMs / 1000)}s`);
 console.log(`MINCASH ${(minCash / 1e6).toFixed(2)}`);
 console.log(

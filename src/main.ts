@@ -131,7 +131,7 @@ import { terrainId } from "./sim/map/terrain";
 import { inBounds, tileIndex } from "./sim/map/grid";
 import { calendarFromTicks, isMonthBoundary, isYearBoundary } from "./sim/time";
 import type { MapSizeName, Roughness, WaterLevel } from "./data/mapGen";
-import type { Difficulty } from "./data/finance";
+import { emptyLedgerPeriod, type Difficulty } from "./data/finance";
 import type { RegionId } from "./sim/regions";
 import type { BridgeType } from "./data/track";
 import { STATION_TYPE_DEFS, type StationImprovementType, type StationType } from "./data/stations";
@@ -1654,9 +1654,11 @@ function main(): void {
           debugPlaceIndustry: (tile: number, type: IndustryType) => number;
           /** Test-only: injects a city directly, same rationale as `debugPlaceIndustry`. */
           debugPlaceCity: (tiles: number[], population: number) => number;
-          /** Test-only: sets cash directly, so e2e specs can trigger a netWorth-style goal without
-           * simulating real revenue. */
+          /** Test-only: sets cash directly (e2e specs that need money without earning it). */
           debugSetCash: (amount: number) => void;
+          /** Test-only: books `amount` of passenger revenue and no costs in last year's ledger, so e2e specs can
+           * complete a yearly profit/revenue goal without simulating real trains. */
+          debugSetLastYearIncome: (amount: number) => void;
           /** Test-only (Phase 12 perf/memory stress specs): builds a deterministic grid track
            * network directly, bypassing normal build validation — see the implementation below. */
           debugBuildStressNetwork: (options: {
@@ -1985,6 +1987,9 @@ function main(): void {
       },
       debugSetCash: (amount: number) => {
         state.cash = amount;
+      },
+      debugSetLastYearIncome: (amount: number) => {
+        state.finance.lastYear = { ...emptyLedgerPeriod(), passengers: amount };
       },
       // Phase 12 stress-test scaffolding: builds a deterministic grid network directly on the
       // track graph (bypassing sim/commands.ts's cost/terrain/turn validation, same precedent as

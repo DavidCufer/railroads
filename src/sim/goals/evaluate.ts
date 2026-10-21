@@ -3,10 +3,9 @@
  * Goals panel (on demand) and by `src/sim/economy/goalTracking.ts`'s daily step (to detect a
  * newly-completed goal for the celebration dialog/news toast).
  */
-import { ledgerRevenue } from "../../data/finance";
+import { ledgerOperatingProfit, ledgerRevenue } from "../../data/finance";
 import { CITY_TIERS } from "../../data/cities";
 import { STATION_TYPE_DEFS } from "../../data/stations";
-import { netWorth } from "../finance/ledger";
 import { stationCatchmentTiles } from "../stations/placement";
 import { calendarFromTicks } from "../time";
 import type { GameState } from "../state";
@@ -95,8 +94,9 @@ export function evaluateGoal(state: GameState, goal: Goal): GoalStatus {
       byYear = def.byYear;
       break;
     }
-    case "netWorth": {
-      current = netWorth(state);
+    case "annualProfit": {
+      // A completed calendar year only: operating profit (revenue minus running costs, no construction).
+      current = ledgerOperatingProfit(state.finance.lastYear);
       target = def.amount;
       complete = current >= target;
       byYear = def.byYear;

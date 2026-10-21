@@ -45,6 +45,7 @@ import { findBuildPath } from "../../src/sim/track/pathfind";
 import { buyableLocomotivesIn, locomotiveById } from "../../src/data/trains";
 import { STATION_TYPE_DEFS } from "../../src/data/stations";
 import { netWorth } from "../../src/sim/finance/ledger";
+import { headline } from "./headline";
 import { activePanic, fuelPriceMult } from "../../src/sim/finance/panics";
 import { creditLimitFor } from "../../src/sim/finance/credit";
 import { ledgerOperatingCosts, ledgerOperatingProfit, ledgerRevenue } from "../../src/data/finance";
@@ -599,6 +600,8 @@ console.log(`# ${region} ${startYear} ${difficulty} seed ${seed}`);
 console.log(report.join("\n"));
 if (process.env.V) console.log(state.trains.map((t) => `${t.locoModelId}:${t.status}`).join(" "));
 console.log(yearRows.join("\n"));
+// Phase 64: the headline is yearly operating profit and revenue (completed years 5 / 10 / 16), not cash or net worth.
+console.log(headline(yearRows, startYear));
 console.log(`IDLE20 ${idle20 ?? "never"}`);
 console.log(`MINCASH ${(minCash / 1e6).toFixed(2)}`);
 // Phase 56: which engines the bot ended up running

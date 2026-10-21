@@ -1,12 +1,13 @@
 /**
- * PLAN Phase 28A: money goals are set from the new economy, not guessed. The reference operator
+ * PLAN Phase 28A / Phase 64: money goals (yearly profit or revenue; no goal counts cash) are set from the economy, not
+ * guessed. The reference operator
  * (tests/sim/referenceOperator.ts) is an able player compounding the balance report's measured per-train profit;
  * gold goals must sit above it (PLAYTEST-1: "gold goals are trivially reachable"), silver near it, and nothing
  * may be out of reach.
  */
 import { describe, expect, it } from "vitest";
 import { DIFFICULTY } from "../../src/data/finance";
-import { REGION_GOALS, type GoalDefByName } from "../../src/data/goals";
+import { REGION_GOALS, strongPlayerAmount, type GoalDefByName } from "../../src/data/goals";
 import { generateRandomGoals } from "../../src/sim/goals/generate";
 import { createGameState } from "../../src/sim/state";
 import { OLD_ECONOMY, ROUTE_QUALITY, referenceOperator } from "./referenceOperator";
@@ -32,7 +33,7 @@ describe("money goals sit where the new economy puts an able player", () => {
     [keyof typeof REGION_START, (typeof REGION_GOALS)[keyof typeof REGION_GOALS]]
   >) {
     for (const { tier, def } of goals) {
-      if (def.type !== "netWorth" && def.type !== "annualRevenue") continue;
+      if (def.type !== "annualProfit" && def.type !== "annualRevenue") continue;
       it(`${region} ${tier}: ${def.type} ${def.amount} by ${def.byYear}`, () => {
         checkMoneyGoal(def, tier, REGION_START[region], DIFFICULTY.normal.startingCash);
       });
@@ -50,9 +51,9 @@ describe("money goals sit where the new economy puts an able player", () => {
           difficulty,
         });
         const gold = generateRandomGoals(state).find((g) => g.tier === "gold")!;
-        if (gold.def.type !== "netWorth" && gold.def.type !== "annualRevenue") continue;
+        if (gold.def.type !== "annualProfit" && gold.def.type !== "annualRevenue") continue;
         checkMoneyGoal(
-          gold.def as Extract<GoalDefByName, { type: "netWorth" | "annualRevenue" }>,
+          gold.def as Extract<GoalDefByName, { type: "annualProfit" | "annualRevenue" }>,
           "gold",
           state.startYear,
           DIFFICULTY[difficulty].startingCash,
@@ -63,13 +64,13 @@ describe("money goals sit where the new economy puts an able player", () => {
 });
 
 function checkMoneyGoal(
-  def: Extract<GoalDefByName, { type: "netWorth" | "annualRevenue" }>,
+  def: Extract<GoalDefByName, { type: "annualProfit" | "annualRevenue" }>,
   tier: "bronze" | "silver" | "gold",
   startYear: number,
   startCash: number,
 ): void {
   const ref = reference(startYear, def.byYear, startCash);
-  const reached = def.type === "netWorth" ? ref.netWorth : ref.revenue;
+  const reached = def.type === "annualProfit" ? ref.profit : ref.revenue;
   const ratio = def.amount / reached;
   if (tier === "gold") {
     expect(ratio, "gold must not be trivial").toBeGreaterThanOrEqual(0.8);
@@ -79,3 +80,17 @@ function checkMoneyGoal(
     expect(ratio, "silver must stay reachable").toBeLessThanOrEqual(1.5);
   }
 }
+
+describe("goal amounts follow the Phase 65 strong-player formula", () => {
+  it("restates the bench median in the goal year's money and rounds down to two figures", () => {
+    // 1900 row, revenue year 5: $2.96M earned in 1904, asked in 1920 money, never rounded up past the bench figure.
+    expect(strongPlayerAmount("revenue", 5, 1920)).toBe(3_200_000);
+    // 1870 row, year 16: $2.05M earned in 1885 (price index 1.67), asked in 1870 money (1.48): 1.8M.
+    expect(strongPlayerAmount("profit", 16, 1870)).toBe(1_800_000);
+  });
+
+  it("no region goal counts cash or net worth", () => {
+    for (const goals of Object.values(REGION_GOALS))
+      for (const { def } of goals) expect(def.type).not.toBe("netWorth");
+  });
+});

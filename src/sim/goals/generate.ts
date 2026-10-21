@@ -8,7 +8,7 @@
 import type { CargoType } from "../../data/cargo";
 import { CITY_TIERS } from "../../data/cities";
 import { startingCashFor } from "../../data/finance";
-import { REGION_GOALS, type GoalDefByName } from "../../data/goals";
+import { REGION_GOALS, strongPlayerAmount, type GoalDefByName } from "../../data/goals";
 import type { RegionId } from "../regions/types";
 import { nextInt, pick } from "../rng";
 import type { GameState } from "../state";
@@ -28,7 +28,7 @@ function resolveDef(def: GoalDefByName, byName: Map<string, number>): GoalDef | 
       return { type: "cityTier", cityId, tier: def.tier, byYear: def.byYear };
     }
     case "annualRevenue":
-    case "netWorth":
+    case "annualProfit":
     case "delivered":
     case "electrifiedTiles":
       return def;
@@ -103,7 +103,14 @@ export function generateRandomGoals(state: GameState): Goal[] {
     goals.push({
       id: "random-gold",
       tier: "gold",
-      def: { type: "netWorth", amount: startingCash * 77, byYear: goldByYear },
+      def: {
+        type: "annualProfit",
+        // The strong player's year-16 profit in the company's starting era, in the goal year's money
+        // (`strongPlayerAmount`). The same on every difficulty: start cash only speeds the first lines, it does
+        // not change what a mature railway earns (Hard's strong-player median is about 17 % lower, Phase 65).
+        amount: strongPlayerAmount("profit", 16, goldByYear, state.startYear),
+        byYear: goldByYear,
+      },
     });
   } else {
     goals.push({
