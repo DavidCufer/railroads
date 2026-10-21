@@ -6996,3 +6996,41 @@ Strong Normal 1900, 10 seeds: revenue y5/y10/y16 4.17 / 12.87 / 17.30, profit 2.
 
 ### Decisions (nothing asked)
 Term by year of issue (30 / 25 years) rather than per-difficulty; aggregate schedule rather than a list of bonds (the book needs no per-bond identity: nothing is called, repayment is pro rata as before); no rate change (6-7 % sourced coupons match 6 %); `loansCalled` news kind kept for old saves.
+
+## 2026-10-21 - Phase 67 item 4: goals, achievements and scenario stars on yearly profit (branch `phase-67-goals`, NOT merged; `goalCalibration` is RED on 4 checks, nothing loosened)
+
+### Old -> new, for the owner
+Formula unchanged from Phase 64 (`strongPlayerAmount`: median x priceIndex(goal year) / priceIndex(year earned), rounded DOWN to 2 significant figures), now on the **Phase 67** strong-player medians (Normal, 10 seeds, runs still alive; `STRONG_PLAYER_MEDIANS` in `src/data/goals.ts`). Medians $M y5 / y10 / y16: revenue 1840 1.09/2.60/8.13, 1870 2.60/9.86/14.50, 1900 4.17/12.87/17.30, 1930 1.19/1.33/1.31, 1950 5.41/7.31/8.78; profit 1840 0.55/1.29/5.09, 1870 1.51/5.56/9.13, 1900 2.40/6.24/8.32, 1930 0.49/0.21/0.10, 1950 2.01/0.96/1.15.
+
+| goal | old (Phase 64) | new | calibration (amount / reference operator; gold must be 0.8-3, silver 0.3-1.5) |
+|---|---|---|---|
+| gb gold | Yearly profit $1.8M by 1870 | **$8.1M** by 1870 | **5.58 RED** (was 1.24) |
+| central-eu gold | Yearly profit $1.0M by 1930 | **$92k** by 1930 | **0.17 RED, trivial** (was 1.85) |
+| us-west silver | Annual revenue $3.2M by 1920 | **$4.5M** by 1920 | **2.06 RED** (was 1.47) |
+| random-map gold, start 1830 / 1840 / 1870 / 1900 / 1930 / 1950 (50 years on) | $5.3M / 5.7M / 2.5M / 3.5M / 1.2M / 1.2M | **$6.2M / 6.7M / 11M / 10M / 0.11M / 1.3M** | Normal default start **3.22 RED** (was 2.75) |
+| us-east silver, us-west gold, random revenue gold | unchanged (not derived from the bench) | unchanged | |
+
+| achievement (ids renamed so nobody keeps a net-worth unlock as a profit one) | old | new |
+|---|---|---|
+| `worth1M` | Net worth $1M | `profit500k`: **$0.5M** operating profit in a year (lowest era's y5 median, 1930: 0.49) |
+| `worth10M` | Net worth $10M | `profit5M`: **$5M** a year (middle of the five eras' y16 medians: 5.09) |
+| `worth100M` | Net worth $100M | `profit10M`: **$10M** a year (just above the best y16 median, 1870: 9.13) |
+
+| scenario (stars 2 / 3) | old | new (year index, era row, money of the deadline year) |
+|---|---|---|
+| Semmering | by 1853; net worth $550k | by 1853; **yearly profit $620k** (y5, 1840 row, 1857 money) |
+| Panic of 1873 | net worth $3.5M; $4.75M | **yearly profit $1.5M; $3.1M** (y5 and y7 interpolated, 1870 row, 1878 money) |
+| Coal for Trieste | by 1863; net worth $3M | by 1863; **$670k** (y5, 1840 row, 1866 money) |
+| Transcontinental | by 1865; net worth $800k | by 1865; **$690k** (y5, 1840 row, 1869 money) |
+| Silver rush | by 1887; net worth $3M | by 1887; **$1.6M** (y5, 1870 row, 1890 money) |
+
+### Why the test is red (cause, not tuned)
+1. **The reference operator is now far below the strong bot.** `tests/sim/referenceOperator.ts` (the calibration's model of an able player, Phase 28A) was not changed by Phase 62; the strong bot's profit after the gravity split is 2.4-4x higher in 1870/1900 (see the 1900 section of the Phase 67 entry above), so a goal set from the bot's medians lands 2-5x above the model in gb 1870 and us-west 1920. Either the reference operator must be re-calibrated to the post-62 bot, or the goals set between the two. Owner's decision; I changed neither the operator nor a bound.
+2. **The 1930 row is the Depression-and-war row.** Its y16 profit median is $0.10M (the strong bot earns 0.49 / 0.21 / 0.10 at y5 / y10 / y16: the 1930s start loses money to the Depression and the Hard-ish post-1945 costs). So central-eu gold (1930) falls to $92k, a goal the first line meets, and the random-map 1930 gold to $0.11M. Do not ship it. Options: use the y5 median (0.49M) for the 1930 row, or make the goal year/era row independent of the Depression; not decided here.
+3. The random-map default gold (1830 start, 1880 goal) is 3.22x the operator (limit 3).
+
+### What changed (all on this branch)
+`src/data/goals.ts` (medians; `strongPlayerAmount` takes a fractional year index and interpolates between the benched years 5/10/16), `src/data/achievements.ts` + `src/sim/history/achievements.ts` (`yearlyProfit` = `ledgerOperatingProfit(lastYear)`), `src/data/scenarios.ts` + `src/sim/scenario/index.ts` (`starsFor(def, year, profit)`; stars derived by `strongPlayerAmount`), strings (`$0.5M a year`..., scenario stars line "profit ... a year", the end card shows last year's profit instead of net worth). Tests: `goalCalibration` amount literals updated to the formula's new output (3.2M -> 4.5M, 1.8M -> 8.1M; the formula is the thing under test, no bound touched), `scenarios.test` stars from the data, `history.test` profit milestones (also checks that cash does not unlock them), e2e `phase46` achievement id. SPEC §11 updated with the new amounts. `npm run check`: only the 4 calibration checks fail (937 + others pass); e2e `phase46` 6 passed.
+
+### Decisions (conservative, nothing asked)
+Kept the old `byYear`s, tiers and rewards; interpolated year 7 for the 7-year survival scenario; achievements in nominal dollars (no inflation), because they are not tied to a year; star 3 of a connect/deliver scenario reads the last *completed* year, so a goal finished in the first year or two has little profit behind it (may make star 3 hard on a quick finish: owner to judge); dropped the net-worth line on the scenario end card in favour of last year's profit.
