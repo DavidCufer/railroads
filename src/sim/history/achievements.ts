@@ -2,6 +2,7 @@
 import { ACHIEVEMENT_TARGETS as T, type AchievementId } from "../../data/achievements";
 import type { GameState } from "../state";
 import { KM_PER_TILE } from "../../data/scale";
+import { ledgerOperatingProfit } from "../../data/finance";
 import { netWorth } from "../finance/ledger";
 import { stationCoversCity } from "../contracts/places";
 import { calendarFromTicks } from "../time";
@@ -11,6 +12,8 @@ export interface HistoryStats {
   stations: number;
   trackKm: number;
   netWorth: number;
+  /** Operating profit of the last completed year (revenue minus running costs, no construction). */
+  yearlyProfit: number;
   loans: number;
   hadLoans: boolean;
   bankrupt: boolean;
@@ -65,6 +68,7 @@ export function historyStats(state: GameState): HistoryStats {
     stations: state.stations.filter((s) => !s.passingLoop).length,
     trackKm: trackKm(state),
     netWorth: netWorth(state),
+    yearlyProfit: ledgerOperatingProfit(state.finance.lastYear),
     loans: state.finance.loans,
     hadLoans: !!h.memory.hadLoans,
     bankrupt: state.finance.bankrupt,
@@ -103,9 +107,9 @@ export const ACHIEVEMENT_CHECKS: Record<AchievementId, (s: HistoryStats) => bool
   bridges10: (s) => s.bridges >= T.bridges10,
   electrified: (s) => s.electrifiedTiles > 0,
   metropolisServed: (s) => s.metropolisServed,
-  worth1M: (s) => s.netWorth >= T.worth1M,
-  worth10M: (s) => s.netWorth >= T.worth10M,
-  worth100M: (s) => s.netWorth >= T.worth100M,
+  profit500k: (s) => s.yearlyProfit >= T.profit500k,
+  profit5M: (s) => s.yearlyProfit >= T.profit5M,
+  profit10M: (s) => s.yearlyProfit >= T.profit10M,
   passengers100k: (s) => s.passengers >= T.passengers100k,
   freight10k: (s) => s.freight >= T.freight10k,
   goalReached: (s) => s.goalsDone >= 1,

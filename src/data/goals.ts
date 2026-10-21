@@ -59,21 +59,22 @@ export type GoalDefByName =
  */
 export type GoalMetric = "profit" | "revenue";
 
-/** Strong player, Normal, medians of Phase 65 ($M, completed years 5 / 10 / 16). The 1930 row is of the 3 of 10 runs
- * that were not bankrupt by then (the 1931 Banking crisis), the 1950 row 8 of 10. */
+/** Strong player, Normal, medians of Phase 67 ($M, completed years 5 / 10 / 16; `docs/bench/phase67.md`, 10 seeds per era,
+ * the runs still alive: 1930 has 9 of 10, the others all). Replaces the Phase 65 medians, which pre-dated the
+ * passenger split by gravity (Phase 62) and the uncalled bonds (Phase 67). */
 export const STRONG_PLAYER_MEDIANS: ReadonlyArray<{
   era: number;
   revenue: readonly [number, number, number];
   profit: readonly [number, number, number];
 }> = [
-  { era: 1840, revenue: [1.25, 3.09, 7.18], profit: [0.69, 1.59, 4.34] },
-  { era: 1870, revenue: [1.56, 2.24, 5.13], profit: [0.8, 0.7, 2.05] },
-  { era: 1900, revenue: [2.96, 5.77, 10.46], profit: [1.48, 2.1, 2.9] },
-  { era: 1930, revenue: [1.25, 1.31, 2.99], profit: [0.48, 0.25, 1.09] },
-  { era: 1950, revenue: [4.87, 6.61, 7.87], profit: [2.17, 1.49, 1.11] },
+  { era: 1840, revenue: [1.09, 2.6, 8.13], profit: [0.55, 1.29, 5.09] },
+  { era: 1870, revenue: [2.6, 9.86, 14.5], profit: [1.51, 5.56, 9.13] },
+  { era: 1900, revenue: [4.17, 12.87, 17.3], profit: [2.4, 6.24, 8.32] },
+  { era: 1930, revenue: [1.19, 1.33, 1.31], profit: [0.49, 0.21, 0.1] },
+  { era: 1950, revenue: [5.41, 7.31, 8.78], profit: [2.01, 0.96, 1.15] },
 ];
 
-const YEAR_INDEX = { 5: 0, 10: 1, 16: 2 } as const;
+const MEDIAN_YEARS = [5, 10, 16] as const;
 
 /** The yearly profit or revenue (in dollars of `goalYear`) the strong player reached in its year `yearIndex`, in the era
  * of `eraYear` (formula above; the goal's own year for a region's hand-set goals, the company's start year for a random
@@ -81,13 +82,20 @@ const YEAR_INDEX = { 5: 0, 10: 1, 16: 2 } as const;
  * more than the bench showed. */
 export function strongPlayerAmount(
   metric: GoalMetric,
-  yearIndex: 5 | 10 | 16,
+  yearIndex: number,
   goalYear: number,
   eraYear: number = goalYear,
 ): number {
   let row = STRONG_PLAYER_MEDIANS[0] as (typeof STRONG_PLAYER_MEDIANS)[number];
   for (const r of STRONG_PLAYER_MEDIANS) if (r.era <= eraYear) row = r;
-  const median = row[metric][YEAR_INDEX[yearIndex]] * 1_000_000;
+  // Phase 67: between the benched years 5, 10 and 16 the median is interpolated linearly (a scenario's 7-year length).
+  const upper = MEDIAN_YEARS.findIndex((y) => y >= yearIndex);
+  const j = upper < 0 ? 2 : Math.max(1, upper);
+  const lo = MEDIAN_YEARS[j - 1] as number;
+  const hi = MEDIAN_YEARS[j] as number;
+  const t = Math.min(1, Math.max(0, (yearIndex - lo) / (hi - lo)));
+  const m = row[metric];
+  const median = ((m[j - 1] as number) + ((m[j] as number) - (m[j - 1] as number)) * t) * 1_000_000;
   const raw = (median * priceIndex(goalYear)) / priceIndex(row.era + yearIndex - 1);
   const digits = 10 ** (Math.floor(Math.log10(raw)) - 1);
   return Math.floor(raw / digits) * digits;

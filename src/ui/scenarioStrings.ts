@@ -27,6 +27,7 @@ export function scenarioGoalLine(def: ScenarioDef): string {
 /** What earns the second and third star. */
 export function scenarioStarsLine(def: ScenarioDef): string {
   const [a, b] = def.stars;
-  if (def.goal.type === "survive") return `★★ net worth ${formatMoney(a)} · ★★★ ${formatMoney(b)}`;
-  return `★★ by ${a} · ★★★ also net worth ${formatMoney(b)}`;
+  if (def.goal.type === "survive")
+    return `★★ profit ${formatMoney(a)} a year · ★★★ ${formatMoney(b)}`;
+  return `★★ by ${a} · ★★★ also profit ${formatMoney(b)} a year`;
 }

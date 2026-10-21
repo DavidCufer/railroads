@@ -4,10 +4,16 @@
  * (src/save/profile.ts), outside any game save.
  *
  * Stars (`stars: [a, b]`): finishing in time is 1 star. For a goal with a year (connect, deliver) a second star for
- * finishing by year `a` and a third for ending with net worth of at least `b`; for `survive` a second star for ending with
- * net worth of at least `a` and a third for at least `b`.
+ * finishing by year `a` and a third for ending with a yearly operating profit (the last completed year's) of at least `b`;
+ * for `survive` a second star for ending with that profit at least `a` and a third for at least `b`.
+ *
+ * Phase 67: the profit figures are the strong player's Normal medians (`strongPlayerAmount("profit", ...)`, Phase 67
+ * bench) of the era row of the start year, in the money of the deadline year. A scenario is a short run, so a connect or
+ * deliver scenario asks for the year-5 median (a goal finished early has about that much behind it); `panic1873` runs
+ * seven years, so star 2 is the year-5 median and star 3 the year-7 median (interpolated between years 5 and 10).
  */
 import type { CargoType } from "./cargo";
+import { strongPlayerAmount } from "./goals";
 import type { Difficulty } from "./finance";
 import type { RegionId } from "../sim/regions/types";
 
@@ -46,7 +52,7 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     difficulty: "normal",
     startCash: 700_000,
     goal: { type: "connect", cities: ["Vienna", "Trieste"], byYear: 1857 },
-    stars: [1853, 550_000],
+    stars: [1853, strongPlayerAmount("profit", 5, 1857, 1850)],
   },
   {
     id: "panic1873",
@@ -57,7 +63,10 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     startCash: 400000,
     startLoans: 2_500_000,
     goal: { type: "survive", untilYear: 1878, maxDebt: 500_000 },
-    stars: [3_500_000, 4_750_000],
+    stars: [
+      strongPlayerAmount("profit", 5, 1878, 1871),
+      strongPlayerAmount("profit", 7, 1878, 1871),
+    ],
   },
   {
     id: "coalTrieste",
@@ -73,7 +82,7 @@ export const SCENARIOS: readonly ScenarioDef[] = [
       byYear: 1866,
       nearCity: { name: "Trieste", withinTiles: 8 },
     },
-    stars: [1863, 3_000_000],
+    stars: [1863, strongPlayerAmount("profit", 5, 1866, 1858)],
   },
   {
     id: "transcontinental",
@@ -83,7 +92,7 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     difficulty: "normal",
     startCash: 900_000,
     goal: { type: "connect", cities: ["Sacramento", "Salt Lake City"], byYear: 1869 },
-    stars: [1865, 800_000],
+    stars: [1865, strongPlayerAmount("profit", 5, 1869, 1860)],
   },
   {
     id: "silverRush",
@@ -93,7 +102,7 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     difficulty: "normal",
     startCash: 4_000_000,
     goal: { type: "deliver", cargo: "silverBars", amount: 200, byYear: 1890 },
-    stars: [1887, 3_000_000],
+    stars: [1887, strongPlayerAmount("profit", 5, 1890, 1880)],
   },
 ];
 

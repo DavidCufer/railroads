@@ -1047,13 +1047,13 @@ Each real-world region ships with 1–2 optional goal sets (bronze/silver/gold),
 - `us-east`: "Connect New York and Chicago by 1860", "Annual revenue $2.5M by 1880", "Chicago reaches Metropolis".
 - `gb`: "Connect London–Birmingham–Manchester–Liverpool by 1845", "Deliver 1,000 carloads of coal in a year".
 - `central-eu`: "Cross the Alps: connect Munich/Vienna to Milan or Venice/Trieste", "Electrify 120 tiles by 1930".
-- `gb` gold: "Yearly profit $1.8M by 1870"; `central-eu` gold: "Yearly profit $1.0M by 1930".
-- `us-west`: "Connect Sacramento to Salt Lake City by 1870", "Annual revenue $3.2M by 1920".
+- `gb` gold: "Yearly profit $8.1M by 1870"; `central-eu` gold: "Yearly profit $92k by 1930" (Phase 67 medians; the 1930 row is the Depression-and-war row, see PROGRESS Phase 67: the calibration test is red on it).
+- `us-west`: "Connect Sacramento to Salt Lake City by 1870", "Annual revenue $4.5M by 1920".
 
 **No goal counts cash or net worth** (Phase 64; owner: "we want players to spend money to build things, not hoard it" —
 net worth counted construction at half, so every dollar of track lowered it). Money goals are `annualProfit` (operating
 profit of the last completed calendar year: revenue minus running costs, no construction) or `annualRevenue`. Amounts
-follow one formula in `src/data/goals.ts` from the Phase 65 strong-player medians: `round-down-2sf(median(metric, era row,
+follow one formula in `src/data/goals.ts` from the Phase 67 strong-player medians (`STRONG_PLAYER_MEDIANS`; Phase 65 before): `round-down-2sf(median(metric, era row,
 year) x priceIndex(goal year) / priceIndex(year earned))`; a saved net-worth goal loads as the matching yearly-profit goal.
 
 Goal types (data-driven): `connect(cityA, cityB, byYear)`, `annualRevenue(amount, byYear)`,
@@ -1109,15 +1109,16 @@ calendar passes `byYear`; a survival goal is judged on 1 January of `untilYear`.
 
 | Scenario | Region, start | Goal | Stars |
 |---|---|---|---|
-| The Semmering line | central-eu, 1850, $700k | connect Vienna and Trieste by 1857 | by 1853; net worth $550k |
-| Panic of 1873 | us-east, 1871, $400k + $2.5M of loans | survive to 1878 owing under $500k (the Panic of 1873 is in this seed) | net worth $3.5M; $4.75M |
-| Coal for Trieste | central-eu, 1858, $2.5M | deliver 6,000 t of coal to a station within 8 tiles of Trieste (its port) by 1866 | by 1863; net worth $3M |
-| Transcontinental | us-west, 1860, $900k | connect Sacramento and Salt Lake City by 1869 | by 1865; net worth $800k |
-| Silver rush | central-eu, 1880, $4M | deliver 200 t of silver bars to the Mint by 1890 | by 1887; net worth $3M |
+| The Semmering line | central-eu, 1850, $700k | connect Vienna and Trieste by 1857 | by 1853; yearly profit $620k |
+| Panic of 1873 | us-east, 1871, $400k + $2.5M of loans | survive to 1878 owing under $500k (the Panic of 1873 is in this seed) | yearly profit $1.5M; $3.1M |
+| Coal for Trieste | central-eu, 1858, $2.5M | deliver 6,000 t of coal to a station within 8 tiles of Trieste (its port) by 1866 | by 1863; yearly profit $670k |
+| Transcontinental | us-west, 1860, $900k | connect Sacramento and Salt Lake City by 1869 | by 1865; yearly profit $690k |
+| Silver rush | central-eu, 1880, $4M | deliver 200 t of silver bars to the Mint by 1890 | by 1887; yearly profit $1.6M |
 
 **Stars.** Finishing in time is 1 star. For a goal with a year, a second star for finishing by the early year in the table and a
-third for ending with at least the net worth shown (so a company that builds everything at once and has nothing left earns
-fewer stars than one that earned its way there). For the survival goal the second and third stars are the two net worths.
+third for ending with at least the yearly operating profit shown (last completed year; Phase 67 replaced net worth, which
+punished building): the strong player's year-5 median of the start era in the deadline's money, `panic1873` year 5 and year 7.
+For the survival goal the second and third stars are the two profits.
 The best stars of each scenario are kept in the player profile (`localStorage`, `railroads.profile`), not in a save.
 
 **Win/lose card.** The game-over card style: result, the scenario and date, the stars (win) or the reason (lose), net worth,
@@ -1143,8 +1144,8 @@ bankruptcy avoided, bankruptcy, achievements, scenario result.
 
 **Achievements** (25, `src/data/achievements.ts`, checks in `src/sim/history/achievements.ts`): first train, first line, 100 /
 1,000 / 5,000 km of track, 10 / 50 trains, 20 stations, survived a panic, out of debt (had a loan, owes none), first contract, 5
-contracts, silver delivered, uranium delivered, bridge builder (10 bridge edges), electrified, metropolis served, net worth
-$1M / $10M / $100M, 100,000 passengers, 10,000 t of freight, goal reached, scenario won, hard-mode survivor (20 years on Hard
+contracts, silver delivered, uranium delivered, bridge builder (10 bridge edges), electrified, metropolis served, yearly profit
+$0.5M / $5M / $10M (Phase 67), 100,000 passengers, 10,000 t of freight, goal reached, scenario won, hard-mode survivor (20 years on Hard
 without bankruptcy). A new one shows one toast per batch and is written to the player profile (`localStorage`,
 `railroads.profile`, with the real date), so the title-screen list is cross-game.
 

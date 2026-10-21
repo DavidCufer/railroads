@@ -2,7 +2,7 @@
 import { scenarioById, type ScenarioDef } from "../../data/scenarios";
 import type { CargoType } from "../../data/cargo";
 import { citiesConnectedByTrack } from "../goals/evaluate";
-import { netWorth } from "../finance/ledger";
+import { ledgerOperatingProfit } from "../../data/finance";
 import { calendarFromTicks } from "../time";
 import type { GameState } from "../state";
 import type { Station } from "../stations/types";
@@ -43,13 +43,13 @@ function yearOf(state: GameState): number {
   return calendarFromTicks(state.startYear, state.ticks).year;
 }
 
-/** Stars for a goal finished in `year` with net worth `worth` (see `ScenarioDef.stars`). */
-export function starsFor(def: ScenarioDef, year: number, worth: number): 1 | 2 | 3 {
+/** Stars for a goal finished in `year` with last year's operating profit `profit` (see `ScenarioDef.stars`). */
+export function starsFor(def: ScenarioDef, year: number, profit: number): 1 | 2 | 3 {
   const [a, b] = def.stars;
   const extra =
     def.goal.type === "survive"
-      ? Number(worth >= a) + Number(worth >= b)
-      : Number(year <= a) + Number(worth >= b);
+      ? Number(profit >= a) + Number(profit >= b)
+      : Number(year <= a) + Number(profit >= b);
   return (1 + extra) as 1 | 2 | 3;
 }
 
@@ -62,7 +62,7 @@ function finish(
   run.endTick = state.ticks;
   if (result.won) {
     run.status = "won";
-    run.stars = starsFor(def, yearOf(state), netWorth(state));
+    run.stars = starsFor(def, yearOf(state), ledgerOperatingProfit(state.finance.lastYear));
   } else {
     run.status = "lost";
     run.reason = result.reason;
