@@ -1,7 +1,7 @@
 /** PLAN Phase 53: fewer travellers each paying more; fair shares. (A direct destination drawing more than the same town
  * via a change is `throughJourneys.test.ts` "Phase 48 changes deter travel", which holds unchanged.) */
 import { describe, expect, it } from "vitest";
-import { PAIR_DEMAND, tripsPerHeadPerMonth } from "../../../src/data/economy";
+import { tripsPerHeadPerMonth } from "../../../src/data/economy";
 import { computePassengerFlows } from "../../../src/sim/stations/passengerFlows";
 import { createGameState } from "../../../src/sim/state";
 
@@ -35,7 +35,7 @@ describe("Phase 53 passenger demand", () => {
     expect(toMilan).toBeLessThan(2 * trainSeats * 1.25);
   });
 
-  it("with two candidates each takes at most maxShare and the town's total falls", () => {
+  it("shares follow size and distance, and the town's total is the radiation model's S / (m + S) (Phase 62)", () => {
     const venice = point(0, "Venice");
     const milan = point(1, "Milan");
     const trieste = point(2, "Trieste");
@@ -53,14 +53,16 @@ describe("Phase 53 passenger demand", () => {
         [2, new Set([0])],
       ]),
     );
-    const shares = [...(flows?.routes ?? []), ...(flows?.unconnected ?? [])].map(
-      (r) => r.perMonth / demand,
-    );
-    for (const sh of shares) expect(sh).toBeLessThanOrEqual(PAIR_DEMAND.maxShare + 1e-9);
-    // Venice has more than two towns in range in 1842 (Ljubljana, Innsbruck, ...), so the total is whatever fits under
-    // the cap, never above n x maxShare.
-    expect(shares.reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(
-      shares.length * PAIR_DEMAND.maxShare + 1e-9,
-    );
+    const all = [...(flows?.routes ?? []), ...(flows?.unconnected ?? [])];
+    const people = (id: number) => all.find((r) => r.cityId === id)?.perMonth ?? 0;
+    // Milan is more than five times Trieste's size: it draws more even if it is farther
+    expect(people(milan.cityId)).toBeGreaterThan(people(trieste.cityId));
+    // everything in range shares S / (m + S) of the town total: fewer than all trips, more than none
+    const sum = all.reduce((a, r) => a + r.perMonth, 0);
+    const inRange = new Set(all.map((r) => r.cityId));
+    const m = city("Venice").population;
+    const big = state.cities.filter((c) => inRange.has(c.id)).reduce((a, c) => a + c.population, 0);
+    expect(sum).toBeCloseTo((demand * big) / (m + big), 6);
+    expect(sum).toBeLessThan(demand);
   });
 });
