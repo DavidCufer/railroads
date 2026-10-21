@@ -348,6 +348,7 @@ export function platformHolders(state: GameState, station: Station, excludeId = 
     (t) =>
       t.id !== excludeId &&
       t.status === "loading" &&
+      !t.laidUp &&
       !t.turning &&
       t.route[t.routeIndex] === station.tile &&
       t.sectionTargetStationId === undefined,
@@ -1166,7 +1167,19 @@ function stepTrainInner(state: GameState, train: Train, runtime: TrainRuntime): 
   train.renderFromY = train.renderToY;
   train.waitTicks++;
 
-  if (train.breakdownTicksLeft > 0) {
+  if (train.laidUp) {
+    // Phase 66: stored in the station's sidings: nothing moves, nothing is held; after "Back in service" it fires up
+    // and recrews (crew paid) and then resumes its stop.
+    train.speed = 0;
+    setStatus(train, "laidUp");
+    if (train.returnTicksLeft === undefined) train.laidUpTicks = (train.laidUpTicks ?? 0) + 1;
+    else if (--train.returnTicksLeft <= 0) {
+      delete train.laidUp;
+      delete train.returnTicksLeft;
+      train.loadTicksLeft = -1;
+      setStatus(train, "loading");
+    }
+  } else if (train.breakdownTicksLeft > 0) {
     // Frozen in place for the repair (SPEC §7.6) — keeps its held blocks (still physically
     // occupying them) and skips loading/routing/movement entirely for the tick.
     train.breakdownTicksLeft--;

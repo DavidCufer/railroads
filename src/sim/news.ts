@@ -34,6 +34,8 @@ export type NewsPayload =
   | { kind: "startupCreditEnding"; months: number; limit: number }
   | { kind: "overLimit"; debt: number; limit: number }
   | { kind: "panic"; name: string; months: number; fuelRise?: number }
+  /** Phase 66: once per panic, "lay up trains on losing lines" (`fall` is the demand fall in percent). */
+  | { kind: "layUpHint"; fall: number }
   | { kind: "cityGrowth"; cityId: number; tier: CityTier }
   | { kind: "civicInvestment"; cityId: number }
   | { kind: "cityFounded"; cityId: number }

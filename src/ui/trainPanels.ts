@@ -21,6 +21,8 @@ import {
   editConsist,
   replaceLocomotive,
   sellTrain,
+  layUpTrain,
+  returnTrainToService,
   setOrderRule,
   spaceTrainsEvenly,
   setOrders,
@@ -156,6 +158,8 @@ export function statusText(state: GameState, train: Train): string {
       .filter((n): n is string => n !== undefined);
     if (names.length > 0) return strings.trains.waitingAtCrossing(names.slice(0, 3).join(", "));
   }
+  if (train.laidUp && train.returnTicksLeft !== undefined)
+    return strings.trains.returning(Math.max(1, Math.ceil(train.returnTicksLeft / 24)));
   const repair = train.status === "broken" ? repairPhase(state, train) : null;
   if (repair?.phase === "arriving") {
     const from = stationName(state, repair.stationId);
@@ -206,6 +210,7 @@ const STATUS_ICON: Record<Train["status"], { icon: IconName; tone: Tone }> = {
   noRoute: { icon: "warning", tone: "signal" },
   stuck: { icon: "warning", tone: "signal" },
   broken: { icon: "wrench", tone: "signal" },
+  laidUp: { icon: "pause", tone: "steel" },
 };
 
 function stationName(state: GameState, id: number): string {
@@ -723,6 +728,23 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
           kind: "secondary",
           className: "train-replace-btn",
           onClick: () => openReplaceLocoPanel(container, state, trainId),
+        }),
+        footerButton({
+          icon: "pause",
+          label: train.laidUp ? strings.trains.backInService : strings.trains.layUp,
+          kind: "secondary",
+          className: "train-layup-btn",
+          disabled: !!train.laidUp && train.returnTicksLeft !== undefined,
+          onClick: () => {
+            const result = train.laidUp
+              ? returnTrainToService(state, trainId)
+              : layUpTrain(state, trainId);
+            if (!result.ok) {
+              showToast(container, strings.build.reasons[result.reason], "warn");
+              return;
+            }
+            render();
+          },
         }),
         sellBtn,
       ],

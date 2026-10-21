@@ -25,7 +25,7 @@ import { closePanel, openPanel } from "./panel";
 import { trainWeightBridgeBlock } from "../sim/trains/bridgeBlock";
 import { suggestPassingLoop } from "../sim/loopSuggest";
 import { diagnoseJam } from "./jamDiagnosis";
-import { openTrainPanel } from "./trainPanels";
+import { openTrainListPanel, openTrainPanel } from "./trainPanels";
 import { strings } from "./strings";
 import { nearestStationName } from "./placeNames";
 
@@ -111,6 +111,8 @@ export function formatNewsItem(state: GameState, item: NewsItem): string {
       return strings.news.kinds.overLimit(formatMoney(item.debt), formatMoney(item.limit));
     case "panic":
       return strings.news.kinds.panic(item.name, item.months, item.fuelRise ?? 0);
+    case "layUpHint":
+      return strings.news.kinds.layUpHint(item.fall);
     case "fewStops":
       return strings.news.kinds.fewStops(trainName(state, item.trainId));
     case "addTrain":
@@ -193,6 +195,7 @@ const NEWS_ICONS: Record<NewsItem["kind"], { icon: IconName; tone: Tone }> = {
   stationDemolished: { icon: "trash", tone: "brass" },
   fewStops: { icon: "warning", tone: "signal" },
   addTrain: { icon: "trains", tone: "brass" },
+  layUpHint: { icon: "trains", tone: "signal" },
   forcedLoan: { icon: "coin", tone: "signal" },
   insolvent: { icon: "warning", tone: "signal" },
   loansCalled: { icon: "coin", tone: "signal" },
@@ -243,7 +246,7 @@ export function openNewsPanel(
                   ? item.trainId
                   : undefined;
               return cardRow({
-                className: `news-item${item.id > unreadFrom ? " unread" : ""}${focusTile || editTrain !== undefined ? " tappable" : ""}`,
+                className: `news-item${item.id > unreadFrom ? " unread" : ""}${focusTile || editTrain !== undefined || item.kind === "layUpHint" ? " tappable" : ""}`,
                 ...(editTrain !== undefined
                   ? {
                       chevron: true,
@@ -252,15 +255,25 @@ export function openNewsPanel(
                         openTrainPanel(container, state, editTrain);
                       },
                     }
-                  : focusTile && onFocus
+                  : item.kind === "layUpHint"
                     ? {
                         chevron: true,
                         onClick: () => {
                           closePanel();
-                          onFocus(focusTile);
+                          openTrainListPanel(container, state, (id) =>
+                            openTrainPanel(container, state, id),
+                          );
                         },
                       }
-                    : {}),
+                    : focusTile && onFocus
+                      ? {
+                          chevron: true,
+                          onClick: () => {
+                            closePanel();
+                            onFocus(focusTile);
+                          },
+                        }
+                      : {}),
                 thumb,
                 title:
                   formatNewsItem(state, item) +

@@ -46,12 +46,15 @@ import {
 } from "./credit";
 import {
   GENERAL_ADMIN_MARKUP,
+  LAID_UP_SERVICING_SHARE,
   PROPERTY_TAX_RATE,
   WEAR_ROUTINE_SHARE,
   incomeTaxRate,
   priceIndex,
 } from "../../data/economy";
 import { PASSING_LOOP_UPKEEP_MONTHLY } from "../../data/stations";
+
+const MONTH_TICKS = (DAYS_PER_YEAR * HOURS_PER_DAY) / 12;
 
 type ExpenseCategory = Exclude<keyof LedgerPeriod, "passengers" | "mail" | "freight" | "contracts">;
 
@@ -128,11 +131,15 @@ export function monthlyFinanceStep(state: GameState): void {
     train.fuelUnits = 0;
     const repairs = (train.repairUnits ?? 0) * repairCostPerUnit(loco, ageYears, year);
     train.repairUnits = 0;
+    // Phase 66: the share of the month laid up pays no crew and only the stored engine's care.
+    const idle = Math.min(1, (train.laidUpTicks ?? 0) / MONTH_TICKS);
+    delete train.laidUpTicks;
     const running =
-      (locoRunningCostPerYear(loco, ageYears, year) + carsUpkeepPerYear(train.cars, year)) / 12 +
+      ((locoRunningCostPerYear(loco, ageYears, year) + carsUpkeepPerYear(train.cars, year)) / 12) *
+        (1 - idle * (1 - LAID_UP_SERVICING_SHARE)) +
       fuel +
       repairs;
-    const wages = trainWagesPerYear(loco, train.cars, year) / 12;
+    const wages = (trainWagesPerYear(loco, train.cars, year) / 12) * (1 - idle);
     trainMaint += running;
     crewWages += wages;
     recordTrainRunning(train, running);
@@ -184,6 +191,8 @@ export function monthlyFinanceStep(state: GameState): void {
       months: panic.months,
       fuelRise: panic.fuelRise,
     });
+  if (panic && state.trains.length > 0)
+    pushNews(state, { kind: "layUpHint", fall: Math.round(panic.depth * 100) });
 
   if (diff.bankruptcy) {
     if (state.cash < 0) {

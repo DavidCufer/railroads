@@ -637,3 +637,14 @@ export const TRAVEL_RANGE_ANCHORS: Anchors = [
 export function travelRangeTiles(year: number): number {
   return interpolateYear(TRAVEL_RANGE_ANCHORS, year);
 }
+
+/** Phase 66, laying trains up. A laid-up (stored) engine pays no crew (a crew is paid only while it works: US railway
+ * employment fell from about 1 635 000 (Aug 1929) to about 834 000 (Mar 1933) on the hourly-basis count, -49 %;
+ * FRED/NBER M08151USM555NNBR, index of employment M089BAUSM331SNBR 91.8 -> 51.9) and only the care of a stored engine:
+ * greasing, boiler lay-up, periodic inspection, a share of the yearly servicing and car upkeep. The 0.25 share is an
+ * ESTIMATE: no 1930s storage cost per engine could be found (searches 2026-10-21 returned none), so it follows
+ * "stored engines needed inspection and lay-up, not fuel, running repairs or crews". */
+export const LAID_UP_SERVICING_SHARE = 0.25;
+/** Days to return a laid-up train to service: fire up and warm the boiler (cold steam engines took many hours to a
+ * day), recall the crew from furlough, and make the engine fit to run (judgement; the crew is paid meanwhile). */
+export const RETURN_TO_SERVICE_DAYS = 2;

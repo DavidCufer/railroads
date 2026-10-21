@@ -142,6 +142,8 @@ export const strings = {
       "invalid-consist": "That consist isn't valid for this locomotive",
       "invalid-train": "That train doesn't exist",
       "invalid-orders": "Orders need 2-8 valid stations",
+      "not-at-station": "Only a train standing at a station can be laid up",
+      "not-laid-up": "That train is not laid up",
       "invalid-loan-amount": "Amount must be a multiple of $100k",
       "credit-limit-exceeded": "That would exceed your credit limit",
       "invalid-city": "That city doesn't exist",
@@ -354,6 +356,9 @@ export const strings = {
     },
     /** Phase 53C: the loading status while the train reverses at the end of its run. */
     turningName: "Turning",
+    layUp: "Lay up",
+    backInService: "Back in service",
+    returning: (days: number) => `Back in service in ${days} ${days === 1 ? "day" : "days"}`,
     statusNames: {
       loading: "Loading",
       moving: "Moving",
@@ -362,6 +367,7 @@ export const strings = {
       noRoute: "No route",
       stuck: "Stuck",
       broken: "Broken down",
+      laidUp: "Laid up",
     },
     loadingRules: {
       auto: "Auto",
@@ -888,6 +894,7 @@ export const strings = {
         `Debt ${debt}, limit ${limit}: lenders call 25 %/month`,
       addTrain: (trainName: string, waiting: number) =>
         `${trainName}'s line: full trains, ${waiting} waiting — add a train`,
+      layUpHint: (fall: number) => `Traffic down ${fall} % — lay up trains on losing lines`,
       fewStops: (trainName: string) => `${trainName}: fewer than 2 stops`,
       cityGrowth: (cityName: string, tierName: string) => `${cityName} grew into a ${tierName}`,
       civicInvestment: (cityName: string) => `Civic Investment in ${cityName}`,

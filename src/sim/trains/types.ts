@@ -21,7 +21,14 @@ export interface TrainOrder {
 }
 
 export type TrainStatus =
-  "loading" | "moving" | "waitingForBlock" | "waitingForStation" | "noRoute" | "stuck" | "broken";
+  | "loading"
+  | "moving"
+  | "waitingForBlock"
+  | "waitingForStation"
+  | "noRoute"
+  | "stuck"
+  | "broken"
+  | "laidUp";
 
 export interface TrainCar {
   /** Fixed at purchase — a car only ever carries this one cargo type (a simplification: SPEC
@@ -209,6 +216,13 @@ export interface Train {
   wornOutNoticed?: boolean;
   /** Phase 30A: set while `breakdownTicksLeft` counts down a general overhaul in the shed rather than a repair. */
   inOverhaul?: boolean;
+  /** Phase 66: laid up at a station (status `laidUp`): holds no platform or block, pays no crew and only
+   * `LAID_UP_SERVICING_SHARE` of its servicing. Absent = in service. */
+  laidUp?: boolean;
+  /** Phase 66: ticks left to fire up and recrew after "Back in service"; crew is paid meanwhile. */
+  returnTicksLeft?: number;
+  /** Phase 66: ticks laid up (not returning) since the month began; the monthly step prorates wages and servicing. */
+  laidUpTicks?: number;
   /** Ticks left in the current breakdown (SPEC §7.6: "train stops for 2-5 days"), 0 = not broken
    * down. While > 0, `stepTrain` freezes the train in place (status `"broken"`) and skips its
    * normal loading/routing/movement for the tick. */

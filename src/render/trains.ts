@@ -346,6 +346,12 @@ export function drawTrains(
     }
 
     const vehicles = layoutConsist(env, train, alpha);
+    // Phase 66: a laid-up train stands parked and greyed in the station's sidings, with no smoke.
+    if (train.laidUp) {
+      ctx.save();
+      ctx.filter = "grayscale(1)";
+      ctx.globalAlpha = 0.65;
+    }
     for (let i = vehicles.length - 1; i >= 1; i--) {
       const v = vehicles[i] as VehiclePlacement;
       const screen = worldToScreenScaled(camera, v.x, v.y, viewportW, viewportH);
@@ -364,7 +370,8 @@ export function drawTrains(
     const head = vehicles[0] as VehiclePlacement;
     const headScreen = worldToScreenScaled(camera, head.x, head.y, viewportW, viewportH);
     drawLoco(ctx, headScreen.x, headScreen.y, head.angle, size, loco);
-    if (smokeOn) {
+    if (train.laidUp) ctx.restore();
+    if (smokeOn && !train.laidUp) {
       liveTrains.add(train.id);
       const hx = Math.cos(head.angle);
       const hy = Math.sin(head.angle);

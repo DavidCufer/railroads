@@ -40,7 +40,7 @@ import {
 import { clearNews, pushNews } from "./news";
 import { directionIndex } from "./track/graph";
 import { edgeWearRatio, relayCost, relayEdge, wornEdges } from "./track/condition";
-import { LOCO_OVERHAUL_DAYS, RELAY_OFFER_RATIO } from "../data/economy";
+import { LOCO_OVERHAUL_DAYS, RELAY_OFFER_RATIO, RETURN_TO_SERVICE_DAYS } from "../data/economy";
 import { computeOverhaulPlan, mechanicalAgeYears } from "./trains/ageing";
 import { findLayoutViolations, type LayoutViolation } from "./track/layout";
 import { findSharpSteps } from "./track/turn";
@@ -114,6 +114,8 @@ export type CommandReasonCode =
   | "invalid-consist"
   | "invalid-train"
   | "invalid-orders"
+  | "not-at-station"
+  | "not-laid-up"
   | "invalid-loan-amount"
   | "credit-limit-exceeded"
   | "invalid-city"
@@ -1603,4 +1605,42 @@ export function declineContract(state: GameState, contractId: number): CommandRe
 export function abandonContract(state: GameState, contractId: number): CommandResult {
   const reason = abandonContractImpl(state, contractId);
   return reason ? { ok: false, reason } : { ok: true, cost: 0 };
+}
+
+/** Phase 66: lays `trainId` up in the sidings of the station it stands at (any station: every station has a yard, and
+ * real railways stored engines in yards and roundhouses, not only at big sheds). It must be standing at a stop, not
+ * running, queued, broken down or mid-stop with a pending consist. A laid-up train holds no platform or block, pays
+ * no crew and `LAID_UP_SERVICING_SHARE` of its servicing, still ages and still counts in net worth. */
+export function layUpTrain(state: GameState, trainId: number): CommandResult {
+  const train = state.trains.find((t) => t.id === trainId);
+  if (!train) return { ok: false, reason: "invalid-train" };
+  if (train.laidUp) return { ok: false, reason: "invalid-train" };
+  const tile = train.route[train.routeIndex];
+  const atStation = tile !== undefined && !!stationAtTile(state.stations, tile);
+  if (
+    !atStation ||
+    train.status !== "loading" ||
+    train.edgeProgress !== 0 ||
+    train.sectionTargetStationId !== undefined ||
+    train.inYardOf !== undefined ||
+    train.breakdownTicksLeft > 0
+  )
+    return { ok: false, reason: "not-at-station" };
+  train.laidUp = true;
+  delete train.returnTicksLeft;
+  train.heldBlocks = [];
+  train.speed = 0;
+  train.status = "laidUp";
+  train.waitTicks = 0;
+  return { ok: true, cost: 0 };
+}
+
+/** Phase 66: starts returning a laid-up train to service; it resumes its orders after `RETURN_TO_SERVICE_DAYS`. */
+export function returnTrainToService(state: GameState, trainId: number): CommandResult {
+  const train = state.trains.find((t) => t.id === trainId);
+  if (!train) return { ok: false, reason: "invalid-train" };
+  if (!train.laidUp || train.returnTicksLeft !== undefined)
+    return { ok: false, reason: "not-laid-up" };
+  train.returnTicksLeft = RETURN_TO_SERVICE_DAYS * HOURS_PER_DAY;
+  return { ok: true, cost: 0 };
 }

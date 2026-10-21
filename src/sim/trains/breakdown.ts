@@ -152,6 +152,7 @@ export function startBreakdown(state: GameState, train: Train, days: number): vo
 export function monthlyBreakdownStep(state: GameState): void {
   for (const train of state.trains) {
     if (train.breakdownTicksLeft > 0) continue; // already broken down
+    if (train.laidUp) continue; // stored engines stand cold (Phase 66)
     if (nextFloat(state.rng) >= monthlyBreakdownChance(state, train)) continue;
     startBreakdown(
       state,
