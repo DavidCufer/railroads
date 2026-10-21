@@ -2644,3 +2644,29 @@ rolling stock (`NET_WORTH_CONSTRUCTION_FRACTION`), so every $1 spent on track lo
    the headline; bands from now on are on profit and revenue (owner decides the numbers).
 4. Tests (update goal tests to the new type; never weaken), e2e, SPEC §11, PROGRESS.
 Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+
+## Phase 65 — Each crisis as deep as it really was
+
+Owner: "Go" (2026-10-21) after Phase 61: the strong player goes bankrupt in 4/10 Normal 1930 and 8/10 Normal 1950 runs,
+all in scheduled recessions (1937, 1953, 1957, 1960). `src/data/panics.ts` gives every panic the same base fall in
+passenger and freight demand, `PANIC_DEPTH_RANGE` 0.2-0.4 for 12-24 months, so every recession is as deep as the Great
+Depression; with mostly fixed costs (track gangs, stations, crews, head office) one panic turns a 0.70 operating ratio
+into a loss.
+
+Real mechanisms only; numbers in `src/data` with a one-line justification **and a source**. Never loosen a test bound;
+if a balance test fails, report old/new and the cause and stop (owner decides). Benches in pieces of at most ~15 minutes,
+pushed to `docs/bench/phase65.md`.
+
+1. **Per-panic depth and length from history.** For each panic in `PANICS`, the real fall in railway traffic or gross
+   earnings (passenger and freight separately where the source has it) and its length, e.g. US railway gross earnings /
+   ton-miles / passenger-miles by year (ICC, NBER, Historical Statistics of the US), British railway receipts (Mitchell).
+   Orchestrator's rough memory to verify, not to use unchecked: 1893 about -12 %, 1907-08 about -10 %, 1929-32 about
+   -50 % over three years, 1937-38 about -18 %, 1953-54 and 1957-58 about -8 to -10 %, 1960-61 a few %. Replace the flat
+   range by these per-panic figures (with the seeded draw kept only as small noise around the sourced value, if at all).
+   Keep the difficulty's depth/duration factors (Hard deeper). A panic without a source: say so and use the nearest
+   sourced one of its kind, flagged.
+2. **Measure** (strong player 10 seeds Normal / 5 Hard, good bot 5 seeds, all eras): revenue and operating profit y5/10/16,
+   op ratio, bankruptcies, Hard vs Normal. Target: strong player survives Normal in every era; Hard harder than Normal.
+   Report misses; do not tune. If 1930/1950 Normal still fail, report the cause (no start-cash change in this phase).
+3. PROGRESS (tables, sources), SPEC (§9 panics), tests (update fixtures for the new per-panic data; never weaken).
+Status: [ ] 1 [ ] 2 [ ] 3
