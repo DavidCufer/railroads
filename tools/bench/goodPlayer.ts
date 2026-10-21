@@ -606,7 +606,9 @@ console.log(report.join("\n"));
 if (process.env.V) console.log(state.trains.map((t) => `${t.locoModelId}:${t.status}`).join(" "));
 console.log(yearRows.join("\n"));
 console.log(`IDLE20 ${idle20 ?? "never"}`);
-console.log(`LAYUP laidUp ${layUp.stats.laidUp} returned ${layUp.stats.returned}`);
+console.log(
+  `LAYUP laidUp ${layUp.stats.laidUp} returned ${layUp.stats.returned} stillLaid ${state.trains.filter((t) => t.laidUp).length} of ${state.trains.length}`,
+);
 console.log(`MINCASH ${(minCash / 1e6).toFixed(2)}`);
 // Phase 56: which engines the bot ended up running
 const engineCounts = new Map<string, number>();

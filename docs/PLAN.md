@@ -2704,4 +2704,4 @@ balance test fails, report old/new and cause and stop on a branch `phase-66-layu
    (1930 included); Hard harder than Normal. Report misses; do not tune.
 5. e2e (lay up and return; never weaken), PROGRESS (tables, sources), SPEC (§7, §9), screenshot `phase-66-laid-up.png`
    (a laid-up train and the button). LOOK at it.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5

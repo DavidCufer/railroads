@@ -761,7 +761,9 @@ console.log(`# strong ${region} ${startYear} ${difficulty} seed ${seed}`);
 console.log(report.join("\n"));
 console.log(rows.join("\n"));
 console.log(`TIME total ${Math.round((Date.now() - T0) / 1000)}s sim ${Math.round(simMs / 1000)}s`);
-console.log(`LAYUP laidUp ${layUp.stats.laidUp} returned ${layUp.stats.returned}`);
+console.log(
+  `LAYUP laidUp ${layUp.stats.laidUp} returned ${layUp.stats.returned} stillLaid ${state.trains.filter((t) => t.laidUp).length} of ${state.trains.length}`,
+);
 console.log(`MINCASH ${(minCash / 1e6).toFixed(2)}`);
 console.log(
   `IDLE20 ${idle20 ?? "never"} idleMonthShare ${(idleMonths / Math.max(1, months)).toFixed(2)}`,

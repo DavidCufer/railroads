@@ -6844,3 +6844,54 @@ Volume kept (old cap's total), split by uncapped gravity (Vienna > Graz fixed): 
 - 1873-76 ton-miles and net earnings of 13 roads: "Some data on railroads, 1860-1920", http://cprr.org/Museum/Railroad_Statistics.pdf ; Panic of 1873 background https://www.american-rails.com/1870s.html
 - 1956 rail freight 655.9 bn ton-miles, +44 % on 1929; 1958 recession decline in carloadings: https://www.fhwa.dot.gov/interstate/freight.cfm ; https://www.american-rails.com/1950s.html ; 1980 ton-miles 918.96 bn: https://www.trains.com/trn/railroads/maps/class-i-railroad-work-volume-1978-2008/ ; BTS ton-miles 1960-2022 https://www.bts.gov/browse-statistical-products-and-data/info-gallery/class-i-railroad-system-mileage-and-ton-miles-0
 - Not reached (to check next): Historical Statistics of the US Df series https://hsus.cambridge.org/ ; Census 1949 compendium ch. K https://www2.census.gov/library/publications/1949/compendia/hist_stats_1789-1945/hist_stats_1789-1945-chK.pdf ; NBER post-war railroads https://www.nber.org/system/files/chapters/c9072/c9072.pdf ; Mitchell, British Historical Statistics, Transport and Communications table 7.
+
+## 2026-10-21 - Phase 66: lay up trains in a slump (items 1-5 done; strong player still bankrupt 7/10 in 1930 Normal, nothing tuned)
+
+**Status.** On main. Item 1: `layUpTrain` / `returnTrainToService` in `src/sim/commands.ts` (reasons `not-at-station`, `not-laid-up`), train status `laidUp`, fields `laidUp`, `returnTicksLeft`, `laidUpTicks` (optional, old saves load with nothing laid up). Laid up at **any** station (every station has yard sidings; engines were stored in yards and roundhouses): holds no platform or block (`platformHolders` skips it; `heldBlocks` cleared), no breakdowns, no wages, `LAID_UP_SERVICING_SHARE` 0.25 of servicing and car upkeep, prorated by the days laid up in the month (`monthlyFinanceStep`, and the Lines view's accrued cost), still ages and counts in net worth. Return takes `RETURN_TO_SERVICE_DAYS` 2 (crew paid) then resumes its stop. Item 2: icon-only button on the train panel status row (a footer button squeezed "Edit cars" to "Edit c...", and a text label would raise the panel's word count, which may not be raised; label and tooltip carry the words), "Laid up" in the Trains list, greyed parked train on the map, news `layUpHint` once per panic (tap opens the Trains list). Item 3: `tools/bench/layUp.ts`, used by `strongPlayer.ts` (also returns trains when waiting traffic is 1.5 train-loads) and `goodPlayer.ts` (returns when the panic ends); `LAYUP=0` switches it off. Item 4: `tools/bench/phase66.ts` / `phase66Summary.ts`, 126 runs, raw rows `docs/bench/phase66.md`. Item 5: unit tests `tests/sim/trains/layUp.test.ts`, e2e `e2e/phase66.spec.ts`, screenshot `docs/screenshots/phase-66-laid-up.png` (looked at: greyed consist at the station, "Laid up", the button). `npm run check` green; e2e shards 137 + 135 passed. No test bound changed, no band set, no economy number tuned.
+
+### Bot rule
+Each 10 days in a panic: a line (trains with the same stops) whose trains' own books (lifetime profit, so revenue minus crew, servicing, fuel, repairs, wear) lost money over the last 3 months, with 2+ trains in service and none returned in the last 90 days, lays up its emptiest train standing at a station (`loadShare` < 0.9), one per line per call, always keeping one. All trains of a line come back when the panic ends.
+
+### Why 1930 Normal did not change (diagnosis, strong seed 2, month by month, `TRACE=1`)
+Lay-up never fires there: 1931-32 monthly revenue about 45-60k against wages 10k and servicing 11k, so the trains' own books stay positive. What loses money is what lay-up cannot touch: track upkeep 12k, stations 6-8k, interest 2k, head office. Cash does not die of operating losses (about -5k a month) but of the credit squeeze: the lenders' limit falls 477k -> 92k -> 35k in 1932 and the calls (loans 398k -> 151k, about 250k) are paid from cash; cash is -4k in month 8 of 1932 and the grace period ends three months later. Laying up three of four trains would save at most about 12k a month (all their wages and 75 % of servicing) and cut revenue too. A rule on fixed costs would be wrong economics, so the bot rule is unchanged (it is what the plan says). Lay-up does fire elsewhere (1870, 1900, 1950 below).
+
+### Results (`npx tsx tools/bench/phase66Summary.ts`; Phase 65 numbers are the baseline, same seeds)
+| bot | diff | start | runs | bankrupt (P65 -> P66) | revenue $M y5 / y10 / y16 (median) | operating profit $M y5 / y10 / y16 | final NW $M median (P65 -> P66) | op ratio y3 / y10 / y16 | trains laid up / returned (sum) |
+|---|---|---|---|---|---|---|---|---|---|
+| strong | hard | 1840 | 5 | 0 -> 0 | 0.74 / 1.13 / 5.96 | 0.46 / 0.54 / 3.61 | 10.29 -> 10.29 | 0.36 / 0.52 / 0.38 | 0 / 0 |
+| strong | hard | 1870 | 5 | 0 -> 0 | 2.02 / 3.26 / 5.78 | 1.40 / 1.47 / 2.04 | 14.42 -> 14.74 | 0.45 / 0.53 / 0.65 | 8 / 0 |
+| strong | hard | 1900 | 5 | 1 -> 1 | 0.50 / 0.51 / 0.92 | 0.20 / 0.12 / 0.34 | 1.42 -> 1.42 | 0.47 / 0.76 / 0.81 | 0 / 0 |
+| strong | hard | 1930 | 5 | 1 -> 1 | 0.45 / 0.51 / 1.94 | 0.24 / 0.21 / 0.78 | 3.24 -> 3.24 | 0.85 / 0.60 / 0.59 | 0 / 0 |
+| strong | hard | 1950 | 5 | 2 -> 2 | 1.10 / 1.22 / 1.35 | 0.54 / 0.35 / 0.16 | 2.14 -> 2.14 | 0.46 / 0.71 / 0.88 | 0 / 0 |
+| strong | normal | 1840 | 10 | 0 -> 0 | 1.25 / 3.09 / 7.18 | 0.69 / 1.59 / 4.34 | 18.59 -> 18.59 | 0.42 / 0.48 / 0.40 | 0 / 0 |
+| strong | normal | 1870 | 10 | 0 -> 0 | 1.56 / 2.24 / 5.13 | 0.80 / 0.70 / 2.05 | 8.79 -> 8.82 | 0.51 / 0.69 / 0.60 | 8 / 4 |
+| strong | normal | 1900 | 10 | 0 -> 0 | 2.96 / 5.77 / 10.51 | 1.48 / 2.10 / 2.90 | 18.55 -> 18.49 | 0.46 / 0.63 / 0.70 | 3 / 3 |
+| strong | normal | 1930 | 10 | 7 -> 7 | 1.25 / 1.31 / 2.99 | 0.48 / 0.25 / 1.09 | 1.89 -> 1.89 | 0.82 / 0.80 / 0.63 | 0 / 0 |
+| strong | normal | 1950 | 10 | 2 -> 1 | 4.87 / 6.29 / 8.81 | 2.17 / 1.27 / 1.49 | 9.61 -> 10.86 | 0.46 / 0.80 / 0.83 | 46 / 46 |
+| good | hard | 1840 | 5 | 0 -> 0 | 0.46 / 0.60 / 2.04 | 0.26 / 0.22 / 1.27 | 3.81 -> 3.81 | 0.39 / 0.63 / 0.38 | 0 / 0 |
+| good | hard | 1870 | 5 | 0 -> 0 | 1.33 / 4.29 / 9.45 | 0.98 / 2.66 / 5.43 | 31.22 -> 31.33 | 0.27 / 0.38 / 0.43 | 9 / 0 |
+| good | hard | 1900 | 5 | 0 -> 0 | 0.70 / 1.39 / 2.43 | 0.50 / 0.83 / 0.82 | 6.05 -> 6.05 | 0.34 / 0.40 / 0.66 | 0 / 0 |
+| good | hard | 1930 | 5 | 0 -> 0 | 0.48 / 0.66 / 1.08 | 0.27 / 0.42 / 0.37 | 2.44 -> 2.44 | 0.80 / 0.36 / 0.67 | 0 / 0 |
+| good | hard | 1950 | 5 | 0 -> 0 | 0.57 / 0.84 / 1.18 | 0.28 / 0.52 / 0.40 | 2.43 -> 2.43 | 0.48 / 0.38 / 0.66 | 0 / 0 |
+| good | normal | 1840 | 5 | 0 -> 0 | 0.66 / 1.56 / 5.81 | 0.27 / 0.78 / 3.88 | 11.45 -> 11.45 | 0.49 / 0.50 / 0.33 | 0 / 0 |
+| good | normal | 1870 | 5 | 0 -> 0 | 2.78 / 9.09 / 9.21 | 1.74 / 5.63 / 5.22 | 50.79 -> 50.79 | 0.33 / 0.37 / 0.42 | 0 / 0 |
+| good | normal | 1900 | 5 | 0 -> 0 | 1.16 / 2.37 / 3.41 | 0.58 / 0.88 / 0.86 | 6.17 -> 6.17 | 0.49 / 0.62 / 0.75 | 3 / 3 |
+| good | normal | 1930 | 5 | 0 -> 0 | 0.56 / 0.95 / 2.69 | 0.27 / 0.29 / 1.02 | 3.86 -> 3.86 | 0.96 / 0.69 / 0.62 | 0 / 0 |
+| good | normal | 1950 | 5 | 3 -> 3 | 0.76 / 1.05 / 1.10 | 0.16 / 0.16 / 0.21 | 1.7 -> 1.70 | 0.63 / 0.85 / 0.81 | 0 / 0 |
+
+### Against the targets (misses reported, nothing tuned)
+- **Strong player survives Normal in every era: MISS in 1930 (7/10, unchanged) and 1950 (1/10, was 2/10).** 1840 / 1870 / 1900 are 0/10. The 1950 improvement is the only survival change; 46 trains laid up and 46 returned in the strong 1950 Normal runs, NW median 9.61 -> 10.86M. Everything else moved by rounding (1870 NW 8.79 -> 8.82, 1900 18.55 -> 18.49).
+- **Hard harder than Normal: MISS in 1930** (strong Hard 1/5 against Normal 7/10, as in Phase 65); met in 1950 (Hard 2/5, Normal 1/10) and 1900 (Hard 1/5, Normal 0/10). Good bot: Hard 0/5 in every era, Normal 1950 3/5 bankrupt (unchanged, a thin early company, not a panic).
+- Lay-up barely fires for the good bot (1870 Hard 9 laid up, 1900 Normal 3) and a laid-up train in Hard 1870 stays laid up at the end of the run only because the 1884 panic is still on at year 16 (checked on good seed 1: two trains laid up in 1884-86, run ends 1886; not a bug).
+
+### Decisions
+- Any station, not only depots (every station has yards; stated basis above).
+- Icon-only panel button (word limit); not in the footer (it squeezed "Edit cars").
+- Laid-up trains still show in the passenger service-rate tables (`serviceRates` in `src/sim/stations/waiting.ts`): that is passenger-flow code and the Phase 64 builder owns it; a laid-up passenger train therefore still counts as service for destination pull. Reported, untouched.
+- A long train laid up drops its protruding-tail blocks too (`heldBlocks` cleared): simplification; a laid-up 60-car train may overlap track visually.
+- The bot judges a line by its trains' own books, not by line share of fixed costs (above).
+- The `layUpHint` news fires only when the player has at least one train, at the month the panic starts.
+
+### Sources
+- US railway employment: NBER/FRED hourly-basis employees, Class I, 1 635 000 (Aug 1929) -> 834 000 (Mar 1933), -49 %: https://fred.stlouisfed.org/data/M08151USM555NNBR ; index of employment 91.8 (Jan 1929) -> 51.9 (May 1933): https://fred.stlouisfed.org/data/M089BAUSM331SNBR . The plan's operating-ratio figures (about 0.72 -> 0.77) could NOT be verified: searches found only the net-income ratio (https://fred.stlouisfed.org/data/M09047USM156NNBR), and the Census Statistical Abstract table (www2.census.gov/library/publications/1944/compendia/1943statab/1943-18.pdf) was blocked by the proxy. Class I net income fell from $896M (1929) to $6M (1933) (Cambridge, "Railroad Bailouts in the Great Depression").
+- **Cost of a stored engine: NOT FOUND** (five searches). The 0.25 servicing share is my estimate (greasing, boiler lay-up and inspection, no fuel, no running repairs, no crew); `src/data/economy.ts` says so. A later session with open internet should check ICC Statistics of Railways / Railway Mechanical Engineer for "stored serviceable" locomotive costs.
