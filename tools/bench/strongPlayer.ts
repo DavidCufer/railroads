@@ -28,6 +28,7 @@ import {
   ledgerRevenue,
   type LedgerPeriod,
 } from "../../src/data/finance";
+import { activePanic } from "../../src/sim/finance/panics";
 import { netWorth } from "../../src/sim/finance/ledger";
 import { landPrices } from "../../src/sim/economy/land";
 import { cityTileAcceptance } from "../../src/sim/economy/cityStats";
@@ -722,7 +723,7 @@ for (let y = 1; startYear + y <= endYear + 0; y++) {
       console.log(
         year(),
         `m${m}`,
-        `cash ${Math.round(state.cash / 1e3)}k loans ${Math.round(state.finance.loans / 1e3)}k NW ${Math.round(netWorth(state) / 1e3)}k neg ${state.finance.negativeCashMonths} trains ${state.trains.length} limit ${Math.round(commands.creditLimit(state) / 1e3)}k`,
+        `cash ${Math.round(state.cash / 1e3)}k loans ${Math.round(state.finance.loans / 1e3)}k NW ${Math.round(netWorth(state) / 1e3)}k neg ${state.finance.negativeCashMonths} trains ${state.trains.length} laid ${state.trains.filter((t) => t.laidUp).length} rev ${Math.round(ledgerRevenue(state.finance.monthHistory.at(-1) ?? state.finance.thisMonth) / 1e3)}k wages ${Math.round((state.finance.monthHistory.at(-1)?.crewWages ?? 0) / 1e3)}k serv ${Math.round((state.finance.monthHistory.at(-1)?.trainMaintenance ?? 0) / 1e3)}k track ${Math.round((state.finance.monthHistory.at(-1)?.trackMaintenance ?? 0) / 1e3)}k stn ${Math.round((state.finance.monthHistory.at(-1)?.stationMaintenance ?? 0) / 1e3)}k int ${Math.round((state.finance.monthHistory.at(-1)?.interest ?? 0) / 1e3)}k panic ${activePanic(state)?.panic.name ?? "-"} limit ${Math.round(commands.creditLimit(state) / 1e3)}k`,
       );
     minCash = Math.min(minCash, state.cash);
     months++;
