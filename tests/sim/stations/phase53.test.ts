@@ -32,7 +32,9 @@ describe("Phase 53 passenger demand", () => {
     const toMilan = flows?.routes.find((r) => r.cityId === milan.cityId)?.perMonth ?? 0;
     const trainSeats = 5 * 40; // an 1840s train: five cars of 40 seats
     expect(toMilan).toBeGreaterThan(1 * trainSeats);
-    expect(toMilan).toBeLessThan(2 * trainSeats * 1.25);
+    // Phase 62 (owner OK 2026-10-21): was < 500 (2 x seats x 1.25), measured 630 once the 20 % share cap went: Milan
+    // (140 000, next door) now draws its gravity share of Venice's trips. 700 = 3.5 early trains a month.
+    expect(toMilan).toBeLessThan(3.5 * trainSeats);
   });
 
   it("shares follow size and distance, uncapped, and the town's total is the old volume (Phase 62)", () => {
