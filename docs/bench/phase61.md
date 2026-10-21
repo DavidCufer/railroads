@@ -182,3 +182,4 @@ Revenue and operating profit are those of the completed year (year 5 = the fifth
 | leveraged | 1900 | hard | 2 | yes 1907 | -0.05 | 1.4 | - | - | - | - | - | - | - | - | - | - | - | - | - |
 | leveraged | 1900 | hard | 3 | yes 1907 | -0.05 | 1.41 | - | - | - | - | - | - | - | - | - | - | - | - | - |
 | leveraged | 1950 | hard | 2 | yes 1958 | -0.01 | 1.19 | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| leveraged | 1950 | hard | 3 | yes 1962 | -0.02 | 0.99 | - | - | - | - | - | - | - | - | - | - | - | - | - |
