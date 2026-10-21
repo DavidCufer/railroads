@@ -599,19 +599,20 @@ export function tripsPerHeadPerMonth(year: number): number {
   return interpolateYear(TRIPS_PER_HEAD_ANCHORS, year);
 }
 
-/** The total is split over every town within `travelRangeTiles(year)` (the destinations people know of) by a gravity
- * share: weight = destination population / max(distance, `minDistanceTiles`)^`distanceExponent`. Shares sum to 1 over
- * the candidates, no single destination takes more than `maxShare` of the total unless it is the only town in range,
- * and a station generates the total x the shares of the towns the network *reaches*. Nearer and bigger takes most; a
- * far small town gets little. */
+/** Where a town's trips go: gravity (Phase 62). The destinations in range split the total by weight = destination
+ * population / max(distance, `minDistanceTiles`)^`distanceExponent`, with **no cap on one destination's share**, so a
+ * bigger or nearer town draws more (Vienna more than Graz from Ljubljana). How many trips a station generates in all is
+ * still the old rule: the total the 20 % cap (`maxShare`) left after water-filling (`cappedVolume`); a station generates
+ * that total x the shares of the towns the network *reaches*. `maxShare` therefore sets the volume only; replacing it by a
+ * sourced rule (the radiation model's S / (m + S), Simini et al., Nature 2012) is left to a later phase, since it would
+ * raise a pair line's passengers 1.7-2.5x (PROGRESS, Phase 62). */
 export const PAIR_DEMAND = {
   distanceExponent: 1,
   /** Exponent of the destination's population in its weight (1 = proportional). */
   sizeExponent: 1,
   /** Towns nearer than this weigh as if at this distance (tiles of 5 km): stops a next-door village dominating. */
   minDistanceTiles: 15,
-  /** Largest share of the town total one destination can take (unless it is the only candidate). Phase 51: 0.2 (was
-   * 0.5): real towns sent travellers to many places, so no single partner fills train after train. */
+  /** Phase 51: 0.2 (was 0.5). Phase 62: used only to size the trip total (`cappedVolume`), not to split it. */
   maxShare: 0.2,
 };
 

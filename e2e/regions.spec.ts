@@ -242,10 +242,10 @@ test.describe("Phase 10 — real-world regions", () => {
     await page.setViewportSize(PHONE_VIEWPORT);
     await page.goto("/?debug=1");
     await page.waitForFunction(() => window.__game !== undefined);
-    // gb's gold goal is netWorth($25M) — cheapest goal type to force deterministically without
-    // simulating real train revenue (see debugSetCash's doc comment in src/main.ts).
+    // gb's gold goal is a yearly profit — forced by booking last year's income directly instead of simulating real
+    // train revenue (see debugSetLastYearIncome's doc comment in src/main.ts).
     await page.evaluate(() => window.__game?.regenerate({ seed: 1, region: "gb" }));
-    await page.evaluate(() => window.__game?.debugSetCash(26_000_000));
+    await page.evaluate(() => window.__game?.debugSetLastYearIncome(26_000_000));
     await page.evaluate(() => window.__game?.runDays(1));
 
     await expect(page.getByText("Goal reached!")).toBeVisible();

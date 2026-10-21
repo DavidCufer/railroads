@@ -165,6 +165,7 @@ export interface GameWindow {
   debugPlaceIndustry: (tile: number, type: string) => number;
   debugPlaceCity: (tiles: number[], population: number) => number;
   debugSetCash: (amount: number) => void;
+  debugSetLastYearIncome: (amount: number) => void;
   debugBuildStressNetwork: (options: {
     lines?: number;
     doubleEvery?: number;

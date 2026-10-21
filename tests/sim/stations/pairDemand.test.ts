@@ -109,7 +109,8 @@ describe("station economy with reachability", () => {
     const routes = (e?.passengerRoutes ?? []).reduce((s, r) => s + r.perMonth, 0);
     expect(e?.supply.passengers).toBeCloseTo(routes, 9);
     const unconnected = (e?.passengerUnconnected ?? []).reduce((s, u) => s + u.perMonth, 0);
-    // Phase 53: two towns in range take at most 2 x maxShare of the total; the rest is not generated.
+    // Phase 53 volume rule, kept in Phase 62: two towns in range take at most 2 x maxShare of the total; the rest is not
+    // generated.
     expect(routes + unconnected).toBeCloseTo(
       (e?.passengerDemand ?? 0) * 2 * PAIR_DEMAND.maxShare,
       6,
@@ -117,46 +118,41 @@ describe("station economy with reachability", () => {
     expect(e?.passengerPool).toBeCloseTo(routes, 9); // one pile, fed at the connected rate
   });
 
-  it("no destination takes more than maxShare of the total, and a town with few places to go generates fewer trips", () => {
-    // A metropolis next door and five small towns: gravity alone would give the big one ~95 %.
-    const { economies } = world([3, 10, 20, 30, 40, 50], [12000, 400000, 3000, 3000, 3000, 3000]);
+  it("a metropolis draws a large but not total share, and a town with few places to go makes fewer trips (Phase 62)", () => {
+    // A metropolis (400 000) and four villages (3 000), the origin 12 000: gravity puts most trips on the metropolis, but
+    // the villages keep theirs (the volume is the old rule's, so five towns in range add up to the whole demand).
+    const { economies } = world([3, 40, 12, 20, 28, 36], [12000, 400000, 3000, 3000, 3000, 3000]);
     const e = economies([pax(0, 1, 2, 3, 4, 5)]).get(0);
     const demand = e?.passengerDemand ?? 0;
-    for (const r of e?.passengerRoutes ?? [])
-      expect(r.perMonth).toBeLessThanOrEqual(demand * PAIR_DEMAND.maxShare + 1e-9);
-    expect(Math.max(...(e?.passengerRoutes ?? []).map((r) => r.perMonth))).toBeCloseTo(
-      demand * PAIR_DEMAND.maxShare,
-      6,
+    const routes = e?.passengerRoutes ?? [];
+    const sum = routes.reduce((s, r) => s + r.perMonth, 0);
+    expect(sum).toBeCloseTo(demand, 6);
+    // no 20 % cap on one destination any more
+    expect(routes.find((r) => r.cityId === 1)?.perMonth ?? 0).toBeGreaterThan(
+      demand * PAIR_DEMAND.maxShare * 2,
     );
-    const sum = (e?.passengerRoutes ?? []).reduce((s, r) => s + r.perMonth, 0);
-    expect(sum).toBeCloseTo(demand, 6); // the excess goes to the others: the shares add up to 1
-    // Phase 53: three candidates stay at 20 % each; the other 40 % is not generated (fewer places to go, less travel).
-    const few = world([3, 20, 40, 60], [12000, 400000, 3000, 3000])
-      .economies([pax(0, 1, 2, 3)])
-      .get(0);
-    for (const r of few?.passengerRoutes ?? [])
-      expect(r.perMonth).toBeLessThanOrEqual(
-        (few?.passengerDemand ?? 0) * PAIR_DEMAND.maxShare + 1e-9,
-      );
-    const fewSum = (few?.passengerRoutes ?? []).reduce((s, r) => s + r.perMonth, 0);
-    expect(fewSum).toBeCloseTo((few?.passengerDemand ?? 0) * 3 * PAIR_DEMAND.maxShare, 6);
-    expect(fewSum).toBeLessThan((few?.passengerDemand ?? 0) - 1);
-    // Two candidates: each at most maxShare, and the town's total falls.
-    const two = world([3, 20, 40], [12000, 400000, 3000])
-      .economies([pax(0, 1, 2)])
-      .get(0);
-    for (const r of two?.passengerRoutes ?? [])
-      expect(r.perMonth).toBeLessThanOrEqual(
-        (two?.passengerDemand ?? 0) * PAIR_DEMAND.maxShare + 1e-9,
-      );
-    // A lone partner is capped like any other.
-    const lone = world([3, 20])
+    const toMetropolis = routes.find((r) => r.cityId === 1)?.perMonth ?? 0;
+    expect(toMetropolis).toBeGreaterThan(sum * 0.5);
+    expect(toMetropolis).toBeLessThan(sum * 0.99);
+    for (const r of routes.filter((x) => x.cityId !== 1)) expect(r.perMonth).toBeGreaterThan(0);
+    // One village in range: the volume is the old rule's 20 % of the town's trips, all of them to that village.
+    const lone = world([3, 20], [12000, 3000])
       .economies([pax(0, 1)])
       .get(0);
     expect(lone?.passengerRoutes?.[0]?.perMonth).toBeCloseTo(
       (lone?.passengerDemand ?? 0) * PAIR_DEMAND.maxShare,
       9,
     );
+  });
+
+  it("a bigger town draws more than a smaller one even when it is farther (Vienna and Graz from Ljubljana, Phase 62)", () => {
+    // Ljubljana-like origin 15 000; Graz-like 36 000 at 24 tiles, Vienna-like 150 000 at 54, Trieste-like 25 000 at 20.
+    const { economies } = world([3, 27, 57, 23], [15000, 36000, 150000, 25000]);
+    const e = economies([pax(0, 1, 2, 3)]).get(0);
+    const to = (id: number) => e?.passengerRoutes?.find((r) => r.cityId === id)?.perMonth ?? 0;
+    expect(to(2)).toBeGreaterThan(to(1) * 1.5); // Vienna well above Graz
+    expect(to(1)).toBeGreaterThan(to(3)); // Graz above the smaller, nearer Trieste
+    expect(to(2)).not.toBeCloseTo(to(1), 0); // not levelled
   });
 
   it("of two equal towns the nearer takes more", () => {
@@ -350,20 +346,21 @@ describe("station economy with reachability", () => {
       const viaLocal = new Boarding(state, atStop(local, 0), station, 100);
       const viaExpress = new Boarding(state, atStop(express, 0), station, 100);
       expect(viaLocal.fraction).toBeCloseTo(1, 9);
-      // both reachable towns sit at the 20 % cap on their share, so the express (one of the two) takes half the pile
-      expect(viaExpress.fraction).toBeCloseTo(0.5, 9);
-      expect(viaExpress.left).toBeCloseTo(50, 9);
-      // the local's riders split over its two later stops in the same capped shares, and they sum to 1
+      // Phase 62: equal towns at 9 and 18 tiles weigh 1/15 (the distance clamp) and 1/18, so the express (town 2) takes
+      // (1/18) / (1/15 + 1/18) = 5/11 of the pile
+      expect(viaExpress.fraction).toBeCloseTo(5 / 11, 9);
+      expect(viaExpress.left).toBeCloseTo(100 * (5 / 11), 9);
+      // the local's riders split over its two later stops, and they sum to 1: the nearer town takes more
       const shares = [...viaLocal.shares.values()];
       expect(shares.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
-      expect(viaLocal.shares.get(1)).toBeCloseTo(0.5, 9);
+      expect(viaLocal.shares.get(1) ?? 0).toBeGreaterThan(viaLocal.shares.get(2) ?? 1);
       // the express's riders all go to town 2
       expect([...viaExpress.shares.keys()]).toEqual([2]);
     });
 
-    it("a big town the 20 % cap holds back does not let the express carry the small towns' share", () => {
-      // 0 is next to five towns: a metropolis (1, x=40) and four villages. Raw gravity would give the metropolis most of
-      // the pile; its share of the demand is capped at maxShare, and the express may take no more than that share.
+    it("a metropolis draws most of the pile but not all of it: an express to it cannot carry the villages' share (Phase 62)", () => {
+      // 0 is next to five towns: a metropolis (1, x=40) and four villages. Gravity gives the metropolis most of the
+      // pile; the villages' trips stay theirs, and the express may take no more than the metropolis's share.
       const xs = [3, 40, 12, 20, 28, 36];
       const pops = [12000, 400000, 3000, 3000, 3000, 3000];
       const local = running(0, 2, 3, 4, 5, 1);
@@ -387,11 +384,8 @@ describe("station economy with reachability", () => {
       const toMetropolis = routes.find((r) => r.cityId === 1)?.perMonth ?? 0;
       const b = new Boarding(state, atStop(express, 0), state.stations[0] as Station, 100);
       expect(b.fraction).toBeCloseTo(toMetropolis / total, 9);
-      expect(toMetropolis).toBeCloseTo(
-        (state.stationEconomy.get(0)?.passengerDemand ?? 0) * PAIR_DEMAND.maxShare,
-        9,
-      );
-      expect(b.fraction).toBeLessThan(0.5); // gravity alone would say ~0.97
+      expect(b.fraction).toBeGreaterThan(0.5);
+      expect(b.fraction).toBeLessThan(0.99);
     });
 
     it("an express cannot carry the small town's people, however often it runs", () => {
