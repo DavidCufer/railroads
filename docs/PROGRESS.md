@@ -6688,3 +6688,10 @@ Pooled k = 0.08 O / (F - 0.08 (F + S)) = 0.079; 2.8 x 0.079 = 0.22. Caveat: thos
 The next line of that test (silver money a year `lateReturn x invested` > 1.8e6, measured 1.926e6 on main) is not reached, so unknown. Passing now: coal-route 1.5x, 1900 chain `lateReturn`, gold goal ratio, Hard 1920 route profit.
 **Real cause.** One train on a third-of-the-map line carries that line's whole track gang, head office, and now a crew of 3 shifts instead of about 1.9 in 1930 (shift hours 14 -> 8 after 1917) plus a fuel bill of 8 % of costs instead of 2-3 % of the old mature rate; the old bound had 3 % headroom and the new crew alone costs more than that. It is the same twin-bound family as Phase 60.
 **Decision for the owner:** lower the 1930 silver `lateReturn` bound 0.5 -> 0.45 (one 0.05 step under 0.493), then check the `x invested` line (floor 1.8e6), or tell me otherwise. I did not touch any bound. Items 2-3 not started; main untouched and green. Branch left as is.
+
+## 2026-10-21 - Phase 61 item 1 merged (orchestrator)
+Merged `phase-61-costs` (sourced crew shift hours 14 h -> 8 h after 1917, 0.5 attendants per coach from 1870 [weak source],
+one fuel+servicing constant 0.22 derived from the NBER 8 % fuel share, handling share 0.11 in every era;
+`COST_REALISM_ANCHORS` removed). Bound changed with the owner's OK (2026-10-21), only this one:
+`balanceLongHaul` 1930 silver `lateReturn` > 0.5 -> > 0.45 (measured 0.493). The silver money-a-year line (> 1.8e6) passes.
+`npm run check` 932 green; e2e 136 + 136 green. Items 2-3 (bench, SPEC) to do.

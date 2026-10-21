@@ -34,7 +34,9 @@ describe("long-haul chain balance (Phase 40)", () => {
     // Phase 54 (owner OK): was 0.8. Measured 0.75 with the terminus turnaround: a full ore train loses a trip's income
     // at every turn, and silver is a full-train cargo.
     // Phase 56B (owner OK): was 0.7, measured 0.611 (the 1930 fastest engine, the Hudson, costs 1.5x and its upkeep 2x).
-    expect(silver.lateReturn).toBeGreaterThan(0.5);
+    // Phase 61 (owner OK 2026-10-21): was 0.5, measured 0.493 with sourced 1930 staffing (three 8-hour shifts after 1917)
+    // and fuel at its real 8 % share of operating expenses.
+    expect(silver.lateReturn).toBeGreaterThan(0.45);
     // Phase 54 (owner OK): was 2.5e6, measured 2.44e6 (the same turnaround cost). Phase 56B (owner OK): was 2.3e6,
     // measured 2.283e6, floor one step (0.1e6) below it. Phase 60 (owner OK 2026-10-20): was 2.2e6, measured 1.926e6
     // after the real running costs (section-gang track upkeep, head office), floor one step below.
