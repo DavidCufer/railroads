@@ -123,7 +123,7 @@ test("start-up credit ending is announced three months ahead, and Borrow shows i
   await page.screenshot({ path: "docs/screenshots/phase-41-startup-credit.png" });
   await page.locator(".status-banner").click(); // opens Finance
   await expect(page.getByTestId("borrow-terms")).toHaveText(
-    /Borrow \$100k: \d+\.\d %.*10 years.*\$833 a month/,
+    /Borrow \$100k: \d+\.\d %.*30 years.*\$278 a month/,
   );
   await page.getByTestId("borrow-terms").scrollIntoViewIfNeeded();
   await page.screenshot({ path: "docs/screenshots/phase-41-borrow-terms.png" });
