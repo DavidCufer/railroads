@@ -6764,3 +6764,7 @@ Shift hours: ignitingtheflameofunity.yolasite.com/1877.php (Royal Commission 187
 ## 2026-10-21 - Phase 62 item 1: stopped, six balance tests red; work on branch `phase-62-shares`
 
 Replacing the 20 % passenger-share cap (gravity split + radiation-model trip total S/(m+S)) fixes the equal-shares problem (Vienna > Graz) but raises two-town fixtures' passengers 1.7-2.5x and fails six balance tests (e.g. 1900 pax/coal 3.15 vs bound 2.6, was 2.25). Full report, tried variants and options for the owner: `docs/PROGRESS.md` on branch `phase-62-shares`. `main` is unchanged in code; Phase 62 is not ticked.
+
+## 2026-10-21 - Phase 62 item 1: variant (d) also stopped (two tests red); branch `phase-62-shares`
+
+Volume kept (old cap's total), split by uncapped gravity (Vienna > Graz fixed): the six balance tests are green but `phase53` Venice-Milan "1-2 trains" (old about 249, new 630 vs bound 500) and `goalCalibration` gold ceiling (old 2.54, new 3.25 vs 3) fail. Report and options: `docs/PROGRESS.md` on the branch. `main` has no code change; Phase 62 not ticked.
