@@ -2705,3 +2705,32 @@ balance test fails, report old/new and cause and stop on a branch `phase-66-layu
 5. e2e (lay up and return; never weaken), PROGRESS (tables, sources), SPEC (§7, §9), screenshot `phase-66-laid-up.png`
    (a laid-up train and the button). LOOK at it.
 Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5
+
+## Phase 67 — Loans as long-term bonds; one re-measure; goals, achievements and scenario stars on yearly profit
+
+Owner: "Go" (2026-10-21). Phase 62 + 64 are merged to main by the orchestrator (passenger split by uncapped gravity with
+the old volume; net-worth goals replaced by yearly profit/revenue goals, amounts from the pre-62 Phase 65 medians).
+Phase 66 found the 1930 bankruptcies are the lenders' call: in a panic the credit limit falls (477k -> 35k in one seed)
+and debt over the limit is called out of cash. Real railways borrowed on long-term bonds (often 20-50 years) that could
+not be called; in a panic they could not borrow more, and a railway that missed its interest went into receivership.
+
+Real mechanisms only; numbers in `src/data` with a one-line justification and source. Never loosen a test bound; if a
+balance test fails, report old/new and cause and stop on a branch `phase-67` (owner decides). Benches in pieces of at most
+~15 minutes, each pushed to `docs/bench/phase67.md`; never end a turn while a bench runs.
+
+1. **Bonds.** Borrowing issues a bond with a term (sourced typical railway bond term by era) and interest; existing debt is
+   never called because the credit limit fell. The credit limit only limits **new** borrowing. Repay early stays allowed.
+   Bankruptcy: when cash stays negative past the grace period because interest or running costs cannot be paid (as now
+   for operating losses), not because of a call. Old saves: existing loans become bonds with the default term. UI: Borrow
+   shows the term; strings short. Unit tests: a panic cuts the limit but calls nothing.
+2. **Laid-up trains do not count as service** in the passenger service rates (`serviceRates`, Phase 66 note).
+3. **Re-measure** (strong 10 seeds Normal / 5 Hard, good 5 seeds, all eras): profit and revenue y5/10/16, op ratio,
+   bankruptcies, Hard vs Normal, laid-up counts. Targets: strong survives Normal in every era; Hard harder than Normal.
+   Report whether 1900 got too easy after Phase 62 (strong 1900 profit y16 was 2.8M before 62, about 9.7M on 5 seeds
+   after) and the real reason; do not tune.
+4. **Re-derive the goal amounts** from these medians with the Phase 64 formula (same `goalCalibration` bounds), and move
+   achievements `worth1M/10M/100M` and scenario net-worth stars to yearly operating profit (thresholds from the same
+   medians: say which year index and why). Table of old -> new for the owner in PROGRESS; push and STOP before merging
+   item 4 (branch `phase-67-goals`) so the orchestrator can show the owner the amounts. Items 1-3 go to main when green.
+5. PROGRESS, SPEC (§9 finance, §11 goals), e2e (never weaken).
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
