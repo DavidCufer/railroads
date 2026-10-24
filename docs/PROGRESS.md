@@ -7060,3 +7060,17 @@ Prices: Post Office 25k -> 100k, Hotel 50k -> 225k, Warehouse 30k -> 65k, Cold S
 
 ### Item 4
 Not done, as instructed: it waits until the orchestrator has merged this branch. `STRONG_PLAYER_MEDIANS` should then take the Phase 68 medians above.
+
+### Orchestrator: Phase 68 merged (2026-10-24)
+- Reviewed `phase-68` (evenShare 0.3, dearer station improvements and civic investment): `npm run check` and both e2e shards green; the only test edits were fixture values (civic price, evenShare formula, fixture cash). Merged to main.
+- Game-scale sweep (`TRIPS=<f>` env in `tools/bench/pairEnv.ts`, strong player, central-eu Normal, seeds 1-2), operating profit $M at year 16:
+
+| trips factor | 1870 | 1900 |
+|---|---|---|
+| 1 (Phase 68 bench median) | 7.46 | 8.18 |
+| 0.8 | 5.21 / 4.20 | 2.23 / 2.16 |
+| 0.65 | 2.01 / 0.84 | 1.70 / 1.73 |
+| 0.5 | 0.16 / 0.10 | bankrupt 1912 / 1909 |
+| 0.35 | 0.07 / 0.11 | bankrupt 1910 / 0.05 |
+
+  The response is steep (track, crews and head office stay while fares fall). 0.8 is the only factor near the 3-4 M$ target. Not applied: waiting for the owner.
