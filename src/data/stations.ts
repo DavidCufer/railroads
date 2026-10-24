@@ -76,16 +76,22 @@ export const STATION_UPGRADE_ORDER: readonly StationType[] = ["depot", "station"
 /** Cargo acceptance threshold to "accept" a cargo at a station (SPEC §6.3: "like RRT"). */
 export const STATION_ACCEPTANCE_THRESHOLD = 8;
 
+/** Phase 68 prices below: all at 1830 prices ($, era-scaled when built). A real cost is converted as pounds x 4.87
+ * ($ per pound, 1830s gold par) / `eraInflation` of its year; sources in PROGRESS (Phase 68). Where no real cost was
+ * found the price is the payback rule: the improvement's yearly gain at the busiest station of a two-big-town line
+ * (the S4 line, about 30 % of its revenue lands there: $760k a year in 1842, $2.1M in 1900) times 3-5 years. */
 /** Water Tower improvement (SPEC §6.2): steam era, refills steam locomotives stopping here. Built
  * via `buildWaterTower`/`hasWaterTower` (Phase 8) rather than the generic `improvements` list below
- * — it predates this phase and several call sites already key off that boolean directly. */
-export const WATER_TOWER_COST = 8_000;
+ * — it predates this phase and several call sites already key off that boolean directly. Phase 68: $8k -> $15k, a
+ * tank and column are about a quarter of a goods shed ($65k); no real cost found. */
+export const WATER_TOWER_COST = 15_000;
 
 /** Engine Shed (SPEC §6.2, PLAN Phase 28A Bug 6): the company's first station gets one free; any station can
  * build another. A shed lets the player buy trains there, services trains that stop (breakdown chance −50 %)
  * and is a repair-crew base — the nearest shed sends the crew, so sheds near the far ends of a network make
- * call-outs short and cheap. Era-scaled like every build cost. */
-export const ENGINE_SHED_COST = 30_000;
+ * call-outs short and cheap. Era-scaled like every build cost. Phase 68: $30k -> $65k, a brick building of the size of a
+ * goods shed (Ballarat, 1862, 18,326 pounds); no engine-shed cost was found. */
+export const ENGINE_SHED_COST = 65_000;
 
 /** The rest of SPEC §6.2's improvement roster (Water Tower and Engine Shed keep their own bespoke
  * fields/commands from earlier phases — see `Station.hasEngineShed`/`hasWaterTower`). Each is
@@ -114,40 +120,46 @@ export const STATION_IMPROVEMENTS: Record<StationImprovementType, StationImprove
   postOffice: {
     id: "postOffice",
     name: "Post Office",
-    cost: 25_000,
+    cost: 100_000,
+    // Phase 68 ($25k): payback. Mail at the busy station is ~15 % of 30 % of the line ($34k a year in 1842); +50 % supply and +25 % pay = +$30k a year; x3.5 years = $100k.
     description: "Mail supply +50%; mail revenue +25% for mail loaded here.",
   },
   hotel: {
     id: "hotel",
     name: "Hotel",
-    cost: 50_000,
+    cost: 225_000,
+    // Phase 68 ($50k): Great Western Royal Hotel, Paddington, 60,000 pounds in 1854 (x4.87 / 1.29); also 4 years of +25 % on the busy station's $57k (1842).
     description:
       "Passenger revenue +25% for passengers delivered here; +20% city growth contribution.",
   },
   warehouse: {
     id: "warehouse",
     name: "Warehouse",
-    cost: 30_000,
+    cost: 65_000,
+    // Phase 68 ($30k): Ballarat goods sheds, 18,326 pounds in 1862 (x4.87 / 1.38).
     description: "Storage ×2; waiting cargo doesn't decay.",
   },
   coldStorage: {
     id: "coldStorage",
     name: "Cold Storage",
-    cost: 40_000,
+    cost: 140_000,
+    // Phase 68 ($40k): Weaste (Salford) cold-air stores, 52,000 pounds in 1899 (x4.87 / 1.83).
     availableYear: 1880,
     description: "Food/livestock waiting here don't decay; their revenue +15% when loaded here.",
   },
   freightYard: {
     id: "freightYard",
     name: "Freight Yard",
-    cost: 60_000,
+    cost: 120_000,
+    // Phase 68 ($60k): no real cost found; a yard is a goods shed plus sidings and cranes, about twice the shed.
     availableYear: 1870,
     description: "Loading/unloading 2× faster.",
   },
   livestockPens: {
     id: "livestockPens",
     name: "Livestock Pens",
-    cost: 12_000,
+    cost: 20_000,
+    // Phase 68 ($12k): no real cost found; fenced pens and a ramp, a third of a goods shed.
     description: "Required to load livestock at this station.",
   },
 };

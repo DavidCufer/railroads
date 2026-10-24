@@ -347,9 +347,10 @@ describe("station economy with reachability", () => {
       const viaExpress = new Boarding(state, atStop(express, 0), station, 100);
       expect(viaLocal.fraction).toBeCloseTo(1, 9);
       // Phase 62: equal towns at 9 and 18 tiles weigh 1/15 (the distance clamp) and 1/18, so the express (town 2) takes
-      // (1/18) / (1/15 + 1/18) = 5/11 of the pile
-      expect(viaExpress.fraction).toBeCloseTo(5 / 11, 9);
-      expect(viaExpress.left).toBeCloseTo(100 * (5 / 11), 9);
+      // (1/18) / (1/15 + 1/18) = 5/11 of the pile by gravity; Phase 68 mixes in `evenShare` of an equal split (1/2)
+      const share = (1 - PAIR_DEMAND.evenShare) * (5 / 11) + PAIR_DEMAND.evenShare / 2;
+      expect(viaExpress.fraction).toBeCloseTo(share, 9);
+      expect(viaExpress.left).toBeCloseTo(100 * share, 9);
       // the local's riders split over its two later stops, and they sum to 1: the nearer town takes more
       const shares = [...viaLocal.shares.values()];
       expect(shares.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);

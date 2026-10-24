@@ -608,8 +608,18 @@ export function tripsPerHeadPerMonth(year: number): number {
  * raise a pair line's passengers 1.7-2.5x (PROGRESS, Phase 62). */
 export const PAIR_DEMAND = {
   distanceExponent: 1,
-  /** Exponent of the destination's population in its weight (1 = proportional). */
+  /** Exponent of the destination's population in the weight that sizes the trip total (`cappedVolume`; 1 = proportional,
+   * the Phase 53 volume, unchanged so passenger volume stays the same on every map). */
   sizeExponent: 1,
+  /** Phase 68: exponent of the destination's population in the weight that splits the trips. Kept at 1: published gravity
+   * fits give 0.5-0.9, but the Vienna-Graz test (a bigger town 2x as far still draws 1.5x more) needs about 0.9 or more,
+   * and 0.8 left the strong player's 1870/1900 profit unchanged in the sweep (PROGRESS). */
+  splitSizeExponent: 1,
+  /** Phase 68: part of a town's trips split evenly over the destinations in range, the rest by gravity: a floor, so a
+   * small town in range keeps a fair share (Ljubljana: Zagreb 4 % -> 5 %, Salzburg 2 % -> 4 %) while the big nearer
+   * city still draws most. 0.2 cut the strong player's year-16 profit (2 seeds) 1900: 10.3 -> 8.3 M$, 1870: 8.1 -> 7.3 M$; 0.1 and a lower
+   * exponent went further (-30 %) but fail the Vienna-Graz test. */
+  evenShare: 0.2,
   /** Towns nearer than this weigh as if at this distance (tiles of 5 km): stops a next-door village dominating. */
   minDistanceTiles: 15,
   /** Phase 51: 0.2 (was 0.5). Phase 62: used only to size the trip total (`cappedVolume`), not to split it. */

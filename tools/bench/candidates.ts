@@ -1,5 +1,6 @@
 /** PLAN Phase 51/62: how many destination towns are in range of a town and the share of its trips each takes (the
  * radiation model, `destinationShares`). `npx tsx tools/bench/candidates.ts [year=1842] [Venice,Milan,Ljubljana]` */
+import "./pairEnv";
 import { travelRangeTiles } from "../../src/data/economy";
 import { createGameState } from "../../src/sim/state";
 import { destinationShares } from "../../src/sim/stations/passengerFlows";

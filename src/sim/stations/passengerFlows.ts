@@ -37,9 +37,13 @@ interface StationPoint {
 
 /** Gravity weight of a destination town: population / distance (tiles), the distance clamped so a next-door village does
  * not dominate (`PAIR_DEMAND`). How a town's trips split over its destinations. */
-export function gravityWeight(population: number, distanceTiles: number): number {
+export function gravityWeight(
+  population: number,
+  distanceTiles: number,
+  sizeExponent: number = PAIR_DEMAND.sizeExponent,
+): number {
   return (
-    Math.pow(population, PAIR_DEMAND.sizeExponent) /
+    Math.pow(population, sizeExponent) /
     Math.pow(Math.max(PAIR_DEMAND.minDistanceTiles, distanceTiles), PAIR_DEMAND.distanceExponent)
   );
 }
@@ -78,16 +82,20 @@ export function destinationShares(
   candidates: ReadonlyArray<{ id: number; population: number; distance: number }>,
 ): Map<number, number> {
   const weights = new Map<number, number>();
-  let sum = 0;
+  const split = new Map<number, number>();
+  let splitSum = 0;
   for (const c of candidates) {
-    const w = gravityWeight(c.population, c.distance);
-    weights.set(c.id, w);
-    sum += w;
+    weights.set(c.id, gravityWeight(c.population, c.distance));
+    const w = gravityWeight(c.population, c.distance, PAIR_DEMAND.splitSizeExponent);
+    split.set(c.id, w);
+    splitSum += w;
   }
   const shares = new Map<number, number>();
-  if (sum <= 0) return shares;
+  if (splitSum <= 0) return shares;
   const volume = cappedVolume(weights, PAIR_DEMAND.maxShare);
-  for (const [id, w] of weights) shares.set(id, (volume * w) / sum);
+  const even = PAIR_DEMAND.evenShare;
+  for (const [id, w] of split)
+    shares.set(id, volume * ((1 - even) * (w / splitSum) + even / split.size));
   return shares;
 }
 

@@ -102,7 +102,7 @@ describe("city growth (SPEC §8.3)", () => {
     expect(getOrCreateCityGrowth(state, 0).monthlyScore).toBeCloseTo(20, 6);
   });
 
-  it("Civic Investment: requires rail connection, costs $100k x tier, and boosts population once", () => {
+  it("Civic Investment: requires rail connection, costs the Phase 68 tier price, and boosts population once", () => {
     const map = makeTestMap(Array.from({ length: 6 }, () => "pppppp"));
     const state = makeTestState(map);
     const city: City = {
@@ -127,8 +127,9 @@ describe("city growth (SPEC §8.3)", () => {
 
     const plan = computeCivicInvestmentPlan(state, 0);
     expect(plan.valid).toBe(true);
-    expect(plan.cost).toBeCloseTo(100_000 * 3, 0); // tier "city" = rank 3
+    expect(plan.cost).toBeCloseTo(1_000_000, 0); // tier "city", Phase 68 price at 1830 prices
 
+    state.cash = 5_000_000; // Phase 68: a city-tier investment costs more than the fixture's starting cash
     const before = city.population;
     const result = civicInvestment(state, 0);
     expect(result.ok).toBe(true);
