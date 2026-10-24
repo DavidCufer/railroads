@@ -616,10 +616,10 @@ export const PAIR_DEMAND = {
    * and 0.8 left the strong player's 1870/1900 profit unchanged in the sweep (PROGRESS). */
   splitSizeExponent: 1,
   /** Phase 68: part of a town's trips split evenly over the destinations in range, the rest by gravity: a floor, so a
-   * small town in range keeps a fair share (Ljubljana: Zagreb 4 % -> 5 %, Salzburg 2 % -> 4 %) while the big nearer
-   * city still draws most. 0.2 cut the strong player's year-16 profit (2 seeds) 1900: 10.3 -> 8.3 M$, 1870: 8.1 -> 7.3 M$; 0.1 and a lower
-   * exponent went further (-30 %) but fail the Vienna-Graz test. */
-  evenShare: 0.2,
+   * small town in range keeps a fair share while the big nearer city still draws most. 0.3 is the most even setting that
+   * keeps the Vienna-Graz test (Vienna 1.56x Graz; 0.4 gives 1.47, below the test's 1.5). The strong player's year-16
+   * profit hardly moves with it (2 seeds, 1870 / 1900, M$: 0.2 7.9 / 8.0, 0.3 7.2 / 9.0, 0.4 6.9 / 5.3, 0.5 6.8 / 5.8). */
+  evenShare: 0.3,
   /** Towns nearer than this weigh as if at this distance (tiles of 5 km): stops a next-door village dominating. */
   minDistanceTiles: 15,
   /** Phase 51: 0.2 (was 0.5). Phase 62: used only to size the trip total (`cappedVolume`), not to split it. */
