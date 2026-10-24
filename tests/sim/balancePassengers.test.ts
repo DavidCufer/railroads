@@ -48,16 +48,18 @@ describe("Phase 26A passenger & mail balance", () => {
     expect(ratio).toBeLessThan(1.6);
   });
 
-  it("1860s: with the American and 1840s-60s fares passengers lead coal by 2-3.5x", () => {
+  it("1860s: with the American and 1840s-60s fares passengers lead coal by 1.6-3.5x", () => {
     // Measured 2.97x; the era where passengers lead the most.
     const ratio = paxVsCoal(1860, "american-4-4-0");
-    expect(ratio).toBeGreaterThan(2);
+    // Phase 69 (owner OK 2026-10-24): was > 2, measured 1.78 with travellers at 0.8x (TRIPS_GAME_SCALE); coal is unchanged.
+    expect(ratio).toBeGreaterThan(1.6);
     expect(ratio).toBeLessThan(3.5);
   });
 
-  it("1900: Town↔Town passengers earn 1.8-2.6x a coal train (measured 2.25x)", () => {
+  it("1900: Town↔Town passengers earn 1.5-2.6x a coal train (measured 1.61x at 0.8x travellers)", () => {
     const ratio = paxVsCoal(1900, "atlantic-4-4-2");
-    expect(ratio).toBeGreaterThan(1.8);
+    // Phase 69 (owner OK 2026-10-24): was > 1.8, measured 1.61 with travellers at 0.8x (TRIPS_GAME_SCALE).
+    expect(ratio).toBeGreaterThan(1.5);
     expect(ratio).toBeLessThan(2.6);
   });
 

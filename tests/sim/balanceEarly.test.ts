@@ -16,7 +16,9 @@ describe("early-era balance", () => {
         population: 12_000,
         tier: "town",
       });
-      expect(r.profit).toBeGreaterThanOrEqual(0);
+      // Phase 69 (owner OK 2026-10-24): with travellers at 0.8x (TRIPS_GAME_SCALE) the 100 km line measured -1464 $/yr.
+      // The slow engine is for short lines: 50 km must still break even, 100 km may lose up to $5k a year.
+      expect(r.profit).toBeGreaterThanOrEqual(km <= 50 ? 0 : -5000);
     });
   }
 
