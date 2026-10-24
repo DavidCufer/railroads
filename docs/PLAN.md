@@ -2734,3 +2734,37 @@ balance test fails, report old/new and cause and stop on a branch `phase-67` (ow
    item 4 (branch `phase-67-goals`) so the orchestrator can show the owner the amounts. Items 1-3 go to main when green.
 5. PROGRESS, SPEC (§9 finance, §11 goals), e2e (never weaken).
 Status: [x] 1 [x] 2 [x] 3 [ ] 4 [x] 5
+
+## Phase 68 — Passengers spread more evenly; dearer station improvements and civic investment; then the goals
+
+Owner (2026-10-24, "Go"): "Maybe just adjust the formula a bit. Passengers should spread out a bit more evenly, not all go
+between big cities. No need for super realism, it should just work in game. But a lot of daily commuting happens between
+small cities and one large city, so that is realistic. Also I think prices to build things at stations and civic
+investments are too low."
+After Phase 62 (split by uncapped gravity, `PAIR_DEMAND.sizeExponent` 1) the strong player earns 8-9 M$/yr by year 16 in
+1870/1900 Normal (2-3 M$ before), mostly on big-city pairs. Here the owner explicitly allows a game-tuned formula, but every
+number keeps a one-line justification (what it does in play; a literature range where there is one). Never loosen a test
+bound; if a balance test fails, report old/new and the cause and stop on a branch `phase-68` (owner decides). Benches in
+pieces of at most ~15 minutes, pushed to `docs/bench/phase68.md`; never end a turn mid-bench.
+
+1. **More even destination split.** Lower the destination size exponent of the gravity split (`sizeExponent`, now 1;
+   published gravity models fit population elasticities of roughly 0.5-0.9) and/or give each destination a floor, so a
+   big city still draws most, but small towns keep a fair share, and a small town's trips go mainly to its nearest big
+   city (commuting). Pick the value with the S4 bench and the strong player: target the 1870/1900 strong Normal profit
+   back near the pre-62 level (2-3 M$/yr at year 16, owner wants Normal harder) while "Where passengers go" still shows
+   the bigger, nearer town first (Vienna > Graz test stays). Report the table of exponent -> S4 best fleet, strong
+   1870/1900 profit, and the owner's Ljubljana shares.
+2. **Dearer station improvements and civic investment.** Today: Post Office $25k, Hotel $50k, Warehouse $30k, Cold Storage
+   $40k, Freight Yard $60k, Livestock Pens $12k, Engine Shed / Water Tower (check), Civic Investment $100k x tier, at 1830
+   prices. Set each from a real building cost where one is found (e.g. a railway hotel, a goods shed, a post office of the
+   era; sources in PROGRESS), otherwise so that it pays back in about 3-5 years at a typical busy station of its era
+   (state the arithmetic). Civic investment priced against the real cost of the town works it stands for. Keep the
+   era-price scaling. UI shows the new prices (word limits kept).
+3. **Re-measure** (strong 10 seeds Normal / 5 Hard, good 5 seeds, all eras): profit, revenue, op ratio, bankruptcies,
+   Hard vs Normal. Report; do not tune further.
+4. **Goals on the settled numbers.** Merge main into branch `phase-67-goals` with `git pull --no-rebase` (never rebase it),
+   update `STRONG_PLAYER_MEDIANS` to the Phase 68 medians, re-derive goals, achievements and scenario stars; if the
+   reference operator in `goalCalibration` is far from the strong bot, report it and propose (do not change bounds).
+   Push the branch with the old -> new table at the top of the PROGRESS entry and STOP (orchestrator shows the owner).
+5. PROGRESS, SPEC (§6.2 improvements, §8.1, §8.3 civic), e2e (never weaken). Tick ONLY Phase 68.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
