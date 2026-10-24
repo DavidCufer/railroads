@@ -264,14 +264,14 @@ the figure above; the proposal is on branch `phase-59-costs`.
 
 | Improvement | Available | Cost | Effect |
 |---|---|---|---|
-| Engine Shed | always | $30k (era-scaled, ×build-cost difficulty) | Trains that stop here get serviced: breakdown chance −50%. New trains can only be bought at a station with an Engine Shed (the first station built gets a free one; **any** station can build another, Phase 28A). A repair crew leaves from the *nearest* shed, so sheds near the ends of a big network make call-outs short and cheap. |
-| Water Tower | steam era | $8k | Steam locomotives stopping here are refilled; steam trains that go > 40 tiles without a Water Tower stop lose 20% speed until next refill. (Diesel/electric ignore.) |
-| Post Office | always | $25k | Mail supply +50%, mail revenue +25% for mail loaded here. |
-| Hotel | always | $50k | Passenger revenue +25% for passengers delivered here; +20% city growth contribution. |
-| Warehouse | always | $30k | Storage ×2; waiting cargo doesn't decay. |
-| Cold Storage | 1880 | $40k | Food and livestock waiting here don't decay; their revenue +15% when loaded here. |
-| Freight Yard | 1870 | $60k | Loading/unloading 2× faster. |
-| Livestock Pens | always | $12k | Required to *load* livestock at this station. |
+| Engine Shed | always | $65k (era-scaled, ×build-cost difficulty) | Trains that stop here get serviced: breakdown chance −50%. New trains can only be bought at a station with an Engine Shed (the first station built gets a free one; **any** station can build another, Phase 28A). A repair crew leaves from the *nearest* shed, so sheds near the ends of a big network make call-outs short and cheap. |
+| Water Tower | steam era | $15k | Steam locomotives stopping here are refilled; steam trains that go > 40 tiles without a Water Tower stop lose 20% speed until next refill. (Diesel/electric ignore.) |
+| Post Office | always | $100k | Mail supply +50%, mail revenue +25% for mail loaded here. |
+| Hotel | always | $225k | Passenger revenue +25% for passengers delivered here; +20% city growth contribution. |
+| Warehouse | always | $65k | Storage ×2; waiting cargo doesn't decay. |
+| Cold Storage | 1880 | $140k | Food and livestock waiting here don't decay; their revenue +15% when loaded here. |
+| Freight Yard | 1870 | $120k | Loading/unloading 2× faster. |
+| Livestock Pens | always | $20k | Required to *load* livestock at this station. |
 
 ### 6.3 Supply and demand
 
@@ -608,7 +608,7 @@ stream (no other map changes), after the ordinary industries and `ensureIndustry
   Crossing thresholds grows population (and adds a tile to the city footprint on free adjacent land);
   unserved cities grow very slowly (0.2%/year baseline).
 - **City upgrades by the player** (v1): the player can't buy city buildings directly, but can pay for a
-  **"Civic Investment"** in a city connected by rail (cost $100k × tier, once per 5 years per city) that
+  **"Civic Investment"** in a city connected by rail (cost by tier at 1830 prices, era-scaled: village $100k, town $250k, city $1M, metropolis $3M; once per 5 years per city) that
   immediately grants +15% population and a one-off growth tick. This is the "upgrading cities" lever.
 - City names render at all zooms; bigger tiers use bigger, bolder labels.
 
@@ -1295,3 +1295,4 @@ localization (English only, but keep strings in one `strings.ts` file for later)
 - [Phase 65] §9 panics: each panic has its own sourced depth and length (US 1893 -11 %, 1907 -12 %, 1931 -48 %, 1937 -19.5 %, post-war -4 to -15 %), seed noise +-15 %; the flat 20-40 % / 12-24 months is gone. Strong player Normal: 1950 now 2/10 bankrupt (was 8/10), 1930 7/10 (was 4/10, the 1931 trough is real). Bench: docs/bench/phase65.md.
 - [Phase 66] §7.6 trains can be laid up and returned to service (`layUpTrain`, `returnTrainToService`; new train fields `laidUp`, `returnTicksLeft`, `laidUpTicks`, status `laidUp`, optional so old saves load unchanged). §9 crew wages and servicing are prorated by days laid up. The bots lay up trains of lines with negative train-level profit over 3 months during a panic. Result: no change to survival in 1930 Normal (7/10 bankrupt, the credit squeeze and fixed track and station costs are what kills, not train costs). Bench: docs/bench/phase66.md.
 - [Phase 67] §9.1 loans are long-term bonds (30 years, 25 from 1930), never called when the credit limit falls; §8.1 laid-up trains give no passenger service (`serviceRates`). PROGRESS Phase 67 for sources and the re-measure.
+- [Phase 68] §8.1 a town's trips split over the towns in range 70 % by gravity (population / distance) and 30 % equally (`PAIR_DEMAND.evenShare`); the trip total is unchanged. §6.2 improvement prices and §8.3 Civic Investment dearer, from real building costs where found (PROGRESS Phase 68).

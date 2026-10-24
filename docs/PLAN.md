@@ -2767,4 +2767,4 @@ pieces of at most ~15 minutes, pushed to `docs/bench/phase68.md`; never end a tu
    reference operator in `goalCalibration` is far from the strong bot, report it and propose (do not change bounds).
    Push the branch with the old -> new table at the top of the PROGRESS entry and STOP (orchestrator shows the owner).
 5. PROGRESS, SPEC (§6.2 improvements, §8.1, §8.3 civic), e2e (never weaken). Tick ONLY Phase 68.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [x] 3 [ ] 4 [x] 5

@@ -221,6 +221,8 @@ test.describe("Phase 9 — upgrades and growth", () => {
       },
       { cityId: setupResult.cityId },
     );
+    // Phase 68: a city-tier investment costs $1M at 1830 prices (x1.84 in 1900), more than the starting cash.
+    await page.evaluate(() => window.__game!.debugSetCash(10_000_000));
     await page.locator(".city-civic-investment-btn").click();
     // openCityPanel's render() re-opens the panel (closePanel's old DOM node lingers ~220ms for
     // its slide-out transition), so wait past that before re-querying the (now-recreated) button.

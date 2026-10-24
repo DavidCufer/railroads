@@ -347,6 +347,8 @@ test.describe("Phase 21.1 — map polish", () => {
     const cx = 60;
     const cy = 60;
     await setupFlat(page, cx, cy, 14);
+    // Phase 68: hotel + warehouse + post office at three stations now cost ~$1.2M; give the run the cash.
+    await page.evaluate(() => window.__game!.debugSetCash(5_000_000));
     await buildPath(
       page,
       Array.from({ length: 27 }, (_, i) => ({ x: cx - 13 + i, y: cy })),
