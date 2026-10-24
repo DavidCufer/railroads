@@ -46,3 +46,18 @@ strong normal 1900_1,0.4_2: rev 3.46 prof 1.89;rev 8.14 prof 3.54;rev 11.25 prof
 strong normal 1900_1,0.5_1: rev 3.29 prof 1.84;rev 9.06 prof 4.11;rev 13.23 prof 5.77;
 strong normal 1900_1,0.5_2: rev 3.31 prof 1.85;rev 7.00 prof 2.81;rev 13.67 prof 5.90;
 ```
+
+## Re-measure (item 3; raw rows; Phase 67 bench is the baseline)
+
+Revenue and operating profit are those of the completed year (year 5 = the fifth year played). `-` = no data (bankrupt before that year). Settings: evenShare 0.3, Phase 68 prices.
+
+| bot | start | diff | seed | bankrupt | min cash $M | final NW $M | revenue $M y5 | y10 | y16 | op profit $M y5 | y10 | y16 | op ratio y3 | y10 | y16 | return on capital y3 | y10 | y16 | cash>20% NW year (years from start) | laid up / returned |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| strong | 1840 | normal | 2 | no | 0.01 | 14.7 | 1.08 | 2.5 | 6.36 | 0.6 | 1.3 | 3.59 | 0.47 | 0.48 | 0.44 | 0.15 | 0.16 | 0.18 | 2 | 0 / 0 |
+| strong | 1840 | normal | 3 | no | 0.03 | 15.39 | 1.23 | 2.76 | 6.7 | 0.7 | 1.45 | 3.94 | 0.45 | 0.47 | 0.41 | 0.17 | 0.17 | 0.20 | 2 | 0 / 0 |
+| strong | 1840 | normal | 1 | no | 0.02 | 15.19 | 1.08 | 2.8 | 6.73 | 0.57 | 1.45 | 3.81 | 0.43 | 0.48 | 0.43 | 0.19 | 0.16 | 0.20 | 2 | 0 / 0 |
+| strong | 1840 | normal | 4 | no | 0.01 | 14.66 | 1.14 | 2.4 | 6.41 | 0.62 | 1.19 | 3.61 | 0.44 | 0.5 | 0.44 | 0.18 | 0.15 | 0.20 | 2 | 0 / 0 |
+| strong | 1840 | normal | 5 | no | 0.01 | 18.09 | 0.88 | 2.73 | 8.64 | 0.4 | 1.58 | 5.76 | 0.4 | 0.42 | 0.33 | 0.22 | 0.22 | 0.25 | 2 | 0 / 0 |
+| strong | 1840 | normal | 6 | no | 0.02 | 18.93 | 0.94 | 3.41 | 8.26 | 0.48 | 2.05 | 5.49 | 0.42 | 0.4 | 0.34 | 0.20 | 0.24 | 0.25 | 2 | 0 / 0 |
+| strong | 1840 | normal | 7 | no | 0.02 | 15.64 | 1.14 | 2.78 | 6.97 | 0.61 | 1.45 | 4.15 | 0.43 | 0.48 | 0.4 | 0.18 | 0.17 | 0.21 | 2 | 0 / 0 |
+| strong | 1840 | normal | 8 | no | 0.02 | 14.9 | 1.14 | 2.36 | 6.7 | 0.62 | 1.13 | 3.85 | 0.45 | 0.52 | 0.43 | 0.17 | 0.14 | 0.21 | 2 | 0 / 0 |
