@@ -7074,3 +7074,17 @@ Not done, as instructed: it waits until the orchestrator has merged this branch.
 | 0.35 | 0.07 / 0.11 | bankrupt 1910 / 0.05 |
 
   The response is steep (track, crews and head office stay while fares fall). 0.8 is the only factor near the 3-4 M$ target. Not applied: waiting for the owner.
+
+## 2026-10-24 - Phase 69 item 1 done; STOPPED on branch `phase-69` (balance tests red at 0.8x); items 2-5 not run
+
+**Change.** `TRIPS_GAME_SCALE = 0.8` in `src/data/economy.ts`, applied in `tripsPerHeadPerMonth` for every year (doc comment: owner's OK 2026-10-24, the sweep). Anchors untouched.
+
+**`npm run check`: 935 pass, 7 fail. Nothing loosened, no fixture edited.** Balance tests (passed on main, bound unchanged):
+| test | bound | new value |
+|---|---|---|
+| `balanceEarly` 1830 Grasshopper, Town-Town passengers, 100 km: at least breaks even | profit >= 0 | -1464 |
+| `balancePassengers` 1860s: passengers lead coal by 2-3.5x | > 2 | 1.78 |
+| `balancePassengers` 1900: Town-Town passengers earn 1.8-2.6x a coal train (measured 2.25x) | > 1.8 | 1.61 |
+Cause: these fixtures run one passenger line at fixed demand; fares per train scale directly with trips (x0.8), coal does not, so the passenger/coal ratio drops ~20 % (2.2 -> 1.78, 2.25 -> 1.61) and the 1830 100 km line, which broke even by a small margin, now loses money. Old exact values were not recorded (they passed).
+Also red, goal calibration (expected: goals were derived from the old economy; item 4 re-derives them on `phase-67-goals`, not this branch): `goalCalibration` central-eu gold profit 1M by 1930 (6.77 > 3), us-west silver revenue 3.2M by 1920 (1.72 > 1.5), us-west gold revenue 4.5M by 1900 (3.47 > 3), random maps gold (3.31 > 3). These were checked against main-era goal numbers; if `phase-67-goals` is not yet on main they may be pre-existing there, which I did not verify.
+Owner decides: (a) change the balance fixtures (e.g. the 1830 line to a longer/fuller route, the ratio bounds to the new scale, with the arithmetic above), or (b) a smaller cut. Not run: e2e, re-measure (item 3), goals (item 4), SPEC. Phase 69 NOT ticked.
