@@ -529,6 +529,10 @@ describe("Phase 9 balance guard: station improvements", () => {
     const improved = buildCoalToSteelRoute(16 * WORLD_SCALE, 4, 1880);
     const stationAId = improved.stations[0]!.id;
     const stationBId = improved.stations[1]!.id;
+    // Phase 68: the six improvements at both stations now cost ~$2.1M at 1880 prices; the fixture's $750,400 no longer
+    // pays for them (old prices: ~$0.69M). Top the cash up so the test still builds them all; the profit-ratio bound
+    // below is unchanged.
+    improved.cash += 2_500_000;
     for (const type of STATION_IMPROVEMENT_TYPES) {
       expect(buildImprovement(improved, stationAId, type).ok).toBe(true);
       expect(buildImprovement(improved, stationBId, type).ok).toBe(true);
