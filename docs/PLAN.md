@@ -2768,3 +2768,29 @@ pieces of at most ~15 minutes, pushed to `docs/bench/phase68.md`; never end a tu
    Push the branch with the old -> new table at the top of the PROGRESS entry and STOP (orchestrator shows the owner).
 5. PROGRESS, SPEC (§6.2 improvements, §8.1, §8.3 civic), e2e (never weaken). Tick ONLY Phase 68.
 Status: [x] 1 [x] 2 [x] 3 [ ] 4 [x] 5
+
+## Phase 69 — One game-scale cut to travellers (0.8x); re-measure; then the goals
+
+Owner (2026-10-24, "Ok"), on the orchestrator's proposal: cut the number of travellers a town makes to 0.8x, the same in
+every era. Why: since Phase 62 a station catches a town's trips to every place its trains reach (before, at most 20 % of
+a town's trips to any one place), so the strong player earns 7.5-8 M$/yr by year 16 in 1870/1900 Normal; the target is
+3-4 M$. Orchestrator sweep (`TRIPS=<f>` env, strong, central-eu Normal, seeds 1-2, op profit $M at year 16; PROGRESS
+"Phase 68 merged"): 1 -> 7.5 / 8.2; 0.8 -> 4.2-5.2 / 2.2; 0.65 -> 0.8-2.0 / 1.7; 0.5 -> 0.1 / bankrupt. Never loosen a
+test bound; if a balance test fails, report old/new and the cause and stop on branch `phase-69` (owner decides). Benches
+in pieces of at most ~15 minutes, pushed to `docs/bench/phase69.md`; never end a turn mid-bench. Never rebase over merge
+commits (`git pull --no-rebase`), never force-push.
+
+1. **The cut.** One named constant in `src/data/economy.ts` (e.g. `TRIPS_GAME_SCALE = 0.8`) applied in
+   `tripsPerHeadPerMonth` for every year, with a doc comment: an openly stated game scale (like PARTY_SIZE), the owner's
+   OK and date, and the sweep above. Do not touch the anchors. The bench `TRIPS` env keeps multiplying on top.
+2. **Tests.** `npm run check` and both e2e shards. Fixture values that follow directly from the trip volume may be
+   updated (state the arithmetic in a comment); a balance bound that fails is reported, not loosened.
+3. **Re-measure** (as Phase 68 item 3: strong 10 seeds Normal / 5 Hard, good 5 seeds, all eras): profit, revenue, op
+   ratio, bankruptcies, Hard vs Normal, next to the Phase 68 medians. Call out 1930 and 1950 (already weak: 1930 strong
+   Normal y16 profit 0.05 M$) and any new bankruptcies. Report; do not tune further.
+4. **Goals on the settled numbers.** Merge main into branch `phase-67-goals` with `git pull --no-rebase` (never rebase it),
+   update `STRONG_PLAYER_MEDIANS` to the Phase 69 medians, re-derive goals, achievements and scenario stars; if the
+   reference operator in `goalCalibration` is far from the strong bot, report it and propose (do not change bounds).
+   Push the branch with the old -> new table at the top of the PROGRESS entry and STOP (orchestrator shows the owner).
+5. PROGRESS, SPEC (§8 passenger volume: the game scale), e2e (never weaken). Tick ONLY Phase 69.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
