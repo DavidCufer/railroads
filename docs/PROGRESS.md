@@ -7118,3 +7118,5 @@ Full medians (op ratio, return on capital, final NW, laid-up counts): `npx tsx t
 - New bankruptcies: strong Normal 1930 six more than before; strong Hard 1930 one. Good bots: none in 50 runs.
 
 **Item 4 not done** (orchestrator: wait for the owner's decision about 1930). `STRONG_PLAYER_MEDIANS` should not be re-derived from these 1930 numbers until then.
+
+**e2e (Phase 69).** Shard 1/2: 137 passed. Shard 2/2: 137 passed after one fixture update: `e2e/phase35.spec.ts` town total Venice 1900 = 40k x 0.0327 x 0.8 = 1046 (was 1308); arithmetic in the comment, no bound touched. (An earlier shard-2 run under load listed a few perf/overlay specs as not passing; not reproduced in two clean re-runs.) Screenshots reverted (not owned by this phase).
