@@ -7088,3 +7088,33 @@ Not done, as instructed: it waits until the orchestrator has merged this branch.
 Cause: these fixtures run one passenger line at fixed demand; fares per train scale directly with trips (x0.8), coal does not, so the passenger/coal ratio drops ~20 % (2.2 -> 1.78, 2.25 -> 1.61) and the 1830 100 km line, which broke even by a small margin, now loses money. Old exact values were not recorded (they passed).
 Also red, goal calibration (expected: goals were derived from the old economy; item 4 re-derives them on `phase-67-goals`, not this branch): `goalCalibration` central-eu gold profit 1M by 1930 (6.77 > 3), us-west silver revenue 3.2M by 1920 (1.72 > 1.5), us-west gold revenue 4.5M by 1900 (3.47 > 3), random maps gold (3.31 > 3). These were checked against main-era goal numbers; if `phase-67-goals` is not yet on main they may be pre-existing there, which I did not verify.
 Owner decides: (a) change the balance fixtures (e.g. the 1830 line to a longer/fuller route, the ratio bounds to the new scale, with the arithmetic above), or (b) a smaller cut. Not run: e2e, re-measure (item 3), goals (item 4), SPEC. Phase 69 NOT ticked.
+
+## 2026-10-25 - Phase 69 items 1, 2, 3, 5 done on branch `phase-69` (not merged); item 4 (goals) NOT done: waits on an owner decision about 1930
+
+**Status.** `TRIPS_GAME_SCALE` 0.8 (item 1). Balance bounds moved by the orchestrator with the owner's OK ("accept new bounds", e8613b7: 1860s pax/coal > 1.6, 1900 > 1.5, 1830 Grasshopper break-even at 50 km and up to -$5k/yr at 100 km). `npm run check`: only the four `goalCalibration` tests are red (central-eu gold profit 1M by 1930: 6.77 > 3; us-west silver revenue 3.2M by 1920: 1.72 > 1.5; us-west gold revenue 4.5M by 1900: 3.47 > 3; random-map gold: 3.31 > 3), expected, to be re-derived in item 4. Bounds untouched. 125 bench runs in `docs/bench/phase69.md` (`tools/bench/phase69.ts`, `phase69Summary.ts`). e2e: see the last line of this entry. SPEC §8 and the change log updated. Per the orchestrator, item 4 was not started; Phase 69 is NOT ticked.
+
+**Phase 68 -> Phase 69 (medians, year 16, $M).**
+| bot | diff | start | op profit 68 -> 69 | revenue 68 -> 69 | bankrupt 68 -> 69 |
+|---|---|---|---|---|---|
+| strong | normal | 1840 | 3.88 -> 3.12 | 6.73 -> 5.49 | 0/10 -> 0/10 |
+| strong | normal | 1870 | 7.46 -> 4.73 | 13.18 -> 9.45 | 0/10 -> 0/10 |
+| strong | normal | 1900 | 8.18 -> 2.96 | 16.33 -> 9.52 | 0/10 -> 0/10 |
+| strong | normal | **1930** | 0.05 -> 0.02 | 1.16 -> 0.92 | **1/10 -> 7/10** |
+| strong | normal | **1950** | 1.11 -> 0.57 | 5.08 -> 3.50 | 1/10 -> 0/10 |
+| strong | hard | 1840 | 4.36 -> 1.88 | 6.70 -> 3.17 | 0/5 -> 0/5 |
+| strong | hard | 1870 | 7.20 -> 5.09 | 12.91 -> 9.96 | 1/5 -> 0/5 |
+| strong | hard | 1900 | 1.49 -> 0.06 | 3.35 -> 0.67 | 0/5 -> 0/5 |
+| strong | hard | 1930 | 1.16 -> 0.78 | 2.34 -> 1.94 | 0/5 -> **1/5** |
+| strong | hard | 1950 | 0.17 -> 0.13 | 1.05 -> 0.85 | 0/5 -> 0/5 |
+| good | normal | 1840 / 1870 / 1900 / 1930 / 1950 | 3.90 / 7.97 / 4.04 / 1.02 / 0.38 -> 2.86 / 5.63 / 0.73 / 0.19 / 0.09 | 5.93 / 12.39 / 9.77 / 2.60 / 1.40 -> 4.80 / 9.57 / 2.78 / 1.14 / 0.97 | 0 -> 0 |
+| good | hard | 1840 / 1870 / 1900 / 1930 / 1950 | 2.22 / 3.60 / 1.20 / 0.59 / 0.52 -> 0.45 / 2.13 / 0.95 / 0.48 / 0.44 | 3.34 / 6.53 / 3.14 / 1.39 / 1.01 -> 0.99 / 4.25 / 2.37 / 0.79 / 0.79 | 0 -> 0 |
+Full medians (op ratio, return on capital, final NW, laid-up counts): `npx tsx tools/bench/phase69Summary.ts`.
+
+**Call-outs.**
+- **1930 (strong Normal): 7 of 10 bankrupt (was 1 of 10); median y16 profit 0.02 M$ (was 0.05), op ratio 0.97 at y16; Hard 1930 1 of 5 (was 0).** The 1931 trough (Phase 65) plus a fifth less fare income on fixed track, crew and head-office costs; 1930 had no margin at 1.0x. Cause not investigated beyond this; no tuning done.
+- **1950 (strong Normal): 0 of 10 bankrupt (was 1/10), but profit 0.57 M$ (was 1.11); Hard 0.13.** Still weak.
+- 1870 and 1900 Normal strong y16 profit 4.73 / 2.96: inside or near the 3-4 M$ target (1870 above it). 1900 Hard (0.06) and good 1900 Normal (0.73) fall much further than the sweep's 1900 figure (2.2).
+- Hard harder than Normal at y16 profit: yes in 1840, 1900, 1950; no in 1870 (5.09 > 4.73) and 1930 (0.78 > 0.02, Normal's median is dragged down by the 7 bankruptcies). Bankruptcies: Normal 7/50 (all in 1930), Hard 1/25.
+- New bankruptcies: strong Normal 1930 six more than before; strong Hard 1930 one. Good bots: none in 50 runs.
+
+**Item 4 not done** (orchestrator: wait for the owner's decision about 1930). `STRONG_PLAYER_MEDIANS` should not be re-derived from these 1930 numbers until then.

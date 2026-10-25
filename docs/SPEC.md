@@ -830,7 +830,7 @@ changes of train, no change wait. Real mechanisms, tables in `src/data/economy.t
 
 1. **The town total is population x trips per head (Phase 35C).** A town's total travel demand T (passengers a month, in game
    passengers of `PARTY_SIZE` = 3 travellers, §8.1) who would ride a train *somewhere* if every town were on the network =
-   population x `tripsPerHeadPerMonth(year)` / `PARTY_SIZE` (`TRIPS_PER_HEAD_ANCHORS`: 0.0113 a month in 1830-50, 0.0338 in
+   population x `tripsPerHeadPerMonth(year)` / `PARTY_SIZE` (`tripsPerHeadPerMonth` = the anchors below x `TRIPS_GAME_SCALE` 0.8, Phase 69: an openly stated game scale, the same in every era; `TRIPS_PER_HEAD_ANCHORS`: 0.0113 a month in 1830-50, 0.0338 in
    1860, 0.0327 from 1900; real journeys per head rose from ~1.5 a year in 1845 to ~5.6 in 1860 and ~28 in 1900, the game
    table is compressed about 11x, 14x and 70x, because game towns are small and demand-bound and the later, longer, faster
    trains carry each head further). T is the single passenger number everywhere: the town panel shows it with "Connected: N /
@@ -1296,3 +1296,4 @@ localization (English only, but keep strings in one `strings.ts` file for later)
 - [Phase 66] §7.6 trains can be laid up and returned to service (`layUpTrain`, `returnTrainToService`; new train fields `laidUp`, `returnTicksLeft`, `laidUpTicks`, status `laidUp`, optional so old saves load unchanged). §9 crew wages and servicing are prorated by days laid up. The bots lay up trains of lines with negative train-level profit over 3 months during a panic. Result: no change to survival in 1930 Normal (7/10 bankrupt, the credit squeeze and fixed track and station costs are what kills, not train costs). Bench: docs/bench/phase66.md.
 - [Phase 67] §9.1 loans are long-term bonds (30 years, 25 from 1930), never called when the credit limit falls; §8.1 laid-up trains give no passenger service (`serviceRates`). PROGRESS Phase 67 for sources and the re-measure.
 - [Phase 68] §8.1 a town's trips split over the towns in range 70 % by gravity (population / distance) and 30 % equally (`PAIR_DEMAND.evenShare`); the trip total is unchanged. §6.2 improvement prices and §8.3 Civic Investment dearer, from real building costs where found (PROGRESS Phase 68).
+- [Phase 69] §8 passenger volume: `TRIPS_GAME_SCALE` = 0.8 multiplies trips per head in every year (owner OK 2026-10-24); anchors unchanged. Balance bounds moved with the owner's OK: 1860s passengers/coal > 1.6 (was 2), 1900 > 1.5 (was 1.8), 1830 Grasshopper breaks even at 50 km and may lose up to $5k/yr at 100 km. Strong Normal 1930 is now 7/10 bankrupt (was 1/10); PROGRESS Phase 69, docs/bench/phase69.md.
