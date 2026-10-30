@@ -7163,3 +7163,43 @@ Full medians (op ratio, return on capital, final NW, laid-up counts): `npx tsx t
 - Owner play-test: "the repair train is waaaay too large now". The Phase 63 sprite was drawn 1.5 tiles long, so 0.5 tile
   wide: more than twice a train's width (7.2 px at zoom 1). It is now drawn exactly a train's width
   (`VEHICLE_WIDTH_TILES`), so about a loco long. Render only; Phase 63 screenshots regenerated and checked by eye.
+
+## 2026-10-30 - Phase 69 items 4 and 6 on branch `phase-67-goals` (merged `phase-69`; NOT merged to main)
+
+### Old -> new, for the owner
+Formula unchanged (`strongPlayerAmount`: median x priceIndex(goal year) / priceIndex(year earned), rounded DOWN to 2 figures) on the **Phase 69** strong-player Normal medians ($M y5 / y10 / y16, runs still alive; `docs/bench/phase69.md`): revenue 1840 0.73/1.38/5.49, 1870 1.13/2.74/9.45, 1900 1.63/5.04/9.52, 1950 3.06/3.19/3.50; profit 1840 0.33/0.60/3.12, 1870 0.55/1.13/4.73, 1900 0.74/2.15/2.96, 1950 1.08/0.33/0.57. **The 1930 row is the cautious ("good") bot's** (revenue 0.77/1.00/1.14, profit 0.29/0.31/0.19; 5 of 5 alive), not the strong bot's: 7 of the strong bot's 10 runs go bankrupt and the 3 survivors' profit is 0.27/0.07/0.02, which is no goal. So a 1930 goal is what a careful player who survives the crisis earns.
+
+| goal | Phase 64 (main) | Phase 67 branch (red) | **new** | calibration (amount / reference operator; gold 0.8-3, silver 0.3-1.5) |
+|---|---|---|---|---|
+| gb gold (profit, 1870) | $1.8M | $8.1M | **$2.1M** (year-12 median, not 16) | 1.74 |
+| central-eu gold (profit, 1930) | $1.0M | $92k | **$170k** (cautious bot, y16) | 1.15 |
+| us-west silver (revenue, 1920) | $3.2M | $4.5M | **$1.7M** | in range |
+| us-west gold (revenue, 1900) | $4.5M | $4.5M | **$3.6M** (4.5M x `TRIPS_GAME_SCALE`) | 2.78 |
+| random-map revenue gold | 4.6 x start cash | same | **x 0.8** (`TRIPS_GAME_SCALE`) | 2.5 (Easy, was 3.13) |
+| random-map profit gold, start 1830 / 1840 / 1870 / 1900 / 1930 / 1950 | $5.3M / 5.7M / 2.5M / 3.5M / 1.2M / 1.2M | $6.2M / 6.7M / 11M / 10M / 0.11M / 1.3M | **$3.8M / 4.1M / 5.9M / 3.5M / 0.22M / 0.66M** | 1830 start 2.37 |
+| us-east silver | $2.5M | same | same | in range |
+
+| achievement | Phase 64 (main) | Phase 67 branch | **new** (ids renamed) |
+|---|---|---|---|
+| lowest rung | net worth $1M | `profit500k` $0.5M a year | `profit250k` **$0.25M** (lowest y5 median, 1930 cautious: 0.29) |
+| middle | net worth $10M | `profit5M` $5M | `profit2500k` **$2.5M** (middle of the five y16 medians, 2.96) |
+| top | net worth $100M | `profit10M` $10M | `profit5M` **$5M** (just above the best, 1870: 4.73) |
+
+| scenario (stars 2 / 3) | Phase 67 branch | **new** |
+|---|---|---|
+| Semmering (by 1853) | profit $620k | **$370k** |
+| Panic of 1873 | $1.5M; $3.1M | **$560k; $790k** |
+| Coal for Trieste (by 1863) | $670k | **$400k** |
+| Transcontinental (by 1865) | $690k | **$410k** |
+| Silver rush (by 1887) | $1.6M | **$610k** |
+
+### How, and what was decided (nothing asked; owner to judge)
+- **1930 reachable by the cautious player:** the 1930 row comes from the cautious bot (above). central-eu gold $170k by 1930 is 0.9x its year-16 median in 1930 money; the strong bot would fail it (3 of 10 survive), a careful player reaches it. Achievements: the lowest rung ($0.25M) sits under every era's year-5 median including 1930.
+- **gb gold uses year 12, not 16.** At year 16 ($4.2M) it is 3.48x the reference operator (limit 3). The operator (`tests/sim/referenceOperator.ts`) was not changed by Phases 62-69 and sits far below the strong bot (strong 1870 y16 profit 4.73M vs the operator's 1.2M at gb's 1870). I took the largest year index that keeps gold at about 1.7x (year 12: 1.74; 13 -> 2.15, 14 -> 2.57). **Proposal for the owner:** either re-calibrate the operator to the post-62 bot (then gb gold can return to year 16, $4.2M), or accept year 12. Bounds untouched.
+- **Hand-set revenue goals follow the game scale:** us-west gold and the random revenue gold x 0.8, because the operator's revenue fell by 0.8 and their ratio had risen from ~2.8 to 3.47 / 3.13 (no bench behind those numbers).
+- Test fixtures (arithmetic, no bound touched): `goalCalibration` literals 4.5M -> 1.7M and 8.1M -> 4.2M (the formula's new output); `history.test` profit fixture 6M -> 3.5M passengers so the profit is between the new 2nd and top rungs; e2e `phase46` `achievement-profit10M` -> `profit5M`.
+- **Item 6 (Depression hint):** `PanicDef.depression` flags the 1929 and 1931 panics; `isDepressionYear(year)` = first flagged year to the end of the last flagged fall (1929-1934), from the table, not a list. The new-game screen shows "Depression years: a tough start." (`strings.newGame.depressionHint`) under the difficulty note when the shown start year is in it, in both tabs (the random tab's 1930 choice). e2e `phase41` "a start in the Depression years shows a one-line warning" + screenshot `docs/screenshots/phase-69-depression-hint.png` (looked at: the line sits in brass under the difficulty note, nothing clipped at 800x360).
+- Real-world scenario/region starts at 1930 are not offered by the shipped regions; only the random tab's 1930 choice shows the hint today.
+
+### Results
+`npm run check`: 942 passed, 1 skipped; `goalCalibration` green, bounds untouched. e2e shard 1/2: 138 passed; shard 2/2: 137 passed. Branch `phase-67-goals` contains `phase-69` (merged with `git pull --no-rebase`, never rebased).
