@@ -122,14 +122,17 @@ describe("achievements", () => {
     expect(ACHIEVEMENT_IDS.length).toBeGreaterThanOrEqual(20);
   });
 
-  it("net worth milestones unlock once, with an event", () => {
+  it("yearly profit milestones unlock once, with an event; cash and net worth do not count (Phase 67)", () => {
     const state = lineState({ cash: 3_000_000 });
     startHistory(state);
-    state.cash = 12_000_000;
+    state.cash = 120_000_000;
     monthlyHistoryStep(state);
-    expect(state.history.achievements["worth1M"]).toBeDefined();
-    expect(state.history.achievements["worth10M"]).toBeDefined();
-    expect(state.history.achievements["worth100M"]).toBeUndefined();
+    expect(state.history.achievements["profit250k"]).toBeUndefined();
+    state.finance.lastYear.passengers = 3_500_000;
+    monthlyHistoryStep(state);
+    expect(state.history.achievements["profit250k"]).toBeDefined();
+    expect(state.history.achievements["profit2500k"]).toBeDefined();
+    expect(state.history.achievements["profit5M"]).toBeUndefined();
     const count = kinds(state).filter((k) => k === "achievement").length;
     monthlyHistoryStep(state);
     expect(kinds(state).filter((k) => k === "achievement")).toHaveLength(count);

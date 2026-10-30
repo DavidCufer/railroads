@@ -92,7 +92,7 @@ test.describe("Phase 46 - achievements and company history", () => {
     await page.locator("[aria-label='Menu']").first().click();
     await page.locator('[data-testid="menu-achievements"]').click();
     await expect(page.getByTestId("achievement-firstTrain")).toHaveClass(/unlocked/);
-    await expect(page.getByTestId("achievement-worth100M")).toHaveClass(/locked/);
+    await expect(page.getByTestId("achievement-profit5M")).toHaveClass(/locked/);
     await page.screenshot({ path: shot("achievements") });
     const stored = await page.evaluate(() => window.localStorage.getItem("railroads.profile"));
     expect(JSON.parse(stored as string).achievements.firstTrain).toMatch(/^\d{4}-\d{2}-\d{2}$/);

@@ -16,6 +16,7 @@ import { REGIONS } from "../sim/regions";
 import { REGION_IDS, type RegionId } from "../sim/regions/types";
 import type { NewGameOptions } from "../sim/state";
 import { renderRegionThumbnail } from "../render/regionThumbnail";
+import { isDepressionYear } from "../data/panics";
 import { difficultyNote } from "./difficultyNote";
 import { formatMoney } from "./format";
 import { h } from "./h";
@@ -312,6 +313,15 @@ export function renderNewGameScreen(handlers: NewGameScreenHandlers): HTMLElemen
         { className: "difficulty-note", "data-testid": "difficulty-note" },
         difficultyNote(difficulty),
       ),
+      ...(isDepressionYear(shownStartYear)
+        ? [
+            h(
+              "div",
+              { className: "depression-hint", "data-testid": "depression-hint" },
+              s.depressionHint,
+            ),
+          ]
+        : []),
       footer,
     );
   }

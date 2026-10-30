@@ -595,8 +595,16 @@ export const TRIPS_PER_HEAD_ANCHORS: Anchors = [
   [1900, 0.0327],
   [1950, 0.0327],
 ];
+
+/** Phase 69: an openly stated game scale (like `PARTY_SIZE`), applied to the trips-per-head table in every year; the
+ * anchors above stay the sourced numbers. The owner OK'd it on 2026-10-24: since Phase 62 a station catches a town's trips
+ * to every place its trains reach, so the strong player earned 7.5-8 M$/yr by year 16 in 1870/1900 Normal against a
+ * target of 3-4 M$. Orchestrator sweep (`TRIPS` env, strong player, central-eu Normal, seeds 1-2, operating profit at
+ * year 16, 1870 / 1900): 1 -> 7.5 / 8.2; 0.8 -> 4.2-5.2 / 2.2; 0.65 -> 0.8-2.0 / 1.7; 0.5 -> 0.1 / bankrupt. Steep because
+ * track, crews and head office stay while fares fall; 0.8 is the only factor near the target. */
+export const TRIPS_GAME_SCALE = 0.8;
 export function tripsPerHeadPerMonth(year: number): number {
-  return interpolateYear(TRIPS_PER_HEAD_ANCHORS, year);
+  return interpolateYear(TRIPS_PER_HEAD_ANCHORS, year) * TRIPS_GAME_SCALE;
 }
 
 /** Where a town's trips go: gravity (Phase 62). The destinations in range split the total by weight = destination

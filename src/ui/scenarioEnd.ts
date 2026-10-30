@@ -1,5 +1,5 @@
 /** Scenario win/lose card (Phase 46): the game-over card style, with stars, the reason and what next. */
-import { netWorth } from "../sim/finance/ledger";
+import { ledgerOperatingProfit } from "../data/finance";
 import { scenarioDefOf } from "../sim/scenario";
 import type { GameState } from "../sim/state";
 import { formatMoney } from "./format";
@@ -44,7 +44,7 @@ export function openScenarioEnd(
             handlers.newBest ? h("span", { className: "scenario-new-best" }, t.newBest) : null,
           )
         : h("p", null, run.reason ? t.reasons[run.reason] : ""),
-      h("p", null, t.worth(formatMoney(netWorth(state)))),
+      h("p", null, t.profit(formatMoney(ledgerOperatingProfit(state.finance.lastYear)))),
       h(
         "div",
         { className: "game-over-buttons" },
