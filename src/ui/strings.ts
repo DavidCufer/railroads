@@ -967,7 +967,7 @@ export const strings = {
     /** The same four sentences without the deadline, for the news. */
     short: {
       delivery: (city: string, amount: string, cargo: string) => `${city}: ${amount} ${cargo}`,
-      connection: (city: string) => `${city}: connect`,
+      connection: (city: string) => `Contract: connect ${city} by rail`,
       service: (a: string, b: string, amount: string) => `${a} \u2194 ${b}: ${amount} passengers`,
       rescue: (industry: string, near: string, amount: string, cargo: string) =>
         `${industry} near ${near}: haul ${amount} ${cargo}`,
@@ -1162,7 +1162,7 @@ export const strings = {
     steps: [
       "Drag with the Track tool to lay a line.",
       "Tap Station on a straight track or dead end.",
-      "Buy a train at a station with an Engine Shed.",
+      "Open your first station, tap Buy Train (free Engine Shed).",
       "Set orders: tap stations, then watch cash roll in.",
     ] as string[],
     hardMoney: "Hard: save cash for the engine before laying track. Short? Borrow in Finance.",

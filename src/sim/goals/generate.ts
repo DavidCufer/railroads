@@ -128,7 +128,19 @@ export function generateRandomGoals(state: GameState): Goal[] {
   return goals;
 }
 
+function deadlineYear(def: GoalDef): number {
+  return def.type === "delivered" ? def.withinYear : def.byYear;
+}
+
 export function createGoalsForNewGame(state: GameState, regionId: RegionId | undefined): Goal[] {
-  if (regionId) return resolveRegionGoals(state, regionId);
-  return generateRandomGoals(state);
+  if (!regionId) return generateRandomGoals(state);
+  const authored = resolveRegionGoals(state, regionId);
+  // Phase 72: the hand-authored sets are dated for each region's own era; a later start year (a 1950 game on the
+  // 1840 Central Europe set) would open with "Overdue" goals. Drop those and take the missing tiers from the
+  // generated set, which is dated from the start year.
+  const current = authored.filter((g) => deadlineYear(g.def) > state.startYear);
+  if (current.length === authored.length) return authored;
+  const have = new Set(current.map((g) => g.tier));
+  const filler = generateRandomGoals(state).filter((g) => !have.has(g.tier));
+  return [...current, ...filler];
 }

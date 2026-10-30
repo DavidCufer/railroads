@@ -2127,7 +2127,9 @@ button.chip {
 .hint-card {
   position: absolute;
   left: 50%;
-  bottom: calc(64px + var(--safe-bottom));
+  bottom: calc(
+    8px + var(--safe-bottom)
+  ); /* Phase 72: low, so it does not sit on the town the game opens on */
   transform: translateX(-50%);
   max-width: min(90vw, 420px);
   display: flex;
@@ -3543,12 +3545,12 @@ button.rule-chip:active {
 }
 .tl-controls {
   display: flex;
-  gap: 2px;
+  gap: 0;
   flex: 0 0 auto;
 }
 .tl-btn {
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px; /* Phase 72: a finger, not a cursor */
   border: none;
   border-radius: var(--radius-s);
   background: transparent;
