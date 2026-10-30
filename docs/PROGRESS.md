@@ -7074,3 +7074,8 @@ Not done, as instructed: it waits until the orchestrator has merged this branch.
 | 0.35 | 0.07 / 0.11 | bankrupt 1910 / 0.05 |
 
   The response is steep (track, crews and head office stay while fares fall). 0.8 is the only factor near the 3-4 M$ target. Not applied: waiting for the owner.
+
+### Orchestrator: repair train sized like a train (2026-10-30)
+- Owner play-test: "the repair train is waaaay too large now". The Phase 63 sprite was drawn 1.5 tiles long, so 0.5 tile
+  wide: more than twice a train's width (7.2 px at zoom 1). It is now drawn exactly a train's width
+  (`VEHICLE_WIDTH_TILES`), so about a loco long. Render only; Phase 63 screenshots regenerated and checked by eye.

@@ -6,9 +6,10 @@
  */
 import { repairCrewPosition } from "../sim/trains/repairCrew";
 import type { Train } from "../sim/trains/types";
-import { crewTrainCanvas, crewTrainKind } from "./art/repairCrewSprite";
+import { CREW_L, CREW_W, crewTrainCanvas, crewTrainKind } from "./art/repairCrewSprite";
 import { devicePixelRatioSafe } from "./art/canvas";
 import { Camera, TILE_SIZE } from "./camera";
+import { VEHICLE_WIDTH_TILES } from "./trains";
 
 export function drawRepairCrews(
   ctx: CanvasRenderingContext2D,
@@ -42,7 +43,8 @@ export function drawRepairCrews(
     );
     if (p.x < -size || p.y < -size || p.x > viewportW + size || p.y > viewportH + size) continue;
 
-    const len = Math.max(10, size * 1.5);
+    // As wide as a train (owner play-test: at 1.5 tiles long it was over twice a train's width), so about a loco long.
+    const len = Math.max(10, size * VEHICLE_WIDTH_TILES * (CREW_L / CREW_W));
     const sprite = crewTrainCanvas(kind, len);
     const scale = len / (sprite.width / dpr);
     ctx.save();
