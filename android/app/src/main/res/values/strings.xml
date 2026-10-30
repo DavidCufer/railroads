@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Railroads</string>
-    <string name="title_activity_main">Railroads</string>
-    <string name="package_name">com.railroads.game</string>
-    <string name="custom_url_scheme">com.railroads.game</string>
+    <string name="app_name">Iron &amp; Steam</string>
+    <string name="title_activity_main">Iron &amp; Steam</string>
+    <string name="package_name">com.davidc.ironandsteam</string>
+    <string name="custom_url_scheme">com.davidc.ironandsteam</string>
 </resources>

@@ -2872,7 +2872,7 @@ every PNG.
    data safety ("no data collected"), target audience (13+), ads ("no"), app access ("no login"); host the privacy
    policy (options); apply for production.
 9. PROGRESS, SPEC (name, version), e2e for the About section (never weaken). Tick ONLY Phase 71.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7 [ ] 8 [ ] 9
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6 [x] 7 [x] 8 [x] 9
 
 ## Phase 72 — Launch polish
 

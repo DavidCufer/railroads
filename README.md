@@ -1,4 +1,4 @@
-# Railroads 🚂
+# Iron & Steam 🚂
 
 A 2D top-down railway-building tycoon game for Android, inspired by *Sid Meier's Railroad Tycoon
 Deluxe*. No competitors, no stock market: build track to cities and resources, run trains, earn
@@ -8,7 +8,7 @@ Runs in the browser during development and packages as a landscape-locked Androi
 Capacitor. Every graphic — terrain, track, trains, cities, industries, UI — is drawn procedurally
 on an HTML5 canvas; there are no sprite sheets or image assets beyond the app icon.
 
-Status: **Phase 12 (Performance and release hardening) complete — v1 feature-complete.** See
+Status: **1.0 — store release prep (Phase 71).** See
 [`docs/PROGRESS.md`](docs/PROGRESS.md) for the full build history, phase by phase.
 
 ## Features
@@ -61,7 +61,7 @@ Every push builds a debug APK via the **Android** GitHub Actions workflow:
 3. Copy `app-debug.apk` to your Android phone (e.g. via a cloud drive, USB, or email to yourself).
 4. On the phone, open the APK file. If prompted, allow "Install unknown apps" for whichever app you
    used to open it (Settings → Apps → Special access → Install unknown apps).
-5. Install and launch **Railroads**. The app runs landscape-locked, fullscreen.
+5. Install and launch **Iron & Steam**. The app runs landscape-locked, fullscreen.
 
 ## Development
 
@@ -108,13 +108,13 @@ safe — losing them means you can never update an app already published under t
 
 ```
 keytool -genkey -v -keystore release.keystore.jks -keyalg RSA -keysize 2048 -validity 10000 \
-  -alias railroads
+  -alias ironandsteam
 # then, to fill in KEYSTORE_BASE64:
 base64 -w0 release.keystore.jks   # macOS: base64 -i release.keystore.jks
 ```
 
 Paste the base64 output as `KEYSTORE_BASE64`, the password you set as `KEYSTORE_PASSWORD`,
-`railroads` (or whatever alias you chose) as `KEY_ALIAS`, and its key password as `KEY_PASSWORD`.
+`ironandsteam` (or whatever alias you chose) as `KEY_ALIAS`, and its key password as `KEY_PASSWORD`.
 Delete `release.keystore.jks` from your local disk once the secret is saved, or keep it somewhere
 outside the repo — it's already `.gitignore`d as a backstop, but the point is it should never exist
 in a git history at all.

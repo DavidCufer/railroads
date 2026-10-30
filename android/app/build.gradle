@@ -16,10 +16,10 @@ def versionPatch = versionParts.size() > 2 ? (versionParts[2] as Integer) : 0
 def appVersionCode = versionMajor * 10000 + versionMinor * 100 + versionPatch
 
 android {
-    namespace = "com.railroads.game"
+    namespace = "com.davidc.ironandsteam"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.railroads.game"
+        applicationId "com.davidc.ironandsteam"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode appVersionCode

@@ -164,6 +164,8 @@ import { isPanelOpen } from "./ui/panel";
 import { formatMoney } from "./ui/format";
 import { openTitleScreen } from "./ui/titleScreen";
 import { autosave, exportSaveJson, latestSaveSlot, loadSlot } from "./save";
+import { migrateSaveFile } from "./save/migrate";
+import { deserializeGameState } from "./save/serialize";
 import { createStatusBanner } from "./ui/statusBanner";
 import { openGameOver } from "./ui/gameOver";
 import { openScenarioEnd } from "./ui/scenarioEnd";
@@ -186,6 +188,8 @@ const RIVER_ID = terrainId("river");
 const WATER_ID = terrainId("water");
 
 const DEBUG = new URLSearchParams(window.location.search).has("debug");
+/** `?debug=1&debugHud=0` keeps `window.__game` but hides the fps line and dev controls (store screenshots). */
+const DEBUG_HUD = DEBUG && new URLSearchParams(window.location.search).get("debugHud") !== "0";
 if (DEBUG) setStaleReservationReporter((message) => console.warn(`[stale reservation] ${message}`));
 
 const DEFAULT_NEW_GAME: NewGameOptions = {
@@ -1478,7 +1482,7 @@ function main(): void {
 
   let debugOverlay: HTMLDivElement | null = null;
 
-  if (DEBUG) {
+  if (DEBUG_HUD) {
     debugOverlay = document.createElement("div");
     debugOverlay.id = "debug-overlay";
     ui.appendChild(debugOverlay);
@@ -1491,7 +1495,9 @@ function main(): void {
         regenerate(base);
       },
     });
+  }
 
+  if (DEBUG) {
     (
       window as unknown as {
         __game: {
@@ -1703,10 +1709,14 @@ function main(): void {
           /** Test-only (Phase 12 error-boundary spec): fires the same uncaught-exception/
            * unhandled-rejection path a real crash would, without actually corrupting anything. */
           debugThrow: (kind: "sync" | "async") => void;
+          /** Test/tools-only (Phase 71 store shots): loads a save file's JSON text as the live game. */
+          debugLoadSave: (json: string) => void;
         };
       }
     ).__game = {
       getState: () => state,
+      debugLoadSave: (json) =>
+        loadGame(deserializeGameState(migrateSaveFile(JSON.parse(json) as unknown).state)),
       exportSave: () => {
         const json = exportSaveJson(state);
         const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
