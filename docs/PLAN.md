@@ -2800,3 +2800,37 @@ commits (`git pull --no-rebase`), never force-push.
    one short line under the start year, e.g. "Depression years: a tough start." (strings.ts, word limits kept; e2e
    screenshot of it). Item 4's goals for 1930 starts are derived so the cautious player can reach bronze/silver; say how.
 Status: [x] 1 [x] 2 [x] 3 [ ] 4 [x] 5 [ ] 6
+
+## Phase 70 — Trains on the map: visual makeover
+
+Owner (2026-10-30): "do some visual makeover of trains and cars. I mean when in game on rails. They are really basic
+now, too cartoony I think, I want them to look better." Scope: the top-down map sprites only (`src/render/art/
+mapSprites.ts`, drawn by `src/render/trains.ts`); the side-view gallery/panel art is out of scope. Footprints stay
+(`VEHICLE_WIDTH_TILES`, `CAR_DRAW_LEN_TILES`, loco length; the sim's lengths are untouched), so this is render only. Work
+on branch `phase-70-train-art`; never push to main (the orchestrator merges after the owner sees it). Never rebase over
+merge commits, never force-push.
+
+Today a vehicle is a flat rounded rectangle with a heavy dark outline and a few flat-colour blobs; at zoom 2 a car is
+about 18 x 7 CSS px. Direction: a scale-model look seen from above, not cartoon.
+- Light from one direction (top-left, as the buildings) and a soft drop shadow on the ballast, instead of the outline.
+- Roofs that read as roofs: slight curvature shading on coach roofs, ventilators/clerestory by era, planked or ribbed
+  wagon roofs, tarpaulins.
+- Open wagons show their load (coal heaps with highlights, ore, timber, livestock pens with slats; empty when empty if the
+  sim says so).
+- Steam engines: boiler with round shading, smokebox, dome and chimney, cab roof, tender with a coal or water space.
+  Diesels and electrics: roof fans, radiator grilles, hoods, pantographs drawn as thin linkage, not blobs.
+- Muted, realistic liveries from `livery.ts` (same hues, less saturated where they read as toy-like). Buffers or couplers
+  between vehicles.
+- Detail scales with zoom: clean, readable silhouettes at zoom 1; full detail at zoom 2. Draw at device-pixel resolution
+  (crisp on a phone at DPR 2-3).
+- Cached offscreen sprites (hard rule); no frame-time regression on the perf e2e specs.
+
+1. **Sample first, then STOP.** Redo three vehicles: an 1850s steam loco + coach, a 1920s steam freight loco + coal
+   hopper + box van, and a 1960s diesel + modern coach. Make a before/after sheet (`docs/screenshots/phase-70-sample-
+   before-after.png`) at zoom 1 and 2 on the real map (light and dark, if the map has a dark mode). Push and STOP; the
+   orchestrator shows the owner and passes on the direction.
+2. After the owner's OK: every locomotive model and every car type in the same style, by era bucket.
+3. e2e screenshots: a gallery of all top-down sprites at zoom 2 (`phase-70-map-sprites-gallery.png`) and one train per
+   era on the map at zoom 1 and 2. Perf specs unchanged and green. Look at every PNG.
+4. PROGRESS, STYLE.md §7/§9.5 rewritten for the new look. Tick ONLY Phase 70.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
