@@ -142,6 +142,19 @@ test("late starts are labelled and start with more cash", async ({ page }) => {
   await page.screenshot({ path: "docs/screenshots/phase-41-new-game-1950.png" });
 });
 
+test("a start in the Depression years shows a one-line warning (Phase 69)", async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 360 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "New Game" }).click();
+  await page.getByRole("button", { name: "Random" }).click();
+  await expect(page.getByTestId("depression-hint")).toHaveCount(0);
+  await page.getByRole("button", { name: "1930" }).click();
+  await expect(page.getByTestId("depression-hint")).toHaveText("Depression years: a tough start.");
+  await page.screenshot({ path: "docs/screenshots/phase-69-depression-hint.png" });
+  await page.getByRole("button", { name: "1950" }).click();
+  await expect(page.getByTestId("depression-hint")).toHaveCount(0);
+});
+
 /** Two flat stations a few tiles apart on single track, two trains going opposite ways. */
 async function singleTrackPair(page: Page): Promise<{ mid: number; stationId: number }> {
   return page.evaluate(() => {

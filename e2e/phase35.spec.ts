@@ -162,11 +162,11 @@ test.describe("Phase 35 — where passengers go", () => {
     const connected = page.locator(".city-connected");
     await expect(connected).toBeVisible();
     await expect(connected).toContainText("Connected:");
-    // Venice 40k x 0.0327 a month in 1900 = 1308 for the town (Phase 53B moved the era growth from the party size into the table; 484 before Phase 51); the station sends only the connected part of it.
+    // Phase 69: x TRIPS_GAME_SCALE 0.8 = 40k x 0.0327 x 0.8 = 1046 (1308 before). Venice 40k x 0.0327 a month in 1900 = 1308 without it (Phase 53B moved the era growth from the party size into the table; 484 before Phase 51); the station sends only the connected part of it.
     const town = Number(
       (await page.locator(".chip-lg").first().textContent())?.replace(/\D/g, "") ?? "0",
     );
-    expect(town).toBe(1308);
+    expect(town).toBe(1046);
     expect(Number(header.replace(/\D/g, "").slice(0, 3))).toBeLessThanOrEqual(town);
     await page.waitForTimeout(300);
     await page.screenshot({ path: "docs/screenshots/phase-35c-town.png" });

@@ -2799,7 +2799,7 @@ commits (`git pull --no-rebase`), never force-push.
    screen, when the shown start year is in the Depression (1929-1935, from the panics table, not a hard-coded list), show
    one short line under the start year, e.g. "Depression years: a tough start." (strings.ts, word limits kept; e2e
    screenshot of it). Item 4's goals for 1930 starts are derived so the cautious player can reach bronze/silver; say how.
-Status: [x] 1 [x] 2 [x] 3 [ ] 4 [x] 5 [ ] 6
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6
 
 ## Phase 70 — Trains on the map: visual makeover
 
@@ -2833,4 +2833,4 @@ about 18 x 7 CSS px. Direction: a scale-model look seen from above, not cartoon.
 3. e2e screenshots: a gallery of all top-down sprites at zoom 2 (`phase-70-map-sprites-gallery.png`) and one train per
    era on the map at zoom 1 and 2. Perf specs unchanged and green. Look at every PNG.
 4. PROGRESS, STYLE.md §7/§9.5 rewritten for the new look. Tick ONLY Phase 70.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+Status: [x] 1 [ ] 2 [ ] 3 [ ] 4

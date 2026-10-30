@@ -26,7 +26,7 @@
 import type { CargoType } from "./cargo";
 import type { CityTier } from "./cities";
 import type { RegionId } from "../sim/regions/types";
-import { priceIndex } from "./economy";
+import { priceIndex, TRIPS_GAME_SCALE } from "./economy";
 import { WORLD_SCALE } from "./scale";
 
 export type GoalTier = "bronze" | "silver" | "gold";
@@ -59,21 +59,24 @@ export type GoalDefByName =
  */
 export type GoalMetric = "profit" | "revenue";
 
-/** Strong player, Normal, medians of Phase 65 ($M, completed years 5 / 10 / 16). The 1930 row is of the 3 of 10 runs
- * that were not bankrupt by then (the 1931 Banking crisis), the 1950 row 8 of 10. */
+/** Strong player, Normal, medians of Phase 69 ($M, completed years 5 / 10 / 16; `docs/bench/phase69.md`, 10 seeds per era,
+ * the runs still alive), after the travellers' game scale of 0.8 (`TRIPS_GAME_SCALE`). Replaces the Phase 67 medians. */
 export const STRONG_PLAYER_MEDIANS: ReadonlyArray<{
   era: number;
   revenue: readonly [number, number, number];
   profit: readonly [number, number, number];
 }> = [
-  { era: 1840, revenue: [1.25, 3.09, 7.18], profit: [0.69, 1.59, 4.34] },
-  { era: 1870, revenue: [1.56, 2.24, 5.13], profit: [0.8, 0.7, 2.05] },
-  { era: 1900, revenue: [2.96, 5.77, 10.46], profit: [1.48, 2.1, 2.9] },
-  { era: 1930, revenue: [1.25, 1.31, 2.99], profit: [0.48, 0.25, 1.09] },
-  { era: 1950, revenue: [4.87, 6.61, 7.87], profit: [2.17, 1.49, 1.11] },
+  { era: 1840, revenue: [0.73, 1.38, 5.49], profit: [0.33, 0.6, 3.12] },
+  { era: 1870, revenue: [1.13, 2.74, 9.45], profit: [0.55, 1.13, 4.73] },
+  { era: 1900, revenue: [1.63, 5.04, 9.52], profit: [0.74, 2.15, 2.96] },
+  // 1930 is the cautious ("good") bot's Normal medians (revenue 0.77 / 1.00 / 1.14, profit 0.29 / 0.31 / 0.19, 5 of 5 alive),
+  // not the strong bot's: 7 of its 10 runs go bankrupt in the 1931 crisis (the owner keeps 1930 hard, 2026-10-30) and the
+  // 3 survivors' medians (profit 0.27 / 0.07 / 0.02) are no goal. A 1930 goal is what a careful player who survives earns.
+  { era: 1930, revenue: [0.77, 1.0, 1.14], profit: [0.29, 0.31, 0.19] },
+  { era: 1950, revenue: [3.06, 3.19, 3.5], profit: [1.08, 0.33, 0.57] },
 ];
 
-const YEAR_INDEX = { 5: 0, 10: 1, 16: 2 } as const;
+const MEDIAN_YEARS = [5, 10, 16] as const;
 
 /** The yearly profit or revenue (in dollars of `goalYear`) the strong player reached in its year `yearIndex`, in the era
  * of `eraYear` (formula above; the goal's own year for a region's hand-set goals, the company's start year for a random
@@ -81,13 +84,20 @@ const YEAR_INDEX = { 5: 0, 10: 1, 16: 2 } as const;
  * more than the bench showed. */
 export function strongPlayerAmount(
   metric: GoalMetric,
-  yearIndex: 5 | 10 | 16,
+  yearIndex: number,
   goalYear: number,
   eraYear: number = goalYear,
 ): number {
   let row = STRONG_PLAYER_MEDIANS[0] as (typeof STRONG_PLAYER_MEDIANS)[number];
   for (const r of STRONG_PLAYER_MEDIANS) if (r.era <= eraYear) row = r;
-  const median = row[metric][YEAR_INDEX[yearIndex]] * 1_000_000;
+  // Phase 67: between the benched years 5, 10 and 16 the median is interpolated linearly (a scenario's 7-year length).
+  const upper = MEDIAN_YEARS.findIndex((y) => y >= yearIndex);
+  const j = upper < 0 ? 2 : Math.max(1, upper);
+  const lo = MEDIAN_YEARS[j - 1] as number;
+  const hi = MEDIAN_YEARS[j] as number;
+  const t = Math.min(1, Math.max(0, (yearIndex - lo) / (hi - lo)));
+  const m = row[metric];
+  const median = ((m[j - 1] as number) + ((m[j] as number) - (m[j - 1] as number)) * t) * 1_000_000;
   const raw = (median * priceIndex(goalYear)) / priceIndex(row.era + yearIndex - 1);
   const digits = 10 ** (Math.floor(Math.log10(raw)) - 1);
   return Math.floor(raw / digits) * digits;
@@ -119,7 +129,7 @@ export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
     { tier: "silver", def: { type: "delivered", cargo: "coal", amount: 1000, withinYear: 1850 } },
     {
       tier: "gold",
-      def: { type: "annualProfit", amount: strongPlayerAmount("profit", 16, 1870), byYear: 1870 },
+      def: { type: "annualProfit", amount: strongPlayerAmount("profit", 12, 1870), byYear: 1870 },
     },
   ],
   "central-eu": [
@@ -139,6 +149,9 @@ export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
       tier: "silver",
       def: { type: "annualRevenue", amount: strongPlayerAmount("revenue", 5, 1920), byYear: 1920 },
     },
-    { tier: "gold", def: { type: "annualRevenue", amount: 4_500_000, byYear: 1900 } },
+    {
+      tier: "gold",
+      def: { type: "annualRevenue", amount: 4_500_000 * TRIPS_GAME_SCALE, byYear: 1900 },
+    },
   ],
 };

@@ -98,17 +98,20 @@ describe("goal evaluation", () => {
     expect(lost.scenario).toMatchObject({ status: "lost", reason: "debt" });
   });
 
-  it("rates 1 star for finishing, +1 for speed (or net worth), +1 for net worth", () => {
+  it("rates 1 star for finishing, +1 for speed (or yearly profit), +1 for yearly profit (Phase 67)", () => {
     const connect = scenarioById("semmering")!;
     expect(starsFor(connect, 1856, 0)).toBe(1);
     expect(starsFor(connect, 1852, 0)).toBe(2);
-    expect(starsFor(connect, 1856, 1e6)).toBe(2);
-    expect(starsFor(connect, 1852, 1e6)).toBe(3);
+    const [, bProfit] = connect.stars;
+    expect(starsFor(connect, 1856, bProfit)).toBe(2);
+    expect(starsFor(connect, 1852, bProfit)).toBe(3);
+    expect(starsFor(connect, 1852, bProfit - 1)).toBe(2);
     const survive = scenarioById("panic1873")!;
-    expect(starsFor(survive, 1878, 1e6)).toBe(1);
-    expect(starsFor(survive, 1878, 4e6)).toBe(2);
-
-    expect(starsFor(survive, 1878, 5e6)).toBe(3);
+    const [s2, s3] = survive.stars;
+    expect(s3).toBeGreaterThan(s2);
+    expect(starsFor(survive, 1878, s2 - 1)).toBe(1);
+    expect(starsFor(survive, 1878, s2)).toBe(2);
+    expect(starsFor(survive, 1878, s3)).toBe(3);
   });
 });
 

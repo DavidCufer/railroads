@@ -7,6 +7,7 @@
  */
 import type { CargoType } from "../../data/cargo";
 import { CITY_TIERS } from "../../data/cities";
+import { TRIPS_GAME_SCALE } from "../../data/economy";
 import { startingCashFor } from "../../data/finance";
 import { REGION_GOALS, strongPlayerAmount, type GoalDefByName } from "../../data/goals";
 import type { RegionId } from "../regions/types";
@@ -116,7 +117,11 @@ export function generateRandomGoals(state: GameState): Goal[] {
     goals.push({
       id: "random-gold",
       tier: "gold",
-      def: { type: "annualRevenue", amount: startingCash * 4.6, byYear: goldByYear },
+      def: {
+        type: "annualRevenue",
+        amount: startingCash * 4.6 * TRIPS_GAME_SCALE,
+        byYear: goldByYear,
+      },
     });
   }
 
