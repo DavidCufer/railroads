@@ -90,3 +90,23 @@ describe("generateRandomGoals (via createGameState)", () => {
     }
   });
 });
+
+describe("a later start year on a real-world map (Phase 72)", () => {
+  it("offers no goal whose deadline is before the start year", () => {
+    const state = createGameState({ seed: 1, region: "central-eu", startYear: 1950 });
+    expect(state.goals.map((g) => g.tier).sort()).toEqual(["bronze", "gold", "silver"]);
+    for (const g of state.goals) {
+      const due = g.def.type === "delivered" ? g.def.withinYear : g.def.byYear;
+      expect(due).toBeGreaterThan(1950);
+    }
+  });
+
+  it("keeps the authored set for the region's own start year", () => {
+    const state = createGameState({ seed: 1, region: "central-eu" });
+    expect(state.goals.map((g) => g.id).sort()).toEqual([
+      "central-eu-bronze",
+      "central-eu-gold",
+      "central-eu-silver",
+    ]);
+  });
+});

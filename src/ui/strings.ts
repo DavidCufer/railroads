@@ -975,10 +975,11 @@ export const strings = {
     offerEnds: (days: number) => `Offer ends in ${days} days`,
     daysLeftTitle: (days: number) => `${days} days left`,
     news: {
-      offered: (text: string, money: string) => `${text} \u00b7 ${money}`,
-      completed: (text: string, money: string) => `Done: ${text}${money ? ` \u00b7 ${money}` : ""}`,
+      offered: (text: string, money: string) => `Contract offered: ${text} \u00b7 ${money}`,
+      completed: (text: string, money: string) =>
+        `Contract done: ${text}${money ? ` \u00b7 ${money}` : ""}`,
       failed: (text: string, fine: string) =>
-        `Failed: ${text}${fine ? ` \u00b7 fined ${fine}` : ""}`,
+        `Contract failed: ${text}${fine ? ` \u00b7 fined ${fine}` : ""}`,
     },
   },
   celebration: {
@@ -1162,7 +1163,7 @@ export const strings = {
     steps: [
       "Drag with the Track tool to lay a line.",
       "Tap Station on a straight track or dead end.",
-      "Buy a train at a station with an Engine Shed.",
+      "Tap your first station, then Buy Train (it has a free Engine Shed).",
       "Set orders: tap stations, then watch cash roll in.",
     ] as string[],
     hardMoney: "Hard: save cash for the engine before laying track. Short? Borrow in Finance.",
