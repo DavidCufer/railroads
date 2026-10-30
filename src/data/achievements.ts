@@ -20,9 +20,9 @@ export const ACHIEVEMENT_IDS = [
   "bridges10",
   "electrified",
   "metropolisServed",
-  "profit500k",
+  "profit250k",
+  "profit2500k",
   "profit5M",
-  "profit10M",
   "passengers100k",
   "freight10k",
   "goalReached",
@@ -44,12 +44,12 @@ export const ACHIEVEMENT_TARGETS = {
   bridges10: 10,
   /** Phase 67: yearly operating profit of the last completed year (it replaces net worth, which counted construction at
    * half and so punished building). Nominal dollars, from the strong player's Normal medians (`STRONG_PLAYER_MEDIANS`,
-   * Phase 67): 500k = the lowest year-5 median of any era (1930: 0.49M), 5M = the middle of the five eras' year-16
-   * medians (5.09M), 10M = just above the best one (1870: 9.13M, the 1900 row 8.32M). Year 5 for the first rung because a
+   * Phase 69): 250k = the lowest year-5 median of any era (1930, cautious bot: 0.29M), 2.5M = the middle of the five eras'
+   * year-16 medians (2.96M, rounded down), 5M = just above the best one (1870: 4.73M). Year 5 for the first rung because a
    * first line pays back in about that time, year 16 for the others because those are what a mature company earns. */
-  profit500k: 500_000,
+  profit250k: 250_000,
+  profit2500k: 2_500_000,
   profit5M: 5_000_000,
-  profit10M: 10_000_000,
   passengers100k: 100_000,
   freight10k: 10_000,
   hardSurvivorYears: 20,

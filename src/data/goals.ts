@@ -26,7 +26,7 @@
 import type { CargoType } from "./cargo";
 import type { CityTier } from "./cities";
 import type { RegionId } from "../sim/regions/types";
-import { priceIndex } from "./economy";
+import { priceIndex, TRIPS_GAME_SCALE } from "./economy";
 import { WORLD_SCALE } from "./scale";
 
 export type GoalTier = "bronze" | "silver" | "gold";
@@ -59,19 +59,21 @@ export type GoalDefByName =
  */
 export type GoalMetric = "profit" | "revenue";
 
-/** Strong player, Normal, medians of Phase 67 ($M, completed years 5 / 10 / 16; `docs/bench/phase67.md`, 10 seeds per era,
- * the runs still alive: 1930 has 9 of 10, the others all). Replaces the Phase 65 medians, which pre-dated the
- * passenger split by gravity (Phase 62) and the uncalled bonds (Phase 67). */
+/** Strong player, Normal, medians of Phase 69 ($M, completed years 5 / 10 / 16; `docs/bench/phase69.md`, 10 seeds per era,
+ * the runs still alive), after the travellers' game scale of 0.8 (`TRIPS_GAME_SCALE`). Replaces the Phase 67 medians. */
 export const STRONG_PLAYER_MEDIANS: ReadonlyArray<{
   era: number;
   revenue: readonly [number, number, number];
   profit: readonly [number, number, number];
 }> = [
-  { era: 1840, revenue: [1.09, 2.6, 8.13], profit: [0.55, 1.29, 5.09] },
-  { era: 1870, revenue: [2.6, 9.86, 14.5], profit: [1.51, 5.56, 9.13] },
-  { era: 1900, revenue: [4.17, 12.87, 17.3], profit: [2.4, 6.24, 8.32] },
-  { era: 1930, revenue: [1.19, 1.33, 1.31], profit: [0.49, 0.21, 0.1] },
-  { era: 1950, revenue: [5.41, 7.31, 8.78], profit: [2.01, 0.96, 1.15] },
+  { era: 1840, revenue: [0.73, 1.38, 5.49], profit: [0.33, 0.6, 3.12] },
+  { era: 1870, revenue: [1.13, 2.74, 9.45], profit: [0.55, 1.13, 4.73] },
+  { era: 1900, revenue: [1.63, 5.04, 9.52], profit: [0.74, 2.15, 2.96] },
+  // 1930 is the cautious ("good") bot's Normal medians (revenue 0.77 / 1.00 / 1.14, profit 0.29 / 0.31 / 0.19, 5 of 5 alive),
+  // not the strong bot's: 7 of its 10 runs go bankrupt in the 1931 crisis (the owner keeps 1930 hard, 2026-10-30) and the
+  // 3 survivors' medians (profit 0.27 / 0.07 / 0.02) are no goal. A 1930 goal is what a careful player who survives earns.
+  { era: 1930, revenue: [0.77, 1.0, 1.14], profit: [0.29, 0.31, 0.19] },
+  { era: 1950, revenue: [3.06, 3.19, 3.5], profit: [1.08, 0.33, 0.57] },
 ];
 
 const MEDIAN_YEARS = [5, 10, 16] as const;
@@ -127,7 +129,7 @@ export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
     { tier: "silver", def: { type: "delivered", cargo: "coal", amount: 1000, withinYear: 1850 } },
     {
       tier: "gold",
-      def: { type: "annualProfit", amount: strongPlayerAmount("profit", 16, 1870), byYear: 1870 },
+      def: { type: "annualProfit", amount: strongPlayerAmount("profit", 12, 1870), byYear: 1870 },
     },
   ],
   "central-eu": [
@@ -147,6 +149,9 @@ export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
       tier: "silver",
       def: { type: "annualRevenue", amount: strongPlayerAmount("revenue", 5, 1920), byYear: 1920 },
     },
-    { tier: "gold", def: { type: "annualRevenue", amount: 4_500_000, byYear: 1900 } },
+    {
+      tier: "gold",
+      def: { type: "annualRevenue", amount: 4_500_000 * TRIPS_GAME_SCALE, byYear: 1900 },
+    },
   ],
 };

@@ -1047,8 +1047,8 @@ Each real-world region ships with 1–2 optional goal sets (bronze/silver/gold),
 - `us-east`: "Connect New York and Chicago by 1860", "Annual revenue $2.5M by 1880", "Chicago reaches Metropolis".
 - `gb`: "Connect London–Birmingham–Manchester–Liverpool by 1845", "Deliver 1,000 carloads of coal in a year".
 - `central-eu`: "Cross the Alps: connect Munich/Vienna to Milan or Venice/Trieste", "Electrify 120 tiles by 1930".
-- `gb` gold: "Yearly profit $8.1M by 1870"; `central-eu` gold: "Yearly profit $92k by 1930" (Phase 67 medians; the 1930 row is the Depression-and-war row, see PROGRESS Phase 67: the calibration test is red on it).
-- `us-west`: "Connect Sacramento to Salt Lake City by 1870", "Annual revenue $4.5M by 1920".
+- `gb` gold: "Yearly profit $2.1M by 1870" (the strong player's year-12 median, 1870 row, in 1870 money; year 16 would be $4.2M = 3.5x the reference operator, over the 3x limit); `central-eu` gold: "Yearly profit $170k by 1930" (the 1930 row is the cautious bot's medians: the strong bot goes bankrupt in 7 of 10 1930 Normal runs, the owner keeps 1930 hard, so a 1930 goal is what a surviving player earns). Phase 69 medians, `docs/bench/phase69.md`.
+- `us-west`: "Connect Sacramento to Salt Lake City by 1870", "Annual revenue $1.7M by 1920".
 
 **No goal counts cash or net worth** (Phase 64; owner: "we want players to spend money to build things, not hoard it" —
 net worth counted construction at half, so every dollar of track lowered it). Money goals are `annualProfit` (operating
@@ -1145,7 +1145,7 @@ bankruptcy avoided, bankruptcy, achievements, scenario result.
 **Achievements** (25, `src/data/achievements.ts`, checks in `src/sim/history/achievements.ts`): first train, first line, 100 /
 1,000 / 5,000 km of track, 10 / 50 trains, 20 stations, survived a panic, out of debt (had a loan, owes none), first contract, 5
 contracts, silver delivered, uranium delivered, bridge builder (10 bridge edges), electrified, metropolis served, yearly profit
-$0.5M / $5M / $10M (Phase 67), 100,000 passengers, 10,000 t of freight, goal reached, scenario won, hard-mode survivor (20 years on Hard
+$0.25M / $2.5M / $5M (Phase 69), 100,000 passengers, 10,000 t of freight, goal reached, scenario won, hard-mode survivor (20 years on Hard
 without bankruptcy). A new one shows one toast per batch and is written to the player profile (`localStorage`,
 `railroads.profile`, with the real date), so the title-screen list is cross-game.
 
@@ -1298,3 +1298,4 @@ localization (English only, but keep strings in one `strings.ts` file for later)
 - [Phase 67] §9.1 loans are long-term bonds (30 years, 25 from 1930), never called when the credit limit falls; §8.1 laid-up trains give no passenger service (`serviceRates`). PROGRESS Phase 67 for sources and the re-measure.
 - [Phase 68] §8.1 a town's trips split over the towns in range 70 % by gravity (population / distance) and 30 % equally (`PAIR_DEMAND.evenShare`); the trip total is unchanged. §6.2 improvement prices and §8.3 Civic Investment dearer, from real building costs where found (PROGRESS Phase 68).
 - [Phase 69] §8 passenger volume: `TRIPS_GAME_SCALE` = 0.8 multiplies trips per head in every year (owner OK 2026-10-24); anchors unchanged. Balance bounds moved with the owner's OK: 1860s passengers/coal > 1.6 (was 2), 1900 > 1.5 (was 1.8), 1830 Grasshopper breaks even at 50 km and may lose up to $5k/yr at 100 km. Strong Normal 1930 is now 7/10 bankrupt (was 1/10); PROGRESS Phase 69, docs/bench/phase69.md.
+- [Phase 69] §11: goals, achievements and scenario stars re-derived from the Phase 69 medians (gb gold $2.1M, central-eu gold $170k from the cautious bot's 1930 row, us-west silver $1.7M, us-west gold and random revenue gold x `TRIPS_GAME_SCALE`; profit achievements $0.25M / $2.5M / $5M). §10 new-game screen: one line "Depression years: a tough start." when the start year is in the Great Depression (`isDepressionYear`, from the panics table).

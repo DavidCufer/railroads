@@ -22,6 +22,8 @@ export interface PanicDef {
   /** Months from the first fall to traffic being back near its old level (the last PANIC_RECOVERY_MONTHS ease off). */
   months: number;
   basis: PanicBasis;
+  /** Part of the Great Depression (Phase 69): the new-game screen warns of a start in these years (`isDepressionYear`). */
+  depression?: boolean;
 }
 
 export const PANICS: readonly PanicDef[] = [
@@ -56,8 +58,15 @@ export const PANICS: readonly PanicDef[] = [
   { year: 1920, name: "Post-war slump", depth: 0.26, months: 18, basis: "derived" },
   // US ton-miles 450.2 bn (1929) -> 235.3 bn (1932), -48 %; passenger revenue 1932 48 % below 1930. The fall was spread over
   // three years, so 1929 carries the first part and 1931 the trough (the two run one after the other).
-  { year: 1929, name: "Crash of 1929", depth: 0.3, months: 24, basis: "derived" },
-  { year: 1931, name: "Banking crisis of 1931", depth: 0.48, months: 30, basis: "sourced" },
+  { year: 1929, name: "Crash of 1929", depth: 0.3, months: 24, basis: "derived", depression: true },
+  {
+    year: 1931,
+    name: "Banking crisis of 1931",
+    depth: 0.48,
+    months: 30,
+    basis: "sourced",
+    depression: true,
+  },
   // Ton-miles 362.8 bn (1937) -> 291.9 bn (1938), -19.5 %.
   { year: 1937, name: "Recession of 1937", depth: 0.2, months: 18, basis: "sourced" },
   // Post-war recessions: Class I ton-miles from the AAR totals as remembered (1948-49 -17 %, 1953-54 -10 %, 1957-58 -11 %,
@@ -92,3 +101,14 @@ export const PANIC_DEPTH_MAX = 0.6;
 export const PANIC_RECOVERY_MONTHS = 6;
 /** No panic starts in the first this-many months of a game. */
 export const PANIC_QUIET_MONTHS = 12;
+
+/** Phase 69: is `year` inside the Great Depression, from the panics table: from the first panic flagged `depression` to the
+ * year its last flagged panic's fall ends (1929 to 1931 + 30 months = 1934). A company that starts then meets the crisis
+ * with no reserves, which the owner keeps hard (2026-10-30). */
+export function isDepressionYear(year: number): boolean {
+  const flagged = PANICS.filter((p) => p.depression);
+  if (flagged.length === 0) return false;
+  const first = Math.min(...flagged.map((p) => p.year));
+  const last = Math.max(...flagged.map((p) => p.year + Math.ceil(p.months / 12)));
+  return year >= first && year <= last;
+}
