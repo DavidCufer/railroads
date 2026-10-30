@@ -967,7 +967,7 @@ export const strings = {
     /** The same four sentences without the deadline, for the news. */
     short: {
       delivery: (city: string, amount: string, cargo: string) => `${city}: ${amount} ${cargo}`,
-      connection: (city: string) => `${city}: connect`,
+      connection: (city: string) => `Contract: connect ${city} by rail`,
       service: (a: string, b: string, amount: string) => `${a} \u2194 ${b}: ${amount} passengers`,
       rescue: (industry: string, near: string, amount: string, cargo: string) =>
         `${industry} near ${near}: haul ${amount} ${cargo}`,
@@ -975,11 +975,10 @@ export const strings = {
     offerEnds: (days: number) => `Offer ends in ${days} days`,
     daysLeftTitle: (days: number) => `${days} days left`,
     news: {
-      offered: (text: string, money: string) => `Contract offered: ${text} \u00b7 ${money}`,
-      completed: (text: string, money: string) =>
-        `Contract done: ${text}${money ? ` \u00b7 ${money}` : ""}`,
+      offered: (text: string, money: string) => `${text} \u00b7 ${money}`,
+      completed: (text: string, money: string) => `Done: ${text}${money ? ` \u00b7 ${money}` : ""}`,
       failed: (text: string, fine: string) =>
-        `Contract failed: ${text}${fine ? ` \u00b7 fined ${fine}` : ""}`,
+        `Failed: ${text}${fine ? ` \u00b7 fined ${fine}` : ""}`,
     },
   },
   celebration: {
@@ -1163,7 +1162,7 @@ export const strings = {
     steps: [
       "Drag with the Track tool to lay a line.",
       "Tap Station on a straight track or dead end.",
-      "Tap your first station, then Buy Train (it has a free Engine Shed).",
+      "Open your first station, tap Buy Train (free Engine Shed).",
       "Set orders: tap stations, then watch cash roll in.",
     ] as string[],
     hardMoney: "Hard: save cash for the engine before laying track. Short? Borrow in Finance.",
