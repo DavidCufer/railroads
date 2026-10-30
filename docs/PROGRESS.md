@@ -7120,3 +7120,8 @@ Full medians (op ratio, return on capital, final NW, laid-up counts): `npx tsx t
 **Item 4 not done** (orchestrator: wait for the owner's decision about 1930). `STRONG_PLAYER_MEDIANS` should not be re-derived from these 1930 numbers until then.
 
 **e2e (Phase 69).** Shard 1/2: 137 passed. Shard 2/2: 137 passed after one fixture update: `e2e/phase35.spec.ts` town total Venice 1900 = 40k x 0.0327 x 0.8 = 1046 (was 1308); arithmetic in the comment, no bound touched. (An earlier shard-2 run under load listed a few perf/overlay specs as not passing; not reproduced in two clean re-runs.) Screenshots reverted (not owned by this phase).
+
+### Orchestrator: repair train sized like a train (2026-10-30)
+- Owner play-test: "the repair train is waaaay too large now". The Phase 63 sprite was drawn 1.5 tiles long, so 0.5 tile
+  wide: more than twice a train's width (7.2 px at zoom 1). It is now drawn exactly a train's width
+  (`VEHICLE_WIDTH_TILES`), so about a loco long. Render only; Phase 63 screenshots regenerated and checked by eye.
