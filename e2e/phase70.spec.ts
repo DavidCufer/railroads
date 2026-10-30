@@ -1,3 +1,4 @@
+import { buildSync } from "esbuild";
 import { test, type Page } from "@playwright/test";
 import "./gameWindow";
 
@@ -9,6 +10,21 @@ import "./gameWindow";
 test.use({ deviceScaleFactor: 3 });
 
 const OUT = process.env.PHASE70_OUT ?? "docs/screenshots";
+
+const ERAS = [
+  { name: "1850s", year: 1855, loco: "american-4-4-0", cars: ["passengers", "mail"] },
+  { name: "1900s", year: 1905, loco: "pacific-4-6-2", cars: ["passengers", "passengers", "mail"] },
+  { name: "1920s", year: 1925, loco: "mikado-2-8-2", cars: ["coal", "coal", "goods"] },
+  {
+    name: "1940s",
+    year: 1945,
+    loco: "articulated-4-8-8-4",
+    cars: ["oil", "wood", "steel", "livestock"],
+  },
+  { name: "1960s", year: 1965, loco: "high-horsepower-diesel", cars: ["passengers", "passengers"] },
+  { name: "1980s", year: 1985, loco: "high-speed-trainset", cars: ["passengers", "passengers"] },
+  { name: "1990s", year: 1998, loco: "heavy-freight-electric", cars: ["coal", "grain", "ironOre"] },
+];
 
 const SAMPLES = [
   { name: "1850s", year: 1855, loco: "american-4-4-0", cars: ["passengers", "passengers"] },
@@ -24,8 +40,13 @@ async function buildPath(page: Page, tiles: Array<{ x: number; y: number }>): Pr
   if (!r.ok) throw new Error(`track build failed: ${r.reason}`);
 }
 
-for (const s of SAMPLES) {
-  test(`sample consist ${s.name}`, async ({ page }) => {
+const RUNS = [
+  ...SAMPLES.map((s) => ({ prefix: "sample", s })),
+  ...ERAS.map((s) => ({ prefix: "era", s })),
+];
+
+for (const { prefix, s } of RUNS) {
+  test(`${prefix} consist ${s.name}`, async ({ page }) => {
     await page.setViewportSize({ width: 800, height: 360 });
     await page.goto("/?debug=1");
     await page.waitForFunction(() => window.__game !== undefined);
@@ -88,7 +109,7 @@ for (const s of SAMPLES) {
         trains: Array<{ id: number; cars: Array<{ cargoType: string; loadedUnits: number }> }>;
       };
       for (const c of st.trains.find((t) => t.id === id)!.cars)
-        if (c.cargoType === "coal") c.loadedUnits = 20;
+        if (c.cargoType !== "passengers" && c.cargoType !== "mail") c.loadedUnits = 20;
       for (let i = 0; i < 400; i++) {
         const t = g.getTrains().find((tt) => tt.id === id);
         if (t && t.x > 79) break;
@@ -108,9 +129,27 @@ for (const s of SAMPLES) {
       );
       await page.waitForTimeout(500);
       await page.screenshot({
-        path: `${OUT}/phase-70-sample-${s.name}-z${zoom}.png`,
+        path: `${OUT}/phase-70-${prefix}-${s.name}-z${zoom}.png`,
         clip: { x: 400 - 190, y: 180 - 40, width: 380, height: 80 },
       });
     }
   });
 }
+
+test("gallery of every top-down map sprite at zoom 2", async ({ page }) => {
+  const bundle = buildSync({
+    entryPoints: ["e2e/spriteGalleryEntry.ts"],
+    bundle: true,
+    write: false,
+    format: "iife",
+    globalName: "SG",
+  }).outputFiles[0]!.text;
+  await page.setViewportSize({ width: 800, height: 230 });
+  await page.setContent('<body style="margin:0"><canvas id="c"></canvas></body>');
+  await page.addScriptTag({ content: bundle });
+  await page.evaluate(() => {
+    const sg = (window as unknown as { SG: { renderGallery: (c: HTMLCanvasElement) => void } }).SG;
+    sg.renderGallery(document.getElementById("c") as HTMLCanvasElement);
+  });
+  await page.screenshot({ path: `${OUT}/phase-70-map-sprites-gallery.png` });
+});

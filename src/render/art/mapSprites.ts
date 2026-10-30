@@ -7,14 +7,6 @@ import type { LocomotiveDef } from "../../data/trains";
 import { darken, hash01, lighten, mix, rrectPath } from "./draw";
 import { carLivery, powerLivery, steamLivery, type EraBucket } from "./livery";
 
-const OUTLINE = "rgba(20, 18, 16, 0.55)";
-
-function outline(ctx: CanvasRenderingContext2D, size: number): void {
-  ctx.strokeStyle = OUTLINE;
-  ctx.lineWidth = Math.max(1, size * 0.025);
-  ctx.stroke();
-}
-
 function dot(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, fill: string): void {
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
@@ -38,21 +30,6 @@ function lightLocal(): [number, number] {
   const s = Math.sin(heading);
   const k = Math.SQRT1_2;
   return [-k * c - k * s, k * s - k * c];
-}
-
-/** Soft drop shadow on the ballast; the offset is in device space so it ignores the sprite's
- * rotation (down-right). Call before filling the body, `shadowOff` after. */
-function shadowOn(ctx: CanvasRenderingContext2D, size: number): void {
-  ctx.shadowColor = "rgba(15, 14, 10, 0.42)";
-  ctx.shadowBlur = Math.max(1.5, size * 0.06);
-  ctx.shadowOffsetX = Math.max(0.7, size * 0.035);
-  ctx.shadowOffsetY = Math.max(1, size * 0.05);
-}
-function shadowOff(ctx: CanvasRenderingContext2D): void {
-  ctx.shadowColor = "transparent";
-  ctx.shadowBlur = 0;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 0;
 }
 
 /** Square-ended body outline with small bevelled corners. */
@@ -107,7 +84,8 @@ function bevel(
 
 type Stops = ReadonlyArray<readonly [number, string]>;
 
-/** Body hull: bevelled silhouette, fill shaded across the width, drop shadow, lit/dark edges. */
+/** Body hull: bevelled silhouette, fill shaded across the width, lit/dark edges. (The drop shadow
+ * is a separate cached sprite, see `spriteCache.ts`.) */
 function hull(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -116,16 +94,12 @@ function hull(
   w: number,
   c: number,
   stops: Stops,
-  size: number,
-  shadow = true,
 ): void {
   const g = ctx.createLinearGradient(0, y, 0, y + w);
   for (const [t, col] of stops) g.addColorStop(t, col);
   chamfer(ctx, x, y, l, w, c);
-  if (shadow) shadowOn(ctx, size);
   ctx.fillStyle = g;
   ctx.fill();
-  shadowOff(ctx);
   bevel(ctx, x, y, l, w, c);
 }
 
@@ -207,6 +181,13 @@ const FAN_MODELS = new Set([
   "road-switcher-diesel",
   "cab-unit-diesel",
 ]);
+/** Streamlined models: a deeper chamfer reads as a raked nose. */
+const NOSED = new Set([
+  "streamliner-diesel",
+  "cab-unit-diesel",
+  "e-unit-electric",
+  "high-speed-trainset",
+]);
 const PANTO_MODELS = new Set([
   "early-electric",
   "e-unit-electric",
@@ -239,28 +220,19 @@ export function drawLocoSprite(
       [0.5, lighten(c, 0.08)],
       [1, darken(c, 0.3)],
     ];
-    // Frames and footplate: a dark strip the full length, carrying the drop shadow.
-    hull(
-      ctx,
-      rear,
-      -w * 0.47,
-      len,
-      w * 0.94,
-      w * 0.05,
-      [
-        [0, "#2b2a27"],
-        [1, "#1e1d1b"],
-      ],
-      size,
-    );
+    // Frames and footplate: a dark strip the full length, the base under everything.
+    hull(ctx, rear, -w * 0.47, len, w * 0.94, w * 0.05, [
+      [0, "#2b2a27"],
+      [1, "#1e1d1b"],
+    ]);
     // Tender: bevelled box, a dark coal space with a lit mound.
     const tc = mute(lv.tender);
-    hull(ctx, rear + len * 0.005, -w * 0.46, tenderLen, w * 0.92, w * 0.07, flat(tc), size, false);
+    hull(ctx, rear + len * 0.005, -w * 0.46, tenderLen, w * 0.92, w * 0.07, flat(tc));
     ctx.fillStyle = "#121315";
     ctx.fillRect(rear + w * 0.14, -w * 0.31, tenderLen - w * 0.26, w * 0.62);
     mound(ctx, rear + w * 0.16, rear + tenderLen - w * 0.14, w * 0.8, "#4a4e55", detail);
     // Cab body, then a separate roof that overhangs it on every side.
-    hull(ctx, cabX, -w * 0.47, cabLen, w * 0.94, w * 0.05, flat(mute(lv.cab)), size, false);
+    hull(ctx, cabX, -w * 0.47, cabLen, w * 0.94, w * 0.05, flat(mute(lv.cab)));
     if (detail) {
       ctx.fillStyle = lv.glass;
       for (const sd of [-1, 1])
@@ -274,20 +246,9 @@ export function drawLocoSprite(
       w * 1.04,
       w * 0.06,
       roofStops(mute(lv.cabRoof)),
-      size * 0.8,
     );
     // Boiler: a cylinder with a highlight line along its length and darker flanks.
-    hull(
-      ctx,
-      boilerRear,
-      -w * 0.38,
-      boilerFront - boilerRear,
-      w * 0.76,
-      w * 0.05,
-      cylStops(bodyC),
-      size,
-      false,
-    );
+    hull(ctx, boilerRear, -w * 0.38, boilerFront - boilerRear, w * 0.76, w * 0.05, cylStops(bodyC));
     ctx.strokeStyle = "rgba(255,255,255,0.45)";
     ctx.lineWidth = Math.max(0.7, w * 0.04);
     ctx.beginPath();
@@ -306,17 +267,7 @@ export function drawLocoSprite(
     }
     // Smokebox: a darker drum at the front, with a lit door disc.
     const sx = boilerFront - len * 0.015;
-    hull(
-      ctx,
-      sx,
-      -w * 0.4,
-      front - sx,
-      w * 0.8,
-      w * 0.06,
-      cylStops(mute(lv.smokebox, 0.05)),
-      size,
-      false,
-    );
+    hull(ctx, sx, -w * 0.4, front - sx, w * 0.8, w * 0.06, cylStops(mute(lv.smokebox, 0.05)));
     if (detail) dot(ctx, front - w * 0.05, 0, w * 0.1, lighten(lv.smokeboxFront, 0.22));
     // Chimney: dark circle with a light rim; then the domes.
     const chimneyX = chimneyOffset(len);
@@ -351,7 +302,7 @@ export function drawLocoSprite(
   const lv = powerLivery(def.id);
   const bodyC = mute(lv.body, 0.08);
   // Hood: bevelled body, a highlight ridge along the roof, a lighter cab block at the front.
-  hull(ctx, -len / 2, -w / 2, len, w, w * 0.12, roofStops(bodyC), size);
+  hull(ctx, -len / 2, -w / 2, len, w, NOSED.has(def.id) ? w * 0.3 : w * 0.12, roofStops(bodyC));
   ctx.strokeStyle = "rgba(255,255,255,0.28)";
   ctx.lineWidth = Math.max(0.7, w * 0.05);
   ctx.beginPath();
@@ -359,17 +310,7 @@ export function drawLocoSprite(
   ctx.lineTo(len * 0.2, -w * 0.04);
   ctx.stroke();
   const cabX = len * 0.22;
-  hull(
-    ctx,
-    cabX,
-    -w * 0.46,
-    len * 0.26,
-    w * 0.92,
-    w * 0.08,
-    roofStops(lighten(bodyC, 0.05)),
-    size,
-    false,
-  );
+  hull(ctx, cabX, -w * 0.46, len * 0.26, w * 0.92, w * 0.08, roofStops(lighten(bodyC, 0.05)));
   // Thin cab window strips at both ends.
   ctx.fillStyle = lv.glass;
   ctx.fillRect(len / 2 - len * 0.05, -w * 0.34, len * 0.035, w * 0.68);
@@ -466,26 +407,41 @@ export function drawCarSprite(
   const lv = carLivery(cargo, era);
   const shape = SHAPE[cargo];
   const loadColor = lv.load === "#000" ? lv.body : lv.load;
-  const body = (r: number): void => {
-    rrectPath(ctx, -len / 2, -w / 2, len, w, r);
-    ctx.fillStyle = lv.body;
-    ctx.fill();
-    outline(ctx, size);
-  };
   switch (shape) {
     case "tanker": {
-      rrectPath(ctx, -len / 2, -w / 2, len, w, w * 0.5);
-      ctx.fillStyle = lv.body;
+      // A cylinder lying along the track: dark sides, lit line, saddles at the ends, a walkway.
+      const bodyC = mute(lv.body);
+      const r = w * 0.5;
+      const g = ctx.createLinearGradient(0, -w * 0.44, 0, w * 0.44);
+      for (const [t, col] of cylStops(bodyC)) g.addColorStop(t, col);
+      ctx.fillStyle = "#1b1a18"; // underframe / saddles
+      ctx.fillRect(-len / 2, -w * 0.46, len, w * 0.92);
+      rrectPath(ctx, -len * 0.45, -w * 0.44, len * 0.9, w * 0.88, r * 0.7);
+      ctx.fillStyle = g;
       ctx.fill();
-      outline(ctx, size);
-      ctx.fillStyle = "rgba(255, 255, 255, 0.28)";
-      ctx.fillRect(-len * 0.4, -w * 0.12, len * 0.8, w * 0.18);
-      if (detail) dot(ctx, 0, 0, w * 0.14, darken(lv.body, 0.35));
+      ctx.strokeStyle = "rgba(255,255,255,0.4)";
+      ctx.lineWidth = Math.max(0.7, w * 0.04);
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.38, -w * 0.18);
+      ctx.lineTo(len * 0.38, -w * 0.18);
+      ctx.stroke();
+      ctx.strokeStyle = darken(bodyC, 0.45); // tank bands
+      for (const bx of [-0.25, 0.25]) {
+        ctx.beginPath();
+        ctx.moveTo(len * bx, -w * 0.43);
+        ctx.lineTo(len * bx, w * 0.43);
+        ctx.stroke();
+      }
+      ctx.fillStyle = darken(bodyC, 0.4); // walkway and dome
+      ctx.fillRect(-len * 0.3, -w * 0.04, len * 0.6, w * 0.08);
+      dot(ctx, 0, 0, w * 0.14, darken(bodyC, 0.5));
+      dot(ctx, -w * 0.02, -w * 0.03, w * 0.1, lighten(bodyC, 0.25));
+      nubs(ctx, len, w);
       break;
     }
     case "hopper": {
       const bodyC = mute(lv.body);
-      hull(ctx, -len / 2, -w / 2, len, w, w * 0.1, roofStops(bodyC), size);
+      hull(ctx, -len / 2, -w / 2, len, w, w * 0.1, roofStops(bodyC));
       if (cargo === "grain" && era === "modern") {
         // Covered hopper: roof hatches, no open top.
         for (const hx of [-0.28, 0, 0.28]) {
@@ -514,44 +470,98 @@ export function drawCarSprite(
       break;
     }
     case "flatcar": {
-      ctx.fillStyle = "#5A4632";
-      ctx.fillRect(-len / 2, -w * 0.28, len, w * 0.56);
+      // Plank deck with the load stacked on it: logs, sawn lumber or steel plate.
+      hull(ctx, -len / 2, -w * 0.46, len, w * 0.92, w * 0.05, roofStops("#6A5440"));
+      ctx.strokeStyle = "rgba(0,0,0,0.25)";
+      ctx.lineWidth = Math.max(0.5, w * 0.03);
+      for (let k = 1; k < 10; k++) {
+        const px = -len / 2 + (len * k) / 10;
+        ctx.beginPath();
+        ctx.moveTo(px, -w * 0.42);
+        ctx.lineTo(px, w * 0.42);
+        ctx.stroke();
+      }
       if (loaded) {
-        ctx.fillStyle = cargo === "wood" ? "#6B4A2B" : cargo === "lumber" ? "#C9A46A" : "#9AA3AF";
-        const blocks = 3;
-        const blockW = (len / blocks) * 0.8;
-        for (let i = 0; i < blocks; i++) {
-          const bx = -len / 2 + (i + 0.5) * (len / blocks);
-          ctx.fillRect(bx - blockW / 2, -w * 0.4, blockW, w * 0.8);
-          if (detail) {
-            ctx.fillStyle = darken(ctx.fillStyle as string, 0.3);
-            ctx.fillRect(bx - blockW / 2, -w * 0.02, blockW, Math.max(1, w * 0.05));
-            ctx.fillStyle =
-              cargo === "wood" ? "#6B4A2B" : cargo === "lumber" ? "#C9A46A" : "#9AA3AF";
+        const lx0 = -len * 0.42;
+        const ll = len * 0.84;
+        if (cargo === "wood") {
+          const n = 4; // round logs side by side, each lit along its length
+          for (let k = 0; k < n; k++) {
+            const ly = -w * 0.38 + (w * 0.76 * (k + 0.5)) / n;
+            const lh = (w * 0.76) / n;
+            const g = ctx.createLinearGradient(0, ly - lh / 2, 0, ly + lh / 2);
+            for (const [t, col] of cylStops("#7A5530")) g.addColorStop(t, col);
+            rrectPath(
+              ctx,
+              lx0 + hash01(k * 3 + 1) * len * 0.05,
+              ly - lh / 2,
+              ll * 0.96,
+              lh,
+              lh * 0.45,
+            );
+            ctx.fillStyle = g;
+            ctx.fill();
+          }
+        } else if (cargo === "lumber") {
+          hull(ctx, lx0, -w * 0.38, ll, w * 0.76, w * 0.03, roofStops("#C9A46A"));
+          ctx.strokeStyle = "rgba(90,60,25,0.45)";
+          ctx.lineWidth = Math.max(0.5, w * 0.03);
+          for (let k = 1; k < 5; k++) {
+            const ly = -w * 0.38 + (w * 0.76 * k) / 5;
+            ctx.beginPath();
+            ctx.moveTo(lx0 + w * 0.04, ly);
+            ctx.lineTo(lx0 + ll - w * 0.04, ly);
+            ctx.stroke();
+          }
+        } else {
+          for (const k of [0, 1]) {
+            hull(
+              ctx,
+              lx0 + k * ll * 0.51,
+              -w * 0.36,
+              ll * 0.47,
+              w * 0.72,
+              w * 0.04,
+              roofStops("#9AA3AF"),
+            );
           }
         }
+        ctx.strokeStyle = "rgba(20,18,16,0.55)"; // straps
+        ctx.lineWidth = Math.max(0.6, w * 0.05);
+        for (const sx of [-0.2, 0.2]) {
+          ctx.beginPath();
+          ctx.moveTo(len * sx, -w * 0.4);
+          ctx.lineTo(len * sx, w * 0.4);
+          ctx.stroke();
+        }
+      } else if (detail) {
+        ctx.fillStyle = darken("#6A5440", 0.45); // stake pockets
+        for (const sx of [-0.42, -0.14, 0.14, 0.42])
+          for (const sd of [-1, 1])
+            ctx.fillRect(len * sx - w * 0.04, sd * w * 0.4 - w * 0.03, w * 0.08, w * 0.06);
       }
-      ctx.strokeStyle = OUTLINE;
-      ctx.lineWidth = Math.max(1, size * 0.02);
-      ctx.strokeRect(-len / 2, -w * 0.28, len, w * 0.56);
+      nubs(ctx, len, w);
       break;
     }
     case "secure": {
-      body(w * 0.16);
-      ctx.fillStyle = cargo === "enrichedUranium" ? "#E8C21E" : "#C9A24A";
-      ctx.fillRect(-len * 0.44, w * 0.18, len * 0.88, Math.max(1, w * 0.14)); // stripe
-      ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-      for (const bx of [-0.3, 0.3])
+      // Armoured van: heavy riveted roof, door bands, a padlock hasp.
+      const bodyC = mute(lv.body);
+      hull(ctx, -len / 2, -w / 2, len, w, w * 0.09, roofStops(bodyC));
+      ctx.fillStyle = darken(bodyC, 0.4);
+      for (const bx of [-0.3, 0, 0.3])
         ctx.fillRect(len * bx - w * 0.04, -w * 0.44, w * 0.08, w * 0.88);
-      if (detail) dot(ctx, 0, -w * 0.08, w * 0.1, "#E8D9A0"); // padlock
+      ctx.fillStyle = cargo === "enrichedUranium" ? "#C9A227" : "#B9944A";
+      ctx.fillRect(-len * 0.45, -w * 0.05, len * 0.9, w * 0.1); // lit ridge
+      if (detail) dot(ctx, len * 0.15, 0, w * 0.07, "#E8D9A0"); // padlock
+      nubs(ctx, len, w);
       break;
     }
     case "boxcar":
     case "livestock": {
       const bodyC = mute(lv.body);
-      hull(ctx, -len / 2, -w / 2, len, w, w * 0.09, roofStops(bodyC), size);
+      hull(ctx, -len / 2, -w / 2, len, w, w * 0.09, roofStops(bodyC));
       // Ribbed roof: thin transverse lines between the eaves, a lighter ridge down the middle.
-      const ribs = shape === "livestock" ? 11 : detail ? 12 : 8;
+      const ribs = shape === "livestock" ? 14 : detail ? 12 : 8;
       ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
       ctx.lineWidth = Math.max(0.5, w * 0.035);
       for (let k = 1; k < ribs; k++) {
@@ -589,7 +599,6 @@ export function drawCarSprite(
         w,
         w * 0.08,
         roofStops(modern ? lighten(bodyC, 0.06) : mix(mute(lv.roof, 0.05), bodyC, 0.45)),
-        size,
       );
       // Eave strips in the body colour show the side below the roof edge.
       ctx.fillStyle = bodyC;
@@ -607,18 +616,21 @@ export function drawCarSprite(
         ctx.fillStyle = "#1c1b19";
         ctx.fillRect(ex > 0 ? len * 0.47 : -len / 2 + w * 0.02, -w * 0.24, len * 0.03, w * 0.48);
       }
-      // Row of small roof vents.
-      const vents = shape === "mail" ? 3 : 5;
-      for (let i = 0; i < vents; i++) {
-        const vx = -len * 0.3 + (len * 0.6 * (i + 0.5)) / vents;
-        dot(ctx, vx, 0, w * 0.09, darken(modern ? bodyC : mute(lv.roof), 0.45));
-        dot(
-          ctx,
-          vx + w * 0.015,
-          -w * 0.015,
-          w * 0.05,
-          lighten(modern ? bodyC : mute(lv.roof), 0.3),
-        );
+      // Low flat roof vents, by era: small lamp-tops on early stock, a clerestory strip with slits
+      // on mid-era stock, flat air-conditioning boxes on modern stock.
+      const roofC = modern ? lighten(bodyC, 0.06) : mix(mute(lv.roof, 0.05), bodyC, 0.45);
+      ctx.fillStyle = darken(roofC, 0.38);
+      if (era === "early" || shape === "mail") {
+        for (const vx of [-0.22, 0, 0.22])
+          ctx.fillRect(len * vx - len * 0.03, -w * 0.05, len * 0.06, w * 0.1);
+      } else if (era === "mid") {
+        ctx.fillRect(-len * 0.3, -w * 0.07, len * 0.6, w * 0.14);
+        ctx.fillStyle = lighten(roofC, 0.3);
+        for (let i = 0; i < 9; i++)
+          ctx.fillRect(-len * 0.28 + i * len * 0.07, -w * 0.045, len * 0.035, w * 0.09);
+      } else {
+        for (const vx of [-0.27, -0.09, 0.09, 0.27])
+          ctx.fillRect(len * vx - len * 0.06, -w * 0.12, len * 0.12, w * 0.24);
       }
       if (detail) {
         ctx.fillStyle = "rgba(225, 228, 230, 0.55)";

@@ -6,7 +6,8 @@ import type { CargoType } from "../data/cargo";
 import { LOCO_LENGTH_TILES, locomotiveById, type LocomotiveDef } from "../data/trains";
 import { Camera, TILE_SIZE } from "./camera";
 import { TRAIN_SIGNAL_WAIT_COLOR, TRAIN_WARNING_COLOR } from "./palette";
-import { drawCarSprite, drawLocoSprite, chimneyOffset, setSpriteHeading } from "./art/mapSprites";
+import { chimneyOffset } from "./art/mapSprites";
+import { drawCarCached, drawLocoCached } from "./art/spriteCache";
 import { eraBucket, type EraBucket } from "./art/livery";
 import {
   SMOKE_MIN_ZOOM,
@@ -220,11 +221,13 @@ function roundedRectPath(
   ctx.closePath();
 }
 
-/** Zoom at which sprites gain their extra detail (STYLE §9.5: zoom ≥ 1.5 → 48 px tiles). */
-const DETAIL_SIZE = TILE_SIZE * 1.5;
+/** Device pixel ratio the cached sprites are baked at (crisp on a phone at DPR 2-3). */
+function spriteDpr(): number {
+  return typeof window === "undefined" ? 1 : Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+}
 
-/** Draws a locomotive in local space: +x is the direction of travel (the front/leading end), so a
- * steam loco's chimney sits near +x and its cab/tender trail toward -x, where the cars follow. */
+/** Draws a locomotive (cached sprite): +x is the direction of travel (the leading end), so a steam
+ * loco's chimney sits near +x and its cab/tender trail toward -x, where the cars follow. */
 function drawLoco(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -233,23 +236,11 @@ function drawLoco(
   size: number,
   def: LocomotiveDef,
 ): void {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(angle);
-  setSpriteHeading(angle);
-  drawLocoSprite(
-    ctx,
-    size * LOCO_LENGTH_TILES,
-    size * VEHICLE_WIDTH_TILES,
-    size,
-    def,
-    size >= DETAIL_SIZE,
-  );
-  ctx.restore();
+  drawLocoCached(ctx, x, y, angle, size, LOCO_LENGTH_TILES, VEHICLE_WIDTH_TILES, def, spriteDpr());
 }
 
-/** Draws one car in local space (+x = direction of travel) in its cargo/era livery; open cars show
- * the load, closed cars don't (the UI shows the fill). */
+/** Draws one car (cached sprite) in its cargo/era livery; open cars show the load, closed cars
+ * don't (the UI shows the fill). */
 function drawCar(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -260,21 +251,19 @@ function drawCar(
   era: EraBucket,
   loaded: boolean,
 ): void {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(angle);
-  setSpriteHeading(angle);
-  drawCarSprite(
+  drawCarCached(
     ctx,
-    size * CAR_DRAW_LEN_TILES,
-    size * VEHICLE_WIDTH_TILES,
+    x,
+    y,
+    angle,
     size,
+    CAR_DRAW_LEN_TILES,
+    VEHICLE_WIDTH_TILES,
     cargoType,
     era,
     loaded,
-    size >= DETAIL_SIZE,
+    spriteDpr(),
   );
-  ctx.restore();
 }
 
 function drawStatusIcon(

@@ -7079,3 +7079,20 @@ Not done, as instructed: it waits until the orchestrator has merged this branch.
 - Owner play-test: "the repair train is waaaay too large now". The Phase 63 sprite was drawn 1.5 tiles long, so 0.5 tile
   wide: more than twice a train's width (7.2 px at zoom 1). It is now drawn exactly a train's width
   (`VEHICLE_WIDTH_TILES`), so about a loco long. Render only; Phase 63 screenshots regenerated and checked by eye.
+
+## 2026-10-30 - Phase 70 done on branch `phase-70-train-art` (not merged; orchestrator merges)
+
+Render only (`src/render/art/mapSprites.ts`, new `src/render/art/spriteCache.ts`, `src/render/trains.ts`; no sim change).
+- **Look** (owner approved the sample, 1140c37): bevelled square-ended hulls instead of pills and outlines, light from
+  the top-left rotated into the vehicle's frame, soft drop shadow down-right, buffer/coupling nubs, muted liveries.
+  Steam: cylinder boiler, smokebox, rimmed chimney, overhanging cab roof, coal mound. Diesel/electric: highlight ridge,
+  rows of small fans, window strips, streamlined models with a raked nose. Coaches: curved roof, vestibules, and (owner
+  note) low flat roof vents by era instead of circles. Box van ribbed roof, hopper mound, tanker, flatcar loads
+  (logs / lumber / steel), armoured van.
+- **Cache**: sprites are baked offscreen per model / era / load / size bucket (x1.12 steps, scaled between) / quarter
+  turn of heading at DPR (<= 3) and blitted; the shadow is a separate blurred silhouette image. Capped at 600 entries.
+- **e2e** (`e2e/phase70.spec.ts`, `e2e/spriteGalleryEntry.ts` bundled with esbuild): three samples + sheet
+  (`phase-70-sample-before-after.png`, DPR 3, native), one train per era at zoom 1/2 (`phase-70-era-*`), and the gallery
+  of all top-down sprites (`phase-70-map-sprites-gallery.png`, zoom 2). Every PNG looked at.
+- **Not done / notes**: the steam models share one body (they differ by livery and era detail, not by wheel
+  arrangement); the repair-crew sprite (`repairCrews.ts`) keeps its own drawing.
