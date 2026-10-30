@@ -18,7 +18,7 @@ HOW IT PLAYS
 • Towns grow where your trains call. Factories, mines, farms and mills need their goods moved, and ask for others in return.
 • Watch each station's supply and demand, see what your lines earn, and fix the ones that don't.
 • Borrow from the bank to expand, then pay it back. Fuel, wages, track upkeep and taxes all count.
-• Bridges, hills, rivers and weather make some routes costly. Choose your line with care.
+• Bridges, hills and rivers make some routes costly. Choose your line with care.
 
 REAL MAPS AND RANDOM MAPS
 • Play on real regions: the Eastern United States, Great Britain, Central Europe and the Alps, and the American West.
@@ -27,7 +27,7 @@ REAL MAPS AND RANDOM MAPS
 • The years matter: engines, wagons and track improvements arrive on their real dates, and economic booms and busts come and go.
 
 WHAT YOU GET
-• Dozens of historical locomotives and many types of wagons.
+• Over twenty historical locomotives and many types of wagons.
 • Goals, achievements, a yearly report with the whole year's accounts, and a history of your railroad.
 • Drawn entirely in code, in a calm, poster-like style. Works in landscape on phones and tablets.
 • No ads. No in-app purchases. No account. No network use. Your saves stay on your device.

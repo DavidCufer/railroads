@@ -2893,5 +2893,10 @@ wrong; report anything that changes the game's design or balance (owner decides)
    1.0 loading after the rename.
 5. **1950 start.** Strong Normal profit 0.57 M$/yr at year 16 (weakest era besides the Depression). Find the cause with
    the bench (no tuning); report with a proposal backed by a real mechanism.
-6. Lint warnings to zero (30 today) without disabling rules. PROGRESS; tick ONLY Phase 72.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
+6. Lint warnings to zero (30 today) without disabling rules.
+7. **Better store screenshots** (orchestrator review of Phase 71): today's phone shots are one small network around Milan
+   with different panels on top, trains tiny, a "68" news badge. Redo `docs/store/screenshots/` from a rich late-game
+   save: many lines and trains, zoomed in so the Phase 70 train art shows, different eras (steam, diesel, electric) and
+   maps, news badge cleared, one or two panels at most. Same sizes; look at every PNG.
+8. PROGRESS; tick ONLY Phase 72.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7 [ ] 8

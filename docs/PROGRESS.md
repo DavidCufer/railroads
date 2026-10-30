@@ -7257,3 +7257,11 @@ Store readiness for **Iron & Steam 1.0**.
 
 ### Results
 `npm run check`: 945 passed, 1 skipped. e2e shard 1/2: 145 passed; shard 2/2: 144 passed. `release.yml` was not run from this session (no Actions access here; it builds the APK and AAB unsigned without secrets); `android.yml` on the push covers the renamed Android project.
+
+### Orchestrator: Phase 71 merged (2026-10-30)
+- Reviewed `phase-71-store` (31f8a0a): app ID `com.davidc.ironandsteam` in capacitor config, gradle and the moved
+  `MainActivity`; name Iron & Steam; version 1.0.0; debug HUD/`window.__game` only behind the URL query (none in the app);
+  WebView debugging off. `npm run check` 945 passed; e2e 145 + 144 passed. Icon, feature graphic and store screenshots
+  looked at (icon and banner good; screenshots usable but plain: Phase 72 item 7 added to redo them).
+- Listing corrected: it claimed weather (the sim has none) and "dozens" of locomotives (22). Privacy contact still
+  `OWNER-EMAIL-PLACEHOLDER` (owner fills in).
