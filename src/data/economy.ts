@@ -595,8 +595,16 @@ export const TRIPS_PER_HEAD_ANCHORS: Anchors = [
   [1900, 0.0327],
   [1950, 0.0327],
 ];
+
+/** Phase 69: an openly stated game scale (like `PARTY_SIZE`), applied to the trips-per-head table in every year; the
+ * anchors above stay the sourced numbers. The owner OK'd it on 2026-10-24: since Phase 62 a station catches a town's trips
+ * to every place its trains reach, so the strong player earned 7.5-8 M$/yr by year 16 in 1870/1900 Normal against a
+ * target of 3-4 M$. Orchestrator sweep (`TRIPS` env, strong player, central-eu Normal, seeds 1-2, operating profit at
+ * year 16, 1870 / 1900): 1 -> 7.5 / 8.2; 0.8 -> 4.2-5.2 / 2.2; 0.65 -> 0.8-2.0 / 1.7; 0.5 -> 0.1 / bankrupt. Steep because
+ * track, crews and head office stay while fares fall; 0.8 is the only factor near the target. */
+export const TRIPS_GAME_SCALE = 0.8;
 export function tripsPerHeadPerMonth(year: number): number {
-  return interpolateYear(TRIPS_PER_HEAD_ANCHORS, year);
+  return interpolateYear(TRIPS_PER_HEAD_ANCHORS, year) * TRIPS_GAME_SCALE;
 }
 
 /** Where a town's trips go: gravity (Phase 62). The destinations in range split the total by weight = destination
@@ -608,8 +616,18 @@ export function tripsPerHeadPerMonth(year: number): number {
  * raise a pair line's passengers 1.7-2.5x (PROGRESS, Phase 62). */
 export const PAIR_DEMAND = {
   distanceExponent: 1,
-  /** Exponent of the destination's population in its weight (1 = proportional). */
+  /** Exponent of the destination's population in the weight that sizes the trip total (`cappedVolume`; 1 = proportional,
+   * the Phase 53 volume, unchanged so passenger volume stays the same on every map). */
   sizeExponent: 1,
+  /** Phase 68: exponent of the destination's population in the weight that splits the trips. Kept at 1: published gravity
+   * fits give 0.5-0.9, but the Vienna-Graz test (a bigger town 2x as far still draws 1.5x more) needs about 0.9 or more,
+   * and 0.8 left the strong player's 1870/1900 profit unchanged in the sweep (PROGRESS). */
+  splitSizeExponent: 1,
+  /** Phase 68: part of a town's trips split evenly over the destinations in range, the rest by gravity: a floor, so a
+   * small town in range keeps a fair share while the big nearer city still draws most. 0.3 is the most even setting that
+   * keeps the Vienna-Graz test (Vienna 1.56x Graz; 0.4 gives 1.47, below the test's 1.5). The strong player's year-16
+   * profit hardly moves with it (2 seeds, 1870 / 1900, M$: 0.2 7.9 / 8.0, 0.3 7.2 / 9.0, 0.4 6.9 / 5.3, 0.5 6.8 / 5.8). */
+  evenShare: 0.3,
   /** Towns nearer than this weigh as if at this distance (tiles of 5 km): stops a next-door village dominating. */
   minDistanceTiles: 15,
   /** Phase 51: 0.2 (was 0.5). Phase 62: used only to size the trip total (`cappedVolume`), not to split it. */

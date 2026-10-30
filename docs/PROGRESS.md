@@ -7034,3 +7034,132 @@ Formula unchanged from Phase 64 (`strongPlayerAmount`: median x priceIndex(goal 
 
 ### Decisions (conservative, nothing asked)
 Kept the old `byYear`s, tiers and rewards; interpolated year 7 for the 7-year survival scenario; achievements in nominal dollars (no inflation), because they are not tied to a year; star 3 of a connect/deliver scenario reads the last *completed* year, so a goal finished in the first year or two has little profit behind it (may make star 3 hard on a quick finish: owner to judge); dropped the net-worth line on the scenario end card in favour of last year's profit.
+
+## 2026-10-24 - Phase 68 items 1-2: STOPPED on branch `phase-68` (one balance test red because of the new prices); items 3-5 not run
+
+**Why stopped.** `npm run check`: 941 pass, 1 fails: `tests/sim/balance.test.ts` "Phase 9 balance guard: station improvements > a fully-improved coal route earns more than the unimproved one" fails at `expect(buildImprovement(improved, stationBId, type).ok).toBe(true)`. Cause: the test builds all six improvements at both stations of a route with **$750,400** cash in 1880 (1.6x era price). Old prices: 2 x $217k x 1.6 = $0.69M (affordable). New: 2 x $670k x 1.6 = $2.1M (not). The ratio bound (<= 1.5) was never reached; nothing was loosened. Options for the owner: give that fixture more cash (the test's point is the profit ratio, not the cash), or cheaper prices. Main is untouched.
+Two other tests asserted the changed values and were updated, not loosened: `cityGrowth` Civic Investment (city price $300k -> $1M, and the fixture gets $5M cash to afford it), `pairDemand` express boarding (exact 5/11 split now mixes in `evenShare`: 0.8 x 5/11 + 0.1), `improvements.test` price table, `engineShed.test` label.
+
+### Item 1: more even split (`PAIR_DEMAND.splitSizeExponent`, `evenShare`; volume still sized with the old exponent 1, so passenger volume is unchanged)
+Chosen: **splitSizeExponent 1, evenShare 0.2** (a fifth of a town's trips split equally over the towns in range, the rest by gravity). Why not lower: the existing test "Vienna and Graz from Ljubljana" needs Vienna >= 1.5 x Graz, which fixes exponent >= ~0.86 (with no even share); exponent 0.5-0.6 would put Graz above Vienna. Sweep (strong player Normal, 2 seeds, year-16 operating profit $M, mean; baseline = Phase 67 bench seeds 1-2; `docs/bench/phase68.md`):
+| setting (exponent, even) | 1870 | 1900 | S4 1900 best fleet (net k$/yr) | Ljubljana 1900: Venice / Vienna / Trieste / Graz / Munich / Zagreb / Salzburg / Innsbruck |
+|---|---|---|---|---|
+| 1, 0 (old) | 8.1 | 10.3 | 5 express + 1 local, 5204 | 27 / 25 / 14 / 13 / 14 / 4 / 2 / 2 % |
+| 0.8, 0 | 8.1 | 10.9 | 3 + 3, 4748 | 24 / 21 / 17 / 14 / 13 / 5 / 3 / 3 |
+| 0.6, 0 | 7.3 | 7.9 | 2 + 4, 4081 | 21 / 17 / 19 / 15 / 11 / 8 / 5 / 4 |
+| 0.8, 0.2 (S4 only) | - | - | 3 + 3, 4537 | 22 / 19 / 16 / 14 / 13 / 7 / 5 / 5 |
+| 0.5, 0.1 | 7.1 | 7.1 | - | Trieste 20 / Venice 19 / Graz 16 / Vienna 15 / ... |
+| **1, 0.2 (chosen)** | **7.3** | **8.3** | not run | 24 / 22 / 14 / 13 / 13 / 5 / 4 / 4 |
+**Target missed:** the owner's target (strong 1870/1900 Normal back near 2-3 M$/yr at year 16) is not reachable by the split: even the flattest setting only cuts profit by about 30 %, and a lower exponent fails the Vienna-Graz test. Phase 62's jump (2.9 -> 8-10 M$) therefore has another part (volume, or the strong bot's routes), not found here. The sweep ran before the item 2 prices, 2 seeds only.
+
+### Item 2: prices (1830 $, era-scaled; justification next to each number in `src/data/stations.ts`, `src/data/cities.ts`)
+Old -> new: Post Office 25k -> 100k, Hotel 50k -> 225k, Warehouse 30k -> 65k, Cold Storage 40k -> 140k, Freight Yard 60k -> 120k, Livestock Pens 12k -> 20k, Engine Shed 30k -> 65k, Water Tower 8k -> 15k; Civic Investment 100k x tier rank (100/200/300/400k) -> village 100k, town 250k, city 1M, metropolis 3M.
+Conversion: pounds x 4.87 / `eraInflation(year)`. Real costs found (web search): Great Western Royal Hotel, Paddington, 1854, about 60,000 pounds incl. fittings ([Wikipedia](https://en.wikipedia.org/wiki/Hilton_London_Paddington)) -> $226k; Ballarat goods sheds, 1862, tender 18,326 pounds ([Heritage Victoria](https://vhd.heritagecouncil.vic.gov.au/places/120896)) -> $65k; Weaste (Salford) cold-air stores, 1899, 52,000 pounds ([Manchester Victorian Architects](https://www.manchestervictorianarchitects.org.uk/buildings/coldair-stores-weaste-salford)) -> $138k; Carlisle sewerage 23,000 pounds = 17s 8d a head, nine towns average 12s 9d ([Dunedin newspaper 1866, PapersPast](https://dynamic-rsnz.natlib.govt.nz/newspapers/ESD18660110.2.6)) and Ipswich town hall about 16,000 pounds, 1866 ([Ipswich](https://www.ipswich.gov.uk/content/town-hall-history)) for civic works. Payback check from the S4 line (revenue $760k/yr in 1842, $2.1M in 1900; busiest station ~30 %): hotel +25 % = $57k/yr in 1842, so $225k pays back in about 4 years (1900: about 1.5); post office $34k mail x 0.875 = $30k/yr -> $100k in 3.5 years. **Not found:** railway post office, freight yard, livestock pens, engine shed, water tower costs (set by ratio to the goods shed or the payback rule, stated in the code comments). The sweep for item 1 and the payback numbers used the S4 line only; a typical real station would earn less than the busiest one, so the paybacks are optimistic.
+Not done: item 3 (re-measure), 4 (goals branch), SPEC edits (§6.2 table, §8.1, §8.3), e2e shards, screenshots. Phase 68 is NOT ticked. Tooling: `tools/bench/pairEnv.ts` (env `SPLIT=exponent,even` for strongPlayer / explore / candidates); `goodPlayer.ts` PAIR env gained two fields. Note: `node_modules` was absent in this container; `npm ci` was run (not committed).
+
+
+## 2026-10-24 - Phase 68 items 1-3, 5 done on branch `phase-68` (not merged; orchestrator merges); item 4 waits
+
+**Status.** `npm run check` green (942 tests). e2e: shard 1/2 had one failure (`phase21-1` perf: stations zoom 1.5, `cant-afford`: hotel + warehouse + post office at three stations now cost ~$1.2M), shard 2/2 one failure (`upgrades` Civic Investment panel: a 50k city now costs $1M x 1.84); both fixed by giving the spec cash with `debugSetCash` (fixtures, no bound touched) and the specs re-run alone: green. 125 bench runs in `docs/bench/phase68.md`, pushed in pieces. PLAN: items 1, 2, 3, 5 ticked, 4 open.
+
+### Decisions (orchestrator's reply of 2026-10-24 settled these)
+- **Fixture cash** (`balance.test.ts` "fully-improved coal route"): `improved.cash += 2_500_000`, so cash goes $750,400 -> $3,250,400 (all six improvements at both stations cost ~$2.1M at 1880 prices; old prices ~$0.69M). The ratio bound (<= 1.5) is unchanged and the test passes.
+- **Split: `evenShare` 0.3, `splitSizeExponent` 1.** Extended sweep (strong Normal, seeds 1-2, year-16 operating profit $M, with the new prices; `docs/bench/phase68.md`): 1870 / 1900 even 0.2: 7.85 (seed 1 only) / 8.0; 0.3: 7.2 / 9.0; 0.4: 6.9 / 5.3; 0.5: 6.8 / 5.8. Vienna / Graz ratio of the test fixture: 0.2 1.65, 0.3 1.56, **0.4 1.47 (< 1.5, test fails)**, 0.5 1.38; (0.8, 0.3) 1.27. So only <= ~0.35 keeps the test; none gets near 3-4 M$ or below 5 M$ in 1870 (6.8-7.2). By the orchestrator's rule I took the most even setting that keeps the test with margin: **0.3**. One 1870 / 0.2 / seed 2 run is missing (killed by a worker restart; not repeated).
+- **Where the post-62 jump comes from** (one seed, strong Normal 1900 seed 1, Phase 66 code `5d6227b` vs this branch): last-year passenger revenue 8.8M -> 16.9M with 58 -> 69 trains (rev per train 152k -> 245k, +60 %) and 35 -> 36 stations, the same 13 passenger lines and no freight in either; cumulative revenue splits from year 5 on (y10 4.05M -> 12.45M). So the same lines earn about 60 % more per train and the bot also builds 19 % more trains: the gravity split gives the big-city trunk trains fuller loads (consistent with the S4 best fleet moving to express). **Not done:** the top-3 lines' revenue and load table; the bot prints no per-line figures and I did not add them.
+
+### Items 1-2 (as in the earlier entry), items now in the tree
+Prices: Post Office 25k -> 100k, Hotel 50k -> 225k, Warehouse 30k -> 65k, Cold Storage 40k -> 140k, Freight Yard 60k -> 120k, Livestock Pens 12k -> 20k, Engine Shed 30k -> 65k, Water Tower 8k -> 15k; Civic Investment 100k x tier rank -> 100k / 250k / 1M / 3M (village / town / city / metropolis). Sources and arithmetic in the entry above. SPEC §6.2, §8.3 and the change log updated.
+
+### Item 3: re-measure (median $M y5 / y10 / y16; Phase 67 numbers: `docs/bench/phase67.md`)
+| bot | diff | start | runs | bankrupt | revenue $M y5 / y10 / y16 (median) | operating profit $M y5 / y10 / y16 (median) | final NW $M median [min-max] | op ratio y3 / y10 / y16 | return on capital y3 / y10 / y16 | cash>20% NW, years (median; never) | trains laid up / returned (sum) |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| strong | hard | 1840 | 5 | 0 | 0.86 / 1.10 / 6.70 | 0.52 / 0.50 / 4.36 | 10.94 [9.69-12.49] | 0.36 / 0.55 / 0.35 | 0.22 / 0.12 / 0.29 | 2.0; 0 | 0 / 0 |
+| strong | hard | 1870 | 5 | 1 | 2.80 / 5.60 / 12.91 | 1.90 / 2.79 / 7.20 | 30.32 [0.58-30.67] | 0.30 / 0.50 / 0.45 | 0.48 / 0.17 / 0.19 | 3.0; 1 | 0 / 0 |
+| strong | hard | 1900 | 5 | 0 | 0.76 / 0.81 / 3.35 | 0.31 / -0.01 / 1.49 | 5.71 [4.85-6.92] | 0.45 / 1.01 / 0.55 | 0.25 / 0.00 / 0.19 | 11.0; 0 | 0 / 0 |
+| strong | hard | 1930 | 5 | 0 | 0.57 / 0.66 / 2.34 | 0.24 / 0.23 / 1.16 | 3.39 [3.14-4.37] | 0.98 / 0.64 / 0.50 | 0.01 / 0.15 / 0.27 | 6.0; 0 | 0 / 0 |
+| strong | hard | 1950 | 5 | 0 | 0.92 / 1.06 / 1.05 | 0.38 / 0.31 / 0.17 | 1.75 [1.67-1.84] | 0.57 / 0.71 / 0.84 | 0.19 / 0.13 / 0.07 | 2.0; 0 | 0 / 0 |
+| strong | normal | 1840 | 10 | 0 | 1.10 / 2.62 / 6.73 | 0.60 / 1.38 / 3.88 | 15.29 [14.66-18.93] | 0.45 / 0.48 / 0.42 | 0.17 / 0.16 / 0.21 | 2.0; 0 | 0 / 0 |
+| strong | normal | 1870 | 10 | 0 | 2.30 / 5.52 / 13.18 | 1.35 / 2.67 / 7.46 | 35.16 [27.40-39.94] | 0.47 / 0.52 / 0.42 | 0.22 / 0.20 / 0.22 | 3.0; 0 | 0 / 0 |
+| strong | normal | 1900 | 10 | 0 | 3.87 / 11.62 / 16.33 | 2.17 / 5.29 / 8.18 | 43.30 [33.62-78.30] | 0.47 / 0.54 / 0.51 | 0.22 / 0.22 / 0.21 | 15.0; 0 | 3 / 3 |
+| strong | normal | 1930 | 10 | 1 | 1.09 / 1.13 / 1.16 | 0.37 / 0.15 / 0.05 | 1.61 [1.38-1.69] | 0.90 / 0.85 / 0.95 | 0.03 / 0.05 / 0.02 | 2.5; 2 | 0 / 0 |
+| strong | normal | 1950 | 10 | 1 | 3.89 / 4.80 / 5.08 | 1.60 / 0.62 / 1.11 | 6.43 [4.72-9.10] | 0.51 / 0.89 / 0.77 | 0.32 / 0.05 / 0.10 | 3.5; 2 | 2 / 2 |
+| good | hard | 1840 | 5 | 0 | 0.53 / 0.69 / 3.34 | 0.31 / 0.31 / 2.22 | 5.72 [4.11-6.27] | 0.43 / 0.54 / 0.34 | 0.23 / 0.12 / 0.29 | 2.0; 0 | 0 / 0 |
+| good | hard | 1870 | 5 | 0 | 1.09 / 3.19 / 6.53 | 0.80 / 2.02 / 3.60 | 16.71 [16.00-27.77] | 0.27 / 0.37 / 0.43 | 0.42 / 0.20 / 0.14 | 2.0; 0 | 6 / 0 |
+| good | hard | 1900 | 5 | 0 | 0.77 / 1.91 / 3.14 | 0.55 / 1.22 / 1.20 | 7.75 [7.58-7.98] | 0.31 / 0.35 / 0.61 | 0.33 / 0.21 / 0.09 | 2.0; 0 | 0 / 0 |
+| good | hard | 1930 | 5 | 0 | 0.64 / 0.92 / 1.39 | 0.38 / 0.63 / 0.59 | 3.28 [3.11-3.40] | 0.69 / 0.32 / 0.58 | 0.08 / 0.26 / 0.12 | 2.0; 0 | 0 / 0 |
+| good | hard | 1950 | 5 | 0 | 0.63 / 0.87 / 1.01 | 0.32 / 0.52 / 0.52 | 3.13 [2.63-3.28] | 0.45 / 0.40 / 0.45 | 0.29 / 0.19 / 0.17 | 2.0; 0 | 0 / 0 |
+| good | normal | 1840 | 5 | 0 | 0.82 / 2.00 / 5.93 | 0.38 / 1.03 / 3.90 | 11.08 [10.43-11.58] | 0.43 / 0.50 / 0.34 | 0.19 / 0.16 / 0.21 | 2.0; 0 | 3 / 3 |
+| good | normal | 1870 | 5 | 0 | 2.96 / 8.68 / 12.39 | 1.89 / 5.45 / 7.97 | 54.84 [42.26-56.97] | 0.31 / 0.39 / 0.36 | 0.41 / 0.18 / 0.23 | 2.0; 0 | 7 / 2 |
+| good | normal | 1900 | 5 | 0 | 2.51 / 4.13 / 9.77 | 1.42 / 2.02 / 4.04 | 18.89 [9.28-19.82] | 0.37 / 0.51 / 0.60 | 0.34 / 0.15 / 0.11 | 2.0; 0 | 10 / 10 |
+| good | normal | 1930 | 5 | 0 | 1.04 / 1.44 / 2.60 | 0.52 / 0.69 / 1.02 | 5.02 [4.23-5.26] | 0.73 / 0.52 / 0.62 | 0.09 / 0.15 / 0.12 | 2.0; 0 | 0 / 0 |
+| good | normal | 1950 | 5 | 0 | 0.88 / 1.23 / 1.40 | 0.37 / 0.23 / 0.38 | 2.58 [2.40-2.88] | 0.57 / 0.81 / 0.73 | 0.11 / 0.05 / 0.08 | 2.0; 0 | 0 / 0 |
+
+**Against Phase 67 (strong, Normal, profit y16 $M, old -> new):** 1840 5.09 -> 3.88; 1870 9.13 -> 7.46; 1900 8.32 -> 8.18; 1930 0.10 -> 0.05; 1950 1.15 -> 1.11. **Bankruptcies, strong:** Normal 1840 0/10, 1870 0/10, 1900 0/10, **1930 1/10 (seed 5, 1932; was seed 1, 1933)**, **1950 1/10 (seed 3, 1956; was 0/10)**; Hard 1840 0/5, **1870 1/5 (seed 4, 1872; was 0/5)**, 1900 0/5, 1930 0/5, 1950 0/5. Good: 0 in 50 runs. **Targets (reported, not tuned):** strong survives Normal in every era: missed in 1930 and 1950 by one seed each (the dearer improvements are not the bot's only spending; causes not investigated). Hard harder than Normal: profit y16 Hard < Normal in 1840 (4.36 vs 3.88: no, Hard is higher), 1870 (7.20 vs 7.46 yes), 1900 (1.49 vs 8.18 yes), 1930 (1.16 vs 0.05: no), 1950 (0.17 vs 1.11 yes); bankruptcies Hard 1/25, Normal 2/50. 1900 is still 2.2x the 1840 row: the owner's 2-3 M$ target is not reached (see above).
+
+### Item 4
+Not done, as instructed: it waits until the orchestrator has merged this branch. `STRONG_PLAYER_MEDIANS` should then take the Phase 68 medians above.
+
+### Orchestrator: Phase 68 merged (2026-10-24)
+- Reviewed `phase-68` (evenShare 0.3, dearer station improvements and civic investment): `npm run check` and both e2e shards green; the only test edits were fixture values (civic price, evenShare formula, fixture cash). Merged to main.
+- Game-scale sweep (`TRIPS=<f>` env in `tools/bench/pairEnv.ts`, strong player, central-eu Normal, seeds 1-2), operating profit $M at year 16:
+
+| trips factor | 1870 | 1900 |
+|---|---|---|
+| 1 (Phase 68 bench median) | 7.46 | 8.18 |
+| 0.8 | 5.21 / 4.20 | 2.23 / 2.16 |
+| 0.65 | 2.01 / 0.84 | 1.70 / 1.73 |
+| 0.5 | 0.16 / 0.10 | bankrupt 1912 / 1909 |
+| 0.35 | 0.07 / 0.11 | bankrupt 1910 / 0.05 |
+
+  The response is steep (track, crews and head office stay while fares fall). 0.8 is the only factor near the 3-4 M$ target. Not applied: waiting for the owner.
+
+## 2026-10-24 - Phase 69 item 1 done; STOPPED on branch `phase-69` (balance tests red at 0.8x); items 2-5 not run
+
+**Change.** `TRIPS_GAME_SCALE = 0.8` in `src/data/economy.ts`, applied in `tripsPerHeadPerMonth` for every year (doc comment: owner's OK 2026-10-24, the sweep). Anchors untouched.
+
+**`npm run check`: 935 pass, 7 fail. Nothing loosened, no fixture edited.** Balance tests (passed on main, bound unchanged):
+| test | bound | new value |
+|---|---|---|
+| `balanceEarly` 1830 Grasshopper, Town-Town passengers, 100 km: at least breaks even | profit >= 0 | -1464 |
+| `balancePassengers` 1860s: passengers lead coal by 2-3.5x | > 2 | 1.78 |
+| `balancePassengers` 1900: Town-Town passengers earn 1.8-2.6x a coal train (measured 2.25x) | > 1.8 | 1.61 |
+Cause: these fixtures run one passenger line at fixed demand; fares per train scale directly with trips (x0.8), coal does not, so the passenger/coal ratio drops ~20 % (2.2 -> 1.78, 2.25 -> 1.61) and the 1830 100 km line, which broke even by a small margin, now loses money. Old exact values were not recorded (they passed).
+Also red, goal calibration (expected: goals were derived from the old economy; item 4 re-derives them on `phase-67-goals`, not this branch): `goalCalibration` central-eu gold profit 1M by 1930 (6.77 > 3), us-west silver revenue 3.2M by 1920 (1.72 > 1.5), us-west gold revenue 4.5M by 1900 (3.47 > 3), random maps gold (3.31 > 3). These were checked against main-era goal numbers; if `phase-67-goals` is not yet on main they may be pre-existing there, which I did not verify.
+Owner decides: (a) change the balance fixtures (e.g. the 1830 line to a longer/fuller route, the ratio bounds to the new scale, with the arithmetic above), or (b) a smaller cut. Not run: e2e, re-measure (item 3), goals (item 4), SPEC. Phase 69 NOT ticked.
+
+## 2026-10-25 - Phase 69 items 1, 2, 3, 5 done on branch `phase-69` (not merged); item 4 (goals) NOT done: waits on an owner decision about 1930
+
+**Status.** `TRIPS_GAME_SCALE` 0.8 (item 1). Balance bounds moved by the orchestrator with the owner's OK ("accept new bounds", e8613b7: 1860s pax/coal > 1.6, 1900 > 1.5, 1830 Grasshopper break-even at 50 km and up to -$5k/yr at 100 km). `npm run check`: only the four `goalCalibration` tests are red (central-eu gold profit 1M by 1930: 6.77 > 3; us-west silver revenue 3.2M by 1920: 1.72 > 1.5; us-west gold revenue 4.5M by 1900: 3.47 > 3; random-map gold: 3.31 > 3), expected, to be re-derived in item 4. Bounds untouched. 125 bench runs in `docs/bench/phase69.md` (`tools/bench/phase69.ts`, `phase69Summary.ts`). e2e: see the last line of this entry. SPEC §8 and the change log updated. Per the orchestrator, item 4 was not started; Phase 69 is NOT ticked.
+
+**Phase 68 -> Phase 69 (medians, year 16, $M).**
+| bot | diff | start | op profit 68 -> 69 | revenue 68 -> 69 | bankrupt 68 -> 69 |
+|---|---|---|---|---|---|
+| strong | normal | 1840 | 3.88 -> 3.12 | 6.73 -> 5.49 | 0/10 -> 0/10 |
+| strong | normal | 1870 | 7.46 -> 4.73 | 13.18 -> 9.45 | 0/10 -> 0/10 |
+| strong | normal | 1900 | 8.18 -> 2.96 | 16.33 -> 9.52 | 0/10 -> 0/10 |
+| strong | normal | **1930** | 0.05 -> 0.02 | 1.16 -> 0.92 | **1/10 -> 7/10** |
+| strong | normal | **1950** | 1.11 -> 0.57 | 5.08 -> 3.50 | 1/10 -> 0/10 |
+| strong | hard | 1840 | 4.36 -> 1.88 | 6.70 -> 3.17 | 0/5 -> 0/5 |
+| strong | hard | 1870 | 7.20 -> 5.09 | 12.91 -> 9.96 | 1/5 -> 0/5 |
+| strong | hard | 1900 | 1.49 -> 0.06 | 3.35 -> 0.67 | 0/5 -> 0/5 |
+| strong | hard | 1930 | 1.16 -> 0.78 | 2.34 -> 1.94 | 0/5 -> **1/5** |
+| strong | hard | 1950 | 0.17 -> 0.13 | 1.05 -> 0.85 | 0/5 -> 0/5 |
+| good | normal | 1840 / 1870 / 1900 / 1930 / 1950 | 3.90 / 7.97 / 4.04 / 1.02 / 0.38 -> 2.86 / 5.63 / 0.73 / 0.19 / 0.09 | 5.93 / 12.39 / 9.77 / 2.60 / 1.40 -> 4.80 / 9.57 / 2.78 / 1.14 / 0.97 | 0 -> 0 |
+| good | hard | 1840 / 1870 / 1900 / 1930 / 1950 | 2.22 / 3.60 / 1.20 / 0.59 / 0.52 -> 0.45 / 2.13 / 0.95 / 0.48 / 0.44 | 3.34 / 6.53 / 3.14 / 1.39 / 1.01 -> 0.99 / 4.25 / 2.37 / 0.79 / 0.79 | 0 -> 0 |
+Full medians (op ratio, return on capital, final NW, laid-up counts): `npx tsx tools/bench/phase69Summary.ts`.
+
+**Call-outs.**
+- **1930 (strong Normal): 7 of 10 bankrupt (was 1 of 10); median y16 profit 0.02 M$ (was 0.05), op ratio 0.97 at y16; Hard 1930 1 of 5 (was 0).** The 1931 trough (Phase 65) plus a fifth less fare income on fixed track, crew and head-office costs; 1930 had no margin at 1.0x. Cause not investigated beyond this; no tuning done.
+- **1950 (strong Normal): 0 of 10 bankrupt (was 1/10), but profit 0.57 M$ (was 1.11); Hard 0.13.** Still weak.
+- 1870 and 1900 Normal strong y16 profit 4.73 / 2.96: inside or near the 3-4 M$ target (1870 above it). 1900 Hard (0.06) and good 1900 Normal (0.73) fall much further than the sweep's 1900 figure (2.2).
+- Hard harder than Normal at y16 profit: yes in 1840, 1900, 1950; no in 1870 (5.09 > 4.73) and 1930 (0.78 > 0.02, Normal's median is dragged down by the 7 bankruptcies). Bankruptcies: Normal 7/50 (all in 1930), Hard 1/25.
+- New bankruptcies: strong Normal 1930 six more than before; strong Hard 1930 one. Good bots: none in 50 runs.
+
+**Item 4 not done** (orchestrator: wait for the owner's decision about 1930). `STRONG_PLAYER_MEDIANS` should not be re-derived from these 1930 numbers until then.
+
+**e2e (Phase 69).** Shard 1/2: 137 passed. Shard 2/2: 137 passed after one fixture update: `e2e/phase35.spec.ts` town total Venice 1900 = 40k x 0.0327 x 0.8 = 1046 (was 1308); arithmetic in the comment, no bound touched. (An earlier shard-2 run under load listed a few perf/overlay specs as not passing; not reproduced in two clean re-runs.) Screenshots reverted (not owned by this phase).
+
+### Orchestrator: repair train sized like a train (2026-10-30)
+- Owner play-test: "the repair train is waaaay too large now". The Phase 63 sprite was drawn 1.5 tiles long, so 0.5 tile
+  wide: more than twice a train's width (7.2 px at zoom 1). It is now drawn exactly a train's width
+  (`VEHICLE_WIDTH_TILES`), so about a loco long. Render only; Phase 63 screenshots regenerated and checked by eye.

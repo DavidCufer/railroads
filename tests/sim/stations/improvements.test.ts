@@ -203,12 +203,12 @@ describe("station improvements (SPEC §6.2)", () => {
     expect(train.cars[0]?.loadedUnits).toBe(CARGO.livestock.capacity);
   });
 
-  it("costs match the SPEC §6.2 table (before era inflation)", () => {
-    expect(STATION_IMPROVEMENTS.postOffice.cost).toBe(25_000);
-    expect(STATION_IMPROVEMENTS.hotel.cost).toBe(50_000);
-    expect(STATION_IMPROVEMENTS.warehouse.cost).toBe(30_000);
-    expect(STATION_IMPROVEMENTS.coldStorage.cost).toBe(40_000);
-    expect(STATION_IMPROVEMENTS.freightYard.cost).toBe(60_000);
-    expect(STATION_IMPROVEMENTS.livestockPens.cost).toBe(12_000);
+  it("costs match the SPEC §6.2 table (Phase 68 prices) (before era inflation)", () => {
+    expect(STATION_IMPROVEMENTS.postOffice.cost).toBe(100_000);
+    expect(STATION_IMPROVEMENTS.hotel.cost).toBe(225_000);
+    expect(STATION_IMPROVEMENTS.warehouse.cost).toBe(65_000);
+    expect(STATION_IMPROVEMENTS.coldStorage.cost).toBe(140_000);
+    expect(STATION_IMPROVEMENTS.freightYard.cost).toBe(120_000);
+    expect(STATION_IMPROVEMENTS.livestockPens.cost).toBe(20_000);
   });
 });

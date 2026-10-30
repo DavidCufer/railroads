@@ -98,9 +98,17 @@ export const CITY_UNSERVED_BASELINE_GROWTH_PER_YEAR = 0.002;
  * growthScore — passengers+mail delivered, ×3 for food/goods/fuel) clears this floor. */
 export const CITY_SERVED_SCORE_THRESHOLD = 1;
 
-/** Civic Investment (SPEC §8.3): cost $100k × tier rank (1-4), once per 5 years per city, +15%
- * population and a one-off growth tick. */
-export const CIVIC_INVESTMENT_COST_PER_TIER = 100_000;
+/** Civic Investment (SPEC §8.3): once per 5 years per city, +15 % population and a one-off growth tick. Phase 68: the
+ * price (1830 $, era-scaled) stands for the town works of the whole place at 1-3 pounds a head (Victorian sewers
+ * 12s 9d to 17s 8d a head, Carlisle 1850s; a town hall such as Ipswich's 16,000 pounds in 1866 on top) x $4.87 x a
+ * typical population of the tier: village 2.5k ~ $30k (kept at the old $100k, the least a works can cost), town 12k
+ * ~ $180k, city 70k ~ $1M, metropolis 250k ~ $3M. It was $100k x tier rank (100-400k). */
+export const CIVIC_INVESTMENT_COST_BY_TIER: Record<CityTier, number> = {
+  village: 100_000,
+  town: 250_000,
+  city: 1_000_000,
+  metropolis: 3_000_000,
+};
 export const CIVIC_INVESTMENT_COOLDOWN_YEARS = 5;
 export const CIVIC_INVESTMENT_POP_BOOST = 0.15;
 

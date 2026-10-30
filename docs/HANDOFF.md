@@ -121,3 +121,16 @@ Read this first, then `CLAUDE.md`, the last ~5 entries of `docs/PROGRESS.md`, an
   22-58 % (real 3.5-5 %). A cost fix (section-gang track upkeep + 14 % head office) is on branch `phase-59-costs`, NOT
   main: it fails two long-haul bounds (0.537/0.515 vs 0.6). **Awaiting owner decision** (merge + new bounds/bands; also
   track/station build cost is ~1/20 of real per km, the biggest lever for "money piles up").
+
+## Update 2026-10-22: Phases 60-67 (all reviewed by the orchestrator)
+- Real costs: section gangs + 14 % head office (60), sourced crews/attendants/fuel replace `COST_REALISM_ANCHORS` (61),
+  per-panic sourced depths (65), lay-up trains (66), loans are long-term bonds never called (67). Owner-approved bound
+  changes: long-haul lateReturn 0.5/0.45, silver money 1.8e6, Venice-Milan 700.
+- UI (63): news opens its train, one-tap clear, industry recipe picture, gap stepper removed, repair-train art.
+- Passengers (62): split by uncapped gravity, volume = the old capped total (sourced volume model deferred).
+- Goals (64): net-worth goals -> yearly profit/revenue. Branch `phase-67-goals` (achievements + stars on profit, new
+  amounts) is NOT merged: amounts wait for the economy to settle.
+- Open: after 62, strong player 1870/1900 Normal earns 8-9 M$/yr by year 16 (too rich; owner wants harder). Next proposed:
+  Phase 68, passenger journeys per head and fares per mile against real history.
+- Benches: `tools/bench/phase6x.ts` drivers (pieces of ~13 min, push each), `phase6xSummary.ts`; builders must never end a
+  turn mid-bench and never rebase over merge commits.

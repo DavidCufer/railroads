@@ -13,6 +13,7 @@
  * `BANKRUPT`) plus a `YEAR` row per year with the books and `IDLE20` (the first year cash > 20 % of net worth at a
  * year end, the owner's "cannot build as fast as I make money").
  */
+import "./pairEnv";
 import * as commands from "../../src/sim/commands";
 import { createGameState } from "../../src/sim/state";
 import { advanceOneHour } from "../../src/sim/tick";

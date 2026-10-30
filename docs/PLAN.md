@@ -2734,3 +2734,69 @@ balance test fails, report old/new and cause and stop on a branch `phase-67` (ow
    item 4 (branch `phase-67-goals`) so the orchestrator can show the owner the amounts. Items 1-3 go to main when green.
 5. PROGRESS, SPEC (§9 finance, §11 goals), e2e (never weaken).
 Status: [x] 1 [x] 2 [x] 3 [ ] 4 [x] 5
+
+## Phase 68 — Passengers spread more evenly; dearer station improvements and civic investment; then the goals
+
+Owner (2026-10-24, "Go"): "Maybe just adjust the formula a bit. Passengers should spread out a bit more evenly, not all go
+between big cities. No need for super realism, it should just work in game. But a lot of daily commuting happens between
+small cities and one large city, so that is realistic. Also I think prices to build things at stations and civic
+investments are too low."
+After Phase 62 (split by uncapped gravity, `PAIR_DEMAND.sizeExponent` 1) the strong player earns 8-9 M$/yr by year 16 in
+1870/1900 Normal (2-3 M$ before), mostly on big-city pairs. Here the owner explicitly allows a game-tuned formula, but every
+number keeps a one-line justification (what it does in play; a literature range where there is one). Never loosen a test
+bound; if a balance test fails, report old/new and the cause and stop on a branch `phase-68` (owner decides). Benches in
+pieces of at most ~15 minutes, pushed to `docs/bench/phase68.md`; never end a turn mid-bench.
+
+1. **More even destination split.** Lower the destination size exponent of the gravity split (`sizeExponent`, now 1;
+   published gravity models fit population elasticities of roughly 0.5-0.9) and/or give each destination a floor, so a
+   big city still draws most, but small towns keep a fair share, and a small town's trips go mainly to its nearest big
+   city (commuting). Pick the value with the S4 bench and the strong player: target the 1870/1900 strong Normal profit
+   back near the pre-62 level (2-3 M$/yr at year 16, owner wants Normal harder) while "Where passengers go" still shows
+   the bigger, nearer town first (Vienna > Graz test stays). Report the table of exponent -> S4 best fleet, strong
+   1870/1900 profit, and the owner's Ljubljana shares.
+2. **Dearer station improvements and civic investment.** Today: Post Office $25k, Hotel $50k, Warehouse $30k, Cold Storage
+   $40k, Freight Yard $60k, Livestock Pens $12k, Engine Shed / Water Tower (check), Civic Investment $100k x tier, at 1830
+   prices. Set each from a real building cost where one is found (e.g. a railway hotel, a goods shed, a post office of the
+   era; sources in PROGRESS), otherwise so that it pays back in about 3-5 years at a typical busy station of its era
+   (state the arithmetic). Civic investment priced against the real cost of the town works it stands for. Keep the
+   era-price scaling. UI shows the new prices (word limits kept).
+3. **Re-measure** (strong 10 seeds Normal / 5 Hard, good 5 seeds, all eras): profit, revenue, op ratio, bankruptcies,
+   Hard vs Normal. Report; do not tune further.
+4. **Goals on the settled numbers.** Merge main into branch `phase-67-goals` with `git pull --no-rebase` (never rebase it),
+   update `STRONG_PLAYER_MEDIANS` to the Phase 68 medians, re-derive goals, achievements and scenario stars; if the
+   reference operator in `goalCalibration` is far from the strong bot, report it and propose (do not change bounds).
+   Push the branch with the old -> new table at the top of the PROGRESS entry and STOP (orchestrator shows the owner).
+5. PROGRESS, SPEC (§6.2 improvements, §8.1, §8.3 civic), e2e (never weaken). Tick ONLY Phase 68.
+Status: [x] 1 [x] 2 [x] 3 [ ] 4 [x] 5
+
+## Phase 69 — One game-scale cut to travellers (0.8x); re-measure; then the goals
+
+Owner (2026-10-24, "Ok"), on the orchestrator's proposal: cut the number of travellers a town makes to 0.8x, the same in
+every era. Why: since Phase 62 a station catches a town's trips to every place its trains reach (before, at most 20 % of
+a town's trips to any one place), so the strong player earns 7.5-8 M$/yr by year 16 in 1870/1900 Normal; the target is
+3-4 M$. Orchestrator sweep (`TRIPS=<f>` env, strong, central-eu Normal, seeds 1-2, op profit $M at year 16; PROGRESS
+"Phase 68 merged"): 1 -> 7.5 / 8.2; 0.8 -> 4.2-5.2 / 2.2; 0.65 -> 0.8-2.0 / 1.7; 0.5 -> 0.1 / bankrupt. Never loosen a
+test bound; if a balance test fails, report old/new and the cause and stop on branch `phase-69` (owner decides). Benches
+in pieces of at most ~15 minutes, pushed to `docs/bench/phase69.md`; never end a turn mid-bench. Never rebase over merge
+commits (`git pull --no-rebase`), never force-push.
+
+1. **The cut.** One named constant in `src/data/economy.ts` (e.g. `TRIPS_GAME_SCALE = 0.8`) applied in
+   `tripsPerHeadPerMonth` for every year, with a doc comment: an openly stated game scale (like PARTY_SIZE), the owner's
+   OK and date, and the sweep above. Do not touch the anchors. The bench `TRIPS` env keeps multiplying on top.
+2. **Tests.** `npm run check` and both e2e shards. Fixture values that follow directly from the trip volume may be
+   updated (state the arithmetic in a comment); a balance bound that fails is reported, not loosened.
+3. **Re-measure** (as Phase 68 item 3: strong 10 seeds Normal / 5 Hard, good 5 seeds, all eras): profit, revenue, op
+   ratio, bankruptcies, Hard vs Normal, next to the Phase 68 medians. Call out 1930 and 1950 (already weak: 1930 strong
+   Normal y16 profit 0.05 M$) and any new bankruptcies. Report; do not tune further.
+4. **Goals on the settled numbers.** Merge main into branch `phase-67-goals` with `git pull --no-rebase` (never rebase it),
+   update `STRONG_PLAYER_MEDIANS` to the Phase 69 medians, re-derive goals, achievements and scenario stars; if the
+   reference operator in `goalCalibration` is far from the strong bot, report it and propose (do not change bounds).
+   Push the branch with the old -> new table at the top of the PROGRESS entry and STOP (orchestrator shows the owner).
+5. PROGRESS, SPEC (§8 passenger volume: the game scale), e2e (never weaken). Tick ONLY Phase 69.
+6. **1930 stays hard (owner 2026-10-30, option "A").** The bench (items 1-3 on `phase-69`) left strong 1930 Normal
+   bankrupt in 7 of 10 runs (the 1931 banking crisis, then 1939-45); the cautious bot survives 5 of 5. The owner keeps it:
+   the 1930s really were brutal for railways (road and truck competition plus the Depression). No tuning. On the new-game
+   screen, when the shown start year is in the Depression (1929-1935, from the panics table, not a hard-coded list), show
+   one short line under the start year, e.g. "Depression years: a tough start." (strings.ts, word limits kept; e2e
+   screenshot of it). Item 4's goals for 1930 starts are derived so the cautious player can reach bronze/silver; say how.
+Status: [x] 1 [x] 2 [x] 3 [ ] 4 [x] 5 [ ] 6

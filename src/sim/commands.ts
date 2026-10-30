@@ -24,7 +24,7 @@ import {
 import {
   CITY_TIERS,
   CIVIC_INVESTMENT_COOLDOWN_YEARS,
-  CIVIC_INVESTMENT_COST_PER_TIER,
+  CIVIC_INVESTMENT_COST_BY_TIER,
   CIVIC_INVESTMENT_POP_BOOST,
 } from "../data/cities";
 import { calendarFromTicks } from "./time";
@@ -1062,8 +1062,7 @@ export function computeCivicInvestmentPlan(state: GameState, cityId: number): Ci
       (state.ticks - growth.lastCivicInvestmentTick) / (HOURS_PER_DAY * DAYS_PER_YEAR);
     if (yearsSince < CIVIC_INVESTMENT_COOLDOWN_YEARS) return { cost: 0, valid: false };
   }
-  const tierRank = CITY_TIERS.indexOf(city.tier) + 1;
-  const cost = CIVIC_INVESTMENT_COST_PER_TIER * tierRank * eraInflation(costContext(state).year);
+  const cost = CIVIC_INVESTMENT_COST_BY_TIER[city.tier] * eraInflation(costContext(state).year);
   return { cost, valid: true };
 }
 

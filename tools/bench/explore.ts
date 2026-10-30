@@ -9,6 +9,7 @@
  * Prints, per configuration and car count, totals over the line's trains, averaged over the seeds. */
 import { PARTY_SIZE } from "../../src/data/economy";
 import { TURNAROUND_HOURS } from "../../src/data/trains";
+import "./pairEnv";
 import * as commands from "../../src/sim/commands";
 import type { City } from "../../src/sim/economy/types";
 import { advanceOneHour } from "../../src/sim/tick";

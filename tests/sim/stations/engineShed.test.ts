@@ -23,7 +23,7 @@ function twoStations() {
 }
 
 describe("Engine Shed", () => {
-  it("only the first station has one free; another costs $30k era-scaled and lets trains be bought there", () => {
+  it("only the first station has one free; another costs $65k era-scaled and lets trains be bought there", () => {
     const { state, a, b } = twoStations();
     expect(a.hasEngineShed).toBe(true);
     expect(b.hasEngineShed).toBe(false);
