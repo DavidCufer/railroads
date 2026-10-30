@@ -7254,3 +7254,6 @@ Store readiness for **Iron & Steam 1.0**.
   `release.yml` already builds APK and AAB, unsigned without secrets; secret env names (`RAILROADS_KEYSTORE_*`) kept. **Finding:** the manifest has Android's `INTERNET` permission (Capacitor template). The game makes no requests; the privacy text says so. The owner may remove it if wanted (not done: no emulator to verify the WebView still loads).
 - **Checklist (8):** `docs/store/CHECKLIST.md`.
 - **Not done:** running `release.yml` / the Android build (CI only, see the end of this entry).
+
+### Results
+`npm run check`: 945 passed, 1 skipped. e2e shard 1/2: 145 passed; shard 2/2: 144 passed. `release.yml` was not run from this session (no Actions access here; it builds the APK and AAB unsigned without secrets); `android.yml` on the push covers the renamed Android project.
