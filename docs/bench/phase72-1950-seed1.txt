@@ -1,0 +1,37 @@
+# strong central-eu 1950 normal seed 1
+Jan 1951 · cash 0.21M · NW 1.78M · rev 1.39M · loans 0.4M · trains 3 · stations 3
+Jan 1952 · cash 0.24M · NW 2.83M · rev 3.01M · loans 0.8M · trains 6 · stations 4
+Jan 1953 · cash 0.47M · NW 3.74M · rev 3.19M · loans 0.8M · trains 8 · stations 4
+Jan 1954 · cash 0.71M · NW 4.23M · rev 3.14M · loans 1.1M · trains 9 · stations 6
+Jan 1955 · cash 0.68M · NW 4.45M · rev 3.18M · loans 1.0M · trains 9 · stations 6
+Jan 1958 · cash 0.46M · NW 5.04M · rev 2.82M · loans 1.4M · trains 10 · stations 8
+Jan 1960 · cash 1.02M · NW 5.29M · rev 3.74M · loans 1.2M · trains 10 · stations 8
+Jan 1963 · cash 0.56M · NW 4.76M · rev 3.86M · loans 1.0M · trains 10 · stations 8
+Jan 1966 · cash 0.42M · NW 5.51M · rev 4.34M · loans 1.4M · trains 12 · stations 13
+YEAR 1951 cash 0.21M NW 1.78M trains 3 edges 88 stations 3 rev 1.39M opcost 0.76M opratio 0.55 opprofit 0.63M capital 1.28M loans 0.4M idle 12% stock 1.31M split trainMaintenance=134,crewWages=100,trackMaintenance=193,trackWear=45,stationMaintenance=169,administration=79,propertyTax=6,breakdownRepairs=11,interest=20,incomeTax=164
+YEAR 1952 cash 0.24M NW 2.83M trains 6 edges 110 stations 4 rev 3.01M opcost 1.29M opratio 0.43 opprofit 1.73M capital 1.54M loans 0.8M idle 9% stock 2.58M split trainMaintenance=246,crewWages=178,trackMaintenance=250,trackWear=85,stationMaintenance=354,administration=127,propertyTax=8,breakdownRepairs=0,interest=37,incomeTax=449
+YEAR 1953 cash 0.47M NW 3.74M trains 8 edges 110 stations 4 rev 3.19M opcost 1.73M opratio 0.54 opprofit 1.46M capital 1.54M loans 0.8M idle 13% stock 3.34M split trainMaintenance=408,crewWages=311,trackMaintenance=253,trackWear=135,stationMaintenance=374,administration=184,propertyTax=8,breakdownRepairs=9,interest=51,incomeTax=379
+YEAR 1954 cash 0.71M NW 4.23M trains 9 edges 131 stations 6 rev 3.14M opcost 1.91M opratio 0.61 opprofit 1.24M capital 2.01M loans 1.1M idle 17% stock 3.61M split trainMaintenance=459,crewWages=362,trackMaintenance=276,trackWear=150,stationMaintenance=374,administration=208,propertyTax=9,breakdownRepairs=9,interest=60,incomeTax=322
+YEAR 1955 cash 0.68M NW 4.45M trains 9 edges 131 stations 6 rev 3.18M opcost 2.06M opratio 0.65 opprofit 1.12M capital 2.82M loans 1.0M idle 15% stock 3.40M split trainMaintenance=498,crewWages=392,trackMaintenance=308,trackWear=164,stationMaintenance=385,administration=228,propertyTax=12,breakdownRepairs=0,interest=69,incomeTax=292
+YEAR 1956 cash 0.86M NW 4.88M trains 9 edges 131 stations 6 rev 3.51M opcost 2.11M opratio 0.60 opprofit 1.40M capital 3.63M loans 1.0M idle 18% stock 3.20M split trainMaintenance=492,crewWages=397,trackMaintenance=312,trackWear=162,stationMaintenance=422,administration=228,propertyTax=16,breakdownRepairs=14,interest=65,incomeTax=365
+YEAR 1957 cash 1.12M NW 5.39M trains 9 edges 131 stations 6 rev 3.76M opcost 2.24M opratio 0.60 opprofit 1.52M capital 4.45M loans 0.9M idle 21% stock 2.99M split trainMaintenance=479,crewWages=403,trackMaintenance=316,trackWear=266,stationMaintenance=450,administration=226,propertyTax=20,breakdownRepairs=23,interest=61,incomeTax=394
+YEAR 1958 cash 0.46M NW 5.04M trains 10 edges 184 stations 8 rev 2.82M opcost 2.28M opratio 0.81 opprofit 0.54M capital 5.51M loans 1.4M idle 9% stock 3.21M split trainMaintenance=510,crewWages=439,trackMaintenance=416,trackWear=157,stationMaintenance=356,administration=255,propertyTax=26,breakdownRepairs=40,interest=84,incomeTax=140
+YEAR 1959 cash 0.52M NW 4.94M trains 10 edges 184 stations 8 rev 2.79M opcost 2.61M opratio 0.93 opprofit 0.18M capital 5.51M loans 1.3M idle 11% stock 2.98M split trainMaintenance=558,crewWages=456,trackMaintenance=453,trackWear=359,stationMaintenance=357,administration=275,propertyTax=28,breakdownRepairs=38,interest=88,incomeTax=47
+YEAR 1960 cash 1.02M NW 5.29M trains 10 edges 184 stations 8 rev 3.74M opcost 2.97M opratio 0.79 opprofit 0.77M capital 5.51M loans 1.2M idle 19% stock 2.75M split trainMaintenance=552,crewWages=462,trackMaintenance=459,trackWear=637,stationMaintenance=462,administration=278,propertyTax=28,breakdownRepairs=12,interest=83,incomeTax=200
+YEAR 1961 cash 0.97M NW 5.07M trains 10 edges 184 stations 8 rev 3.53M opcost 3.51M opratio 0.99 opprofit 0.02M capital 5.51M loans 1.2M idle 19% stock 2.53M split trainMaintenance=535,crewWages=468,trackMaintenance=464,trackWear=1172,stationMaintenance=438,administration=276,propertyTax=28,breakdownRepairs=43,interest=83,incomeTax=6
+YEAR 1962 cash 0.83M NW 4.77M trains 10 edges 184 stations 8 rev 3.59M opcost 3.67M opratio 1.02 opprofit -0.08M capital 5.51M loans 1.1M idle 17% stock 2.30M split trainMaintenance=539,crewWages=474,trackMaintenance=470,trackWear=1319,stationMaintenance=446,administration=279,propertyTax=28,breakdownRepairs=0,interest=117,incomeTax=0
+YEAR 1963 cash 0.56M NW 4.76M trains 10 edges 184 stations 8 rev 3.86M opcost 2.95M opratio 0.77 opprofit 0.90M capital 6.35M loans 1.0M idle 12% stock 2.07M split trainMaintenance=547,crewWages=480,trackMaintenance=475,trackWear=561,stationMaintenance=476,administration=283,propertyTax=30,breakdownRepairs=25,interest=75,incomeTax=265
+YEAR 1964 cash 0.58M NW 5.05M trains 10 edges 184 stations 8 rev 4.15M opcost 2.77M opratio 0.67 opprofit 1.38M capital 7.19M loans 1.0M idle 11% stock 1.84M split trainMaintenance=578,crewWages=486,trackMaintenance=481,trackWear=286,stationMaintenance=509,administration=293,propertyTax=34,breakdownRepairs=42,interest=64,incomeTax=440
+YEAR 1965 cash 0.84M NW 5.44M trains 11 edges 198 stations 10 rev 4.18M opcost 2.89M opratio 0.69 opprofit 1.29M capital 7.67M loans 1.3M idle 16% stock 2.06M split trainMaintenance=612,crewWages=522,trackMaintenance=511,trackWear=282,stationMaintenance=521,administration=313,propertyTax=38,breakdownRepairs=11,interest=78,incomeTax=413
+YEAR 1966 cash 0.42M NW 5.51M trains 12 edges 247 stations 13 rev 4.34M opcost 3.23M opratio 0.74 opprofit 1.11M capital 8.51M loans 1.4M idle 8% stock 2.25M split trainMaintenance=648,crewWages=575,trackMaintenance=610,trackWear=322,stationMaintenance=557,administration=348,propertyTax=41,breakdownRepairs=43,interest=90,incomeTax=355
+HEADLINE operating profit $M y5/y10/y16 1.24 / 0.18 / 1.29 | revenue $M y5/y10/y16 3.14 / 2.79 / 4.18
+TIME total 189s sim 30s
+LAYUP laidUp 0 returned 0 stillLaid 0 of 12
+MINCASH 0.03
+IDLE20 1957 idleMonthShare 0.08
+last year ledger: passengers 3907k, mail 437k, trainMaintenance 648k, crewWages 575k, trackMaintenance 610k, administration 348k, trackWear 322k, stationMaintenance 557k, propertyTax 41k, incomeTax 355k, breakdownRepairs 43k, interest 90k, construction 837k, rollingStock 456k
+lines 5 pax, 0 freight
+
+real	3m9.714s
+user	3m19.551s
+sys	0m4.702s
