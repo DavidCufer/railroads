@@ -2834,3 +2834,64 @@ about 18 x 7 CSS px. Direction: a scale-model look seen from above, not cartoon.
    era on the map at zoom 1 and 2. Perf specs unchanged and green. Look at every PNG.
 4. PROGRESS, STYLE.md §7/§9.5 rewritten for the new look. Tick ONLY Phase 70.
 Status: [x] 1 [x] 2 [x] 3 [x] 4
+
+## Phase 71 — Store readiness: Iron & Steam 1.0
+
+Owner (2026-10-30): publish on Google Play. Name **"Iron & Steam"** (owner's pick; no existing game or app of that name
+found), app ID **`com.davidc.ironandsteam`**. "Do all the things you can including polishing" (polish is Phase 72). The
+owner does the Play Console account, keystore, closed test and forms; this phase prepares everything else. Branch
+`phase-71-store`; never push to main (the orchestrator merges). Never rebase over merge commits, never force-push. Look at
+every PNG.
+
+1. **Rename.** `appName` "Iron & Steam"; `appId` / `applicationId` / `namespace` `com.davidc.ironandsteam` (move
+   `MainActivity.java` to the new package; `npx cap sync android` must stay clean); `strings.ts` (game title, crash
+   text), `index.html` title, README heading. The repo name stays. Saves live per app, so the new ID starts with no saves
+   (say so in PROGRESS). Version 1.0.0 in package.json (versionCode follows).
+2. **App icon.** A new procedural icon (a steam locomotive seen three-quarter or side-on, brass and dark green, the
+   game's palette, readable at 48 px), drawn by a tools script (e.g. `tools/store/icon.ts` with node-canvas only if
+   already available; otherwise Playwright rendering a canvas page) into every mipmap, the adaptive icon (foreground +
+   background layers, safe zone respected) and a 512x512 Play icon in `docs/store/`.
+3. **Feature graphic** 1024x500 (`docs/store/feature-graphic.png`): the title "Iron & Steam" over game art (a train on
+   the map), generated the same way.
+4. **Store screenshots.** At least 6 phone landscape shots at 1920x1080 and 4 for 10" tablets at 2560x1600, of the real
+   game UI (no debug overlay, no fps line): a busy network, a station panel, buying a train, the finance/yearly report,
+   the new-game screen with the real-world maps, a goal/achievement moment. Staged with `?debug=1` but with the debug HUD
+   hidden (add a `debugHud=0` switch if needed). `docs/store/screenshots/`.
+5. **Store text** in `docs/store/listing.md`: title (<= 30 chars), short description (<= 80), full description
+   (<= 4000; plain, honest, no superlatives Google rejects), category suggestion (Simulation or Strategy), tags, and the
+   1.0 release notes.
+6. **Privacy policy** `docs/store/privacy.md`: the game collects no personal data, has no ads, no accounts, no network
+   use; saves stay on the device; contact e-mail placeholder for the owner. Plus an in-app Info/About section: version,
+   one-line privacy statement, credits (strings.ts, word limits).
+7. **Release build check.** Confirm the debug HUD and `window.__game` can never appear in the app (the app URL has no
+   query string); WebView debugging off in release (Capacitor default; verify). `release.yml` must build the AAB
+   (unsigned without secrets): run it after the push if the tools allow, else say so.
+8. **Owner checklist** `docs/store/CHECKLIST.md`, step by step in plain words: create the developer account; generate
+   the upload keystore and add the four GitHub secrets (README section); run `release.yml`; Play App Signing; create
+   the app; closed test (12 testers x 14 days, opt-in link); store listing (point to the files above); content rating,
+   data safety ("no data collected"), target audience (13+), ads ("no"), app access ("no login"); host the privacy
+   policy (options); apply for production.
+9. PROGRESS, SPEC (name, version), e2e for the About section (never weaken). Tick ONLY Phase 71.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7 [ ] 8 [ ] 9
+
+## Phase 72 — Launch polish
+
+Owner (2026-10-30): "do all the things you can including polishing". After Phase 71. Fix what is small and clearly
+wrong; report anything that changes the game's design or balance (owner decides). Never loosen a test bound.
+
+1. **Screen-by-screen audit** at phone size (800x360 CSS px, DPR 3) and on a 10" tablet: title, new game (both tabs),
+   every toolbar mode, every panel and sheet, buy-train wizard, station and industry panels, finance, yearly report,
+   goals, achievements, news, settings, save/load, menu, the first-run hints. List every rough edge (clipping, overlap,
+   text over 2 lines, tap targets under 44 px, inconsistent fonts/colours, unclear words, missing feedback, stale hints
+   that describe old UI). Fix the small ones; put the list and before/after shots in PROGRESS.
+2. **First five minutes.** Play a new game as a newcomer (Normal, a real-world map): is it clear how to build the first
+   line, buy a train and see money come in? Fix hints and wording; report bigger onboarding gaps.
+3. **Low-end phones.** With Chromium CPU throttling (4x and 6x) on a large map with a late-game network, measure frame
+   time while panning and at 8x speed. Fix hotspots (render caching, culling) without visible change; add a perf e2e
+   bound only at a measured, honest level.
+4. **App lifecycle.** Background/resume, autosave and Continue, back button on every screen, rotation lock, a save from
+   1.0 loading after the rename.
+5. **1950 start.** Strong Normal profit 0.57 M$/yr at year 16 (weakest era besides the Depression). Find the cause with
+   the bench (no tuning); report with a proposal backed by a real mechanism.
+6. Lint warnings to zero (30 today) without disabling rules. PROGRESS; tick ONLY Phase 72.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
