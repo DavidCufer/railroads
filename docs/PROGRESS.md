@@ -7228,3 +7228,9 @@ Render only (`src/render/art/mapSprites.ts`, new `src/render/art/spriteCache.ts`
   of all top-down sprites (`phase-70-map-sprites-gallery.png`, zoom 2). Every PNG looked at.
 - **Not done / notes**: the steam models share one body (they differ by livery and era detail, not by wheel
   arrangement); the repair-crew sprite (`repairCrews.ts`) keeps its own drawing.
+
+### Orchestrator: Phase 70 merged (2026-10-30)
+- Reviewed `phase-70-train-art` (a09ae57) after one round of fixes (pantographs drawn inside the footprint as a top-down
+  frame on the roof; diesel roofs with round fans and grilles, electric roofs with gear; the 1980s/1990s shots reframed).
+  `npm run check` green; e2e both shards 143 + 143 passed (perf specs included). Gallery and era PNGs checked at native
+  DPR 3 crops. Only Phase 70 screenshots changed. Merged into main with a merge commit.
