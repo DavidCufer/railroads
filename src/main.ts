@@ -1463,11 +1463,18 @@ function main(): void {
   // equivalent — whichever fires first wins, the other is a harmless duplicate write to the same
   // rotating slot. Skipped under `?debug=1` so e2e tests never touch IndexedDB unexpectedly.
   if (!DEBUG) {
-    App.addListener("pause", () => {
+    // Phase 72: both events fire on one backgrounding; each autosave advances the 3-slot rotation, so two writes a
+    // moment apart would overwrite two of the three slots with the same game. Once is enough.
+    let lastBackgroundSave = -Infinity;
+    const saveOnBackground = (): void => {
+      const now = performance.now();
+      if (now - lastBackgroundSave < 3000) return;
+      lastBackgroundSave = now;
       void autosave(state).catch(() => {});
-    });
+    };
+    App.addListener("pause", saveOnBackground);
     document.addEventListener("visibilitychange", () => {
-      if (document.hidden) void autosave(state).catch(() => {});
+      if (document.hidden) saveOnBackground();
     });
   }
 
