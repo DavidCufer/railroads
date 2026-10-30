@@ -7315,3 +7315,10 @@ Reported, not changed (owner decides):
   - **Engine Shed hint was wrong for a newcomer:** the first station already has a free Engine Shed (Genoa, the second, does not). Tip 3 now says to open the first station and tap Buy Train (free Engine Shed).
   - Reported, not changed: the Cars step lets you press Next with zero cars (a loco alone earns nothing); defaulting to the suggested Passengers + mail would be a one-line change but changes behaviour. The Route step's bottom sheet covers the stations on a 360 px screen (From list is the way out; tapping on the map is only possible for stops in the top strip). A first line over a river costs $128k with a bridge; there is no cheaper-route hint. Early track is a thin dark line at zoom 0.4.
 - **Fixed from the report list:** (1) goals dated before the start year (a 1950 game on the Central Europe 1840 set showed "Overdue" from day one; reproduced with a real new game): `createGoalsForNewGame` drops them and takes the missing tiers from the generated set dated from the start year; the region's own start year is unchanged (tests in `tests/sim/goals/generate.test.ts`). (2) "Zagreb: connect - $135k" now reads "Contract: connect Zagreb by rail - $135k" (the news-word bound of 9 in `phase49bWords` ruled out a longer prefix; no bound touched). Tip 3 is "Open your first station, tap Buy Train (free Engine Shed)." (the 60-word hint bound). (3) Route-list arrows and remove cross 28 -> 44 px. (4) First-run hint card moved from mid-screen to the bottom edge so it no longer covers the town the game opens on.
+
+### Orchestrator: Phase 72 merged (2026-10-30)
+- Part 2 (7834e0f) reviewed: no bound loosened, no unowned screenshots. `npm run check` 950 passed; e2e 145 + 144
+  passed. Store screenshots looked at: steam, diesel and electric eras on two maps, no Quick build pill, no news badge.
+  Phase 72 closed; item 3 (DPR cap) and item 5 (1950: track-renewal lumps, wage/fare squeeze) wait for the owner.
+- Reported by the builder for the owner: Cars step allows zero cars; the Route sheet covers the stations on a 360 px
+  screen (From list works); no cheaper-route hint; early track thin at low zoom.

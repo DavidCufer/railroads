@@ -2899,4 +2899,4 @@ wrong; report anything that changes the game's design or balance (owner decides)
    save: many lines and trains, zoomed in so the Phase 70 train art shows, different eras (steam, diesel, electric) and
    maps, news badge cleared, one or two panels at most. Same sizes; look at every PNG.
 8. PROGRESS; tick ONLY Phase 72.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7 [ ] 8
+Status: [x] 1 [x] 2 [-] 3 (measured; DPR cap is the owner's call) [x] 4 [-] 5 (reported; owner decides) [x] 6 [x] 7 [x] 8
