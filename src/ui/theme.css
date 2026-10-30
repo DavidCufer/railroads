@@ -5441,3 +5441,23 @@ select {
 .recipe-cell .cargo-icon {
   background: #d9d0b8 !important;
 }
+
+.settings-about {
+  padding: 8px 4px;
+  color: var(--ui-text, #f4efe3);
+}
+.settings-about-title {
+  font-weight: 700;
+  font-size: 15px;
+}
+.settings-about-version {
+  opacity: 0.8;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.settings-about-text {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.35;
+  opacity: 0.9;
+}

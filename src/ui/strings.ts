@@ -1115,7 +1115,7 @@ export const strings = {
     toScenarios: "Scenarios",
   },
   titleScreen: {
-    gameTitle: "Railroads",
+    gameTitle: "Iron & Steam",
     overline: "A Railway Tycoon",
     tagline: "Build the line. Move the world.",
     scenarios: "Scenarios",
@@ -1138,6 +1138,11 @@ export const strings = {
     grid: "Show tile grid",
     uiScale: "UI scale",
     uiScaleNames: { "0.85": "Small", "1": "Normal", "1.15": "Large" },
+    groupAbout: "About",
+    aboutTitle: "Iron & Steam",
+    version: (v: string) => `Version ${v}`,
+    privacy: "No ads, no accounts, no network use. Your saves stay on this device.",
+    credits: "Made by David Cufer. Every picture and sound is drawn or made by code.",
   },
   saveLoad: {
     loadTitle: "Load Game",
@@ -1249,7 +1254,7 @@ export const strings = {
   },
   errorBoundary: {
     title: "Something went wrong",
-    body: "Railroads hit an unexpected error. Your progress has been saved to a recovery slot — reload and use Load Game to pick it up.",
+    body: "Iron & Steam hit an unexpected error. Your progress has been saved to a recovery slot — reload and use Load Game to pick it up.",
     reload: "Save & Reload",
   },
 };

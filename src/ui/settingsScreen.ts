@@ -5,6 +5,7 @@
  * container, so this module doesn't need to know which context it's in beyond the handlers passed
  * to it.
  */
+import { APP_VERSION } from "../data/app";
 import { cardList } from "./components/cardRow";
 import { section } from "./components/section";
 import { toggleRow } from "./components/toggleRow";
@@ -151,6 +152,16 @@ export function renderSettingsScreen(handlers: SettingsScreenHandlers): HTMLElem
                 },
               })),
             ),
+          ),
+        ]),
+        section(s.groupAbout, [
+          h(
+            "div",
+            { className: "settings-about" },
+            h("div", { className: "settings-about-title" }, s.aboutTitle),
+            h("div", { className: "settings-about-version" }, s.version(APP_VERSION)),
+            h("p", { className: "settings-about-text" }, s.privacy),
+            h("p", { className: "settings-about-text" }, s.credits),
           ),
         ]),
       ),

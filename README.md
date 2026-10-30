@@ -1,4 +1,4 @@
-# Railroads 🚂
+# Iron & Steam 🚂
 
 A 2D top-down railway-building tycoon game for Android, inspired by *Sid Meier's Railroad Tycoon
 Deluxe*. No competitors, no stock market: build track to cities and resources, run trains, earn
@@ -8,7 +8,7 @@ Runs in the browser during development and packages as a landscape-locked Androi
 Capacitor. Every graphic — terrain, track, trains, cities, industries, UI — is drawn procedurally
 on an HTML5 canvas; there are no sprite sheets or image assets beyond the app icon.
 
-Status: **Phase 12 (Performance and release hardening) complete — v1 feature-complete.** See
+Status: **1.0 — store release prep (Phase 71).** See
 [`docs/PROGRESS.md`](docs/PROGRESS.md) for the full build history, phase by phase.
 
 ## Features
@@ -61,7 +61,7 @@ Every push builds a debug APK via the **Android** GitHub Actions workflow:
 3. Copy `app-debug.apk` to your Android phone (e.g. via a cloud drive, USB, or email to yourself).
 4. On the phone, open the APK file. If prompted, allow "Install unknown apps" for whichever app you
    used to open it (Settings → Apps → Special access → Install unknown apps).
-5. Install and launch **Railroads**. The app runs landscape-locked, fullscreen.
+5. Install and launch **Iron & Steam**. The app runs landscape-locked, fullscreen.
 
 ## Development
 

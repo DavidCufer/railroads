@@ -16,7 +16,7 @@ test.describe("Phase 10 — title screen and New Game screen", () => {
     await page.goto("/");
 
     await expect(page.locator(".title-screen")).toBeVisible();
-    await expect(page.getByText("Railroads", { exact: true })).toBeVisible();
+    await expect(page.getByText("Iron & Steam", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "New Game" })).toBeVisible();
     // STYLE review: Continue is never shown disabled — with no save yet, it isn't shown at all.
     await expect(page.getByRole("button", { name: "Continue" })).toHaveCount(0);

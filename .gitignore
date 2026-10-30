@@ -19,3 +19,4 @@ blob-report/
 *.keystore.jks
 *.jks
 keystore.properties
+tools/store/.cache/
