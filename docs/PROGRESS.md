@@ -7299,3 +7299,11 @@ Reported, not changed (owner decides):
 - The first-run hint card sits over the lower middle of the map and covers the town's label; per-stop reorder arrows and the remove cross in the train route list look under 44 px (not measured); the (i) glyph and some chips in the station panel (24 px) are small but now/partly padded.
 - Hints say "Buy a train at a station with an Engine Shed": not checked against a fresh station's panel.
 `npm run check`: 948 passed, 1 skipped, lint 0 warnings. e2e shard 1/2 145 passed, 2/2 144 passed. Phase 72 is still not ticked (tablet audit and the full newcomer play are open).
+
+### Orchestrator: Phase 72 part 1 merged (2026-10-30)
+- Reviewed `phase-72-polish` (3160562): no test bound loosened (one e2e precondition changed: Quick build now shows only
+  with the Track/Double/Station tools). `npm run check` 948 passed, lint 0 warnings; e2e 145 + 144 passed. New store
+  screenshots looked at (four eras/maps, trains visible): good, but taken before the Quick build change, so the pill
+  still shows in Info mode; to be retaken. Merged to main. Phase 72 stays open: tablet audit, full newcomer play,
+  retake store shots, and the reported items (overdue goals at a 1950 start, unclear contract news line, route-list
+  tap targets, hint card covering the town label).
