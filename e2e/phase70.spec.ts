@@ -57,7 +57,7 @@ for (const { prefix, s } of RUNS) {
       roughness: "normal",
       startYear: s.year,
     });
-    await page.evaluate(() => window.__game!.debugSetCash(2_000_000));
+    await page.evaluate(() => window.__game!.debugSetCash(50_000_000));
     // A flat, empty patch of the real terrain (plain tiles; the map itself is the normal renderer).
     await page.evaluate(() => {
       const map = window.__game!.getMap() as unknown as {
@@ -69,7 +69,7 @@ for (const { prefix, s } of RUNS) {
         riverFlow: Uint16Array;
       };
       for (let y = -3; y <= 13; y++)
-        for (let x = 57; x <= 103; x++) {
+        for (let x = 57; x <= 163; x++) {
           const i = y * map.width + x;
           if (y < 0) continue;
           map.terrain[i] = 0;
@@ -82,8 +82,17 @@ for (const { prefix, s } of RUNS) {
     });
     await buildPath(
       page,
-      Array.from({ length: 21 }, (_, i) => ({ x: 70 + i, y: 5 })),
+      Array.from({ length: 81 }, (_, i) => ({ x: 70 + i, y: 5 })),
     );
+    if (/electric|trainset/.test(s.loco)) {
+      const r = await page.evaluate(() => {
+        const w = window.__game!.getMap().width;
+        return window.__game!.electrifyTrackPath(
+          Array.from({ length: 81 }, (_, i) => 5 * w + 70 + i),
+        );
+      });
+      if (!r.ok) throw new Error(`electrify failed: ${r.reason}`);
+    }
     const trainId = await page.evaluate((s) => {
       const g = window.__game!;
       const w = g.getMap().width;
@@ -93,7 +102,7 @@ for (const { prefix, s } of RUNS) {
         return g.getStations().find((st) => st.x === x && st.y === 5)!.id;
       };
       const a = mk(70);
-      const b = mk(90);
+      const b = mk(150);
       const bought = g.buyTrain(a, s.loco, s.cars);
       if (!bought.ok || bought.trainId === undefined) throw new Error(`buy: ${bought.reason}`);
       g.setOrders(bought.trainId, [

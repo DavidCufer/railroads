@@ -175,12 +175,15 @@ export function chimneyOffset(len: number): number {
   return len * 0.3;
 }
 
-const FAN_MODELS = new Set([
-  "high-horsepower-diesel",
-  "heavy-diesel",
-  "road-switcher-diesel",
-  "cab-unit-diesel",
-]);
+/** Round roof fans on the centre line, by diesel model. */
+const FAN_COUNT: Record<string, number> = {
+  "high-horsepower-diesel": 3,
+  "heavy-diesel": 3,
+  "road-switcher-diesel": 2,
+  "cab-unit-diesel": 2,
+  "streamliner-diesel": 1,
+};
+
 /** Streamlined models: a deeper chamfer reads as a raked nose. */
 const NOSED = new Set([
   "streamliner-diesel",
@@ -188,13 +191,14 @@ const NOSED = new Set([
   "e-unit-electric",
   "high-speed-trainset",
 ]);
-const PANTO_MODELS = new Set([
-  "early-electric",
-  "e-unit-electric",
-  "modern-electric",
-  "heavy-freight-electric",
-  "high-speed-trainset",
-]);
+/** Pantograph positions (fraction of the loco length from its centre) per electric model. */
+const PANTO_X: Record<string, number[]> = {
+  "early-electric": [-0.12],
+  "e-unit-electric": [-0.24, 0.1],
+  "modern-electric": [-0.1],
+  "heavy-freight-electric": [-0.24, 0.1],
+  "high-speed-trainset": [-0.18],
+};
 
 export function drawLocoSprite(
   ctx: CanvasRenderingContext2D,
@@ -317,29 +321,48 @@ export function drawLocoSprite(
   ctx.fillRect(-len / 2 + len * 0.015, -w * 0.34, len * 0.03, w * 0.68);
   ctx.fillStyle = mute(lv.accent, 0.1); // nose tip
   ctx.fillRect(len / 2 - len * 0.015, -w * 0.4, len * 0.015, w * 0.8);
-  // Roof equipment: rows of small grilled fans (or plain vents on the other models).
-  const fans = FAN_MODELS.has(def.id);
-  const fanR = w * 0.12;
-  for (const fx of [-0.34, -0.19, -0.04, 0.11]) {
-    for (const sd of [-1, 1]) {
-      const px = len * fx;
-      const py = sd * w * 0.22;
-      if (fans) {
-        dot(ctx, px, py, fanR, "#17191d");
-        if (detail) {
-          ctx.strokeStyle = "rgba(190,196,204,0.55)";
-          ctx.lineWidth = Math.max(0.5, w * 0.025);
-          for (const k of [-0.5, 0, 0.5]) {
-            ctx.beginPath();
-            ctx.moveTo(px - fanR * 0.85, py + k * fanR);
-            ctx.lineTo(px + fanR * 0.85, py + k * fanR);
-            ctx.stroke();
-          }
+  const roofC = lighten(bodyC, 0.12);
+  const dark = "#17191d";
+  const electric = def.type === "electric";
+  if (!electric) {
+    // Radiator grille at the rear: a louvred block across the roof.
+    ctx.fillStyle = darken(roofC, 0.5);
+    ctx.fillRect(-len * 0.45, -w * 0.3, len * 0.1, w * 0.6);
+    ctx.strokeStyle = "rgba(190,196,204,0.4)";
+    ctx.lineWidth = Math.max(0.5, w * 0.025);
+    for (const k of [-0.18, 0, 0.18]) {
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.44, w * k);
+      ctx.lineTo(-len * 0.36, w * k);
+      ctx.stroke();
+    }
+    // Round grilled fans on the centre line.
+    const nFans = FAN_COUNT[def.id] ?? 1;
+    const fanR = w * 0.2;
+    for (let i = 0; i < nFans; i++) {
+      const px = len * (-0.27 + (0.4 * (i + 0.5)) / nFans - 0.0);
+      dot(ctx, px, 0, fanR * 1.12, darken(roofC, 0.45));
+      dot(ctx, px, 0, fanR, dark);
+      if (detail) {
+        ctx.strokeStyle = "rgba(190,196,204,0.6)";
+        ctx.lineWidth = Math.max(0.5, w * 0.028);
+        for (const k of [-0.55, -0.18, 0.18, 0.55]) {
+          const hw = fanR * Math.sqrt(1 - k * k) * 0.95;
+          ctx.beginPath();
+          ctx.moveTo(px - hw, k * fanR);
+          ctx.lineTo(px + hw, k * fanR);
+          ctx.stroke();
         }
-      } else {
-        ctx.fillStyle = darken(bodyC, 0.4);
-        ctx.fillRect(px - fanR * 0.8, py - fanR * 0.5, fanR * 1.6, fanR);
       }
+    }
+  } else {
+    // Roof equipment: transformer / resistor boxes on the centre line (clear of the pantographs).
+    const second = (PANTO_X[def.id]?.length ?? 1) > 1 ? -0.1 : 0.06;
+    for (const bx of [-0.45, second]) {
+      ctx.fillStyle = darken(roofC, 0.42);
+      ctx.fillRect(len * bx, -w * 0.17, len * 0.09, w * 0.34);
+      ctx.fillStyle = lighten(roofC, 0.25);
+      ctx.fillRect(len * bx + len * 0.01, -w * 0.12, len * 0.07, w * 0.04);
     }
   }
   if (detail) {
@@ -353,21 +376,31 @@ export function drawLocoSprite(
     }
   }
   nubs(ctx, len, w);
-  if (PANTO_MODELS.has(def.id)) {
-    ctx.strokeStyle = "#20242a";
-    ctx.lineWidth = Math.max(1, w * 0.09);
-    ctx.beginPath();
-    if (def.id === "early-electric" || def.id === "e-unit-electric") {
-      ctx.moveTo(-w * 0.22, -w * 0.5);
-      ctx.lineTo(-w * 0.06, -w * 1.05);
-      ctx.lineTo(w * 0.06, -w * 1.05);
-      ctx.lineTo(w * 0.22, -w * 0.5);
-    } else {
-      ctx.moveTo(-w * 0.1, -w * 0.5);
-      ctx.lineTo(w * 0.2, -w * 1.0);
-      ctx.lineTo(-w * 0.1, -w * 1.0);
+  const pantos = PANTO_X[def.id];
+  if (pantos) {
+    // Seen from above: a thin rhombus frame on the roof centre line, a contact bar across the
+    // body width and two insulators at its foot. Everything stays inside the footprint.
+    for (const px of pantos.map((f) => f * len)) {
+      const hl = len * 0.075;
+      const hw = w * 0.3;
+      ctx.strokeStyle = "#1c2026";
+      ctx.lineWidth = Math.max(0.6, w * 0.045);
+      ctx.beginPath();
+      ctx.moveTo(px - hl, 0);
+      ctx.lineTo(px, -hw);
+      ctx.lineTo(px + hl, 0);
+      ctx.lineTo(px, hw);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.strokeStyle = lighten("#8b9097", 0.1);
+      ctx.lineWidth = Math.max(0.8, w * 0.07);
+      ctx.beginPath();
+      ctx.moveTo(px + hl * 0.1, -w * 0.4);
+      ctx.lineTo(px + hl * 0.1, w * 0.4);
+      ctx.stroke();
+      for (const sd of [-1, 1])
+        dot(ctx, px - hl, sd * w * 0.12, Math.max(0.6, w * 0.045), "#D8DADC");
     }
-    ctx.stroke();
   }
 }
 
