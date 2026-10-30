@@ -44,7 +44,7 @@ import { pushNews } from "../news";
 import { nextFloat, nextInt } from "../rng";
 import type { GameState } from "../state";
 import type { Train } from "./types";
-import { calendarFromTicks, DAYS_PER_YEAR, HOURS_PER_DAY } from "../time";
+import { calendarFromTicks, HOURS_PER_DAY } from "../time";
 
 /** Years since the model was introduced (a locomotive bought in 1850 of a 1838 model is 12 years on the market). */
 export function modelYearsOnMarket(loco: LocomotiveDef, year: number): number {

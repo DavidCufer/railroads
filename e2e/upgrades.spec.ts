@@ -330,6 +330,10 @@ test.describe("Phase 9 — upgrades and growth", () => {
         startYear: 1848,
       } as RegenOptions);
       await page.waitForTimeout(300);
+      // Phase 72: the pill only shows while placing track or stations.
+      await expect(page.locator(".quick-build-toggle")).toBeHidden();
+      await page.getByRole("button", { name: "Track" }).click();
+      await expect(page.locator(".quick-build-toggle")).toBeVisible();
 
       const toggleBox = await page.locator(".quick-build-toggle").boundingBox();
       for (const selector of [".train-list-button", ".news-button", ".goals-button"]) {

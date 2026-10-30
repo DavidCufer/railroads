@@ -783,3 +783,9 @@ console.log(
 console.log(
   `lines ${lines.filter((l) => l.kind === "pax").length} pax, ${lines.filter((l) => l.kind === "freight").length} freight`,
 );
+// Phase 72: DUMP_SAVE=<path> writes the final state as a save file (store screenshots load it in the browser).
+if (process.env["DUMP_SAVE"]) {
+  const { exportSaveJson } = await import("../../src/save/index");
+  const { writeFileSync } = await import("node:fs");
+  writeFileSync(process.env["DUMP_SAVE"], exportSaveJson(state));
+}

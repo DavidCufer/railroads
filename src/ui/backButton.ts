@@ -9,22 +9,31 @@ import { strings } from "./strings";
 
 type BackHandler = () => void;
 
-const handlerStack: BackHandler[] = [];
+interface Entry {
+  handler: BackHandler;
+  /** Optional: false once the thing the handler belongs to is gone (its screen was removed without calling the pop). */
+  alive: (() => boolean) | undefined;
+}
+const handlerStack: Entry[] = [];
 
-/** Call when a panel/dialog opens; call the returned function when it closes. */
-export function pushBackHandler(handler: BackHandler): () => void {
-  handlerStack.push(handler);
+/** Call when a panel/dialog opens; call the returned function when it closes. `alive` lets a full-screen view that
+ * is removed by its owner (not by Back) drop its handler without having to pop it. */
+export function pushBackHandler(handler: BackHandler, alive?: () => boolean): () => void {
+  const entry: Entry = { handler, alive };
+  handlerStack.push(entry);
   return () => {
-    const idx = handlerStack.lastIndexOf(handler);
+    const idx = handlerStack.lastIndexOf(entry);
     if (idx !== -1) handlerStack.splice(idx, 1);
   };
 }
 
 export function initBackButton(): void {
   App.addListener("backButton", () => {
+    while (handlerStack.length > 0 && handlerStack[handlerStack.length - 1]!.alive?.() === false)
+      handlerStack.pop();
     const top = handlerStack[handlerStack.length - 1];
     if (top) {
-      top();
+      top.handler();
       return;
     }
     if (window.confirm(strings.app.exitGameConfirm)) {

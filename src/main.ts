@@ -428,7 +428,18 @@ function main(): void {
   function regenerate(options: NewGameOptions): void {
     currentOptions = options;
     applyState(createGameState(options));
-    if (!DEBUG) showFirstGameHints(ui, state);
+    if (!DEBUG) {
+      // Phase 72: a new game opened on empty countryside while the first tip says "lay a line"; start on the biggest
+      // town that exists in the start year. (Debug pages keep the old framing: their e2e shots depend on it.)
+      const year = currentYear();
+      let biggest: (typeof state.cities)[number] | undefined;
+      for (const c of state.cities) {
+        if (c.foundingYear !== undefined && c.foundingYear > year) continue;
+        if (!biggest || c.population > biggest.population) biggest = c;
+      }
+      if (biggest) focusTile({ x: biggest.anchorX, y: biggest.anchorY });
+      showFirstGameHints(ui, state);
+    }
   }
 
   /** A save loaded from the title screen/Load screen (SPEC §13) — unlike `regenerate`, the map
@@ -552,10 +563,39 @@ function main(): void {
     return { kind: "station", id: station.id, name: station.name };
   }
 
+  /** Phase 72: a panel covers the right ~45 % of a phone screen; if what it was opened for (a station, a train) would
+   * sit under it or off screen, pan so it stays in the free part beside the panel. Already visible there: no move. */
+  function keepVisibleBesidePanel(tileX: number, tileY: number): void {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const panelW = Math.min(420, Math.max(320, vw * 0.46));
+    const left = 130; // the tool column
+    const right = vw - panelW;
+    const top = 60; // the top bar
+    const p = camera.worldToScreen((tileX + 0.5) * TILE_SIZE, (tileY + 0.5) * TILE_SIZE, vw, vh);
+    if (p.x >= left + 30 && p.x <= right - 30 && p.y >= top + 20 && p.y <= vh - 30) return;
+    const wantX = (left + right) / 2;
+    const wantY = (top + vh) / 2;
+    camera.x += (p.x - wantX) / camera.zoom;
+    camera.y += (p.y - wantY) / camera.zoom;
+  }
+
+  function showTrainPanel(trainId: number): void {
+    openTrainPanel(ui, state, trainId);
+    const t = state.trains.find((tr) => tr.id === trainId);
+    if (t) keepVisibleBesidePanel(t.renderToX, t.renderToY);
+  }
+
   function openStationById(stationId: number): void {
+    const station = state.stations.find((st) => st.id === stationId);
+    if (station)
+      keepVisibleBesidePanel(
+        station.tile % state.map.width,
+        Math.floor(station.tile / state.map.width),
+      );
     openStationPanel(ui, state, stationId, {
       onBuyTrain: () => openBuyTrain(stationId),
-      onOpenTrain: (trainId) => openTrainPanel(ui, state, trainId),
+      onOpenTrain: (trainId) => showTrainPanel(trainId),
       onDemolished: (tile) => {
         refreshStationTiles();
         trackRenderer.invalidateTiles([tile]);
@@ -568,7 +608,7 @@ function main(): void {
   }
 
   function openPicked(pick: PickCandidate): void {
-    if (pick.kind === "train") openTrainPanel(ui, state, pick.id);
+    if (pick.kind === "train") showTrainPanel(pick.id);
     else if (pick.kind === "station") openStationById(pick.id);
     else if (pick.kind === "industry") {
       const industry = state.industries[pick.id];
@@ -1328,12 +1368,16 @@ function main(): void {
       // mini-map skip drawing rather than rendering underneath (same review, the station-label/
       // News-button overlap).
       const panelOpen = isPanelOpen();
-      for (const el of [floatingPill, quickBuildToggle]) {
-        el.classList.toggle("floating-hidden", panelOpen);
-      }
+      // Phase 72: Quick build only matters while placing track or stations, so the pill is docked out of the way
+      // (hidden) in Info and Bulldoze mode instead of floating over the map; the Settings screen has the same switch.
+      const placing =
+        currentTool === "track" || currentTool === "double" || currentTool === "station";
+      floatingPill.classList.toggle("floating-hidden", panelOpen);
+      quickBuildToggle.classList.toggle("floating-hidden", panelOpen || !placing);
       const reserved: ReservedScreenRect[] = [];
       if (!panelOpen) {
         for (const el of [floatingPill, quickBuildToggle]) {
+          if (el.classList.contains("floating-hidden")) continue;
           const r = el.getBoundingClientRect();
           reserved.push({ x0: r.left, y0: r.top, x1: r.right, y1: r.bottom });
         }
@@ -1411,7 +1455,7 @@ function main(): void {
       lastStuckTrainId = next.id;
       camera.x = next.renderToX * TILE_SIZE;
       camera.y = next.renderToY * TILE_SIZE;
-      openTrainPanel(ui, state, next.id);
+      showTrainPanel(next.id);
     },
     onOpenRoster: () => openRosterSheet(ui, state),
     onOpenMenu: () =>
@@ -1463,11 +1507,18 @@ function main(): void {
   // equivalent — whichever fires first wins, the other is a harmless duplicate write to the same
   // rotating slot. Skipped under `?debug=1` so e2e tests never touch IndexedDB unexpectedly.
   if (!DEBUG) {
-    App.addListener("pause", () => {
+    // Phase 72: both events fire on one backgrounding; each autosave advances the 3-slot rotation, so two writes a
+    // moment apart would overwrite two of the three slots with the same game. Once is enough.
+    let lastBackgroundSave = -Infinity;
+    const saveOnBackground = (): void => {
+      const now = performance.now();
+      if (now - lastBackgroundSave < 3000) return;
+      lastBackgroundSave = now;
       void autosave(state).catch(() => {});
-    });
+    };
+    App.addListener("pause", saveOnBackground);
     document.addEventListener("visibilitychange", () => {
-      if (document.hidden) void autosave(state).catch(() => {});
+      if (document.hidden) saveOnBackground();
     });
   }
 

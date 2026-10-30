@@ -74,14 +74,6 @@ async function clearArea(
   );
 }
 
-async function setWater(page: Page, tiles: P[]): Promise<void> {
-  await page.evaluate((tiles) => {
-    const map = window.__game!.getMap() as unknown as { width: number; terrain: Uint8Array };
-    for (const { x, y } of tiles) map.terrain[y * map.width + x] = 6;
-    (window.__game!.getState() as unknown as { mapContentVersion: number }).mapContentVersion++;
-  }, tiles);
-}
-
 async function build(page: Page, tiles: P[], double?: P[]): Promise<void> {
   const r = await page.evaluate(
     ({ tiles, double }) => {

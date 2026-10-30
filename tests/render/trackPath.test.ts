@@ -1,15 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   buildEdgeGeometry,
-  DOUBLE_TRACK_SPACING_TILES,
   FILLET_RADIUS_TILES,
   FILLET_TANGENT_TILES,
   halfFillet,
   isFilletBend,
   pointOnPiece as pointOnPieceForTest,
 } from "../../src/render/trackPath";
-import { TrackGraph } from "../../src/sim/track/graph";
-import type { TrackEdge } from "../../src/sim/track/types";
 
 function angleOf(dx: number, dy: number): number {
   return Math.atan2(dy, dx);
@@ -153,21 +150,6 @@ describe("buildEdgeGeometry", () => {
     expect(start.y).toBeCloseTo(2.5, 9);
   });
 });
-
-const EAST = 0;
-
-function edge(a: number, b: number, double: boolean): TrackEdge {
-  return {
-    a,
-    b,
-    direction: EAST,
-    double,
-    electrified: false,
-    bridge: null,
-    bridgeSpan: [],
-    cost: 0,
-  };
-}
 
 describe("EdgePath.offset", () => {
   it("keeps a straight edge's offset parallel at constant perpendicular distance", () => {

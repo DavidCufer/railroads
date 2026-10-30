@@ -221,7 +221,7 @@ test.describe("Phase 28B — buy-train route sheet", () => {
   test("bottom sheet keeps the map tappable; stops from the tap hook and from a searchable list", async ({
     page,
   }) => {
-    const { a, b } = await lineWithTrain(page);
+    const { a } = await lineWithTrain(page);
     await build(
       page,
       range(10, (i) => ({ x: 64 + i, y: 35 })),

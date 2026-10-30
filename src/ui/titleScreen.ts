@@ -12,6 +12,7 @@ import { renderSaveLoadScreen } from "./saveLoadScreen";
 import { renderScenariosScreen } from "./scenariosScreen";
 import { renderAchievementsScreen } from "./achievementsScreen";
 import { renderSettingsScreen } from "./settingsScreen";
+import { APP_VERSION } from "../data/app";
 import { h } from "./h";
 import { strings } from "./strings";
 
@@ -19,8 +20,6 @@ export interface TitleScreenHandlers {
   onStart: (options: NewGameOptions) => void;
   onLoad: (state: GameState) => void;
 }
-
-const APP_VERSION = "0.1.0";
 
 /** A save that cannot be loaded (from before the 5 km/tile world) gets a clear message. */
 function reportLoadFailure(err: unknown): void {

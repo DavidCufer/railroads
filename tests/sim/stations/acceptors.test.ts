@@ -6,14 +6,14 @@ import type { Station } from "../../../src/sim/stations/types";
 describe("acceptorsOf (Phase 29 D)", () => {
   it("names the Port as the only acceptor of coal, and the city for passengers", () => {
     const map = makeTestMap(Array.from({ length: 10 }, () => "p".repeat(10)));
-    const state = makeTestState(map, { startYear: 1900 });
+    makeTestState(map, { startYear: 1900 });
     // A port at (6,5) and a town tile at (4,5); the station at (5,5) covers both.
     map.industryId[5 * 10 + 6] = 0;
     map.cityId[5 * 10 + 4] = 0;
     const industries = [{ id: 0, type: "port" as const, x: 6, y: 5 }];
     const cities = [
       { id: 0, name: "Trieste", tier: "town", tiles: [5 * 10 + 4] },
-    ] as unknown as typeof state.cities;
+    ] as unknown as ReturnType<typeof makeTestState>["cities"];
     const station = { id: 1, tile: 5 * 10 + 5, type: "station" } as unknown as Station;
     const coal = acceptorsOf(map, cities, industries, station, "coal", 1900);
     expect(coal).toHaveLength(1);

@@ -17,12 +17,18 @@ export async function launch() {
 
 /** A game page at `viewport` CSS px, DPR `dpr`, with the busy save (tools/store/.cache/busy.json,
  * made by tools/store/make-save.sh) loaded as the live game. */
-export async function openBusyGame(browser, viewport, dpr, query = "debug=1&debugHud=0") {
+export async function openBusyGame(
+  browser,
+  viewport,
+  dpr,
+  query = "debug=1&debugHud=0",
+  save = "busy",
+) {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: dpr });
   const page = await ctx.newPage();
   await page.goto(`${BASE}/?${query}`);
   await page.waitForFunction(() => window.__game !== undefined);
-  const json = fs.readFileSync(path.join(cacheDir, "busy.json"), "utf8");
+  const json = fs.readFileSync(path.join(cacheDir, `${save}.json`), "utf8");
   await page.evaluate((json) => window.__game.debugLoadSave(json), json);
   await page.waitForTimeout(500);
   return { ctx, page };
