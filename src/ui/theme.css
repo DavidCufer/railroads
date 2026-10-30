@@ -230,7 +230,7 @@ input {
   gap: var(--gap-3);
   padding: var(--safe-top) max(var(--gap-3), var(--safe-right)) 0
     max(var(--gap-3), var(--safe-left));
-  background: var(--glass);
+  background: var(--ink-900);
   color: var(--text);
   font: var(--fs-s) var(--font-ui);
 }
@@ -326,14 +326,14 @@ input {
   gap: var(--gap-1);
   background: var(--ink-700);
   border-radius: var(--radius-m);
-  padding: 2px;
+  padding: 0;
 }
 .top-bar button {
   background: transparent;
   border: none;
   color: var(--text);
-  min-width: 36px;
-  min-height: 38px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: var(--radius-s);
   font: inherit;
   display: flex;
@@ -501,8 +501,8 @@ input {
   height: 12px;
 }
 .panel-close {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-s);
   border: none;
   background: transparent;
@@ -1919,7 +1919,7 @@ button.chip {
   padding: 2px;
 }
 .segmented-btn {
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 var(--gap-3);
   border-radius: var(--radius-s);
   border: none;
@@ -2283,6 +2283,7 @@ button.chip {
 }
 .tab {
   flex: 1;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5053,6 +5054,11 @@ select {
   display: flex;
   gap: var(--gap-2);
 }
+/* Phase 72: Accept / Later / Give up were ~22 px tall; a finger needs 44. */
+.contract-actions button {
+  min-height: 44px;
+  min-width: 88px;
+}
 
 /* Phase 46: scenarios */
 .scenario-stars {
@@ -5460,4 +5466,32 @@ select {
   font-size: 12px;
   line-height: 1.35;
   opacity: 0.9;
+}
+
+/* Phase 72: on a phone in landscape the map cards left only ~120 px, which cut the year chip in half; a shorter
+   thumbnail lets the name and the year show whole (the description scrolls into view). */
+@media (max-height: 420px) {
+  .region-thumb {
+    height: 56px;
+  }
+}
+
+/* Phase 72: small visuals keep their size but get a 44 px touch area (an invisible extension of the button). */
+.top-bar .cash,
+.top-bar .era-badge,
+.station-title-edit-btn,
+.info-tip-btn {
+  position: relative;
+}
+.top-bar .cash::after,
+.top-bar .era-badge::after,
+.station-title-edit-btn::after,
+.info-tip-btn::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100%, 44px);
+  height: 44px;
+  transform: translate(-50%, -50%);
 }
