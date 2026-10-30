@@ -7,7 +7,6 @@ import {
   isFilletBend,
   pointOnPiece as pointOnPieceForTest,
 } from "../../src/render/trackPath";
-import type { TrackEdge } from "../../src/sim/track/types";
 
 function angleOf(dx: number, dy: number): number {
   return Math.atan2(dy, dx);
@@ -151,8 +150,6 @@ describe("buildEdgeGeometry", () => {
     expect(start.y).toBeCloseTo(2.5, 9);
   });
 });
-
-const EAST = 0;
 
 describe("EdgePath.offset", () => {
   it("keeps a straight edge's offset parallel at constant perpendicular distance", () => {
