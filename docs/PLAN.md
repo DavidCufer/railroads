@@ -2793,4 +2793,10 @@ commits (`git pull --no-rebase`), never force-push.
    reference operator in `goalCalibration` is far from the strong bot, report it and propose (do not change bounds).
    Push the branch with the old -> new table at the top of the PROGRESS entry and STOP (orchestrator shows the owner).
 5. PROGRESS, SPEC (§8 passenger volume: the game scale), e2e (never weaken). Tick ONLY Phase 69.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+6. **1930 stays hard (owner 2026-10-30, option "A").** The bench (items 1-3 on `phase-69`) left strong 1930 Normal
+   bankrupt in 7 of 10 runs (the 1931 banking crisis, then 1939-45); the cautious bot survives 5 of 5. The owner keeps it:
+   the 1930s really were brutal for railways (road and truck competition plus the Depression). No tuning. On the new-game
+   screen, when the shown start year is in the Depression (1929-1935, from the panics table, not a hard-coded list), show
+   one short line under the start year, e.g. "Depression years: a tough start." (strings.ts, word limits kept; e2e
+   screenshot of it). Item 4's goals for 1930 starts are derived so the cautious player can reach bronze/silver; say how.
+Status: [x] 1 [x] 2 [x] 3 [ ] 4 [x] 5 [ ] 6
