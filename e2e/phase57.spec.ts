@@ -131,7 +131,7 @@ test("a heavy coal train climbs a hill line from a mine to a steel mill", async 
   );
   // run until the loaded train is on the ridge
   const onRidge = await page.evaluate(
-    ({ trainId, Y }) => {
+    ({ trainId, X0, Y }) => {
       const g = window.__game!;
       for (let step = 0; step < 24 * 200; step++) {
         g.runDays(1 / 24);
