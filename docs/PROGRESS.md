@@ -7212,3 +7212,19 @@ Formula unchanged (`strongPlayerAmount`: median x priceIndex(goal year) / priceI
   screenshots the builder committed (phase-3/7/8/11/16) reverted to main's.
 - Phase 70 sample 2 (1140c37) approved by the owner; the builder goes on with items 2-4 (coach roof vents as flat vents,
   not circles).
+## 2026-10-30 - Phase 70 done on branch `phase-70-train-art` (not merged; orchestrator merges)
+
+Render only (`src/render/art/mapSprites.ts`, new `src/render/art/spriteCache.ts`, `src/render/trains.ts`; no sim change).
+- **Look** (owner approved the sample, 1140c37): bevelled square-ended hulls instead of pills and outlines, light from
+  the top-left rotated into the vehicle's frame, soft drop shadow down-right, buffer/coupling nubs, muted liveries.
+  Steam: cylinder boiler, smokebox, rimmed chimney, overhanging cab roof, coal mound. Diesel/electric: highlight ridge,
+  rows of small fans, window strips, streamlined models with a raked nose. Coaches: curved roof, vestibules, and (owner
+  note) low flat roof vents by era instead of circles. Box van ribbed roof, hopper mound, tanker, flatcar loads
+  (logs / lumber / steel), armoured van.
+- **Cache**: sprites are baked offscreen per model / era / load / size bucket (x1.12 steps, scaled between) / quarter
+  turn of heading at DPR (<= 3) and blitted; the shadow is a separate blurred silhouette image. Capped at 600 entries.
+- **e2e** (`e2e/phase70.spec.ts`, `e2e/spriteGalleryEntry.ts` bundled with esbuild): three samples + sheet
+  (`phase-70-sample-before-after.png`, DPR 3, native), one train per era at zoom 1/2 (`phase-70-era-*`), and the gallery
+  of all top-down sprites (`phase-70-map-sprites-gallery.png`, zoom 2). Every PNG looked at.
+- **Not done / notes**: the steam models share one body (they differ by livery and era detail, not by wheel
+  arrangement); the repair-crew sprite (`repairCrews.ts`) keeps its own drawing.

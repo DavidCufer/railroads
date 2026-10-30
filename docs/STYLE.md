@@ -134,21 +134,29 @@ ACTIONS                           (2-column grid)
 
 ## 7. Map objects
 
-**Trains (seen from directly above)**: consists are drawn as a chain of top-down vehicles following the track,
-each with a 1px darker outline and a soft shadow offset (+1px, +1.5px, 25% black).
-- Sizes at zoom 1 (tile = 32px): loco 16×7 px, tender 9×7, cars 12×7, 2px gaps.
-- Steam loco: boiler as a long rounded rectangle with a lighter center stripe (top-lit cylinder), 2–3 darker band
-  lines across, round chimney dot near the front, small dome dot behind it, cab as a squarer block at the rear with
-  a slightly lighter roof; body color from a per-era palette (early: green/black with brass bands; later: black).
-  Tender: dark box with coal texture (speckles). Smoke puffs drift from the chimney.
-- Diesel: long hood (rounded ends), roof with 2–3 vent rectangles and a colored stripe along the side edges, cab
-  block near one end with dark window strip. Company livery: `--brass` stripe on `--signal` or `--steel` body.
-- Electric: box body with both ends slightly tapered, roof equipment, pantograph as a small diamond outline on top.
-- Cars: passenger — green/maroon body with a lighter roof center line; mail — red; hopper (coal/ore/grain) — open
-  top showing the load (heap color = cargo color, empty = dark interior); tanker — rounded cylinder with a lighter
-  center stripe; flatcar — deck with load blocks; boxcar — roof with cross ribs; livestock — slatted roof.
+**Trains (seen from directly above)** (Phase 70: a scale-model look, not cartoon). Footprints are fixed:
+`VEHICLE_WIDTH_TILES` wide (7.2 px at zoom 1), loco `LOCO_LENGTH_TILES`, cars `CAR_DRAW_LEN_TILES`.
+- **No outline.** Square ends with a small bevel (never pills). A lit top-left edge and a darker bottom-right edge
+  come from the light direction rotated into the vehicle's frame (baked per quarter-turn of heading); a soft blurred
+  drop shadow sits down-right in screen space, as the buildings'. Small dark buffer/coupling nubs at each end.
+- Livery colours are the `livery.ts` hues pulled toward a warm grey (`mute`) so they read as painted metal; at zoom 1
+  the silhouette is a few strong colour blocks, detail arrives at zoom >= 1.5 (48 px tiles).
+- Steam loco: the boiler is a shaded cylinder (highlight line along its length, darker flanks, thin lagging bands), a
+  darker smokebox drum with a door disc, a chimney as a dark circle with a light (brass on the early engines) rim, domes
+  with a highlight, a cab with a separate overhanging roof, a tender with a lit coal mound. Rods and lamps at detail.
+- Diesel / electric: bevelled hood with a highlight ridge, a lighter cab block, thin window strips at both ends, a
+  livery tip at the nose, rows of small fans (grilles at detail) or flat vents; pantographs as thin linkage.
+  Streamlined models get a deeper chamfer.
+- Cars: coaches have a curved roof (light band down the centre, darker eaves), end vestibules with a gangway and flat
+  low vents by era (lamp-tops, clerestory strip, air-conditioning boxes). Box vans and stock cars: ribbed roof with
+  thin transverse lines and a lighter ridge. Open hoppers: a raised rim round a dark well with a lit mound of the
+  cargo colour (empty = dark well). Tankers: a banded cylinder with a lit line, walkway and dome. Flatcars: plank
+  deck with logs, lumber or steel plate under straps (bare deck with stake pockets when empty). Armoured vans: riveted
+  roof bands and a hasp.
 - Vehicles rotate smoothly along curves (see below); each vehicle's position/angle is sampled on the curved track
   path at its own offset behind the head, so couplings follow the curve.
+- Sprites are cached offscreen (`src/render/art/spriteCache.ts`) by model / era / load / size bucket / heading
+  quarter, baked at the device pixel ratio, and blitted rotated; the shadow is its own cached image.
 
 **Track curves**: never draw a hard corner. At every node where the path changes direction by 45°, draw the rails
 as a circular arc (fillet) tangent to both straight segments, radius ≈ 1.2 tiles (clamped so arcs don't overlap on
@@ -319,14 +327,14 @@ steel bodies with smooth roofs.
 - **Load**: open cars show their load heap scaled by `fill01`; closed cars show nothing on the body (the UI draws a
   thin fill meter under them).
 
-### 9.5 Top-down map sprites (refine STYLE §7 using the same livery module)
-- Same colours as the side view. At zoom ≥ 1.5 add detail: boiler bands and dome dots, cab roof ridge, tender coal
-  speckle, diesel roof fans and handrail edge lines, electric pantograph, car roof type (clerestory centre line,
-  hopper open top showing the load colour, tank cylinder highlight, flatcar load blocks).
+### 9.5 Top-down map sprites (Phase 70 look; details in §7)
+- Same colours as the side view (muted). At zoom >= 1.5 add detail: boiler bands, rods and lamps, fan grilles,
+  coach windows, the cargo specks on a load, vestibule gangways.
 - **Smoke & steam**: steam locos emit puffs from the chimney (grey-white circles that grow, drift back along the
   track and fade over ~1.5 s; rate ∝ speed; a gentle white wisp while standing). Diesels: a faint grey haze when
   departing only. Pooled particles, capped (≤ 400 on screen), skipped at zoom < 0.75. Renderer-owned state only.
-- Soft shadow under each vehicle (existing) — keep.
+- Soft shadow under each vehicle: a cached blurred silhouette offset down-right.
+- e2e: `phase-70-map-sprites-gallery.png` (every model and car type) and `phase-70-era-*-z1/z2.png` (one train per era).
 
 ## 10. Map polish (render only)
 - **Stations**: Depot = small wooden building + one low platform along the track; Station = brick building with a

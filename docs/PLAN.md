@@ -2833,4 +2833,4 @@ about 18 x 7 CSS px. Direction: a scale-model look seen from above, not cartoon.
 3. e2e screenshots: a gallery of all top-down sprites at zoom 2 (`phase-70-map-sprites-gallery.png`) and one train per
    era on the map at zoom 1 and 2. Perf specs unchanged and green. Look at every PNG.
 4. PROGRESS, STYLE.md §7/§9.5 rewritten for the new look. Tick ONLY Phase 70.
-Status: [x] 1 [ ] 2 [ ] 3 [ ] 4
+Status: [x] 1 [x] 2 [x] 3 [x] 4
