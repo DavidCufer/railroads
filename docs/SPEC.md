@@ -1,4 +1,4 @@
-# Railroads — Game Design Specification
+# Iron & Steam — Game Design Specification (formerly "Railroads"; app ID com.davidc.ironandsteam, version 1.0.0)
 
 A 2D top-down railway-building tycoon game for Android, inspired by *Sid Meier's Railroad Tycoon Deluxe*.
 **No competitors, no stock market.** The player builds track to cities and resources, runs trains,

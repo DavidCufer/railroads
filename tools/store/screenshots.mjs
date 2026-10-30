@@ -51,7 +51,10 @@ for (const dev of DEVICES) {
   if (want(7) || dev.name === "phone") {
     await shot(7, "goal-reached");
   }
-  await page.getByRole("button", { name: "Continue" }).click().catch(() => {});
+  await page
+    .getByRole("button", { name: "Continue" })
+    .click()
+    .catch(() => {});
   await page.waitForTimeout(300);
 
   await networkView(page, Number(process.env.ZOOM ?? 1));
@@ -71,7 +74,11 @@ for (const dev of DEVICES) {
   await page.getByRole("button", { name: "Buy Train" }).click();
   await shot(3, "buy-train");
   await page.locator(".wizard-close, .panel-close, button[aria-label='Close']").first().click();
-  await page.getByRole("button", { name: "Close" }).first().click().catch(() => {});
+  await page
+    .getByRole("button", { name: "Close" })
+    .first()
+    .click()
+    .catch(() => {});
   await closePanels(page);
 
   // 4 — finance

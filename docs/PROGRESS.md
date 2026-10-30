@@ -7234,3 +7234,23 @@ Render only (`src/render/art/mapSprites.ts`, new `src/render/art/spriteCache.ts`
   frame on the roof; diesel roofs with round fans and grilles, electric roofs with gear; the 1980s/1990s shots reframed).
   `npm run check` green; e2e both shards 143 + 143 passed (perf specs included). Gallery and era PNGs checked at native
   DPR 3 crops. Only Phase 70 screenshots changed. Merged into main with a merge commit.
+
+## 2026-10-30 - Phase 71 done on branch `phase-71-store` (not merged; orchestrator merges)
+
+Store readiness for **Iron & Steam 1.0**.
+- **Rename (1):** `appName` "Iron & Steam"; `com.davidc.ironandsteam` in `capacitor.config.ts`, `build.gradle` (namespace + applicationId),
+  `strings.xml`, `MainActivity.java` (moved to `com/davidc/ironandsteam`); `strings.ts` (title, crash text), `index.html`, README, SPEC title, CLAUDE.md.
+  Version 1.0.0 (package.json + lock; versionCode 10000 derived). **The new app ID starts with no saves** (saves live per app). localStorage /
+  IndexedDB key names (`railroads.*`) are unchanged on purpose (internal, invisible). `src/data/app.ts` holds `APP_VERSION` (unit test keeps it equal to package.json).
+- **Icon (2):** `tools/store/icon.mjs` (Playwright + Canvas, shared drawing in `tools/store/draw.mjs`): brass locomotive on dark green, all legacy and round
+  mipmaps, adaptive foreground (inside the safe zone) + background colour, `docs/store/icon-512.png`. Looked at 512, the foreground and the 48 px version. The old `tools/icon/generate.mjs` is now superseded.
+- **Feature graphic (3):** `tools/store/feature.mjs` -> `docs/store/feature-graphic.png` (1024x500).
+- **Screenshots (4):** `tools/store/make-save.sh` (bench bot, central-eu from 1890, 14 years, 23 trains -> git-ignored `tools/store/.cache/busy.json`) and
+  `tools/store/screenshots.mjs`. Needs a preview server on :4173. 7 phone shots (1920x1080: busy network, station panel, buy train, finance, yearly report, new game with real-world maps, goal reached) and 4
+  tablet shots (2560x1600: network, station, buy train, finance) in `docs/store/screenshots/`. Staging hooks: `?debug=1&debugHud=0` (hides the fps line and dev controls, keeps `window.__game`) and a new
+  `__game.debugLoadSave(json)`. All looked at. The "busy network" shot is a town close-up with several trains; it is not a wide view of the whole network.
+- **Text (5/6):** `docs/store/listing.md` (limits tested in `tests/data/listing.test.ts`), `docs/store/privacy.md` (contact e-mail is a placeholder; the author line says David Cufer, the owner should confirm), About section in Settings (version, privacy line, credits; e2e `titleScreen.spec.ts`, screenshot `phase-71-about.png`).
+- **Release check (7):** `__game` and the debug HUD need `?debug=1`; the app loads without a query string (e2e asserts no `__game` on `/`). `capacitor.config.ts` sets `android.webContentsDebuggingEnabled: false` explicitly (Capacitor's default follows the debuggable flag, so release was already off).
+  `release.yml` already builds APK and AAB, unsigned without secrets; secret env names (`RAILROADS_KEYSTORE_*`) kept. **Finding:** the manifest has Android's `INTERNET` permission (Capacitor template). The game makes no requests; the privacy text says so. The owner may remove it if wanted (not done: no emulator to verify the WebView still loads).
+- **Checklist (8):** `docs/store/CHECKLIST.md`.
+- **Not done:** running `release.yml` / the Android build (CI only, see the end of this entry).

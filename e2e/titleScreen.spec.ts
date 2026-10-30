@@ -103,3 +103,33 @@ test.describe("Phase 10 — title screen and New Game screen", () => {
     await expect(page.locator(".top-bar")).toBeVisible();
   });
 });
+
+test.describe("Phase 71 — About section", () => {
+  test("Settings shows the version, the privacy line and credits", async ({ page }) => {
+    await page.setViewportSize(PHONE_VIEWPORT);
+    await page.goto("/");
+    await page.getByRole("button", { name: "Settings" }).click();
+    await expect(page.locator(".settings-about")).toBeAttached();
+    await page.locator(".settings-about").scrollIntoViewIfNeeded();
+    await expect(page.locator(".settings-about-title")).toHaveText("Iron & Steam");
+    await expect(page.locator(".settings-about-version")).toHaveText("Version 1.0.0");
+    await expect(page.locator(".settings-about")).toContainText("No ads, no accounts");
+    await page.screenshot({ path: "docs/screenshots/phase-71-about.png" });
+  });
+
+  test("the debug HUD is hidden with debugHud=0 but window.__game stays", async ({ page }) => {
+    await page.setViewportSize(PHONE_VIEWPORT);
+    await page.goto("/?debug=1&debugHud=0");
+    await page.waitForFunction(
+      () => (window as unknown as { __game?: unknown }).__game !== undefined,
+    );
+    await expect(page.locator("#debug-overlay")).toHaveCount(0);
+    await expect(page.locator("#debug-controls")).toHaveCount(0);
+  });
+
+  test("without a query string there is no window.__game", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".title-screen")).toBeVisible();
+    expect(await page.evaluate(() => "__game" in window)).toBe(false);
+  });
+});

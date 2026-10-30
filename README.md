@@ -108,13 +108,13 @@ safe — losing them means you can never update an app already published under t
 
 ```
 keytool -genkey -v -keystore release.keystore.jks -keyalg RSA -keysize 2048 -validity 10000 \
-  -alias railroads
+  -alias ironandsteam
 # then, to fill in KEYSTORE_BASE64:
 base64 -w0 release.keystore.jks   # macOS: base64 -i release.keystore.jks
 ```
 
 Paste the base64 output as `KEYSTORE_BASE64`, the password you set as `KEYSTORE_PASSWORD`,
-`railroads` (or whatever alias you chose) as `KEY_ALIAS`, and its key password as `KEY_PASSWORD`.
+`ironandsteam` (or whatever alias you chose) as `KEY_ALIAS`, and its key password as `KEY_PASSWORD`.
 Delete `release.keystore.jks` from your local disk once the secret is saved, or keep it somewhere
 outside the repo — it's already `.gitignore`d as a backstop, but the point is it should never exist
 in a git history at all.

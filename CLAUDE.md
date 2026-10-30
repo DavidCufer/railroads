@@ -1,6 +1,6 @@
 # CLAUDE.md — guide for AI implementers
 
-This repo is **Railroads**, a 2D railway tycoon game for Android (TypeScript + Canvas + Capacitor).
+This repo is **Iron & Steam** (formerly Railroads), a 2D railway tycoon game for Android (TypeScript + Canvas + Capacitor).
 
 - **What to build:** `docs/SPEC.md` (source of truth).
 - **Order of work:** `docs/PLAN.md` (phases; do one phase per session, unless the user says otherwise).
