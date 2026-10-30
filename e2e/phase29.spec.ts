@@ -73,16 +73,6 @@ async function build(page: Page, tiles: P[], double = false): Promise<void> {
     );
 }
 
-async function tryBuild(page: Page, tiles: P[]): Promise<{ ok: boolean; reason?: string }> {
-  return page.evaluate(
-    ({ tiles }) => {
-      const w = window.__game!.getMap().width;
-      return window.__game!.buildTrackPath(tiles.map(({ x, y }) => y * w + x));
-    },
-    { tiles },
-  );
-}
-
 async function station(page: Page, x: number, y: number, type = "station"): Promise<void> {
   await page.evaluate(
     ({ x, y, type }) => {

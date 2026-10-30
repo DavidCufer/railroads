@@ -157,7 +157,7 @@ describe("people wait for the actual next train (Phase 53C)", () => {
   });
 
   it("a long gap loses only the part above MAX_WAIT_DAYS of demand", () => {
-    const { state, a, b } = served();
+    const { state, a } = served();
     const gap = 3 * MAX_WAIT_DAYS;
     for (let day = 0; day < gap; day++) accrueDailyCargo(state);
     const perDay = (state.stationEconomy.get(a)?.passengerPool ?? 0) / 30;

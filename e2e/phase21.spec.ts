@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { test, type Page } from "@playwright/test";
 import "./gameWindow";
 
 /**
@@ -71,16 +71,6 @@ async function clearArea(
     },
     { x0, x1, y0, y1 },
   );
-}
-
-async function setWater(page: Page, tiles: Array<{ x: number; y: number }>): Promise<void> {
-  await page.evaluate((tiles) => {
-    const map = window.__game!.getMap();
-    for (const { x, y } of tiles) {
-      (map as unknown as { terrain: Uint8Array }).terrain[y * map.width + x] = 6; // water
-    }
-    (window.__game!.getState() as unknown as { mapContentVersion: number }).mapContentVersion++;
-  }, tiles);
 }
 
 async function buildPath(page: Page, tiles: Array<{ x: number; y: number }>): Promise<void> {

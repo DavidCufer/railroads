@@ -13,7 +13,7 @@ import {
   setOrders,
   takeLoan,
 } from "../../src/sim/commands";
-import { SCENARIOS, scenarioById, scenarioNewGameOptions } from "../../src/data/scenarios";
+import { scenarioById, scenarioNewGameOptions } from "../../src/data/scenarios";
 import { buyableLocomotivesIn } from "../../src/data/trains";
 import { landPrices } from "../../src/sim/economy/land";
 import { createGameState } from "../../src/sim/state";

@@ -28,15 +28,6 @@ export function earlyChimneyTop(
   return { x: x - lay.minX, y };
 }
 
-function pathOf(
-  ctx: CanvasRenderingContext2D,
-  pts: ReadonlyArray<readonly [number, number]>,
-): void {
-  ctx.beginPath();
-  pts.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
-  ctx.closePath();
-}
-
 /** A small wagon tender: boxy body, heap of fuel, light chassis, two spoked wheels. */
 function wagonTender(
   p: Pen,

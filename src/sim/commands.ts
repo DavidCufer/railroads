@@ -22,7 +22,6 @@ import {
   type StationType,
 } from "../data/stations";
 import {
-  CITY_TIERS,
   CIVIC_INVESTMENT_COOLDOWN_YEARS,
   CIVIC_INVESTMENT_COST_BY_TIER,
   CIVIC_INVESTMENT_POP_BOOST,

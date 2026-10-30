@@ -6,7 +6,6 @@ import "./gameWindow";
  * an overview, each screenshotted for review.
  */
 const PHONE_VIEWPORT = { width: 800, height: 360 };
-const TILE_SIZE = 32;
 
 interface RegenOptions {
   seed: number;
@@ -25,17 +24,6 @@ async function setup(page: Page, options: RegenOptions): Promise<void> {
   // worth threshold (a scaled multiple of starting cash) — avoids a "Goal reached!" celebration
   // dialog popping up and covering the screenshot.
   await page.evaluate(() => window.__game!.debugSetCash(2_000_000));
-}
-
-async function centerOn(page: Page, x: number, y: number, zoom: number): Promise<void> {
-  await page.evaluate(
-    ({ x, y, tileSize }) => {
-      window.__game?.camera.setCenter((x + 0.5) * tileSize, (y + 0.5) * tileSize);
-    },
-    { x, y, tileSize: TILE_SIZE },
-  );
-  await page.evaluate((z) => window.__game?.camera.setZoom(z), zoom);
-  await page.waitForTimeout(300);
 }
 
 /** Same rationale as other phases' e2e specs: guarantees a flat, empty patch regardless of what
@@ -71,61 +59,6 @@ async function clearArea(
       (window.__game!.getState() as unknown as { mapContentVersion: number }).mapContentVersion++;
     },
     { x0, x1, y0, y1 },
-  );
-}
-
-async function setWater(page: Page, tiles: Array<{ x: number; y: number }>): Promise<void> {
-  await page.evaluate((tiles) => {
-    const map = window.__game!.getMap();
-    for (const { x, y } of tiles) {
-      (map as unknown as { terrain: Uint8Array }).terrain[y * map.width + x] = 6; // water
-    }
-    (window.__game!.getState() as unknown as { mapContentVersion: number }).mapContentVersion++;
-  }, tiles);
-}
-
-async function buildPath(page: Page, tiles: Array<{ x: number; y: number }>): Promise<void> {
-  const result = await page.evaluate((tiles) => {
-    const width = window.__game!.getMap().width;
-    const path = tiles.map(({ x, y }) => y * width + x);
-    return window.__game!.buildTrackPath(path);
-  }, tiles);
-  if (!result.ok) throw new Error(`track build failed: ${result.reason}`);
-}
-
-async function buildDepot(page: Page, x: number, y: number): Promise<number> {
-  return page.evaluate(
-    ({ x, y }) => {
-      const width = window.__game!.getMap().width;
-      const r = window.__game!.buildStation(y * width + x, "depot");
-      if (!r.ok) throw new Error(`station build failed: ${r.reason}`);
-      return window.__game!.getStations().find((s) => s.x === x && s.y === y)!.id;
-    },
-    { x, y },
-  );
-}
-
-async function buyAndRun(
-  page: Page,
-  stationAId: number,
-  stationBId: number,
-  loco: string,
-  cars: string[],
-): Promise<number> {
-  return page.evaluate(
-    ({ stationAId, stationBId, loco, cars }) => {
-      const bought = window.__game!.buyTrain(stationAId, loco, cars);
-      if (!bought.ok || bought.trainId === undefined) {
-        throw new Error(`buy failed: ${bought.reason}`);
-      }
-      const orders = window.__game!.setOrders(bought.trainId, [
-        { stationId: stationAId, rule: "passThrough" },
-        { stationId: stationBId, rule: "passThrough" },
-      ]);
-      if (!orders.ok) throw new Error(`orders failed: ${orders.reason}`);
-      return bought.trainId;
-    },
-    { stationAId, stationBId, loco, cars },
   );
 }
 

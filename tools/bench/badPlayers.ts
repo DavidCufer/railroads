@@ -19,7 +19,6 @@ import { findBuildPath } from "../../src/sim/track/pathfind";
 import { buyableLocomotivesIn, locomotiveById } from "../../src/data/trains";
 import { STATION_TYPE_DEFS } from "../../src/data/stations";
 import { netWorth } from "../../src/sim/finance/ledger";
-import { ledgerRevenue } from "../../src/data/finance";
 import type { GameState } from "../../src/sim/state";
 import type { City } from "../../src/sim/economy/types";
 import type { Station } from "../../src/sim/stations/types";
@@ -91,14 +90,6 @@ function ensureCash(needed: number): boolean {
     if (!ok(take(state, 100_000))) break;
   }
   return state.cash >= needed;
-}
-
-function repayIfRich(): void {
-  const repay = optional("repayLoan") as ((s: GameState, n: number) => unknown) | undefined;
-  if (!repay) return;
-  while (state.finance.loans >= 100_000 && state.cash > state.finance.loans + 1_500_000) {
-    if (!ok(repay(state, 100_000))) break;
-  }
 }
 
 function bestLoco(): string {

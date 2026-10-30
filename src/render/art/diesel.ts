@@ -626,32 +626,6 @@ function electricCabEnds(w: number, top: number, slope: number): Array<[number, 
   ];
 }
 
-/** Big windscreen following a sloped cab end: `edge` is the x of the roof corner, `dir` points inward. */
-function endGlass(
-  p: Pen,
-  edge: number,
-  run: number,
-  top: number,
-  dir: 1 | -1,
-  lv: PowerLivery,
-): void {
-  const slopeRun = run;
-  const xAt = (y: number): number => edge - dir * slopeRun * ((y - top) / 6);
-  const y0 = top + 0.9;
-  const y1 = top + 5.4;
-  shadedPoly(
-    p,
-    [
-      [xAt(y0) + dir * 0.7, y0],
-      [edge + dir * 3.6, y0],
-      [edge + dir * 3.6, y1],
-      [xAt(y1) + dir * 0.7, y1],
-    ],
-    lv.glass,
-    { hi: 0, lo: 0 },
-  );
-}
-
 function modernElectric(p: Pen, lay: PowerLayout, lv: PowerLivery, freight: boolean): void {
   const { w } = lay;
   const top = freight ? 3.2 : 3.6;

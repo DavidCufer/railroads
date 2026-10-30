@@ -5,7 +5,6 @@
  * src/main.ts's render loop — none of them mutate state, matching every other renderer here.
  */
 import { CARGO, type CargoType } from "../data/cargo";
-import { locomotiveById } from "../data/trains";
 import { STATION_TYPE_DEFS } from "../data/stations";
 import type { StationEconomy } from "../sim/stations/economy";
 import { stationCatchmentTiles } from "../sim/stations/placement";
@@ -14,7 +13,6 @@ import type { GameMap } from "../sim/map/types";
 import type { TrackGraph } from "../sim/track/graph";
 import { trainProfitStatus } from "../sim/trains/profit";
 import type { Train } from "../sim/trains/types";
-import { DAYS_PER_YEAR, HOURS_PER_DAY } from "../sim/time";
 import { Camera, TILE_SIZE } from "./camera";
 import {
   OVERLAY_CATCHMENT_BORDER,

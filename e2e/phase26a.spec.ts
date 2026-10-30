@@ -128,7 +128,7 @@ test.describe("Phase 26A — economy depth", () => {
     );
     expect(t.status).toBe("broken");
     // Crew and train together in the map area, first without the panel, then with it.
-    const crewAt = await page.evaluate(() => {
+    await page.evaluate(() => {
       const st = window.__game!.getState() as unknown as {
         ticks: number;
         map: { width: number };

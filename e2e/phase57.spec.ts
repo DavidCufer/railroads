@@ -131,7 +131,7 @@ test("a heavy coal train climbs a hill line from a mine to a steel mill", async 
   );
   // run until the loaded train is on the ridge
   const onRidge = await page.evaluate(
-    ({ trainId, X0, Y }) => {
+    ({ trainId, Y }) => {
       const g = window.__game!;
       for (let step = 0; step < 24 * 200; step++) {
         g.runDays(1 / 24);
@@ -147,7 +147,7 @@ test("a heavy coal train climbs a hill line from a mine to a steel mill", async 
   expect(onRidge).not.toBeNull();
   expect(onRidge!.loaded).toBeGreaterThan(100);
   await page.evaluate(
-    ({ trainId, X0, Y }) => {
+    ({ trainId, Y }) => {
       const g = window.__game!;
       // the train panel covers the right 430 px: put the train in the middle of what is left
       const t = g.getTrains().find((tr) => tr.id === trainId)!;
