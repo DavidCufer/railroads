@@ -6,7 +6,7 @@ import type { CargoType } from "../data/cargo";
 import { LOCO_LENGTH_TILES, locomotiveById, type LocomotiveDef } from "../data/trains";
 import { Camera, TILE_SIZE } from "./camera";
 import { TRAIN_SIGNAL_WAIT_COLOR, TRAIN_WARNING_COLOR } from "./palette";
-import { drawCarSprite, drawLocoSprite, chimneyOffset } from "./art/mapSprites";
+import { drawCarSprite, drawLocoSprite, chimneyOffset, setSpriteHeading } from "./art/mapSprites";
 import { eraBucket, type EraBucket } from "./art/livery";
 import {
   SMOKE_MIN_ZOOM,
@@ -236,6 +236,7 @@ function drawLoco(
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle);
+  setSpriteHeading(angle);
   drawLocoSprite(
     ctx,
     size * LOCO_LENGTH_TILES,
@@ -262,6 +263,7 @@ function drawCar(
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle);
+  setSpriteHeading(angle);
   drawCarSprite(
     ctx,
     size * CAR_DRAW_LEN_TILES,

@@ -6,7 +6,7 @@ import "./gameWindow";
  * era) and shoots each at zoom 1 and 2. `PHASE70_OUT` redirects the crops (used to keep a "before"
  * set from the old art); `docs/screenshots/phase-70-sample-before-after.png` is composed from them.
  */
-test.use({ deviceScaleFactor: 2 });
+test.use({ deviceScaleFactor: 3 });
 
 const OUT = process.env.PHASE70_OUT ?? "docs/screenshots";
 
@@ -109,7 +109,7 @@ for (const s of SAMPLES) {
       await page.waitForTimeout(500);
       await page.screenshot({
         path: `${OUT}/phase-70-sample-${s.name}-z${zoom}.png`,
-        clip: { x: 400 - 150, y: 180 - 40, width: 300, height: 80 },
+        clip: { x: 400 - 190, y: 180 - 40, width: 380, height: 80 },
       });
     }
   });
