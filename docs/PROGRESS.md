@@ -7365,3 +7365,11 @@ Reported, not changed (owner decides):
   star inside; check it is intended (it was a plain outline before).
 - Reported to the owner: Panic of 1873 is out of order (hardest scenario listed third); Silver rush's scripted bot now
   goes bankrupt (1884).
+
+### Orchestrator: Phase 73 merged (2026-10-31)
+- Reviewed `phase-73-pt8` (8cbb930): no bound loosened; screenshots changed are this phase's (destinations, scenario
+  cards, coal). `npm run check` 954 passed; e2e 146 + 146 passed. Looked at the destinations card, star ladder, won
+  card and coal icon. Note for Phase 74: on the won card the missing third star is drawn as an outline with a small
+  star inside; check it is intended (it was a plain outline before).
+- Reported to the owner: Panic of 1873 is out of order (hardest scenario listed third); Silver rush's scripted bot now
+  goes bankrupt (1884).
