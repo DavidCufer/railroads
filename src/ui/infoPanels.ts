@@ -2,15 +2,16 @@
 import { KM_PER_TILE } from "../data/scale";
 import { formatDistance, loadSettings } from "./settings";
 import { CARGO, type CargoType } from "../data/cargo";
-import { INDUSTRIES, producersOf } from "../data/industries";
+import { INDUSTRIES, LONG_HAUL_CHAINS, producersOf } from "../data/industries";
 import { nearestOf } from "../sim/economy/chains";
 import {
   CIVIC_INVESTMENT_COOLDOWN_YEARS,
   CITY_TIER_DEFS,
   CITY_TIERS,
+  CITY_TIER_DEMAND_POINTS,
   type CityTier,
 } from "../data/cities";
-import type { Industry } from "../sim/economy/types";
+import type { City, Industry } from "../sim/economy/types";
 import {
   cityAcceptance,
   citySupply,
@@ -337,8 +338,103 @@ export interface IndustryPanelContext {
   /** All industries on the map, to find the nearest source of each input. */
   industries: readonly Industry[];
   startYear: number;
-  /** Centres the map on an industry (the nearest-source rows are tappable). */
-  onCenter?: (industry: Industry) => void;
+  /** Towns on the map, as buyers of finished goods (optional). */
+  cities?: readonly City[];
+  /** Centres the map on an industry or town (the nearest-source / buyer / chain rows are tappable). */
+  onCenter?: (target: { x: number; y: number }) => void;
+}
+
+/** Cargo an industry takes in: its inputs plus whatever it only accepts (Mint, Nuclear Power Plant, Port). */
+function acceptedCargo(type: Industry["type"]): CargoType[] {
+  const def = INDUSTRIES[type];
+  return Array.from(
+    new Set([...Object.keys(def.consumes), ...Object.keys(def.acceptancePoints)]),
+  ) as CargoType[];
+}
+
+/** Phase 75: one tappable row per cargo, showing the nearest thing of `cargo` the player can reach. */
+function nearestRow(
+  cargo: CargoType,
+  near: { name: string; x: number; y: number; distance: number } | undefined,
+  ctx: IndustryPanelContext,
+  className: string,
+): HTMLElement {
+  return cardRow({
+    className: `${className}${near ? "" : " chip-dim"}`,
+    thumb: cargoIcon(cargo, "cargo-icon-lg"),
+    title: near ? near.name : CARGO[cargo].name,
+    meta: near
+      ? formatDistance(near.distance * KM_PER_TILE, loadSettings().units)
+      : strings.industry.noSourceNearby,
+    trailing: near ? icon("mapPin", "icon-sm") : undefined,
+    disabled: !near || !ctx.onCenter,
+    onClick: () => {
+      if (near) ctx.onCenter?.(near);
+    },
+  });
+}
+
+/** "Nearest buyers": for each cargo this industry makes, the nearest industry or town that takes it. */
+function nearestBuyerRows(industry: Industry, ctx: IndustryPanelContext): HTMLElement {
+  const def = INDUSTRIES[industry.type];
+  const rows = (Object.keys(def.produces) as CargoType[]).map((cargo) => {
+    let best: { name: string; x: number; y: number; distance: number } | undefined;
+    const consider = (name: string, x: number, y: number): void => {
+      const distance = Math.hypot(x - industry.x, y - industry.y);
+      if (!best || distance < best.distance) best = { name, x, y, distance };
+    };
+    for (const other of ctx.industries) {
+      if (other === industry || INDUSTRIES[other.type].era > ctx.startYear) continue;
+      if (acceptedCargo(other.type).includes(cargo))
+        consider(INDUSTRIES[other.type].name, other.x, other.y);
+    }
+    for (const city of ctx.cities ?? []) {
+      if ((CITY_TIER_DEMAND_POINTS[city.tier][cargo] ?? 0) > 0)
+        consider(city.name, city.anchorX, city.anchorY);
+    }
+    return nearestRow(cargo, best, ctx, "industry-buyer");
+  });
+  return cardList(...rows);
+}
+
+/** The whole long-haul chain as icons with arrows, this industry highlighted, each step tappable to the nearest one. */
+function chainLine(industry: Industry, ctx: IndustryPanelContext): HTMLElement | null {
+  const chain = Object.values(LONG_HAUL_CHAINS).find((c) =>
+    [c.mine, c.processor, c.sink].includes(industry.type),
+  );
+  if (!chain) return null;
+  const steps = [chain.mine, chain.processor, chain.sink];
+  const parts: Node[] = [];
+  steps.forEach((type, i) => {
+    if (i > 0) parts.push(icon("chevronRight", "recipe-arrow"));
+    const def = INDUSTRIES[type];
+    const here = type === industry.type;
+    const near = here ? undefined : nearestOf(ctx.industries, [type], industry);
+    const cargo = (Object.keys(def.produces)[0] ??
+      Object.keys(def.acceptancePoints)[0]) as CargoType;
+    parts.push(
+      h(
+        "button",
+        {
+          className: `chain-step${here ? " chain-here" : ""}${!here && !near ? " chip-dim" : ""}`,
+          type: "button",
+          disabled: here || !near || !ctx.onCenter,
+          "aria-label": here
+            ? strings.industry.chainHere(def.name)
+            : near
+              ? strings.industry.chainShow(def.name)
+              : `${def.name}: ${strings.industry.noSourceNearby}`,
+          "data-testid": `chain-${type}`,
+          onclick: () => {
+            if (near) ctx.onCenter?.(near.industry);
+          },
+        },
+        cargoIcon(cargo, "cargo-icon-lg"),
+        h("span", { className: "chain-name" }, def.name),
+      ),
+    );
+  });
+  return h("div", { className: "industry-chain", "data-testid": "industry-chain" }, ...parts);
 }
 
 /** The recipe as pictograms: "[steel] or [lumber] → [goods]" (inputs joined by "or"/"and"); the
@@ -366,33 +462,23 @@ function recipeLine(type: Industry["type"]): HTMLElement | null {
   return h("div", { className: "industry-recipe", role: "img", "aria-label": label }, ...parts);
 }
 
-/** One card row per input cargo: its pictogram and the nearest producer of it (name + distance),
+/** One card row per accepted cargo: its pictogram and the nearest producer of it (name + distance),
  * tappable to centre the map there. */
-function nearestSourceRows(
-  container: HTMLElement,
-  industry: Industry,
-  ctx: IndustryPanelContext,
-): HTMLElement {
-  const def = INDUSTRIES[industry.type];
-  const rows = (Object.keys(def.consumes) as CargoType[]).map((cargo) => {
+function nearestSourceRows(industry: Industry, ctx: IndustryPanelContext): HTMLElement {
+  const rows = acceptedCargo(industry.type).map((cargo) => {
     const types = producersOf(cargo).filter((t) => INDUSTRIES[t].era <= ctx.startYear);
     const near = nearestOf(ctx.industries, types, industry);
-    const meta = near
-      ? formatDistance(near.distance * KM_PER_TILE, loadSettings().units)
-      : strings.industry.noSourceNearby;
-    const title = near ? INDUSTRIES[near.industry.type].name : CARGO[cargo].name;
-    return cardRow({
-      className: `industry-source${near ? "" : " chip-dim"}`,
-      thumb: cargoIcon(cargo, "cargo-icon-lg"),
-      title,
-      meta,
-      trailing: near ? icon("mapPin", "icon-sm") : undefined,
-      disabled: !near || !ctx.onCenter,
-      onClick: () => {
-        if (near) ctx.onCenter?.(near.industry);
-        void container;
+    return nearestRow(
+      cargo,
+      near && {
+        name: INDUSTRIES[near.industry.type].name,
+        x: near.industry.x,
+        y: near.industry.y,
+        distance: near.distance,
       },
-    });
+      ctx,
+      "industry-source",
+    );
   });
   return cardList(...rows);
 }
@@ -407,8 +493,10 @@ export function openIndustryPanel(
   const consumes = Object.entries(def.consumes) as Array<[CargoType, number]>;
 
   const body: Node[] = [];
+  const chain = ctx ? chainLine(industry, ctx) : null;
+  if (chain) body.push(chain);
   const recipe = recipeLine(industry.type);
-  if (recipe) body.push(recipe);
+  if (recipe && !chain) body.push(recipe);
 
   const perMonth = strings.industry.perMonthNote;
   if (produces.length > 0) {
@@ -428,6 +516,26 @@ export function openIndustryPanel(
       ),
     );
   }
+  const accepted = acceptedCargo(industry.type);
+  const sinkOnly = consumes.length === 0 && accepted.length > 0;
+  if (sinkOnly) {
+    body.push(
+      section(strings.industry.accepts, [
+        h(
+          "div",
+          { className: "chip-row" },
+          ...accepted.map((cargo) =>
+            h(
+              "span",
+              { className: "chip chip-lg" },
+              cargoIcon(cargo, "cargo-icon-lg"),
+              CARGO[cargo].name,
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
   if (consumes.length > 0) {
     body.push(
       section(
@@ -445,10 +553,14 @@ export function openIndustryPanel(
       ),
     );
     if (ctx) {
-      body.push(
-        section(strings.industry.nearestSources, [nearestSourceRows(container, industry, ctx)]),
-      );
+      body.push(section(strings.industry.nearestSources, [nearestSourceRows(industry, ctx)]));
     }
+  }
+  if (ctx && sinkOnly) {
+    body.push(section(strings.industry.nearestSources, [nearestSourceRows(industry, ctx)]));
+  }
+  if (ctx && produces.length > 0) {
+    body.push(section(strings.industry.nearestBuyers, [nearestBuyerRows(industry, ctx)]));
   }
 
   const firstOutput = produces[0]?.[0];
