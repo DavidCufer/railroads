@@ -7,6 +7,31 @@ import { clearArea, setup } from "./p30bHelpers";
 test.use({ deviceScaleFactor: 2 });
 const shot = (name: string): string => `docs/screenshots/phase-74-${name}.png`;
 
+/** A coal mine feeding a steel mill: a train that really carries load (towns alone left the cars empty in a bare patch). */
+async function coalWorld(page: import("@playwright/test").Page) {
+  await setup(page);
+  await clearArea(page, 60, 100, 30, 40);
+  return page.evaluate(() => {
+    const g = window.__game!;
+    const w = g.getMap().width;
+    const y = 35;
+    g.debugPlaceIndustry((y - 1) * w + 71, "coalMine");
+    g.debugPlaceIndustry((y - 1) * w + 90, "steelMill");
+    if (!g.buildTrackPath(Array.from({ length: 20 }, (_, i) => y * w + 71 + i)).ok)
+      throw new Error("track");
+    g.buildStation(y * w + 71, "depot");
+    g.buildStation(y * w + 90, "depot");
+    const st = g.getStations();
+    const bought = g.buyTrain(st[0]!.id, "atlantic-4-4-2", ["coal", "coal"]);
+    if (!bought.ok) throw new Error(bought.reason);
+    g.setOrders(
+      bought.trainId!,
+      st.map((s) => ({ stationId: s.id, rule: "auto" })),
+    );
+    return { train: bought.trainId! };
+  });
+}
+
 async function world(page: import("@playwright/test").Page) {
   await setup(page);
   await clearArea(page, 60, 100, 30, 40);
@@ -51,11 +76,18 @@ test("a running train queues a lay-up, shows it, and can cancel", async ({ page 
 });
 
 test("train stats: one load row per cargo; tab bar stays inside its header", async ({ page }) => {
-  const ids = await world(page);
-  await page.evaluate(() => window.__game!.runDays(120));
+  const ids = await coalWorld(page);
   await page.evaluate((id) => window.__game!.debugOpenTrain(id), ids.train);
   await page.locator(".tab", { hasText: "Stats" }).click();
-  await expect(page.locator('[data-testid="cargo-load-row"]')).toHaveCount(2);
+  // A new train has no history: no average and no "mostly empty" hint yet.
+  await expect(page.locator('[data-testid="cargo-load-row"]')).toHaveCount(1);
+  await expect(page.locator(".train-stats")).toContainText("Average after 2 months");
+  await expect(page.locator(".load-hint")).toHaveCount(0);
+  await page.evaluate(() => window.__game!.runDays(240));
+  await page.evaluate((id) => window.__game!.debugOpenTrain(id), ids.train);
+  await page.locator(".tab", { hasText: "Stats" }).click();
+  await expect(page.locator('[data-testid="cargo-load-row"]')).toHaveCount(1);
+  await expect(page.locator(".train-stats")).toContainText("full on average");
   const text = await page.locator(".train-stats").innerText();
   expect(text).not.toMatch(/\d\.\d{4,}/);
   await page.locator('[data-testid="cargo-load-row"]').first().scrollIntoViewIfNeeded();
@@ -77,6 +109,8 @@ test("city panel shows the reached-by-train card; station upkeep is per year", a
   await page.evaluate((id) => window.__game!.debugOpenStation(id), ids.a);
   await page.locator(".tab", { hasText: "Build" }).click();
   await expect(page.locator(".stat-tile", { hasText: "Upkeep / year" })).toBeVisible();
+  await page.locator(".stat-tile", { hasText: "Upkeep / year" }).scrollIntoViewIfNeeded();
+  await page.waitForTimeout(200);
   await page.screenshot({ path: shot("station-upkeep") });
   const [cityId] = await addTowns(page, [ids.a], ["Graz"], 36_000);
   await addTowns(page, [ids.b], ["Padua"], 30_000);

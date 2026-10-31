@@ -561,7 +561,7 @@ export const strings = {
       cargoNow: (name: string, now: number, cap: number, unit: string) =>
         `${name} ${now} / ${cap}${unit ? ` ${unit}` : ""}`,
       averageLoad: (pct: number) => `${pct} % full on average`,
-      noLoadYet: "No trips yet",
+      noLoadYet: "Average after 2 months",
       lowLoadHint: "Often under 30 % full: fewer cars may pay better",
       breakdownChance: (pct: string) => `${pct}% / month breakdown risk`,
       age: "Age",

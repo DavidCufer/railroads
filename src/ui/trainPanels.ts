@@ -315,9 +315,9 @@ function statusLine(state: GameState, train: Train, loco: LocomotiveDef | undefi
 /** Average of a cargo's monthly load history, with this month's running figure folded in; undefined with no data. */
 function averageCargoLoad(train: Train, cargo: string): number | undefined {
   const hist = train.loadHistory?.[cargo] ?? [];
+  if (hist.length < MIN_LOAD_MONTHS) return undefined; // too little history to judge
   const cur = train.loadMonth?.[cargo];
   const all = [...hist, ...(cur && cur[1] > 0 ? [cur[0] / cur[1]] : [])];
-  if (all.length === 0) return undefined;
   return all.reduce((a, b) => a + b, 0) / all.length;
 }
 
@@ -363,6 +363,8 @@ function cargoLoadRows(train: Train): HTMLElement[] {
 }
 
 const LOW_LOAD = 0.3;
+/** Completed months of load history needed before the average and the hint are shown. */
+const MIN_LOAD_MONTHS = 2;
 
 /** The plain hint when a train runs mostly empty (average under 30 % for some cargo). */
 function loadHint(train: Train): HTMLElement | null {
