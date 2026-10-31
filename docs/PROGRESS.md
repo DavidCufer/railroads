@@ -7397,3 +7397,8 @@ Reported, not changed (owner decides):
 4. **Missing.** A step or row with nothing on the map reads "None on the map yet" and is disabled.
 5. e2e `phase75.spec.ts`; screenshots `phase-75-mint`, `phase-75-smelter` (scrolled to buyers), `phase-75-silver-mine`.
 - Deviation: the Port's long accepted list gives one source row per cargo (not capped).
+
+### Orchestrator: Phase 75 merged (2026-10-31)
+- Reviewed `phase-75-chains` (01bcf44): chain strip, Accepts + Nearest sources on sinks, Nearest buyers on producers.
+  No test changed except the new spec. `npm run check` 955 passed; e2e 149 + 148 passed. Mint, Smelter and Silver
+  Mine panel shots looked at. Merged to main.
