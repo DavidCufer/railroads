@@ -21,6 +21,7 @@ import {
   editConsist,
   replaceLocomotive,
   sellTrain,
+  cancelLayUp,
   layUpTrain,
   returnTrainToService,
   setOrderRule,
@@ -50,7 +51,7 @@ import { attendantsPerCoach, trainCrewSize } from "../data/economy";
 import { lineSummaries, trainsNeeded } from "../sim/finance/lines";
 import { addTrainHint } from "../sim/finance/lineHints";
 import { booksProfit, trainProfitPerYear, trainProfitStatus } from "../sim/trains/profit";
-import type { Train, TrainCar, TrainOrder } from "../sim/trains/types";
+import type { Train, TrainOrder } from "../sim/trains/types";
 import { infoTip } from "./components/infoTip";
 import { cardList, cardRow } from "./components/cardRow";
 import { emptyState } from "./components/emptyState";
@@ -58,7 +59,6 @@ import { footerButton } from "./components/footer";
 import { meter, pips } from "./components/meter";
 import { section } from "./components/section";
 import { statRow, statTile } from "./components/statTile";
-import { stackedBar } from "./components/charts";
 import { tabs } from "./components/tabs";
 import { cargoUsableOnMap } from "../sim/economy/longHaulPay";
 import { consistBuilder } from "./consistBuilder";
@@ -283,6 +283,17 @@ function statusLine(state: GameState, train: Train, loco: LocomotiveDef | undefi
   }
   const bridge = loco && train.status === "noRoute" ? bridgeFix(state, train, loco) : null;
   if (bridge) kids.push(bridge);
+  if (train.layUpQueued && !train.laidUp) {
+    const next = train.orders[train.currentOrderIndex];
+    const name = next && state.stations.find((x) => x.id === next.stationId)?.name;
+    kids.push(
+      h(
+        "span",
+        { className: "train-consist-pending", "data-testid": "train-layup-queued" },
+        name ? strings.trains.laysUpAt(name) : strings.trains.laysUpNext,
+      ),
+    );
+  }
   if (train.pendingConsist) {
     kids.push(
       h("span", { className: "train-consist-pending" }, strings.trains.consistChangeQueued),
@@ -301,21 +312,68 @@ function statusLine(state: GameState, train: Train, loco: LocomotiveDef | undefi
   );
 }
 
-/** "Coal 20 / 40 t" in the cargo colour; dimmed "Empty" when nothing is loaded. */
-function carLoadChip(car: TrainCar): HTMLElement {
-  const def = CARGO[car.cargoType];
-  const loaded = car.loadedUnits > 0;
-  const label = loaded
-    ? `${def.name} ${Math.round(car.loadedUnits)} / ${carCapacity(car)}${def.unit ? ` ${def.unit}` : ""}`
-    : `${strings.trains.empty} (${def.name})`;
-  return h(
-    "span",
-    {
-      className: `chip${loaded ? "" : " chip-dim"}`,
-      style: { background: def.color, color: chipTextColor(def.color) },
-    },
-    label,
-  );
+/** Average of a cargo's monthly load history, with this month's running figure folded in; undefined with no data. */
+function averageCargoLoad(train: Train, cargo: string): number | undefined {
+  const hist = train.loadHistory?.[cargo] ?? [];
+  if (hist.length < MIN_LOAD_MONTHS) return undefined; // too little history to judge
+  const cur = train.loadMonth?.[cargo];
+  const all = [...hist, ...(cur && cur[1] > 0 ? [cur[0] / cur[1]] : [])];
+  return all.reduce((a, b) => a + b, 0) / all.length;
+}
+
+/** Phase 74: one row per cargo type (not per car): what it carries now, its average load over the last months as a
+ * bar, and a small column per month. */
+function cargoLoadRows(train: Train): HTMLElement[] {
+  const p = strings.trains.panel;
+  if (train.cars.length === 0) return [h("div", { className: "train-stat-note" }, p.noCars)];
+  const order: CargoType[] = [];
+  for (const c of train.cars) if (!order.includes(c.cargoType)) order.push(c.cargoType);
+  return order.map((cargo) => {
+    const def = CARGO[cargo];
+    const cars = train.cars.filter((c) => c.cargoType === cargo);
+    const cap = Math.round(cars.reduce((n, c) => n + carCapacity(c), 0));
+    const now = Math.round(cars.reduce((n, c) => n + c.loadedUnits, 0));
+    const avg = averageCargoLoad(train, cargo);
+    const hist = train.loadHistory?.[cargo] ?? [];
+    return h(
+      "div",
+      { className: "cargo-load-row", "data-testid": "cargo-load-row", "data-cargo": cargo },
+      h(
+        "span",
+        {
+          className: "chip",
+          style: { background: def.color, color: chipTextColor(def.color) },
+        },
+        p.cargoNow(def.name, now, cap, def.unit),
+      ),
+      avg === undefined
+        ? h("span", { className: "train-stat-note" }, p.noLoadYet)
+        : meter(avg, 1, avg < LOW_LOAD ? "signal" : "brass", p.averageLoad(Math.round(avg * 100))),
+      hist.length > 0
+        ? h(
+            "span",
+            { className: "load-spark", "aria-hidden": "true" },
+            ...hist.map((v) =>
+              h("i", { style: { height: `${Math.max(8, Math.round(v * 100))}%` } }),
+            ),
+          )
+        : null,
+    );
+  });
+}
+
+const LOW_LOAD = 0.3;
+/** Completed months of load history needed before the average and the hint are shown. */
+const MIN_LOAD_MONTHS = 2;
+
+/** The plain hint when a train runs mostly empty (average under 30 % for some cargo). */
+function loadHint(train: Train): HTMLElement | null {
+  for (const c of train.cars) {
+    const avg = averageCargoLoad(train, c.cargoType);
+    if (avg !== undefined && avg < LOW_LOAD)
+      return h("div", { className: "train-stat-note load-hint" }, strings.trains.panel.lowLoadHint);
+  }
+  return null;
 }
 
 function heroStrip(state: GameState, train: Train): HTMLElement {
@@ -367,7 +425,12 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
     const heroHost = h("div", { className: "train-live" });
     // Phase 66: icon-only (the panel's word count stays); the words are its label and tooltip.
     const layUpButton = (t: Train): HTMLElement => {
-      const label = t.laidUp ? strings.trains.backInService : strings.trains.layUp;
+      const queued = !!t.layUpQueued && !t.laidUp;
+      const label = t.laidUp
+        ? strings.trains.backInService
+        : queued
+          ? strings.trains.cancelLayUp
+          : strings.trains.layUp;
       return h(
         "button",
         {
@@ -378,7 +441,9 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
           onClick: () => {
             const result = t.laidUp
               ? returnTrainToService(state, trainId)
-              : layUpTrain(state, trainId);
+              : queued
+                ? cancelLayUp(state, trainId)
+                : layUpTrain(state, trainId);
             if (!result.ok) {
               showToast(container, strings.build.reasons[result.reason], "warn");
               return;
@@ -386,7 +451,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
             fillLive();
           },
         },
-        icon(t.laidUp ? "arrowRight" : "pause", "icon-sm"),
+        icon(t.laidUp ? "arrowRight" : queued ? "close" : "pause", "icon-sm"),
       );
     };
     const fillLive = (): void => {
@@ -544,12 +609,6 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
         : 0;
       const wages = l ? trainWagesPerYear(l, t.cars, year) : 0;
       const competition = l ? trainCompetition(l, t, state.stations, state.map.width, year) : 0;
-      const capacity = t.cars.reduce((sum, c) => sum + carCapacity(c), 0);
-      const loaded = t.cars.reduce((sum, c) => sum + c.loadedUnits, 0);
-      const byCargo = new Map<CargoType, number>();
-      for (const c of t.cars) {
-        byCargo.set(c.cargoType, (byCargo.get(c.cargoType) ?? 0) + carCapacity(c));
-      }
       return h(
         "div",
         { className: "train-stats" },
@@ -648,24 +707,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
             p.breakdownChance((monthly * 100).toFixed(1)),
           ),
         ),
-        section(p.load, [
-          h("div", { className: "chip-row" }, ...t.cars.map((c) => carLoadChip(c))),
-        ]),
-        section(p.capacity, [
-          stackedBar(
-            [...byCargo].map(([cargo, cap]) => ({
-              key: cargo,
-              value: cap,
-              color: CARGO[cargo].color,
-              label: CARGO[cargo].name,
-              display: String(cap),
-            })),
-            p.noCars,
-          ),
-          capacity > 0
-            ? meter(loaded, capacity, "brass", p.loadedOf(Math.round(loaded), capacity))
-            : null,
-        ]),
+        section(p.load, [...cargoLoadRows(t), loadHint(t)]),
       );
     }
 

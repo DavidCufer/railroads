@@ -3,6 +3,7 @@
  * src/sim/tick.ts at month/year boundaries, and from src/sim/commands.ts and
  * src/sim/trains/loading.ts for individual revenue/expense events.
  */
+import { rollCargoLoadMonth } from "../trains/profit";
 import {
   DIFFICULTY,
   LOCO_DEPRECIATION_MIN_FRACTION,
@@ -127,6 +128,7 @@ export function monthlyFinanceStep(state: GameState): void {
     // Phase 66: the share of the month laid up pays no crew and only the stored engine's care.
     const idle = Math.min(1, (train.laidUpTicks ?? 0) / MONTH_TICKS);
     delete train.laidUpTicks;
+    rollCargoLoadMonth(train); // Phase 74: the Stats panel's load history
     const running =
       ((locoRunningCostPerYear(loco, ageYears, year) + carsUpkeepPerYear(train.cars, year)) / 12) *
         (1 - idle * (1 - LAID_UP_SERVICING_SHARE)) +

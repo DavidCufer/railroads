@@ -37,7 +37,10 @@ export function creditWarning(state: GameState): CreditWarning | undefined {
   const ticksLeft = STARTUP_END_TICKS - state.ticks;
   const monthsLeft = Math.ceil(ticksLeft / (DAYS_PER_MONTH * HOURS_PER_DAY));
   if (monthsLeft > CREDIT_STARTUP_WARNING_MONTHS) return undefined;
-  return { kind: "startupEnding", monthsLeft, limit: earnedCreditLimit(state, worth) };
+  // Only worth saying when the player will feel it: the limit falls from what it is now.
+  const limit = earnedCreditLimit(state, worth);
+  if (limit >= creditLimitFor(state, worth)) return undefined;
+  return { kind: "startupEnding", monthsLeft, limit };
 }
 
 /** Posts the news for `creditWarning`: the start-up notice once, over-limit once per `CREDIT_OVER_LIMIT_NEWS_GAP_DAYS`. */

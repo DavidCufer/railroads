@@ -2968,4 +2968,4 @@ to main. Never rebase over merge commits, never force-push. Never loosen a test 
    (upkeep, running costs, wages, maintenance, income per station/train where shown per month); keep counts of
    passengers and cargo per month. One formatting helper; audit every "/mo" money label; strings stay short.
 7. If any changed screen is in `docs/store/screenshots/`, retake those shots. PROGRESS; tick ONLY Phase 74.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6 [x] 7

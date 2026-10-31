@@ -49,7 +49,9 @@ export const strings = {
   },
   city: {
     /** Phase 35C: under the town's passenger figure (its total travel demand): the part trains reach. */
-    connected: (n: string, pct: string) => `Connected: ${n} / month (${pct} %)`,
+    connectedTitle: "Reached by train",
+    connectedCount: (n: string, pct: number) => `${n}/mo · ${pct} %`,
+    notReached: "Not reached yet",
     tierNames: {
       village: "Village",
       town: "Town",
@@ -208,9 +210,9 @@ export const strings = {
     catchment: "Catchment",
     maxTrainLength: "Max cars",
     storagePerCargo: "Storage",
-    monthlyMaintenance: "Upkeep / month",
+    yearlyMaintenance: "Upkeep / year",
     upkeepBreakdown: (building: string, staff: number, wages: string) =>
-      `${building} building + ${staff} staff (${wages} wages) a month`,
+      `${building} building + ${staff} staff (${wages} wages) a year`,
     perMonth: "/mo",
     /** PLAN Phase 16: city/station Supplies chips spell out "/ month" plus the cargo's unit word
      * (if any) instead of a bare number, so "42" reads as "42 / month" and "13" as "13 bags /
@@ -361,6 +363,9 @@ export const strings = {
     /** Phase 53C: the loading status while the train reverses at the end of its run. */
     turningName: "Turning",
     layUp: "Lay up",
+    cancelLayUp: "Cancel lay-up",
+    laysUpAt: (station: string) => `Lays up at ${station}`,
+    laysUpNext: "Lays up at its next stop",
     backInService: "Back in service",
     returning: (days: number) => `Back in service in ${days} ${days === 1 ? "day" : "days"}`,
     statusNames: {
@@ -553,6 +558,11 @@ export const strings = {
       load: "Load",
       noCars: "No cars",
       loadedOf: (loaded: number, cap: number) => `${loaded} / ${cap} loaded`,
+      cargoNow: (name: string, now: number, cap: number, unit: string) =>
+        `${name} ${now} / ${cap}${unit ? ` ${unit}` : ""}`,
+      averageLoad: (pct: number) => `${pct} % full on average`,
+      noLoadYet: "Average after 2 months",
+      lowLoadHint: "Often under 30 % full: fewer cars may pay better",
       breakdownChance: (pct: string) => `${pct}% / month breakdown risk`,
       age: "Age",
       ageYears: (n: number) => (n < 1 ? "< 1 yr" : `${n} yr`),
@@ -651,8 +661,8 @@ export const strings = {
     borrowTip: "Borrow $100k; the monthly payment is repayment plus interest",
     repayTip: "Repay $100k",
     creditNote: "Loans come in $100k steps",
-    borrowTerms: (step: string, rate: string, years: number, monthly: string) =>
-      `Borrow ${step}: ${rate} a year, ${years} years, ${monthly} a month`,
+    borrowTerms: (step: string, rate: string, years: number, yearly: string) =>
+      `Borrow ${step}: ${rate} a year, ${years} years, ${yearly}/yr`,
     netWorth: "Net worth",
     thisYear: "This year",
     lastYear: "Last year",
@@ -694,7 +704,7 @@ export const strings = {
     rollingStock: "Rolling stock",
     netProfit: "Net profit",
     operatingProfit: "Operating profit",
-    perMonth: "/ month",
+    perYear: "/ year",
     operatingIncome: "Income",
     operatingCosts: "Running costs",
     avg12: (months: number) => (months >= 12 ? "12-month average" : `${months}-month average`),
@@ -893,7 +903,7 @@ export const strings = {
       insolvent: (months: number) =>
         `Insolvent: ${months} month${months === 1 ? "" : "s"} to recover`,
       startupCreditEnding: (months: number, limit: string) =>
-        `Start-up credit ends in ${months} month${months === 1 ? "" : "s"}: limit ~${limit}`,
+        `Bank start-up credit ends in ${months} month${months === 1 ? "" : "s"}: you can then borrow up to ~${limit}`,
       overLimit: (debt: string, limit: string) =>
         `Debt ${debt}, limit ${limit}: lenders call 25 %/month`,
       addTrain: (trainName: string, waiting: number) =>

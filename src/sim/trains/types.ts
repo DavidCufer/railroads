@@ -219,6 +219,9 @@ export interface Train {
   /** Phase 66: laid up at a station (status `laidUp`): holds no platform or block, pays no crew and only
    * `LAID_UP_SERVICING_SHARE` of its servicing. Absent = in service. */
   laidUp?: boolean;
+  /** Phase 74: "lay up at the next station" was ordered while the train was running; it lays up when it next stands
+   * loading at a station. Cancelled by `cancelLayUp`. */
+  layUpQueued?: boolean;
   /** Phase 66: ticks left to fire up and recrew after "Back in service"; crew is paid meanwhile. */
   returnTicksLeft?: number;
   /** Phase 66: ticks laid up (not returning) since the month began; the monthly step prorates wages and servicing. */
@@ -255,6 +258,11 @@ export interface Train {
   /** Phase 43: how full the train has been over its last ~`LOAD_SHARE_WINDOW_TILES` tiles run (0..1, an exponential
    * average of loaded units over capacity, weighted by distance). Absent until it first moves with cars. */
   loadShare?: number;
+  /** Phase 74: this month's load per cargo: `[fill × tiles, tiles]` summed over the tiles run; the monthly step folds
+   * it into `loadHistory` and resets it. Absent in older saves. */
+  loadMonth?: Partial<Record<string, [number, number]>>;
+  /** Phase 74: average load (0..1) per cargo over the last `LOAD_HISTORY_MONTHS` months, oldest first. */
+  loadHistory?: Partial<Record<string, number[]>>;
   /** Per-train revenue and running costs (PLAN Phase 24A). */
   profit: TrainProfit;
   /** Cached fractional (tile-space) position at the start and end of the most recent tick, for the

@@ -77,7 +77,7 @@ test.describe("Phase 24A", () => {
     await page.waitForTimeout(300);
     await expect(page.locator(".panel-title")).toHaveText("Finance");
     await expect(page.locator(".operating-headline")).toBeVisible();
-    await expect(page.locator(".operating-value")).toContainText("/ month");
+    await expect(page.locator(".operating-value")).toContainText("/ year");
     await shot(page, "finance-overview");
 
     // Train panel → Stats: profit headline, last year, lifetime, paid-back meter.

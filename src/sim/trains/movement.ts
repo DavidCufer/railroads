@@ -46,8 +46,9 @@ import {
   type LocomotiveDef,
 } from "../../data/trains";
 import { STATION_TYPE_DEFS } from "../../data/stations";
-import { recordTrainLoad, trainLoad } from "./profit";
+import { recordCargoLoad, recordTrainLoad, trainLoad } from "./profit";
 import { pushNews } from "../news";
+import { applyLayUp } from "./layup";
 import type { GameState } from "../state";
 import type { Station } from "../stations/types";
 import { directionSteps } from "../track/graph";
@@ -1147,12 +1148,14 @@ export function stepTrain(state: GameState, train: Train, runtime: TrainRuntime)
       train.wearUnits = (train.wearUnits ?? 0) + moved * perTile;
       train.fuelUnits = (train.fuelUnits ?? 0) + moved * fuelUnitsPerTile(loco, train.cars);
       train.repairUnits = (train.repairUnits ?? 0) + moved * repairUnitsPerTile(loco);
-      if (train.cars.length > 0)
+      if (train.cars.length > 0) {
         recordTrainLoad(
           train,
           trainLoad(train, (c) => carCapacity(c)),
           moved,
         );
+        recordCargoLoad(train, (c) => carCapacity(c), moved);
+      }
       // Phase 30A: the edge under the head wears too (track condition, src/sim/track/condition.ts).
       const a = train.route[train.routeIndex];
       const b = train.route[train.routeIndex + 1];
@@ -1166,6 +1169,8 @@ function stepTrainInner(state: GameState, train: Train, runtime: TrainRuntime): 
   train.renderFromX = train.renderToX;
   train.renderFromY = train.renderToY;
   train.waitTicks++;
+
+  if (train.layUpQueued && !train.laidUp) applyLayUp(state, train); // Phase 74: queued lay-up, at the next stop
 
   if (train.laidUp) {
     // Phase 66: stored in the station's sidings: nothing moves, nothing is held; after "Back in service" it fires up
