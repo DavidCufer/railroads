@@ -54,6 +54,7 @@ import {
   type PathStep,
 } from "./track/cost";
 import type { TrackEdge } from "./track/types";
+import { applyLayUp } from "./trains/layup";
 import { canPlaceStationAt, stationAtTile, stationCatchmentTiles } from "./stations/placement";
 import { bridgeKind, type Washout } from "./track/washout";
 import { landPrices, passingLoopLandCost, stationLandCost } from "./economy/land";
@@ -1606,31 +1607,25 @@ export function abandonContract(state: GameState, contractId: number): CommandRe
   return reason ? { ok: false, reason } : { ok: true, cost: 0 };
 }
 
-/** Phase 66: lays `trainId` up in the sidings of the station it stands at (any station: every station has a yard, and
- * real railways stored engines in yards and roundhouses, not only at big sheds). It must be standing at a stop, not
- * running, queued, broken down or mid-stop with a pending consist. A laid-up train holds no platform or block, pays
+/** Phase 66/74: lays `trainId` up in the sidings of the station it stands at (any station: every station has a yard).
+ * A train standing at a stop is laid up at once; a running one (or one queued, broken down or mid-stop) is queued and
+ * lays up at its next station (`layUpQueued`, see `stepTrainInner`). A laid-up train holds no platform or block, pays
  * no crew and `LAID_UP_SERVICING_SHARE` of its servicing, still ages and still counts in net worth. */
 export function layUpTrain(state: GameState, trainId: number): CommandResult {
   const train = state.trains.find((t) => t.id === trainId);
   if (!train) return { ok: false, reason: "invalid-train" };
   if (train.laidUp) return { ok: false, reason: "invalid-train" };
-  const tile = train.route[train.routeIndex];
-  const atStation = tile !== undefined && !!stationAtTile(state.stations, tile);
-  if (
-    !atStation ||
-    train.status !== "loading" ||
-    train.edgeProgress !== 0 ||
-    train.sectionTargetStationId !== undefined ||
-    train.inYardOf !== undefined ||
-    train.breakdownTicksLeft > 0
-  )
-    return { ok: false, reason: "not-at-station" };
-  train.laidUp = true;
-  delete train.returnTicksLeft;
-  train.heldBlocks = [];
-  train.speed = 0;
-  train.status = "laidUp";
-  train.waitTicks = 0;
+  if (train.layUpQueued) return { ok: true, cost: 0 };
+  if (applyLayUp(state, train)) return { ok: true, cost: 0 };
+  train.layUpQueued = true;
+  return { ok: true, cost: 0 };
+}
+
+/** Phase 74: cancels a queued "lay up at the next station". */
+export function cancelLayUp(state: GameState, trainId: number): CommandResult {
+  const train = state.trains.find((t) => t.id === trainId);
+  if (!train) return { ok: false, reason: "invalid-train" };
+  delete train.layUpQueued;
   return { ok: true, cost: 0 };
 }
 

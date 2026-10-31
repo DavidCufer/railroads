@@ -44,7 +44,14 @@ export function openScenarioEnd(
         ? h(
             "div",
             { className: "scenario-end-stars", "data-testid": "scenario-end-stars" },
-            t.stars(run.stars),
+            // Each star is its own span, so an unearned one is a plain outline (CSS), not the font's ☆ glyph.
+            ...Array.from({ length: 3 }, (_, i) =>
+              h(
+                "span",
+                { className: i < run.stars ? "star-on" : "star-off" },
+                i < run.stars ? "★" : "☆",
+              ),
+            ),
             handlers.newBest ? h("span", { className: "scenario-new-best" }, t.newBest) : null,
           )
         : h("p", null, run.reason ? t.reasons[run.reason] : ""),

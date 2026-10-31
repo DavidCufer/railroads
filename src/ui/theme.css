@@ -2278,14 +2278,19 @@ button.chip {
 .tabs {
   display: flex;
   flex: 0 0 auto;
-  height: 36px;
+  height: 44px; /* Phase 74: tall enough for the tab + its underline, so nothing paints below the bar */
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
   padding: 0 var(--gap-2);
   border-bottom: 1px solid var(--line);
-  background: var(--ink-800);
+  background: var(--ink-800); /* opaque */
 }
 .tab {
   flex: 1;
-  min-height: 44px;
+  min-height: 0;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2295,7 +2300,6 @@ button.chip {
   color: var(--muted);
   font: 600 var(--fs-xs) var(--font-ui);
   border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
 }
 .tab.active {
   color: var(--text);
@@ -5583,4 +5587,54 @@ select {
 .scenario-star-tick {
   color: var(--go);
   font-weight: 700;
+}
+
+/* Phase 74: train Stats, one load row per cargo. */
+.cargo-load-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--gap-2);
+}
+.cargo-load-row .chip {
+  white-space: nowrap;
+}
+.load-spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 20px;
+}
+.load-spark i {
+  display: block;
+  width: 5px;
+  background: var(--brass);
+  border-radius: 1px;
+}
+/* Phase 74: city panel "Reached by train" card (same look as the destinations sheet rows). */
+.city-connected {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: var(--radius-s);
+  background: var(--ink-700);
+  border: 1px solid var(--ink-600);
+}
+.city-connected .dest-unconnected {
+  margin-top: 2px;
+  padding: 6px 0 0;
+  border: none;
+  border-top: 1px dashed var(--ink-600);
+  border-radius: 0;
+}
+/* Phase 74: the missing star on the scenario card is a plain outline (the ☆ glyph of the display font has a small star inside). */
+.scenario-end-stars .star-off {
+  font-size: 0;
+}
+.scenario-end-stars .star-off::before {
+  content: "★";
+  font-size: 28px;
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--brass);
 }

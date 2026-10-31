@@ -13,6 +13,11 @@ export function formatMoney(n: number): string {
   return `${sign}$${Math.round(abs)}`;
 }
 
+/** Phase 74: money is shown per year everywhere; this turns a monthly figure into the yearly one ("$1.6k"). */
+export function formatYearly(monthly: number): string {
+  return formatMoney(monthly * 12);
+}
+
 /** "+$12k" / "−$3k" — always signed, for profit figures. */
 export function formatSigned(n: number): string {
   return `${n < 0 ? "−" : "+"}${formatMoney(Math.abs(n))}`;

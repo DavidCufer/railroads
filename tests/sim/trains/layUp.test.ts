@@ -3,6 +3,8 @@ import {
   buildStation,
   buildTrack,
   buyTrain,
+  cancelLayUp,
+  setOrders,
   layUpTrain,
   returnTrainToService,
 } from "../../../src/sim/commands";
@@ -33,13 +35,11 @@ function runTicks(state: ReturnType<typeof world>["state"], n: number): void {
 }
 
 describe("laying a train up (Phase 66)", () => {
-  it("rejects a train that is not standing at a station or already laid up", () => {
+  it("rejects an unknown or already laid-up train", () => {
     const { state, train } = world();
     expect(layUpTrain(state, 999)).toEqual({ ok: false, reason: "invalid-train" });
-    train.status = "moving";
-    expect(layUpTrain(state, train.id)).toEqual({ ok: false, reason: "not-at-station" });
-    train.status = "loading";
     expect(layUpTrain(state, train.id).ok).toBe(true);
+    expect(train.laidUp).toBe(true);
     expect(layUpTrain(state, train.id).ok).toBe(false);
     expect(returnTrainToService(state, 999).ok).toBe(false);
   });
@@ -75,5 +75,38 @@ describe("laying a train up (Phase 66)", () => {
     expect(train.laidUp).toBeUndefined();
     expect(train.status).not.toBe("laidUp");
     expect(train.laidUpTicks ?? 0).toBe(0);
+  });
+
+  it("queues a lay-up for a running train, lays it up at the next station, and can be cancelled (Phase 74)", () => {
+    const map = makeTestMap(["ppppp"]);
+    const state = makeTestState(map);
+    buildTrack(
+      state,
+      [0, 1, 2, 3, 4].map((x) => tileAt(map, x, 0)),
+    );
+    buildStation(state, tileAt(map, 0, 0), "depot");
+    buildStation(state, tileAt(map, 4, 0), "depot");
+    const bought = buyTrain(state, state.stations[0]!.id, "grasshopper-0-4-0", []);
+    if (!bought.ok) throw new Error(bought.reason);
+    const train = state.trains[0]!;
+    setOrders(
+      state,
+      train.id,
+      state.stations.map((st) => ({ stationId: st.id, rule: "auto" as const })),
+    );
+    // Run until the train has left its first stop and is on the line.
+    for (let i = 0; i < 24 * 60 && train.status !== "moving"; i++) runTicks(state, 1);
+    expect(train.status).toBe("moving");
+    expect(layUpTrain(state, train.id).ok).toBe(true);
+    expect(train.laidUp).toBeUndefined();
+    expect(train.layUpQueued).toBe(true);
+    expect(cancelLayUp(state, train.id).ok).toBe(true);
+    expect(train.layUpQueued).toBeUndefined();
+    runTicks(state, 1);
+    expect(layUpTrain(state, train.id).ok).toBe(true);
+    for (let i = 0; i < 24 * 120 && !train.laidUp; i++) runTicks(state, 1);
+    expect(train.laidUp).toBe(true);
+    expect(train.layUpQueued).toBeUndefined();
+    expect(train.status).toBe("laidUp");
   });
 });

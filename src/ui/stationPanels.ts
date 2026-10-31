@@ -59,7 +59,7 @@ import type { Tone } from "./components/tone";
 import { closePanel, openPanel } from "./panel";
 import { openDestinationsSheet } from "./passengerDestinations";
 import { strings } from "./strings";
-import { formatMoney } from "./format";
+import { formatMoney, formatYearly } from "./format";
 import { showToast } from "./toast";
 
 const STATION_TYPE_KEY = "railroads.lastStationType";
@@ -586,7 +586,7 @@ const TYPE_ICONS: Record<StationType, IconName> = {
 };
 
 /** The station type's numbers as stat tiles (STYLE §8.2): catchment, max train length, storage per
- * cargo, upkeep per month (building + staff wages). */
+ * cargo, upkeep per year (building + staff wages). */
 function statsGrid(type: StationType, year: number): Node {
   const def = STATION_TYPE_DEFS[type];
   const side = def.catchmentRadius * 2 + 1;
@@ -605,12 +605,12 @@ function statsGrid(type: StationType, year: number): Node {
     }),
     statTile({
       icon: "coin",
-      value: formatMoney(upkeep.total),
-      caption: strings.station.monthlyMaintenance,
+      value: formatYearly(upkeep.total),
+      caption: strings.station.yearlyMaintenance,
       title: strings.station.upkeepBreakdown(
-        formatMoney(upkeep.upkeep),
+        formatYearly(upkeep.upkeep),
         STATION_STAFF[type],
-        formatMoney(upkeep.staff),
+        formatYearly(upkeep.staff),
       ),
     }),
   );

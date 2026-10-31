@@ -175,11 +175,21 @@ export function openCityPanel(
     // draw from; "connected" is the part of it the stations here reach by train (Phase 35C).
     const demand = cityTravelDemand(city, currentYear);
     let connectedPassengers = 0;
+    const missed = new Map<number, number>(); // town -> travellers a month it would send here, not yet reached
+    const reached = new Set<number>();
     for (const station of state.stations) {
       const eco = state.stationEconomy.get(station.id);
       if (eco?.passengerTownId !== cityId) continue;
-      for (const r of eco.passengerRoutes ?? []) connectedPassengers += r.perMonth;
+      for (const r of eco.passengerRoutes ?? []) {
+        connectedPassengers += r.perMonth;
+        reached.add(r.cityId);
+      }
+      for (const u of eco.passengerUnconnected ?? [])
+        missed.set(u.cityId, Math.max(missed.get(u.cityId) ?? 0, u.perMonth));
     }
+    const unreached = [...missed]
+      .filter(([id]) => !reached.has(id))
+      .sort((a, b) => b[1] - a[1] || a[0] - b[0]);
     const accepts = cityAcceptance(city, currentYear);
     const acceptEntries = Object.entries(accepts) as Array<[CargoType, number]>;
     const growth = state.cityGrowth.get(cityId);
@@ -212,14 +222,7 @@ export function openCityPanel(
             ),
           ),
           demand > 0 && connectedPassengers > 0
-            ? h(
-                "p",
-                { className: "hint city-connected" },
-                strings.city.connected(
-                  String(Math.max(1, Math.round(connectedPassengers))),
-                  String(Math.round((connectedPassengers / demand) * 100)),
-                ),
-              )
+            ? cityConnectedCard(state, connectedPassengers, demand, unreached)
             : null,
         ],
         strings.station.perMonthNote,
@@ -457,4 +460,62 @@ export function openIndustryPanel(
     key: `industry:${industry.id}`,
     live: () => openIndustryPanel(container, industry, ctx),
   });
+}
+
+/** Phase 74: how much of the town's travel demand the trains here reach: a bar, the figures and the biggest towns not
+ * reached yet as chips (same look as "Where passengers go"). */
+function cityConnectedCard(
+  state: GameState,
+  connected: number,
+  demand: number,
+  unreached: ReadonlyArray<readonly [number, number]>,
+): HTMLElement {
+  const t = strings.city;
+  const pct = Math.min(100, Math.round((connected / demand) * 100));
+  const name = (id: number): string => state.cities.find((c) => c.id === id)?.name ?? "?";
+  const shown = unreached.slice(0, 3);
+  return h(
+    "div",
+    { className: "city-connected", "data-testid": "city-connected" },
+    h(
+      "div",
+      { className: "dest-row-head" },
+      h("span", { className: "dest-name" }, t.connectedTitle),
+      h(
+        "span",
+        { className: "dest-count" },
+        t.connectedCount(String(Math.max(1, Math.round(connected))), pct),
+      ),
+    ),
+    h(
+      "span",
+      { className: "dest-bar-track" },
+      h("span", { className: "dest-bar-fill", style: { width: `${pct}%` } }),
+    ),
+    shown.length > 0
+      ? h(
+          "div",
+          { className: "dest-unconnected" },
+          h("span", { className: "dest-unconnected-label" }, t.notReached),
+          h(
+            "div",
+            { className: "dest-chips" },
+            ...shown.map(([id, n]) =>
+              h(
+                "span",
+                { className: "dest-chip" },
+                strings.station.destinations.chip(String(Math.max(1, Math.round(n))), name(id)),
+              ),
+            ),
+            unreached.length > shown.length
+              ? h(
+                  "span",
+                  { className: "dest-chip" },
+                  strings.station.destinations.more(unreached.length - shown.length),
+                )
+              : null,
+          ),
+        )
+      : null,
+  );
 }

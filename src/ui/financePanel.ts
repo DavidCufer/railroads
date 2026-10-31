@@ -27,7 +27,7 @@ import { h } from "./h";
 import { icon } from "./icons";
 import { openPanel } from "./panel";
 import { strings } from "./strings";
-import { formatMoney } from "./format";
+import { formatMoney, formatYearly } from "./format";
 import { showToast } from "./toast";
 import { openYearlyReport } from "./yearlyReport";
 import { yearReportBadge } from "./yearReportBadge";
@@ -38,12 +38,13 @@ type YearView = "thisYear" | "lastYear";
 const CHART_W = 360;
 const CHART_H = 48;
 
-/** Headline "Operating profit +$12k / month" with an income-vs-costs bar pair (Phase 24A). */
+/** Headline "Operating profit +$12k / year" with an income-vs-costs bar pair (Phase 24A). */
 function operatingSection(state: GameState): HTMLElement {
   const f = strings.finance;
   const avg = operatingTrailing(state);
   const last = operatingLast30Days(state);
   const scale = Math.max(1, avg.income, avg.costs);
+  const yearly = (v: number): string => formatYearly(v);
   const sign = (v: number): string => `${v >= 0 ? "+" : "−"}${formatMoney(Math.abs(v))}`;
   const bar = (label: string, value: number, tone: "go" | "signal"): HTMLElement =>
     h(
@@ -54,10 +55,10 @@ function operatingSection(state: GameState): HTMLElement {
         { className: "op-bar-label", "aria-label": label },
         icon(tone === "go" ? "arrowUp" : "arrowDown", "icon-sm"),
       ),
-      meter(value, scale, tone, formatMoney(value)),
+      meter(value, scale, tone, yearly(value)),
     );
   const tip = infoTip(
-    `${f.avg12(avg.months)}. ${f.last30}: ${sign(last.profit)}. ${f.investments}: ${formatMoney(avg.investments)} ${f.perMonth} (${f.investmentsNote}).`,
+    `${f.avg12(avg.months)}. ${f.last30}: ${sign(last.profit)}. ${f.investments}: ${yearly(avg.investments)} ${f.perYear} (${f.investmentsNote}).`,
   );
   return h(
     "div",
@@ -66,7 +67,11 @@ function operatingSection(state: GameState): HTMLElement {
       "div",
       { className: `operating-headline ${avg.profit >= 0 ? "tone-go" : "tone-signal"}` },
       h("span", { className: "panel-section-title" }, f.operatingProfit),
-      h("b", { className: "operating-value" }, `${sign(avg.profit)} ${f.perMonth}`),
+      h(
+        "b",
+        { className: "operating-value" },
+        `${avg.profit >= 0 ? "+" : "−"}${yearly(Math.abs(avg.profit))} ${f.perYear}`,
+      ),
       tip.button,
     ),
     tip.host,
@@ -149,7 +154,7 @@ export function openFinancePanel(container: HTMLElement, state: GameState): void
             formatMoney(LOAN_INCREMENT),
             `${(rate * 100).toFixed(1)} %`,
             currentLoanTermMonths(state) / 12,
-            formatMoney(LOAN_INCREMENT / currentLoanTermMonths(state)),
+            formatYearly(LOAN_INCREMENT / currentLoanTermMonths(state)),
           ),
         ),
       );

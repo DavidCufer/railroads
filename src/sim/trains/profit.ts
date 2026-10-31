@@ -97,3 +97,42 @@ export function recordTrainLoad(train: Train, load: number, tiles: number): void
   const previous = train.loadShare ?? load;
   train.loadShare = previous + (load - previous) * Math.min(1, tiles / LOAD_SHARE_WINDOW_TILES);
 }
+
+/** Phase 74: months of per-cargo load kept for the train Stats panel. */
+export const LOAD_HISTORY_MONTHS = 6;
+
+/** Adds `tiles` run to this month's per-cargo load (each cargo's loaded units over its cars' capacity). */
+export function recordCargoLoad(
+  train: Train,
+  capacityOf: (c: TrainCar) => number,
+  tiles: number,
+): void {
+  if (tiles <= 0) return;
+  const cap: Record<string, number> = {};
+  const used: Record<string, number> = {};
+  for (const c of train.cars) {
+    cap[c.cargoType] = (cap[c.cargoType] ?? 0) + capacityOf(c);
+    used[c.cargoType] = (used[c.cargoType] ?? 0) + c.loadedUnits;
+  }
+  const month = (train.loadMonth ??= {});
+  for (const k of Object.keys(cap)) {
+    const fill = cap[k]! > 0 ? Math.min(1, used[k]! / cap[k]!) : 0;
+    const e = (month[k] ??= [0, 0]);
+    e[0] += fill * tiles;
+    e[1] += tiles;
+  }
+}
+
+/** Month end: folds this month's per-cargo load into the bounded history. A month with no running adds nothing. */
+export function rollCargoLoadMonth(train: Train): void {
+  const month = train.loadMonth;
+  delete train.loadMonth;
+  if (!month) return;
+  const history = (train.loadHistory ??= {});
+  for (const [k, e] of Object.entries(month)) {
+    if (!e || e[1] <= 0) continue;
+    const list = (history[k] ??= []);
+    list.push(e[0] / e[1]);
+    if (list.length > LOAD_HISTORY_MONTHS) list.splice(0, list.length - LOAD_HISTORY_MONTHS);
+  }
+}
