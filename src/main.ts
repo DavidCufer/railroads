@@ -629,6 +629,7 @@ function main(): void {
       if (industry) {
         openIndustryPanel(ui, industry, {
           industries: state.industries,
+          cities: state.cities,
           startYear: state.startYear,
           onCenter: (target) => {
             camera.x = (target.x + 0.5) * TILE_SIZE;

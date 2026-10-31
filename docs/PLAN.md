@@ -2990,4 +2990,4 @@ force-push. Never loosen a test bound. Look at every PNG.
    industry highlighted, each step tappable to the nearest one on the map. Same component, panel style, word limits.
 4. If none exists on the map (a chain from another era), say so in one short line instead of an empty list.
 5. e2e with screenshots of the Mint, Smelter and Silver Mine panels; PROGRESS; tick ONLY Phase 75.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5

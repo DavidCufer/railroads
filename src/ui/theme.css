@@ -580,7 +580,8 @@ input {
 .industry-recipe strong {
   color: var(--text);
 }
-button.industry-source {
+button.industry-source,
+button.industry-buyer {
   min-height: 44px;
   padding: 0 var(--gap-3);
   border: none;
@@ -593,11 +594,13 @@ button.industry-source {
   cursor: pointer;
   justify-content: flex-start;
 }
-button.industry-source:disabled {
+button.industry-source:disabled,
+button.industry-buyer:disabled {
   opacity: 0.55;
   cursor: default;
 }
-button.industry-source .label {
+button.industry-source .label,
+button.industry-buyer .label {
   flex: 1;
 }
 .chip.chip-lg {
@@ -5636,4 +5639,41 @@ select {
   display: inline-block;
   vertical-align: -3px;
   margin: 0 2px;
+}
+/* Phase 75: the long-haul chain line (Mine -> Processor -> Customer), current step highlighted. */
+.industry-chain {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-1);
+  padding: var(--gap-2);
+  background: var(--ink-750);
+  border-radius: var(--radius-m);
+}
+.chain-step {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--gap-1);
+  border: 1px solid transparent;
+  border-radius: var(--radius-s);
+  background: var(--ink-700);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.chain-step:disabled {
+  cursor: default;
+}
+.chain-step.chain-here {
+  border-color: var(--brass);
+  background: var(--ink-800, var(--ink-700));
+}
+.chain-name {
+  font-size: var(--fs-xs);
+  text-align: center;
+  line-height: 1.1;
 }

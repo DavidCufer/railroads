@@ -7389,3 +7389,11 @@ Reported, not changed (owner decides):
   reframed). No bound loosened (the removed `not-at-station` expectation follows the new queued lay-up). `npm run
   check` 955 passed; e2e 148 + 147 passed. Looked at the city card, queued lay-up, train stats with real history,
   station upkeep per year and Finance per year. Main's `phase-46-scenarios.png` (new order) kept.
+
+### Phase 75: industry chains you can follow (branch `phase-75-chains`)
+1. **Sinks.** Industries that only accept cargo (Mint, Nuclear Power Plant, Port) show "Accepts" (cargo chips) and "Nearest sources" (nearest producer per accepted cargo, tap to centre). `nearestSourceRows` now covers consumed and accepted cargo.
+2. **Buyers.** Every producer has "Nearest buyers": per produced cargo, the nearest industry that consumes/accepts it (era-checked) or a town whose tier demands it (`CITY_TIER_DEMAND_POINTS`). `IndustryPanelContext` gained optional `cities`; `onCenter` takes any `{x, y}`.
+3. **Chain line.** Silver and uranium chains: Mine > Processor > Customer as tappable icons, the current one highlighted (`chainLine`, `.industry-chain`). It replaces the recipe row on those panels (it showed the same thing).
+4. **Missing.** A step or row with nothing on the map reads "None on the map yet" and is disabled.
+5. e2e `phase75.spec.ts`; screenshots `phase-75-mint`, `phase-75-smelter` (scrolled to buyers), `phase-75-silver-mine`.
+- Deviation: the Port's long accepted list gives one source row per cargo (not capped).
