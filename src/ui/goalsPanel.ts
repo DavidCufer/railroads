@@ -77,7 +77,7 @@ function scenarioCard(state: GameState): HTMLElement | null {
   const money = def.goal.type === "survive";
   const fmt = (n: number): string =>
     money ? formatMoney(n) : Math.round(n).toLocaleString("en-US");
-  const label = run.status === "won" ? t.stars(run.stars) : run.status === "lost" ? t.lost : "";
+  const label = run.status === "won" ? t.won : run.status === "lost" ? t.lost : "";
   return h(
     "div",
     { className: "scenario-panel-card", "data-testid": "scenario-card" },

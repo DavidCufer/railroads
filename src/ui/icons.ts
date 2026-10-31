@@ -254,10 +254,11 @@ export function contrastRatio(a: string, b: string): number {
  * panel, and the icon must reach 3:1 against it (WCAG non-text contrast); a dark cargo (coal) is lightened until it does.
  * Map bubbles keep the cargo's own colour. */
 export function cargoIconColor(color: string): string {
+  const tile = mix(PANEL_BG, color, 0.25);
   let c = color;
-  for (let t = 0; t <= 1; t += 0.05) {
+  for (let t = 0; t <= 1.0001; t += 0.05) {
     c = mix(color, "#ffffff", t);
-    if (contrastRatio(c, mix(PANEL_BG, c, 0.25)) >= 3) return c;
+    if (contrastRatio(c, tile) >= 3) return c;
   }
   return c;
 }
@@ -271,8 +272,10 @@ export function cargoIcon(cargo: CargoType, className?: string): HTMLSpanElement
   const span = document.createElement("span");
   span.className = className ? `cargo-icon ${className}` : "cargo-icon";
   const color = cargoIconColor(def.color);
-  span.style.background = hexToRgba(color, 0.25);
+  span.style.background = hexToRgba(def.color, 0.25);
   span.style.color = color;
+  // `.recipe-cell` draws its own light tile, where the cargo's own (dark) colour is the readable one.
+  span.style.setProperty("--cargo-own", def.color);
   // A light rim keeps a dark cargo (coal) readable on the dark panel.
   span.style.boxShadow = `inset 0 0 0 1px ${hexToRgba(color, 0.45)}`;
   span.innerHTML = CARGO_ICONS[cargo];

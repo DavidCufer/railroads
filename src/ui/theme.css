@@ -4865,6 +4865,14 @@ select {
   height: 52px;
   padding-top: 0;
 }
+.sheet-destinations .sheet-heading {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+.sheet-destinations .sheet-title {
+  white-space: nowrap;
+}
 .sheet-destinations .sheet-body {
   overflow-y: auto;
 }
@@ -5492,6 +5500,8 @@ select {
 /* Dark cargo (coal) vanishes on the tinted tile; the recipe picture uses a pale tile for every cargo. */
 .recipe-cell .cargo-icon {
   background: #d9d0b8 !important;
+  color: var(--cargo-own) !important;
+  box-shadow: none !important;
 }
 
 .settings-about {

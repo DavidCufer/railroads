@@ -84,6 +84,7 @@ test.describe("Phase 46 - scenarios", () => {
     await page.locator(".goals-button").click();
     await expect(page.getByTestId("scenario-card")).toBeVisible();
     await expect(page.locator(".goal-card")).toHaveCount(0);
+    await page.waitForTimeout(500);
     await page.screenshot({ path: shot("scenario-goals-ladder") });
   });
 
