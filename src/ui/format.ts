@@ -15,7 +15,11 @@ export function formatMoney(n: number): string {
 
 /** Phase 74: money is shown per year everywhere; this turns a monthly figure into the yearly one ("$1.6k"). */
 export function formatYearly(monthly: number): string {
-  return formatMoney(monthly * 12);
+  const yearly = monthly * 12;
+  // Small yearly sums keep a decimal ("$3.3k"): a whole "$3k" would hide a tenth of the figure.
+  if (Math.abs(yearly) >= 1_000 && Math.abs(yearly) < 10_000)
+    return `${yearly < 0 ? "-" : ""}$${(Math.abs(yearly) / 1000).toFixed(1)}k`;
+  return formatMoney(yearly);
 }
 
 /** "+$12k" / "−$3k" — always signed, for profit figures. */

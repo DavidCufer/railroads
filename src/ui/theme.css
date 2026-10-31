@@ -5632,9 +5632,8 @@ select {
 .scenario-end-stars .star-off {
   font-size: 0;
 }
-.scenario-end-stars .star-off::before {
-  content: "★";
-  font-size: 28px;
-  color: transparent;
-  -webkit-text-stroke: 1.5px var(--brass);
+.scenario-end-stars .star-off svg {
+  display: inline-block;
+  vertical-align: -3px;
+  margin: 0 2px;
 }

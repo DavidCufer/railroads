@@ -7373,3 +7373,12 @@ Reported, not changed (owner decides):
   star inside; check it is intended (it was a plain outline before).
 - Reported to the owner: Panic of 1873 is out of order (hardest scenario listed third); Silver rush's scripted bot now
   goes bankrupt (1884).
+
+### Phase 74: owner play-test 9 (branch `phase-74-pt9`)
+1. **Start-up credit news.** Now "Bank start-up credit ends in N months: you can then borrow up to ~$X", and only sent when the earned limit is below the limit the player has now (and a loan is on the book, as before).
+2. **Tab bar.** `.tabs` is 44px (was 36px with 44px tabs, so the active underline spilled over the content), opaque, `overflow:hidden`, above the scrolled body. Used by Finance, train, station and Help panels (one component).
+3. **Lay up from anywhere.** `layUpTrain` lays up at once at a stop, otherwise queues (`Train.layUpQueued`); `stepTrainInner` lays it up at its next stop (`sim/trains/layup.ts`). `cancelLayUp` command. Panel: "Lays up at <station>" and the button becomes "Cancel lay-up". The `not-at-station` reason is now unused by this command. Unit tests in `layUp.test.ts`, e2e `phase74.spec.ts`.
+4. **Train Stats.** One load row per cargo (now / capacity rounded, average load bar, a column per month) and the hint "Often under 30 % full: fewer cars may pay better". Sim keeps `Train.loadMonth` / `loadHistory` (last 6 months per cargo, rolled in the monthly step).
+5. **City "Reached by train" card** (bar, `95/mo · 9 %`, chips "Not reached yet") in the style of Phase 73's destinations.
+6. **Money per year.** `formatYearly` (one decimal for $1k-$10k). Station upkeep, Finance operating profit / income / costs / investments, and the Borrow terms line are per year. Passengers and cargo stay per month; the station Results card keeps its explicit month/year period. e2e expectations for the changed labels updated (phase24a, phase35, phase41); the Finance word budget is still met.
+7. **Complete card star.** The missing star was the display font's "☆" (a star inside an outline). It is now an SVG outline polygon (text kept for tests). Store shot `phone-8-finance.png` retaken (it showed "/ month"); other store shots do not show changed text.

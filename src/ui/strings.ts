@@ -662,7 +662,7 @@ export const strings = {
     repayTip: "Repay $100k",
     creditNote: "Loans come in $100k steps",
     borrowTerms: (step: string, rate: string, years: number, yearly: string) =>
-      `Borrow ${step}: ${rate} a year, ${years} years, ${yearly} a year to repay`,
+      `Borrow ${step}: ${rate} a year, ${years} years, ${yearly}/yr`,
     netWorth: "Net worth",
     thisYear: "This year",
     lastYear: "Last year",

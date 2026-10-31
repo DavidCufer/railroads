@@ -45,13 +45,17 @@ export function openScenarioEnd(
             "div",
             { className: "scenario-end-stars", "data-testid": "scenario-end-stars" },
             // Each star is its own span, so an unearned one is a plain outline (CSS), not the font's ☆ glyph.
-            ...Array.from({ length: 3 }, (_, i) =>
-              h(
-                "span",
-                { className: i < run.stars ? "star-on" : "star-off" },
-                i < run.stars ? "★" : "☆",
-              ),
-            ),
+            ...Array.from({ length: 3 }, (_, i) => {
+              const on = i < run.stars;
+              const star = h("span", { className: on ? "star-on" : "star-off" }, on ? "★" : "☆");
+              // A plain outline (polygon, no inner star), not the font's ☆ glyph. The text stays for tests / readers.
+              if (!on)
+                star.insertAdjacentHTML(
+                  "afterbegin",
+                  '<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><polygon points="12,2 14.9,8.9 22.4,9.6 16.7,14.5 18.5,21.8 12,17.9 5.5,21.8 7.3,14.5 1.6,9.6 9.1,8.9" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
+                );
+              return star;
+            }),
             handlers.newBest ? h("span", { className: "scenario-new-best" }, t.newBest) : null,
           )
         : h("p", null, run.reason ? t.reasons[run.reason] : ""),
