@@ -54,6 +54,9 @@ export type GoalDefByName =
  * - `year index`: 16 for a gold goal (a company that has had the strong player's sixteen years to mature, years 5 or 10 for
  *   an earlier tier), the year of the median being start + index - 1.
  * - the inflation factor restates the bench's money in the goal year's money (`priceIndex`, SPEC §9.5).
+ * Phase 73: the era row is the REGION'S start year (gb 1830, central-eu 1840, us-west 1860), never the goal's own year: Central
+ * Europe's gold was "profit $170k by 1930", the cautious 1930 bot's number, in a game that starts in 1840, and the owner
+ * reached it in 1851. A gold goal now asks the strong player's year-14 level, with a deadline about twice that.
  * Rounded down to two significant figures. Operating profit is the Finance overview's: revenue minus running costs
  * (`ledgerOperatingProfit`), no construction.
  */
@@ -129,7 +132,11 @@ export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
     { tier: "silver", def: { type: "delivered", cargo: "coal", amount: 1000, withinYear: 1850 } },
     {
       tier: "gold",
-      def: { type: "annualProfit", amount: strongPlayerAmount("profit", 12, 1870), byYear: 1870 },
+      def: {
+        type: "annualProfit",
+        amount: strongPlayerAmount("profit", 14, 1865, 1830),
+        byYear: 1865,
+      },
     },
   ],
   "central-eu": [
@@ -137,7 +144,11 @@ export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
     { tier: "silver", def: { type: "electrifiedTiles", amount: 60 * WORLD_SCALE, byYear: 1930 } },
     {
       tier: "gold",
-      def: { type: "annualProfit", amount: strongPlayerAmount("profit", 16, 1930), byYear: 1930 },
+      def: {
+        type: "annualProfit",
+        amount: strongPlayerAmount("profit", 14, 1875, 1840),
+        byYear: 1875,
+      },
     },
   ],
   "us-west": [
@@ -147,7 +158,11 @@ export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
     },
     {
       tier: "silver",
-      def: { type: "annualRevenue", amount: strongPlayerAmount("revenue", 5, 1920), byYear: 1920 },
+      def: {
+        type: "annualRevenue",
+        amount: strongPlayerAmount("revenue", 5, 1880, 1860),
+        byYear: 1880,
+      },
     },
     {
       tier: "gold",

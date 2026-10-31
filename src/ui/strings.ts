@@ -109,6 +109,7 @@ export const strings = {
       junctionOnBend: "Can't join on a bend",
       tooManyBranches: "One branch per side only",
       junctionsTooClose: "Junction too close to another",
+      stationBend: "Too sharp to join a station",
     },
     reasons: {
       "no-path": "Drag to draw a path first",
@@ -119,6 +120,7 @@ export const strings = {
       junctionOnBend: "Can't join on a bend — branch off a straight stretch of the line",
       tooManyBranches: "Only one branch per side at a junction — join further along",
       junctionsTooClose: "Junctions need 2 tiles between them — join further along the line",
+      stationBend: "Too sharp — trains can't run through a station at more than 45° to the line",
       "cant-afford": "Not enough cash",
       "no-track-to-upgrade": "No single track to upgrade there",
       "overhaul-not-needed": "This locomotive is too young to need an overhaul",

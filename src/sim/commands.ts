@@ -90,6 +90,7 @@ export type CommandReasonCode =
   | "junctionOnBend"
   | "tooManyBranches"
   | "junctionsTooClose"
+  | "stationBend"
   | "cant-afford"
   | "no-track-to-upgrade"
   | "no-track-to-relay"

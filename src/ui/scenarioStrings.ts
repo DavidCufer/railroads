@@ -66,7 +66,11 @@ export function scenarioStarLadderEl(def: ScenarioDef, earned: number): HTMLElem
       { className: `scenario-star-line${l.stars <= earned ? " earned" : ""}` },
       h("span", { className: "scenario-star-mark" }, "★".repeat(l.stars)),
       h("span", { className: "scenario-star-text" }, l.text),
-      h("span", { className: "scenario-star-tick", "aria-hidden": "true" }, l.stars <= earned ? "✓" : ""),
+      h(
+        "span",
+        { className: "scenario-star-tick", "aria-hidden": "true" },
+        l.stars <= earned ? "✓" : "",
+      ),
     ),
   );
   return h("ul", { className: "scenario-star-ladder", "data-testid": "scenario-ladder" }, ...lines);
