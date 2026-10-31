@@ -325,13 +325,23 @@ function main(): void {
    * handler" — a brand-new random/region map (`regenerate`) and a loaded save (`loadGame`) both
    * need every one of these resets, so a save/load bug can't silently diverge from a New Game one. */
   let gameOverEl: HTMLElement | null = null;
+  /** Speed the player had when a dialog paused the game (Phase 73): closing the dialog resumes it. */
+  let speedBeforeDialog: GameSpeed = 1;
+  function pauseForDialog(): void {
+    const s = loop.getSpeed();
+    if (s !== 0) speedBeforeDialog = s;
+    loop.setSpeed(0);
+  }
+  function resumeAfterDialog(): void {
+    if (loop.getSpeed() === 0) loop.setSpeed(speedBeforeDialog);
+  }
 
   /** Bankruptcy (Phase 39): stop the clock and show the game-over card once per game. */
   function showGameOverOnce(): void {
     if (gameOverEl || !state.finance.bankrupt) return;
     // A scenario that is still running or already lost shows its own card (within a day of the bankruptcy).
     if (state.scenario && state.scenario.status !== "won") return;
-    loop.setSpeed(0);
+    pauseForDialog();
     gameOverEl = openGameOver(ui, state, {
       onHistory: () => openHistoryScreen(ui, state),
       onLoadLast: () => {
@@ -375,7 +385,7 @@ function main(): void {
     const run = state.scenario;
     if (scenarioEndShown || !run || run.status === "active") return;
     scenarioEndShown = true;
-    loop.setSpeed(0);
+    pauseForDialog();
     const newBest = run.status === "won" && recordScenarioStars(run.id, run.stars);
     const def = scenarioDefOf(state);
     const card = openScenarioEnd(ui, state, {
@@ -393,7 +403,10 @@ function main(): void {
           "scenarios",
         );
       },
-      onKeepPlaying: () => card?.remove(),
+      onKeepPlaying: () => {
+        card?.remove();
+        resumeAfterDialog();
+      },
     });
   }
 

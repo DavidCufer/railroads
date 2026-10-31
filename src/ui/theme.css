@@ -4847,21 +4847,50 @@ select {
 .dest-sheet {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 4px 12px;
+  gap: var(--gap-2);
+  padding: var(--gap-3);
+}
+/* Phase 73: a card sized to its content beside the map, like the other panels, not a full screen. */
+.sheet.sheet-destinations {
+  inset: calc(52px + var(--safe-top)) var(--gap-2) auto auto;
+  width: min(420px, calc(100% - 2 * var(--gap-2)));
+  max-height: calc(100% - 60px - var(--safe-top));
+  border-radius: var(--radius-m);
+  border: 1px solid var(--brass-dk);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  padding: 0;
+}
+.sheet-destinations .sheet-header {
+  height: 52px;
+  padding-top: 0;
+}
+.sheet-destinations .sheet-heading {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+.sheet-destinations .sheet-title {
+  white-space: nowrap;
+}
+.sheet-destinations .sheet-body {
+  overflow-y: auto;
+}
+.dest-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: var(--radius-s);
+  background: var(--ink-700);
+  border: 1px solid var(--ink-600);
 }
 .dest-row-head {
-  display: grid;
-  grid-template-columns: minmax(70px, 1.2fr) 1fr auto;
-  align-items: center;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 8px;
-  width: 100%;
-  min-height: 36px;
-  background: none;
-  border: 0;
   color: var(--text);
-  text-align: left;
-  padding: 0 4px;
 }
 .dest-caret {
   color: var(--brass);
@@ -4870,16 +4899,19 @@ select {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 600;
 }
 .dest-bar-track {
-  height: 10px;
-  border-radius: 5px;
-  background: var(--ink-700);
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--ink-900);
   overflow: hidden;
 }
 .dest-bar-fill {
   display: block;
   height: 100%;
+  border-radius: 4px;
   background: var(--brass);
 }
 .dest-count {
@@ -4887,6 +4919,7 @@ select {
   white-space: nowrap;
   font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
+  color: var(--brass);
 }
 .dest-final {
   font-size: var(--fs-xs);
@@ -4897,11 +4930,26 @@ select {
 .dest-unconnected {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin-top: 8px;
-  padding: 8px 4px 0;
-  border-top: 1px solid var(--ink-600);
+  gap: 6px;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius-s);
+  border: 1px dashed var(--ink-600);
   font-size: var(--fs-sm, 13px);
+}
+.dest-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.dest-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--ink-700);
+  border: 1px solid var(--brass-dk);
+  color: var(--paper);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .dest-unconnected-hint {
   color: var(--muted);
@@ -4912,6 +4960,10 @@ select {
   font-size: var(--fs-xs);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+.sheet-destinations .hint {
+  margin: 0 2px;
+  color: var(--paper-dim);
 }
 
 .station-no-shed {
@@ -5448,6 +5500,8 @@ select {
 /* Dark cargo (coal) vanishes on the tinted tile; the recipe picture uses a pale tile for every cargo. */
 .recipe-cell .cargo-icon {
   background: #d9d0b8 !important;
+  color: var(--cargo-own) !important;
+  box-shadow: none !important;
 }
 
 .settings-about {
@@ -5496,4 +5550,37 @@ select {
   width: max(100%, 44px);
   height: 44px;
   transform: translate(-50%, -50%);
+}
+
+/* Scenario star ladder (Phase 73): one line per star, ticked when earned. */
+.scenario-star-ladder {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+.scenario-star-line {
+  display: grid;
+  grid-template-columns: 4.2em 1fr 1.4em;
+  gap: 8px;
+  align-items: baseline;
+  color: var(--paper-dim);
+  font: 500 var(--fs-s) var(--font-ui);
+}
+.scenario-star-line.earned {
+  color: var(--paper);
+}
+.scenario-star-mark {
+  color: var(--brass);
+  letter-spacing: 1px;
+}
+.scenario-star-line:not(.earned) .scenario-star-mark {
+  opacity: 0.55;
+}
+.scenario-star-tick {
+  color: var(--go);
+  font-weight: 700;
 }

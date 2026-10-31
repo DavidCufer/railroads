@@ -34,7 +34,7 @@ import type { TrackEdge } from "./types";
 export const JUNCTION_MIN_SPACING_TILES = 2;
 
 export type LayoutViolationKind =
-  "midTileCrossing" | "junctionOnBend" | "tooManyBranches" | "junctionsTooClose";
+  "midTileCrossing" | "junctionOnBend" | "tooManyBranches" | "junctionsTooClose" | "stationBend";
 
 export interface LayoutViolation {
   kind: LayoutViolationKind;
@@ -217,6 +217,19 @@ export function findLayoutViolations(
         break;
       }
     }
+  }
+
+  // 4. Phase 73: a line that already runs through a station (two or more legs) may not get a third leg at more than 45° to
+  // the others, e.g. a 90° stub on the side of its platforms (that is how a perpendicular line reached Ljubljana). A
+  // station with a single leg (a terminus) may still be extended at any angle: trains reverse there (Phase 18 A, 28B,
+  // which only warn).
+  const before = new Set(findStationBends(graph, mapWidth, stationTiles));
+  for (const node of findStationBends(graph, mapWidth, stationTiles, fresh)) {
+    if (before.has(node) || graph.edgesAt(node).length < 2) continue;
+    const mine = fresh
+      .filter((s) => s.a === node || s.b === node)
+      .map((s): [number, number] => [s.a, s.b]);
+    out.push({ kind: "stationBend", tile: node, steps: mine });
   }
 
   return out;

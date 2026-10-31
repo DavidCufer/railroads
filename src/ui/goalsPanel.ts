@@ -10,7 +10,7 @@ import type { Goal } from "../sim/goals/types";
 import type { GameState } from "../sim/state";
 import { describeGoal, goalTargetYear } from "./goalStrings";
 import { scenarioDefOf, scenarioProgress } from "../sim/scenario";
-import { scenarioGoalLine, scenarioName, scenarioStarsLine } from "./scenarioStrings";
+import { scenarioGoalLine, scenarioName, scenarioStarLadderEl } from "./scenarioStrings";
 import { footerButton } from "./components/footer";
 import { emptyState } from "./components/emptyState";
 import { meter } from "./components/meter";
@@ -77,7 +77,7 @@ function scenarioCard(state: GameState): HTMLElement | null {
   const money = def.goal.type === "survive";
   const fmt = (n: number): string =>
     money ? formatMoney(n) : Math.round(n).toLocaleString("en-US");
-  const label = run.status === "won" ? t.stars(run.stars) : run.status === "lost" ? t.lost : "";
+  const label = run.status === "won" ? t.won : run.status === "lost" ? t.lost : "";
   return h(
     "div",
     { className: "scenario-panel-card", "data-testid": "scenario-card" },
@@ -94,18 +94,22 @@ function scenarioCard(state: GameState): HTMLElement | null {
               : "signal",
           t.progress(fmt(progress.current), fmt(progress.target)),
         ),
-    h("div", { className: "goal-sub" }, scenarioStarsLine(def), label ? ` · ${label}` : ""),
+    scenarioStarLadderEl(def, run.stars),
+    label ? h("div", { className: "goal-sub" }, label) : null,
   );
 }
 
 export function openGoalsPanel(container: HTMLElement, state: GameState): void {
-  const statuses = evaluateGoals(state);
-  const done = statuses.filter((s) => s.complete).length;
   const scenario = scenarioCard(state);
+  // In a scenario only the scenario is shown: no free-play trophies (Phase 73).
+  const statuses = scenario ? [] : evaluateGoals(state);
+  const done = statuses.filter((s) => s.complete).length;
   const body: Node[] = [
     ...(scenario ? [scenario] : []),
     ...(statuses.length === 0
-      ? [emptyState(strings.goals.none, "goals")]
+      ? scenario
+        ? []
+        : [emptyState(strings.goals.none, "goals")]
       : statuses.map((status) => goalCard(state, status))),
   ];
   openPanel(container, {

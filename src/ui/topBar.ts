@@ -167,6 +167,8 @@ export function createTopBar(container: HTMLElement, handlers: TopBarHandlers): 
         );
       }
       refreshEra(calendar.year);
+      // A pause made elsewhere (dialogs, scenario card, game over, menus) must light the pause button (Phase 73).
+      refreshSpeedButtons();
     },
   };
 }

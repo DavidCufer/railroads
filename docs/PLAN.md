@@ -2939,7 +2939,7 @@ loosen a test bound. Look at every PNG.
 7. **First scenario is easy (owner: "maybe intentional, because it's first? If yes, ok").** Report the order and
    difficulty of the five scenarios (start cash, goal, what the strong bot reaches); no change unless the order is wrong.
 8. If any changed screen is in `docs/store/screenshots/`, retake those shots. PROGRESS; tick ONLY Phase 73.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7 [ ] 8
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6 [x] 7 [x] 8
 
 ## Phase 74 — Owner play-test 9: clearer numbers and panels
 

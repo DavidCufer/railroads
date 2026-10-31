@@ -12,7 +12,7 @@ import {
   findStationBends,
 } from "../../../src/sim/track/layout";
 import type { GameState } from "../../../src/sim/state";
-import { makeTestMap, makeTestState, tileAt } from "./helpers";
+import { forceTrack, makeTestMap, makeTestState, tileAt } from "./helpers";
 
 const N = 24;
 
@@ -47,7 +47,7 @@ describe("station bends (PLAN Phase 28B, PLAYTEST-1 Bug 3)", () => {
     return { s, st: new Set([tileAt(s.map, 10, 10)]) };
   }
 
-  it("flags an extension out of a station at more than 45° to how the line arrived", () => {
+  it("flags an extension out of a terminus at more than 45° (a warning, not a refusal: trains reverse there)", () => {
     const { s, st } = terminus();
     const sharp = P(s, [
       [10, 10],
@@ -56,11 +56,32 @@ describe("station bends (PLAN Phase 28B, PLAYTEST-1 Bug 3)", () => {
     ]);
     const plan = computeBuildPlan(s, sharp);
     expect(findStationBends(s.trackGraph, N, st, plan.toBuild)).toEqual([tileAt(s.map, 10, 10)]);
-    // Still buildable (trains can stop and reverse there) — a warning, not a refusal.
     expect(buildTrack(s, sharp).ok).toBe(true);
+  });
+
+  it("refuses a perpendicular line joining the side of a station that the main runs through (the Ljubljana hole)", () => {
+    const s = world();
+    expect(buildTrack(s, P(s, diag(2, 2, 13))).ok).toBe(true);
+    const station = tileAt(s.map, 8, 8);
+    expect(buildStation(s, station, "station").ok).toBe(true);
+    const perpendicular = P(s, antiDiag(8, 8, 4)); // runs SW from the station tile, 90° to the main
+    expect(buildTrack(s, perpendicular)).toEqual({ ok: false, reason: "stationBend" });
+    // The same line joining a plain track tile is still refused (sharp), and a 45° branch off the station is not.
+    const branch = P(s, row(8, 8, 12));
+    expect(buildTrack(s, branch).ok).toBe(true);
+  });
+
+  it("old saves with a bent station still load and show the warning marker", () => {
+    const { s, st } = terminus();
+    const a = tileAt(s.map, 10, 10);
+    forceTrack(s, [
+      [10, 10],
+      [10, 11],
+      [10, 12],
+    ]);
     expect(findExistingLayoutIssues(s.trackGraph, N, st)).toContainEqual({
       kind: "stationBend",
-      tile: tileAt(s.map, 10, 10),
+      tile: a,
     });
   });
 

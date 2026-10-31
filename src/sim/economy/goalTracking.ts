@@ -11,7 +11,8 @@ import { calendarFromTicks } from "../time";
 import type { GameState } from "../state";
 
 export function dailyGoalsStep(state: GameState): void {
-  if (state.goals.length === 0) return;
+  // A scenario has its own goal and star ladder; the region's free-play trophies stay out of it (Phase 73).
+  if (state.goals.length === 0 || state.scenario) return;
   for (const status of evaluateGoals(state)) {
     if (!status.complete || state.goalsCompleted.has(status.goal.id)) continue;
     state.goalsCompleted.add(status.goal.id);

@@ -7332,3 +7332,36 @@ Reported, not changed (owner decides):
   unthrottled (was 19-20) and 45-49 ms at 4x CPU throttle (was 102-110). Visual check at DPR 3: sprites a little softer
   when magnified, hard to tell at real size. `npm run check` 950 passed; e2e 145 + 144 passed. No bound added (the
   headless numbers are not a device's).
+
+### Phase 73: owner play-test 8 fixes (branch `phase-73-pt8`)
+1. **Paused shows as paused.** The speed bar only refreshed on a click; `topBar.update` now syncs it every frame, so any pause (game over, scenario card, main menu) lights the pause button. `pauseForDialog` / `resumeAfterDialog` in `main.ts` remember the speed the player had; "Keep playing" restores it (was: stayed paused with 1x lit). e2e `phase46.spec.ts` "the win card pauses visibly…" (2x -> card -> pause lit -> Keep playing -> 2x lit, game running).
+2. **Scenario goals and stars.** In a scenario the Goals panel shows only the scenario card (goal, progress meter, a three-line star ladder: "★ Deliver 6,000 t of coal by 1866", "★★ ..., finished by 1863", "★★★ ..., finished by 1863 and yearly profit $400k"; survive: "... and yearly profit $560k"), each line ticked when earned; the Complete card is held to its 16-word limit (`phase49bWords`, not loosened), so it shows one short line for the next star instead of the ladder ("★★★ profit $400k (now $0)" / "★★ by 1863"), in place of "Last year's profit" when a star is missing; the full ladder is in the Goals panel. `dailyGoalsStep` skips a scenario game, so no free-play trophies, news or land grants pop up in it (old scenario saves too). Strings in `strings.scenarios.ladder`.
+3. **Goal calibration (era row = the region's start year, not the goal year).** `strongPlayerAmount(..., eraYear)` defaulted `eraYear` to the goal's own year, so Central Europe's gold (start 1840, goal year 1930) used the cautious 1930 bot's numbers: $170k, reached in 1851. Fixed by passing the region start explicitly (random maps already did; `convertLegacyGoal` for old net-worth saves left as is, its test pins it).
+
+| Goal | old | new |
+|---|---|---|
+| central-eu gold (annual profit) | $170k by 1930 (1930 row, year 16) | $2.7M by 1875 (1840 row, year 14) |
+| gb gold (annual profit) | $2.1M by 1870 (1870 row, year 12; start 1830) | $2.5M by 1865 (1840 row, year 14) |
+| us-west silver (annual revenue) | $1.7M by 1920 (1900 row; start 1860) | $1.0M by 1880 (1840 row, year 5) |
+| us-east, other tiers, us-west gold, random maps | unchanged (hand-set / city tier / era = start year) | |
+
+   Deadlines moved with the amounts (a gold goal about 2x the strong bot's year 14, so a real player gets there in year 20-35). The reference-operator ratios (0.8-3 gold, 0.3-1.5 silver) pass without changing `goalCalibration`.
+4. **Perpendicular junction (Ljubljana).** Route: *building track onto a station tile*. `findSharpSteps` and `findLayoutViolations` both exempt station tiles ("trains reverse there"), and `findStationBends` (Phase 28B) only produced a warning toast, so a drag from the side into a station that a line already runs through was built at any angle (a through station gets a 90 degree stub, which the junction rules would refuse on a plain tile). New layout violation `stationBend`: a station with two or more legs may not get a leg more than 45 degrees to the others (refusal text in `strings.build`). Extending out of a terminus (one leg) still builds with the warning, as tests of Phases 18 and 28B require. Old saves with a bent station load and keep the warning marker. Unit tests in `tests/sim/track/layout.test.ts`, e2e `phase73.spec.ts`. I could not rebuild the owner's exact save, so this is the one route I found that matches the picture, not a certainty.
+5. **Coal on dark panels.** Coal (#2A2A2A) is now drawn in a lightened colour with a light rim wherever the dark tile is used (`cargoIconColor`: lightened until 3:1 against its tile on the panel; every cargo tested). The light recipe tile on the station panel keeps the dark colour (`--cargo-own`). Map bubbles unchanged.
+6. **Where passengers go** is now a card beside the map, sized to content: destination cards (town, `95/mo · 100 %`, proportional bar), unserved towns as chips ("+66 Padua") under "Not served yet" with a one-line hint. Numbers unchanged; class names kept for the tests.
+7. **Scenario report (no change).** Start cash / goal / stars 2,3 / scripted bot (`tools/bench/scenarioBot.ts`):
+   - Semmering 1850: $700k; connect Vienna-Trieste by 1857; by 1853, profit $370k; bot: one direct line, won 1850, 2 stars.
+   - Panic of 1873 (1871): $400k with $2.5M debt; survive to 1878 with debt under $500k; profit $560k / $790k; default expanding bot goes bankrupt, two lines + repay won 3 stars (Phase 46 note).
+   - Coal for Trieste 1858: $2.5M; 6,000 t by 1866; by 1863, $400k; bot won 1864, 1 star.
+   - Transcontinental 1860: $900k; connect by 1869; by 1865, $410k; bot won in 1860, 2 stars.
+   - Silver rush 1880: $4M; 200 t by 1890; by 1887, $610k; the scripted bot now **goes bankrupt in 1884** (was won 1888, Phase 46): the later cost phases made its $2M of track too dear; not changed.
+   The first scenario is the easiest by design (Semmering is one 89-tile line, a bot wins in its first month). The list order is 1850, 1871, 1858, 1860, 1880: **Panic of 1873 is out of chronological and difficulty order** (the hardest, third); moving it to fourth or last is a one-line change in `SCENARIOS`, left to the owner.
+8. Store screenshots: none of the changed screens is in `docs/store/screenshots/` (the station panel shots show the light recipe tile; coal unchanged there), not retaken. Owned screenshots: `phase-46-scenario-won*`, `phase-46-scenario-goals-ladder`, `phase-35/43/62` destinations, `phase-73-coal-*`.
+
+### Orchestrator: Phase 73 merged (2026-10-31)
+- Reviewed `phase-73-pt8` (8cbb930): no bound loosened; screenshots changed are this phase's (destinations, scenario
+  cards, coal). `npm run check` 954 passed; e2e 146 + 146 passed. Looked at the destinations card, star ladder, won
+  card and coal icon. Note for Phase 74: on the won card the missing third star is drawn as an outline with a small
+  star inside; check it is intended (it was a plain outline before).
+- Reported to the owner: Panic of 1873 is out of order (hardest scenario listed third); Silver rush's scripted bot now
+  goes bankrupt (1884).

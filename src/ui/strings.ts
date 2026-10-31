@@ -109,6 +109,7 @@ export const strings = {
       junctionOnBend: "Can't join on a bend",
       tooManyBranches: "One branch per side only",
       junctionsTooClose: "Junction too close to another",
+      stationBend: "Too sharp to join a station",
     },
     reasons: {
       "no-path": "Drag to draw a path first",
@@ -119,6 +120,7 @@ export const strings = {
       junctionOnBend: "Can't join on a bend — branch off a straight stretch of the line",
       tooManyBranches: "Only one branch per side at a junction — join further along",
       junctionsTooClose: "Junctions need 2 tiles between them — join further along the line",
+      stationBend: "Too sharp — trains can't run through a station at more than 45° to the line",
       "cant-afford": "Not enough cash",
       "no-track-to-upgrade": "No single track to upgrade there",
       "overhaul-not-needed": "This locomotive is too young to need an overhaul",
@@ -232,9 +234,11 @@ export const strings = {
       total: (n: string) => `About ${n} passengers a month travel from here by train.`,
       /** "Milan 30/mo · 18 %" */
       row: (perMonth: string, pct: number) => `${perMonth}/mo · ${pct} %`,
-      notConnected: "Not served",
-      notConnectedHint: "No train from here calls at them: connect them to win these travellers",
-      more: (n: number) => `${n} more`,
+      notConnected: "Not served yet",
+      notConnectedHint: "Run a train from here to these towns to win their travellers.",
+      /** "+12 Trieste": the travellers a town would send here a month. */
+      chip: (perMonth: string, town: string) => `+${perMonth} ${town}`,
+      more: (n: number) => `+${n} more`,
       none: "No train runs from here yet. Passengers appear once a train calls.",
     },
     /** Phase 40: the long-haul chain's one line under the supply chips. */
@@ -1100,6 +1104,16 @@ export const strings = {
         `Deliver ${amount} of ${cargo} by ${year}`,
     },
     progress: (current: string, target: string) => `${current} of ${target}`,
+    next: {
+      by: (mark: string, year: number) => `${mark} by ${year}`,
+      profit: (mark: string, need: string, now: string) => `${mark} profit ${need} (now ${now})`,
+    },
+    ladder: {
+      earlier: (base: string, year: number) => `${base}, finished by ${year}`,
+      earlierProfit: (base: string, year: number, profit: string) =>
+        `${base}, finished by ${year} and yearly profit ${profit}`,
+      survive: (base: string, profit: string) => `${base} and yearly profit ${profit}`,
+    },
     panelTitle: "Scenario",
     won: "Complete",
     lost: "Failed",
