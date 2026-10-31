@@ -28,8 +28,14 @@ export function snappedScreenY(
   return Math.round(camera.worldToScreen(0, worldY, viewportW, viewportH).y * dpr) / dpr;
 }
 
+/** Highest backing-store scale the map canvas and its cached sprites use (owner, 2026-10-31). A phone at DPR 3 paints
+ * 2.25x the pixels of DPR 2 for detail hard to see at arm's length; Phase 72 measured most of a frame in the raster. */
+export const MAP_PIXEL_RATIO_CAP = 2;
+
+/** The map's pixel ratio: the device's, capped at `MAP_PIXEL_RATIO_CAP` (menus and panels keep the full ratio). */
 export function devicePixelRatioNow(): number {
-  return (typeof window !== "undefined" && window.devicePixelRatio) || 1;
+  const dpr = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
+  return Math.min(MAP_PIXEL_RATIO_CAP, Math.max(1, dpr));
 }
 
 /** Draws the `[sx, sy, sw, sh]` source rect of a chunk canvas covering the world rect

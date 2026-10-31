@@ -5,6 +5,7 @@ import type { Train } from "../sim/trains/types";
 import type { CargoType } from "../data/cargo";
 import { LOCO_LENGTH_TILES, locomotiveById, type LocomotiveDef } from "../data/trains";
 import { Camera, TILE_SIZE } from "./camera";
+import { devicePixelRatioNow } from "./pixelSnap";
 import { TRAIN_SIGNAL_WAIT_COLOR, TRAIN_WARNING_COLOR } from "./palette";
 import { chimneyOffset } from "./art/mapSprites";
 import { drawCarCached, drawLocoCached } from "./art/spriteCache";
@@ -201,9 +202,9 @@ function worldToScreenScaled(
   return camera.worldToScreen(tileX * TILE_SIZE, tileY * TILE_SIZE, viewportW, viewportH);
 }
 
-/** Device pixel ratio the cached sprites are baked at (crisp on a phone at DPR 2-3). */
+/** Pixel ratio the cached sprites are baked at: the map canvas's (capped, see `devicePixelRatioNow`). */
 function spriteDpr(): number {
-  return typeof window === "undefined" ? 1 : Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+  return devicePixelRatioNow();
 }
 
 /** Draws a locomotive (cached sprite): +x is the direction of travel (the leading end), so a steam

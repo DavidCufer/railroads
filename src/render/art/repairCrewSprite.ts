@@ -1,6 +1,7 @@
 /** Top-down repair-crew train (Phase 63): a recognisable breakdown train in the engraved style, drawn once per
  * (kind, size bucket) to an offscreen canvas. Local space: +x = direction of travel, `L` x `W` art units. */
-import { makeArtCanvas, ctx2d, devicePixelRatioSafe, type ArtCanvas } from "./canvas";
+import { makeArtCanvas, ctx2d, type ArtCanvas } from "./canvas";
+import { devicePixelRatioNow } from "../pixelSnap";
 import { darken, disc, line, shadedBox, type Pen } from "./draw";
 
 export type CrewTrainKind = "steamVan" | "steamCrane" | "motorCrane" | "railTruck";
@@ -117,7 +118,7 @@ const cache = new Map<string, ArtCanvas>();
 /** Cached sprite for `kind`, `lenPx` long on screen (bucketed to multiples of 4 px). Returns the canvas and the
  * length it is drawn at (backing size / dpr). */
 export function crewTrainCanvas(kind: CrewTrainKind, lenPx: number): ArtCanvas {
-  const dpr = devicePixelRatioSafe();
+  const dpr = devicePixelRatioNow();
   const bucket = Math.max(16, Math.ceil(lenPx / 4) * 4);
   const key = `${kind}:${bucket}:${dpr}`;
   const hit = cache.get(key);

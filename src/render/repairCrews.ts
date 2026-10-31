@@ -7,7 +7,7 @@
 import { repairCrewPosition } from "../sim/trains/repairCrew";
 import type { Train } from "../sim/trains/types";
 import { CREW_L, CREW_W, crewTrainCanvas, crewTrainKind } from "./art/repairCrewSprite";
-import { devicePixelRatioSafe } from "./art/canvas";
+import { devicePixelRatioNow } from "./pixelSnap";
 import { Camera, TILE_SIZE } from "./camera";
 import { VEHICLE_WIDTH_TILES } from "./trains";
 
@@ -22,7 +22,7 @@ export function drawRepairCrews(
   year: number,
 ): void {
   const kind = crewTrainKind(year);
-  const dpr = devicePixelRatioSafe();
+  const dpr = devicePixelRatioNow();
   const size = TILE_SIZE * camera.zoom;
   for (const train of trains) {
     const crew = train.repairCrew;

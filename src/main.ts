@@ -162,6 +162,7 @@ import { createGoalsButton, openGoalCelebration, openGoalsPanel } from "./ui/goa
 import { createContractsButton, openContractsPanel } from "./ui/contractsPanel";
 import { isPanelOpen } from "./ui/panel";
 import { formatMoney } from "./ui/format";
+import { devicePixelRatioNow } from "./render/pixelSnap";
 import { openTitleScreen } from "./ui/titleScreen";
 import { autosave, exportSaveJson, latestSaveSlot, loadSlot } from "./save";
 import { migrateSaveFile } from "./save/migrate";
@@ -221,7 +222,7 @@ function main(): void {
   if (!uiRoot) throw new Error("missing #ui");
   const ui: HTMLElement = uiRoot;
 
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = devicePixelRatioNow();
   function resize(): void {
     const canvasEl = canvas as HTMLCanvasElement;
     canvasEl.width = Math.round(window.innerWidth * dpr);

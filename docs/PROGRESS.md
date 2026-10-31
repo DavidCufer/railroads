@@ -7322,3 +7322,13 @@ Reported, not changed (owner decides):
   Phase 72 closed; item 3 (DPR cap) and item 5 (1950: track-renewal lumps, wage/fare squeeze) wait for the owner.
 - Reported by the builder for the owner: Cars step allows zero cars; the Route sheet covers the stations on a 360 px
   screen (From list works); no cheaper-route hint; early track thin at low zoom.
+
+### Orchestrator: map pixel ratio capped at 2 (2026-10-31)
+- Owner: "Only try 4" (Phase 72 item 3's suggestion). `MAP_PIXEL_RATIO_CAP = 2` in `src/render/pixelSnap.ts`:
+  `devicePixelRatioNow()` returns the device ratio capped at 2 and is now used for the map canvas backing store
+  (`main.ts`), chunk snapping, the train sprite cache (`trains.ts`) and the repair-crew sprite. Menus, panels and the
+  side-view art keep the full ratio.
+- Measured (800x360 at DPR 3, large map, 60-train stress network, zoom 1, two runs each): average frame 16.7 ms
+  unthrottled (was 19-20) and 45-49 ms at 4x CPU throttle (was 102-110). Visual check at DPR 3: sprites a little softer
+  when magnified, hard to tell at real size. `npm run check` 950 passed; e2e 145 + 144 passed. No bound added (the
+  headless numbers are not a device's).
