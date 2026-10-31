@@ -5497,3 +5497,36 @@ select {
   height: 44px;
   transform: translate(-50%, -50%);
 }
+
+/* Scenario star ladder (Phase 73): one line per star, ticked when earned. */
+.scenario-star-ladder {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+.scenario-star-line {
+  display: grid;
+  grid-template-columns: 4.2em 1fr 1.4em;
+  gap: 8px;
+  align-items: baseline;
+  color: var(--paper-dim);
+  font: 500 var(--fs-s) var(--font-ui);
+}
+.scenario-star-line.earned {
+  color: var(--paper);
+}
+.scenario-star-mark {
+  color: var(--brass);
+  letter-spacing: 1px;
+}
+.scenario-star-line:not(.earned) .scenario-star-mark {
+  opacity: 0.55;
+}
+.scenario-star-tick {
+  color: var(--go);
+  font-weight: 700;
+}

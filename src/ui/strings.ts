@@ -1100,6 +1100,12 @@ export const strings = {
         `Deliver ${amount} of ${cargo} by ${year}`,
     },
     progress: (current: string, target: string) => `${current} of ${target}`,
+    ladder: {
+      earlier: (base: string, year: number) => `${base}, finished by ${year}`,
+      earlierProfit: (base: string, year: number, profit: string) =>
+        `${base}, finished by ${year} and yearly profit ${profit}`,
+      survive: (base: string, profit: string) => `${base} and yearly profit ${profit}`,
+    },
     panelTitle: "Scenario",
     won: "Complete",
     lost: "Failed",

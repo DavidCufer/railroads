@@ -4,7 +4,7 @@ import { scenarioDefOf } from "../sim/scenario";
 import type { GameState } from "../sim/state";
 import { formatMoney } from "./format";
 import { h } from "./h";
-import { scenarioGoalLine, scenarioName } from "./scenarioStrings";
+import { scenarioGoalLine, scenarioName, scenarioStarLadderEl } from "./scenarioStrings";
 import { strings } from "./strings";
 
 export interface ScenarioEndHandlers {
@@ -44,6 +44,7 @@ export function openScenarioEnd(
             handlers.newBest ? h("span", { className: "scenario-new-best" }, t.newBest) : null,
           )
         : h("p", null, run.reason ? t.reasons[run.reason] : ""),
+      won ? scenarioStarLadderEl(def, run.stars) : null,
       h("p", null, t.profit(formatMoney(ledgerOperatingProfit(state.finance.lastYear)))),
       h(
         "div",
