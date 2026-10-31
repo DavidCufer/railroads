@@ -2969,3 +2969,25 @@ to main. Never rebase over merge commits, never force-push. Never loosen a test 
    passengers and cargo per month. One formatting helper; audit every "/mo" money label; strings stay short.
 7. If any changed screen is in `docs/store/screenshots/`, retake those shots. PROGRESS; tick ONLY Phase 74.
 Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6 [x] 7
+
+## Phase 75 — Industry chains you can follow (silver, uranium, ports)
+
+Owner (2026-10-31): "A bit confusing how to create silver and where to find the facilities. I see the Mint, but have no
+idea where to make silver and where to dig it. There should be info in the Mint panel about this. And in the silver
+maker thing, where is it dug up." Cause: the Mint (and the Nuclear Power Plant, the Port) only *accept* cargo
+(`acceptancePoints`, empty `consumes`), so their panel has no Consumes section and no "Nearest sources"; no panel shows
+where an output can be sold. Branch `phase-75-chains`; never push to main. Never rebase over merge commits, never
+force-push. Never loosen a test bound. Look at every PNG.
+
+1. **Sinks say what they take.** Industries with acceptance points but no `consumes` (Mint, Nuclear Power Plant, Port,
+   and any other) show an "Accepts" section (cargo chips) and "Nearest sources" (the nearest producer of each accepted
+   cargo, name + distance, tap to centre the map), like the Steel Mill.
+2. **Every producer says where its output goes.** A "Nearest buyers" section for each produced cargo (nearest industry
+   or town that accepts it, distance, tap to centre), so the Smelter shows the Mint and the Silver Mine shows the
+   Smelter.
+3. **The whole chain in one line.** For the long-haul chains (silver: Silver Mine -> Smelter -> Mint; uranium: Uranium
+   Mine -> Enrichment Plant -> Nuclear Power Plant), all three panels show the chain as icons with arrows, the current
+   industry highlighted, each step tappable to the nearest one on the map. Same component, panel style, word limits.
+4. If none exists on the map (a chain from another era), say so in one short line instead of an empty list.
+5. e2e with screenshots of the Mint, Smelter and Silver Mine panels; PROGRESS; tick ONLY Phase 75.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
