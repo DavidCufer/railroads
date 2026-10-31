@@ -71,10 +71,8 @@ test.describe("Phase 46 - scenarios", () => {
     expect(await page.evaluate(() => window.__game!.getSpeed())).toBe(0);
     await expect(page.locator(".speed-group button.active")).toHaveAttribute("aria-label", "Pause");
     await expect(page.locator(".speed-group button.active")).toHaveCount(1);
-    const ladder = page.getByTestId("scenario-ladder");
-    await expect(ladder.locator("li")).toHaveCount(3);
-    await expect(ladder.locator("li").first()).toHaveClass(/earned/);
-    await expect(ladder).toContainText("Deliver 6,000 t of coal by 1866");
+    // The card names what the next star needs (short: it has a word limit); the full ladder is in Goals.
+    await expect(page.getByTestId("scenario-end")).toContainText("★★★ profit $400k");
     await page.screenshot({ path: shot("scenario-won-ladder") });
     await page.getByRole("button", { name: "Keep playing" }).click();
     await expect(page.getByTestId("scenario-end")).toHaveCount(0);
@@ -84,6 +82,10 @@ test.describe("Phase 46 - scenarios", () => {
     await page.locator(".goals-button").click();
     await expect(page.getByTestId("scenario-card")).toBeVisible();
     await expect(page.locator(".goal-card")).toHaveCount(0);
+    const ladder = page.getByTestId("scenario-ladder");
+    await expect(ladder.locator("li")).toHaveCount(3);
+    await expect(ladder.locator("li.earned")).toHaveCount(2);
+    await expect(ladder).toContainText("Deliver 6,000 t of coal by 1866");
     await page.waitForTimeout(500);
     await page.screenshot({ path: shot("scenario-goals-ladder") });
   });

@@ -75,3 +75,22 @@ export function scenarioStarLadderEl(def: ScenarioDef, earned: number): HTMLElem
   );
   return h("ul", { className: "scenario-star-ladder", "data-testid": "scenario-ladder" }, ...lines);
 }
+
+/** The Complete card's one line (Phase 73): what the next star needs, short because the card has a word limit; the Goals
+ * panel keeps the full ladder. Null when all three stars were earned. */
+export function scenarioNextStarLine(
+  def: ScenarioDef,
+  stars: number,
+  endYear: number,
+  profit: number,
+): string | null {
+  if (stars >= 3) return null;
+  const [a, b] = def.stars;
+  const t = strings.scenarios.next;
+  const mark = "★".repeat(stars + 1);
+  if (def.goal.type === "survive") {
+    return t.profit(mark, formatMoney(stars <= 1 ? a : b), formatMoney(profit));
+  }
+  if (endYear > a) return t.by(mark, a);
+  return t.profit(mark, formatMoney(b), formatMoney(profit));
+}

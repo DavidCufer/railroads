@@ -1104,6 +1104,10 @@ export const strings = {
         `Deliver ${amount} of ${cargo} by ${year}`,
     },
     progress: (current: string, target: string) => `${current} of ${target}`,
+    next: {
+      by: (mark: string, year: number) => `${mark} by ${year}`,
+      profit: (mark: string, need: string, now: string) => `${mark} profit ${need} (now ${now})`,
+    },
     ladder: {
       earlier: (base: string, year: number) => `${base}, finished by ${year}`,
       earlierProfit: (base: string, year: number, profit: string) =>

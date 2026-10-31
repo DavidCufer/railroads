@@ -2,9 +2,10 @@
 import { ledgerOperatingProfit } from "../data/finance";
 import { scenarioDefOf } from "../sim/scenario";
 import type { GameState } from "../sim/state";
+import { calendarFromTicks } from "../sim/time";
 import { formatMoney } from "./format";
 import { h } from "./h";
-import { scenarioGoalLine, scenarioName, scenarioStarLadderEl } from "./scenarioStrings";
+import { scenarioGoalLine, scenarioName, scenarioNextStarLine } from "./scenarioStrings";
 import { strings } from "./strings";
 
 export interface ScenarioEndHandlers {
@@ -27,6 +28,9 @@ export function openScenarioEnd(
   if (!run || !def || run.status === "active") return null;
   const t = strings.scenarios;
   const won = run.status === "won";
+  const profit = ledgerOperatingProfit(state.finance.lastYear);
+  const endYear = calendarFromTicks(state.startYear, run.endTick ?? state.ticks).year;
+  const nextLine = won ? scenarioNextStarLine(def, run.stars, endYear, profit) : null;
   const root = h(
     "div",
     { className: "game-over", "data-testid": "scenario-end" },
@@ -44,8 +48,7 @@ export function openScenarioEnd(
             handlers.newBest ? h("span", { className: "scenario-new-best" }, t.newBest) : null,
           )
         : h("p", null, run.reason ? t.reasons[run.reason] : ""),
-      won ? scenarioStarLadderEl(def, run.stars) : null,
-      h("p", null, t.profit(formatMoney(ledgerOperatingProfit(state.finance.lastYear)))),
+      h("p", null, nextLine ?? t.profit(formatMoney(profit))),
       h(
         "div",
         { className: "game-over-buttons" },
