@@ -55,20 +55,6 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     stars: [1853, strongPlayerAmount("profit", 5, 1857, 1850)],
   },
   {
-    id: "panic1873",
-    region: "us-east",
-    seed: 7,
-    startYear: 1871,
-    difficulty: "normal",
-    startCash: 400000,
-    startLoans: 2_500_000,
-    goal: { type: "survive", untilYear: 1878, maxDebt: 500_000 },
-    stars: [
-      strongPlayerAmount("profit", 5, 1878, 1871),
-      strongPlayerAmount("profit", 7, 1878, 1871),
-    ],
-  },
-  {
     id: "coalTrieste",
     region: "central-eu",
     seed: 7,
@@ -103,6 +89,21 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     startCash: 4_000_000,
     goal: { type: "deliver", cargo: "silverBars", amount: 200, byYear: 1890 },
     stars: [1887, strongPlayerAmount("profit", 5, 1890, 1880)],
+  },
+  // Owner (2026-10-31): the hardest scenario, listed last.
+  {
+    id: "panic1873",
+    region: "us-east",
+    seed: 7,
+    startYear: 1871,
+    difficulty: "normal",
+    startCash: 400000,
+    startLoans: 2_500_000,
+    goal: { type: "survive", untilYear: 1878, maxDebt: 500_000 },
+    stars: [
+      strongPlayerAmount("profit", 5, 1878, 1871),
+      strongPlayerAmount("profit", 7, 1878, 1871),
+    ],
   },
 ];
 
