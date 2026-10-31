@@ -234,9 +234,11 @@ export const strings = {
       total: (n: string) => `About ${n} passengers a month travel from here by train.`,
       /** "Milan 30/mo · 18 %" */
       row: (perMonth: string, pct: number) => `${perMonth}/mo · ${pct} %`,
-      notConnected: "Not served",
-      notConnectedHint: "No train from here calls at them: connect them to win these travellers",
-      more: (n: number) => `${n} more`,
+      notConnected: "Not served yet",
+      notConnectedHint: "Run a train from here to these towns to win their travellers.",
+      /** "+12 Trieste": the travellers a town would send here a month. */
+      chip: (perMonth: string, town: string) => `+${perMonth} ${town}`,
+      more: (n: number) => `+${n} more`,
       none: "No train runs from here yet. Passengers appear once a train calls.",
     },
     /** Phase 40: the long-haul chain's one line under the supply chips. */

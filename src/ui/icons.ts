@@ -226,6 +226,42 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+const PANEL_BG = "#20322b"; // --ink-700, the darkest surface a cargo tile sits on
+
+function lum(hex: string): number {
+  const ch = (i: number): number => {
+    const v = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * ch(1) + 0.7152 * ch(3) + 0.0722 * ch(5);
+}
+
+function mix(a: string, b: string, t: number): string {
+  const part = (i: number): string =>
+    Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${part(1)}${part(3)}${part(5)}`;
+}
+
+/** WCAG contrast ratio of two `#rrggbb` colours. */
+export function contrastRatio(a: string, b: string): number {
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x) as [number, number];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** Phase 73: the colour a cargo's pictogram is drawn in on a dark panel. The tile is the cargo colour at 25 % over the
+ * panel, and the icon must reach 3:1 against it (WCAG non-text contrast); a dark cargo (coal) is lightened until it does.
+ * Map bubbles keep the cargo's own colour. */
+export function cargoIconColor(color: string): string {
+  let c = color;
+  for (let t = 0; t <= 1; t += 0.05) {
+    c = mix(color, "#ffffff", t);
+    if (contrastRatio(c, mix(PANEL_BG, c, 0.25)) >= 3) return c;
+  }
+  return c;
+}
+
 /**
  * Builds a cargo pictogram (STYLE §5): a small rounded tile tinted with the cargo color at 25%
  * opacity, the icon itself in the full cargo color (`currentColor`, set via inline `color`).
@@ -234,8 +270,11 @@ export function cargoIcon(cargo: CargoType, className?: string): HTMLSpanElement
   const def = CARGO[cargo];
   const span = document.createElement("span");
   span.className = className ? `cargo-icon ${className}` : "cargo-icon";
-  span.style.background = hexToRgba(def.color, 0.25);
-  span.style.color = def.color;
+  const color = cargoIconColor(def.color);
+  span.style.background = hexToRgba(color, 0.25);
+  span.style.color = color;
+  // A light rim keeps a dark cargo (coal) readable on the dark panel.
+  span.style.boxShadow = `inset 0 0 0 1px ${hexToRgba(color, 0.45)}`;
   span.innerHTML = CARGO_ICONS[cargo];
   return span;
 }

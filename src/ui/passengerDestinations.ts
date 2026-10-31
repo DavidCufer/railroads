@@ -46,34 +46,38 @@ export function openDestinationsSheet(
             h("span", { className: "dest-name" }, cityName(row.cityId)),
             h(
               "span",
-              { className: "dest-bar-track" },
-              h("span", {
-                className: "dest-bar-fill",
-                style: { width: `${(row.perMonth / max) * 100}%` },
-              }),
-            ),
-            h(
-              "span",
               { className: "dest-count" },
               t.row(round(row.perMonth), Math.round((row.perMonth / total) * 100)),
             ),
+          ),
+          h(
+            "span",
+            { className: "dest-bar-track" },
+            h("span", {
+              className: "dest-bar-fill",
+              style: { width: `${(row.perMonth / max) * 100}%` },
+            }),
           ),
         ),
       );
     }
     const unconnected = economy.passengerUnconnected ?? [];
     if (unconnected.length > 0) {
-      const shown = unconnected
+      const chips = unconnected
         .slice(0, UNCONNECTED_SHOWN)
-        .map((u) => `${cityName(u.cityId)} ~${round(u.perMonth)}`);
+        .map((u) => t.chip(round(u.perMonth), cityName(u.cityId)));
       if (unconnected.length > UNCONNECTED_SHOWN)
-        shown.push(t.more(unconnected.length - UNCONNECTED_SHOWN));
+        chips.push(t.more(unconnected.length - UNCONNECTED_SHOWN));
       nodes.push(
         h(
           "div",
           { className: "dest-unconnected" },
           h("span", { className: "dest-unconnected-label" }, t.notConnected),
-          h("span", {}, shown.join(" · ")),
+          h(
+            "div",
+            { className: "dest-chips" },
+            ...chips.map((c) => h("span", { className: "dest-chip" }, c)),
+          ),
           h("span", { className: "dest-unconnected-hint" }, t.notConnectedHint),
         ),
       );

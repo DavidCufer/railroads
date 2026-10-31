@@ -57,6 +57,36 @@ test.describe("Phase 46 - scenarios", () => {
     expect(JSON.parse(stored as string).scenarioStars.coalTrieste).toBeGreaterThanOrEqual(1);
   });
 
+  test("the win card pauses visibly, lists the star ladder, and Keep playing resumes the old speed (Phase 73)", async ({
+    page,
+  }) => {
+    await startScenario(page, "coalTrieste");
+    await page.evaluate(() => {
+      const s = window.__game!.getState() as unknown as ScenarioStateShape;
+      s.scenario!.progress = 6000;
+      window.__game!.setSpeed(2);
+    });
+    await expect(page.getByTestId("scenario-end")).toBeVisible({ timeout: 15_000 });
+    // Paused, and the speed bar says so (the pause button is lit, 2x is not).
+    expect(await page.evaluate(() => window.__game!.getSpeed())).toBe(0);
+    await expect(page.locator(".speed-group button.active")).toHaveAttribute("aria-label", "Pause");
+    await expect(page.locator(".speed-group button.active")).toHaveCount(1);
+    const ladder = page.getByTestId("scenario-ladder");
+    await expect(ladder.locator("li")).toHaveCount(3);
+    await expect(ladder.locator("li").first()).toHaveClass(/earned/);
+    await expect(ladder).toContainText("Deliver 6,000 t of coal by 1866");
+    await page.screenshot({ path: shot("scenario-won-ladder") });
+    await page.getByRole("button", { name: "Keep playing" }).click();
+    await expect(page.getByTestId("scenario-end")).toHaveCount(0);
+    expect(await page.evaluate(() => window.__game!.getSpeed())).toBe(2);
+    await expect(page.locator(".speed-group button.active")).toHaveText("2×");
+    // The Goals panel shows only the scenario: no free-play trophies.
+    await page.locator(".goals-button").click();
+    await expect(page.getByTestId("scenario-card")).toBeVisible();
+    await expect(page.locator(".goal-card")).toHaveCount(0);
+    await page.screenshot({ path: shot("scenario-goals-ladder") });
+  });
+
   test("a missed deadline ends with a lose card", async ({ page }) => {
     await startScenario(page, "semmering");
     await page.evaluate(() => {
