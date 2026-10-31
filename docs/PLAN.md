@@ -2940,3 +2940,32 @@ loosen a test bound. Look at every PNG.
    difficulty of the five scenarios (start cash, goal, what the strong bot reaches); no change unless the order is wrong.
 8. If any changed screen is in `docs/store/screenshots/`, retake those shots. PROGRESS; tick ONLY Phase 73.
 Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7 [ ] 8
+
+## Phase 74 — Owner play-test 9: clearer numbers and panels
+
+Owner (2026-10-31, after Phase 73 was started; "do them when you feel it's time"). Screenshots
+`docs/playtests/pt9-1..7.jpg`. Start after Phase 73 is merged, from the latest main. Branch `phase-74-pt9`; never push
+to main. Never rebase over merge commits, never force-push. Never loosen a test bound. Look at every PNG.
+
+1. **Start-up credit news is unclear (pt9-1).** "Start-up credit ends in 1 month: limit ~$349k" and "nothing happened".
+   Say in plain words what it is and what changes for the player (e.g. "The bank's start-up credit ends next month:
+   from then you can borrow up to ~$349k, based on your earnings."), and send it only when it changes something the
+   player can feel (their limit falls, or falls below what they owe). Word limits kept.
+2. **Yellow line over scrolled content (pt9-2, pt9-5).** The active-tab underline (and/or the header rule) is drawn over
+   the panel's content when it scrolls (Finance, train Stats). The tab bar must be an opaque sticky header with its
+   underline inside it; nothing paints over scrolled content. Check every panel and sheet with tabs.
+3. **Lay up from anywhere (pt9-3).** "Only a train standing at a station can be laid up": tapping the pause button
+   while the train is running must instead queue it: the train stops (lays up) at its next station. Show that state on
+   the panel ("Lays up at Graz") and let the player cancel it. Sim change via a command; unit test + e2e.
+4. **Train Stats panel (pt9-4, pt9-5).** Capacities print as 13.333333333333334 (a bug: format the numbers). Show one
+   row per cargo type, not per car. Add a simple, useful load measure: average load over the last few months (or
+   the last N trips) per cargo, as one bar or a small sparkline, with a plain hint when a train runs mostly empty
+   ("Often under 30 % full: fewer cars may pay better"). Sim keeps the needed history (bounded, deterministic).
+5. **City "Connected" graphic is ugly (pt9-6).** "Connected: 98 / month (22 %)" as plain text: show it as a clear
+   graphic in the panels' style (e.g. a bar or ring of connected vs. the town's total travellers, with the top
+   unconnected destinations as chips), consistent with Phase 73's "Where passengers go" redesign.
+6. **Money per year (pt9-7).** Station upkeep shows "$134 upkeep / month". Show money figures per year everywhere
+   (upkeep, running costs, wages, maintenance, income per station/train where shown per month); keep counts of
+   passengers and cargo per month. One formatting helper; audit every "/mo" money label; strings stay short.
+7. If any changed screen is in `docs/store/screenshots/`, retake those shots. PROGRESS; tick ONLY Phase 74.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7
