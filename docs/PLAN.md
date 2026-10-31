@@ -2900,3 +2900,43 @@ wrong; report anything that changes the game's design or balance (owner decides)
    maps, news badge cleared, one or two panels at most. Same sizes; look at every PNG.
 8. PROGRESS; tick ONLY Phase 72.
 Status: [x] 1 [x] 2 [-] 3 (measured; DPR cap is the owner's call) [x] 4 [-] 5 (reported; owner decides) [x] 6 [x] 7 [x] 8
+
+## Phase 73 — Owner play-test 8 fixes
+
+Owner (2026-10-31) played the Semmering scenario (screenshots `docs/playtests/pt8-1..7.jpg`). Branch
+`phase-73-pt8`; never push to main (the orchestrator merges). Never rebase over merge commits, never force-push. Never
+loosen a test bound. Look at every PNG.
+
+1. **Paused game shows 1x (pt8-1, pt8-4).** After the scenario's "Complete" card the game was paused but the speed bar
+   still showed 1x, so the owner thought the trains were stuck. Any pause (dialogs, goal and scenario cards, game over,
+   menus) must show in the speed bar (pause button lit), and "Keep playing" / closing the card must resume the speed the
+   player had. e2e for the scenario-complete path.
+2. **Scenario goals and stars are confusing (pt8-2, pt8-3, pt8-4).** In a scenario the Goals panel mixes the scenario's
+   goal with the region's free-play goals (Munich-Milan 1875, Electrify 120 tiles 1930, Yearly profit $170k 1930 with a
+   gold trophy), so the owner "got gold but 2 stars". In a scenario show only the scenario: its goal with progress, and
+   a plain star ladder, one line per star, each ticked when met, e.g. "★ Connect Vienna-Trieste by 1857",
+   "★★ ... by 1853", "★★★ ... by 1853 and yearly profit $370k". Same wording on the Complete card (which stars were
+   earned and what the missing one needed). No free-play trophies or achievements popping in a scenario unless they are
+   achievements (profile-wide). Word limits kept.
+3. **Central Europe gold goal is far too easy (pt8-2).** Its gold is "yearly profit $170k by 1930", derived in Phase 69
+   from the cautious bot's 1930 start, but the region starts in 1840: the owner reached it in 1851. Re-derive it like the
+   other regions, from the region's own start (`strongPlayerAmount` with the 1840 medians, year index and deadline
+   chosen so gold is about year 12-16 of play), and check every region's and the random maps' goals for the same
+   mistake (goal amount derived from a start year other than the game's). `goalCalibration` stays green without
+   changing its bounds; old -> new table in PROGRESS.
+4. **Perpendicular junction (pt8-5, Ljubljana).** A track joins the station's diagonal tracks at about 90 degrees,
+   which the junction rules (Phase 27, legal junction shapes) should refuse. Find how it got built (which tool path:
+   drag, Quick build, station placement over track, double track, bulldoze-and-rebuild), fix the hole, add a unit test.
+   Old saves with such a junction still load (as in Phase 27).
+5. **Coal is too dark (pt8-6).** The coal cargo icon is black on the dark panel and disappears (Steel Mill panel,
+   station panels, everywhere cargo icons sit on dark backgrounds). Give coal a colour/outline that reads on the dark UI
+   (keep it coal-like: dark grey with lighter lumps, or a light rim), and check every cargo icon's contrast on the dark
+   panel (WCAG non-text contrast 3:1 as a guide).
+6. **"Where passengers go" looks bad (pt8-7).** Useful but "really not pleasing": a long empty screen, one bar, a grey
+   line of text. Redesign it to match the game's panels: destination rows as cards with the town name, a proportional
+   bar and the number; the unserved towns as their own chips ("+12 Trieste") with a short hint to connect them; sized
+   to its content (a sheet or panel, not a full screen). Keep the numbers.
+7. **First scenario is easy (owner: "maybe intentional, because it's first? If yes, ok").** Report the order and
+   difficulty of the five scenarios (start cash, goal, what the strong bot reaches); no change unless the order is wrong.
+8. If any changed screen is in `docs/store/screenshots/`, retake those shots. PROGRESS; tick ONLY Phase 73.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7 [ ] 8
