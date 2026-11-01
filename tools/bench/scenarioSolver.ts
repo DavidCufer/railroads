@@ -175,6 +175,7 @@ function runStrategyOnce(id: string, st: Strategy): SolveResult {
     return best;
   }
 
+  let lastPath: number[] = [];
   /** Builds track along the stops (one candidate tile list per stop) and a station at each. Returns the station ids. */
   function buildChain(
     stops: Array<{ tiles: number[]; type: StationType }>,
@@ -201,6 +202,7 @@ function runStrategyOnce(id: string, st: Strategy): SolveResult {
       }
       const before = state.cash;
       const bt = buildTrack(state, pick.path);
+      lastPath = pick.path;
       if (!bt.ok) {
         note += ` [build ${(bt as { reason?: string }).reason}]`;
         return null;
@@ -397,41 +399,36 @@ function runStrategyOnce(id: string, st: Strategy): SolveResult {
     const plant = find("smelter");
     const sink = find("mint");
     if (st.singleSmelterStation) {
-      // the smelter has ONE station (a second one would split the smelter's output with it): the bar line is built
-      // first from it to the mint, then the ore line runs into the same station from the other side
-      const v0 = st.via?.[0] ?? [];
+      // ONE station at the smelter (two would split its output). It is the end of the line to the mint; the ore line
+      // joins that line a few tiles from the station (a junction) and its trains reverse in the station.
       const cash0 = state.cash;
-      // a Depot on the line 14 tiles past the smelter, in the direction the ore line arrives from, keeps the station's two
-      // legs straight (a through station may not bend more than 45 degrees); trains only stop where their orders say
-      const dx = plant.x - mine.x;
-      const dy = plant.y - mine.y;
-      const dl = Math.hypot(dx, dy) || 1;
-      const way = {
-        x: Math.round(plant.x + (dx / dl) * 14),
-        y: Math.round(plant.y + (dy / dl) * 14),
-      };
       const idsBars = buildChain([
         { tiles: pickK(around(plant, sink, 2), st.smelterPick ?? 0), type: et },
-        { tiles: around(way, sink, 3), type: "depot" as const },
-        { tiles: around(sink, way, 2), type: "station" as const },
-      ] as Array<{ tiles: number[]; type: StationType }>);
+        { tiles: around(sink, plant, 2), type: "station" as const },
+      ]);
       let ok = false;
       if (idsBars) {
-        const sTile = state.stations.find((x) => x.id === idsBars[0])!.tile;
-        const idsOre = buildChain([
-          { tiles: around(mine, plant, 2), type: et },
-          ...viaTiles(v0, plant),
-          { tiles: [sTile], type: et },
-        ] as Array<{ tiles: number[]; type: StationType }>);
-        if (idsOre) {
+        const trunk = lastPath;
+        const joins = [4, 6, 8, 12, 16, 24, 32]
+          .map((k) => trunk[k])
+          .filter((t): t is number => t !== undefined);
+        const pick = cheapest(sample(around(mine, plant, 2), 4), joins);
+        if (!pick) note += " [no junction path]";
+        else if (state.cash < pick.cost + reserve)
+          note += ` [junction too dear ${Math.round(pick.cost / 1000)}k]`;
+        else if (
+          buildTrack(state, pick.path).ok &&
+          (state.stations.some((x) => x.tile === pick.a) || buildStation(state, pick.a, et).ok)
+        ) {
           ok = true;
+          const oreId = state.stations.find((x) => x.tile === pick.a)!.id;
           const mk = (cargo: CargoType, stops: number[], n: number): void => {
             const leg: Leg = { ids: stops, cargo, trains: 0, cap: st.grow ?? n, stops };
             legs.push(leg);
             for (let i = 0; i < n; i++) if (!addTrain(leg)) break;
           };
-          mk("silverOre", [idsOre[0]!, idsOre[idsOre.length - 1]!], st.trains[0] ?? 1);
-          mk("silverBars", [idsBars[0]!, idsBars[2]!], st.trains[1] ?? 1);
+          mk("silverOre", [oreId, idsBars[0]!], st.trains[0] ?? 1);
+          mk("silverBars", [idsBars[0]!, idsBars[1]!], st.trains[1] ?? 1);
         }
       }
       spent += cash0 - state.cash;
@@ -685,16 +682,9 @@ export function routeCandidates(id: string): Strategy[] {
     for (let m = 1; m < 4; m++)
       out.push({ ...base, label: `mines #0+#${m}`, mine: 0, mine2: m, trains: [2] });
   } else if (g.type === "deliver") {
-    const mine = state.industries.find((i) => i.type === "silverMine")!;
-    const plant = state.industries.find((i) => i.type === "smelter")!;
-    const sink = state.industries.find((i) => i.type === "mint")!;
-    out.push({ ...base, label: "direct", trains: [1, 1] });
-    const v1 = near(state, mine, plant, 30, []).slice(0, 2);
-    const v2 = near(state, plant, sink, 30, []).slice(0, 3);
-    for (const v of v1)
-      out.push({ ...base, label: `ore via ${v}`, trains: [1, 1], via: [[v], []] });
-    for (const v of v2)
-      out.push({ ...base, label: `bars via ${v}`, trains: [1, 1], via: [[], [v]] });
+    const one = { ...base, singleSmelterStation: true };
+    out.push({ ...one, label: "one smelter station", trains: [1, 1] });
+    out.push({ ...base, label: "two smelter stations", trains: [1, 1] });
   }
   return out;
 }
