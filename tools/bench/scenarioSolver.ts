@@ -28,7 +28,7 @@ import { advanceOneHour } from "../../src/sim/tick";
 import { findBuildPath } from "../../src/sim/track/pathfind";
 import { calendarFromTicks } from "../../src/sim/time";
 import { netWorth } from "../../src/sim/finance/ledger";
-import { ledgerOperatingProfit } from "../../src/data/finance";
+import { ledgerOperatingCosts, ledgerOperatingProfit, ledgerRevenue } from "../../src/data/finance";
 import { fixWeightBridges } from "./fixBridges";
 import type { CargoType } from "../../src/data/cargo";
 
@@ -123,77 +123,71 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
     return around(centre, toward, 0, near);
   };
 
-  /** Builds track along the stops (one candidate tile list per stop) and a station at each. Returns the station ids. */
-  function buildChain(
-    stops: Array<{ tiles: number[]; type: "station" | "terminal" }>,
-    upTo = stops.length,
-  ): number[] | null {
-    const ids: number[] = [];
-    let prevTile: number | undefined;
-    const existingId = (t: number): number | undefined => state.stations.find((s) => s.tile === t)?.id;
-    for (let i = 0; i < upTo; i++) {
-      if (i === 0) {
-        // the first stop is placed together with the first stretch of track
-        let ok = false;
-        for (const ta of stops[0]!.tiles.slice(0, 6)) {
-          for (const tb of stops[1]!.tiles.slice(0, 6)) {
-            const stationTiles = new Set(state.stations.map((s) => s.tile));
-            const path = findBuildPath(state.map, ta, tb, year(), {
-              respectTurns: { graph: state.trackGraph, stationTiles },
-              land: landPrices(state),
-            });
-            if (!path || path.length < 4) continue;
-            const plan = computeBuildPlan(state, path);
-            if (!plan.valid) continue;
-            if (state.cash < plan.cost + reserve) {
-              note += ` [too dear ${Math.round(plan.cost / 1000)}k]`;
-              continue;
-            }
-            const before = state.cash;
-            if (!buildTrack(state, path).ok) continue;
-            const a = existingId(ta) !== undefined || buildStation(state, ta, stops[0]!.type).ok;
-            const b = existingId(tb) !== undefined || buildStation(state, tb, stops[1]!.type).ok;
-            if (!a || !b) {
-              state.cash = before;
-              continue;
-            }
-            ids.push(existingId(ta)!, existingId(tb)!);
-            prevTile = tb;
-            ok = true;
-            break;
-          }
-          if (ok) break;
-        }
-        if (!ok) return null;
-        i = 1;
-        continue;
-      }
-      let done = false;
-      for (const t of stops[i]!.tiles.slice(0, 8)) {
-        const stationTiles = new Set(state.stations.map((s) => s.tile));
-        const path = findBuildPath(state.map, prevTile!, t, year(), {
+  /** Every `k`-th of up to `n` candidates, so the sample spreads around the place instead of hugging one side. */
+  const sample = (tiles: number[], n: number): number[] => {
+    const cap = tiles.slice(0, 24);
+    const step = Math.max(1, Math.floor(cap.length / n));
+    return cap.filter((_, i) => i % step === 0).slice(0, n);
+  };
+
+  /** The cheapest valid stretch between any sampled start and end tile. */
+  function cheapest(
+    from: number[],
+    to: number[],
+  ): { path: number[]; cost: number; a: number; b: number } | null {
+    let best: { path: number[]; cost: number; a: number; b: number } | null = null;
+    const stationTiles = new Set(state.stations.map((x) => x.tile));
+    for (const ta of from)
+      for (const tb of to) {
+        const path = findBuildPath(state.map, ta, tb, year(), {
           respectTurns: { graph: state.trackGraph, stationTiles },
           land: landPrices(state),
         });
         if (!path || path.length < 4) continue;
         const plan = computeBuildPlan(state, path);
         if (!plan.valid) continue;
-        if (state.cash < plan.cost + reserve) {
-          note += ` [too dear ${Math.round(plan.cost / 1000)}k]`;
-          continue;
-        }
-        const before = state.cash;
-        if (!buildTrack(state, path).ok) continue;
-        if (existingId(t) === undefined && !buildStation(state, t, stops[i]!.type).ok) {
-          state.cash = before;
-          continue;
-        }
-        ids.push(existingId(t)!);
-        prevTile = t;
-        done = true;
-        break;
+        if (!best || plan.cost < best.cost) best = { path: [...path], cost: plan.cost, a: ta, b: tb };
       }
-      if (!done) return null;
+    return best;
+  }
+
+  /** Builds track along the stops (one candidate tile list per stop) and a station at each. Returns the station ids. */
+  function buildChain(
+    stops: Array<{ tiles: number[]; type: "station" | "terminal" }>,
+    upTo = stops.length,
+  ): number[] | null {
+    const ids: number[] = [];
+    const idAt = (t: number): number | undefined => state.stations.find((x) => x.tile === t)?.id;
+    let prev: number | undefined;
+    for (let i = 1; i < upTo; i++) {
+      const from = prev === undefined ? sample(stops[0]!.tiles, 4) : [prev];
+      const pick =
+        cheapest(from, sample(stops[i]!.tiles, 4)) ??
+        cheapest(prev === undefined ? stops[0]!.tiles.slice(0, 8) : from, stops[i]!.tiles.slice(0, 8));
+      if (!pick) {
+        note += ` [no path stop ${i}]`;
+        return null;
+      }
+      if (state.cash < pick.cost + reserve) {
+        note += ` [too dear ${Math.round(pick.cost / 1000)}k]`;
+        return null;
+      }
+      const before = state.cash;
+      const bt = buildTrack(state, pick.path);
+      if (!bt.ok) {
+        note += ` [build ${(bt as { reason?: string }).reason}]`;
+        return null;
+      }
+      const okA = idAt(pick.a) !== undefined || buildStation(state, pick.a, stops[i - 1]!.type).ok;
+      const okB = idAt(pick.b) !== undefined || buildStation(state, pick.b, stops[i]!.type).ok;
+      if (!okA || !okB) {
+        note += ` [station ${okA} ${okB}]`;
+        state.cash = before;
+        return null;
+      }
+      if (i === 1) ids.push(idAt(pick.a)!);
+      ids.push(idAt(pick.b)!);
+      prev = pick.b;
     }
     return ids;
   }
@@ -358,6 +352,13 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
     if (h % hoursPerMonth !== 0) continue;
     month++;
     fixWeightBridges(state);
+    if (process.env["YEARLY"] && month % 12 === 1) {
+      const ly = state.finance.lastYear;
+      console.error(
+        year() - 1,
+        `rev ${Math.round(ledgerRevenue(ly) / 1000)}k costs ${Math.round(ledgerOperatingCosts(ly) / 1000)}k profit ${Math.round(ledgerOperatingProfit(ly) / 1000)}k cash ${Math.round(state.cash / 1000)}k loans ${Math.round(state.finance.loans / 1000)}k trains ${state.trains.length} waiting ${[...state.stationCargo.entries()].map(([i, p]) => `${i}:` + Object.entries(p).filter(([, v]) => v!.amount >= 1).map(([k, v]) => `${k}=${Math.round(v!.amount)}`).join('/')).join(' ')} status ${state.trains.map((t) => t.status[0]).join('')} progress ${Math.round(state.scenario!.progress)}`,
+      );
+    }
     // loans keep the company alive while it still has a plan
     if (state.cash < reserve) takeLoan(state, 100_000);
     if (staged && month >= st.stageMonth!) {
@@ -441,7 +442,7 @@ export function routeCandidates(id: string): Strategy[] {
   const state = createGameState(scenarioNewGameOptions(def));
   const g = def.goal;
   const out: Strategy[] = [];
-  const base = { engine: "fast" as EngineRule, cars: 4, trains: [2, 2] };
+  const base = { engine: "fast" as EngineRule, cars: 4, trains: [2, 2], fullLoad: true };
   if (g.type === "connect") {
     const a = state.cities.find((c) => c.name === g.cities[0])!;
     const b = state.cities.find((c) => c.name === g.cities[1])!;
@@ -471,12 +472,18 @@ export function opsCandidates(base: Strategy, id: string): Strategy[] {
   const mk = (over: Partial<Strategy>, tag: string): void => {
     out.push({ ...base, ...over, label: `${base.label} | ${tag}` });
   };
-  for (const engine of ["fast", "strong", "value", "cheap"] as EngineRule[])
-    for (const cars of [2, 4, 6, 8])
-      for (const n of [1, 2, 3]) {
-        if (engine === "cheap" && cars > 4) continue;
-        mk({ engine, cars, trains: Array(legsN).fill(n) as number[] }, `${engine} ${cars}c x${n}`);
-      }
+  for (const engine of ["fast", "strong"] as EngineRule[])
+    for (const cars of [4, 6, 8])
+      for (const n of [1, 2, 3])
+        for (const fullLoad of [true, false]) {
+          if (!fullLoad && n < 2) continue;
+          mk(
+            { engine, cars, fullLoad, trains: Array(legsN).fill(n) as number[] },
+            `${engine} ${cars}c x${n}${fullLoad ? " FL" : ""}`,
+          );
+        }
+  for (const grow of [4, 6])
+    mk({ grow, trains: Array(legsN).fill(2) as number[] }, `grow to ${grow}`);
   const fixed = def.goal.type === "connect" ? 1 : 0;
   void fixed;
   return out;
