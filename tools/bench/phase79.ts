@@ -68,6 +68,15 @@ async function run(j: Job): Promise<string> {
   } catch {
     return `| ${j.label} | ${j.bot} | ${j.start} | ${j.diff} | ${j.seed} | ${j.end} | error | - | - | - | - | - | - |`;
   }
+  if (j.env?.["LINES"])
+    writeFileSync(
+      `docs/bench/phase79/${j.label.replace(/[^\w+.-]/g, "_")}-${j.start}-${j.diff}-s${j.seed}.txt`,
+      out
+        .split("\n")
+        .filter((l) => /^(YEAR|LINES)/.test(l))
+        .map((l) => l.replace(/ cash \S+ NW \S+/, ""))
+        .join("\n") + "\n",
+    );
   const rows = new Map<number, Record<string, number>>();
   for (const l of out.split("\n")) {
     const m = /^YEAR (\d+) (.*)$/.exec(l);
