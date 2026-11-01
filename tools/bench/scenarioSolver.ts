@@ -31,6 +31,7 @@ import { netWorth } from "../../src/sim/finance/ledger";
 import { ledgerOperatingCosts, ledgerOperatingProfit, ledgerRevenue } from "../../src/data/finance";
 import { fixWeightBridges } from "./fixBridges";
 import type { CargoType } from "../../src/data/cargo";
+import type { StationType } from "../../src/data/stations";
 
 export type EngineRule = "fast" | "strong" | "cheap" | "value";
 
@@ -40,6 +41,13 @@ export interface Strategy {
   via?: string[][];
   /** deliver coal: which mine (0 = nearest to the port). */
   mine?: number;
+  /** silver (separate stations): station type where the ore is dropped / where the bars are loaded. */
+  oreType?: StationType;
+  barType?: StationType;
+  /** silver: use the k-th candidate tile for the smelter's through station (0 = nearest to the mine). */
+  smelterPick?: number;
+  /** silver, experimental: one station at the smelter for both legs (the pathfinder rarely finds a way: the 45 degree rule). */
+  singleSmelterStation?: boolean;
   /** deliver coal: a second mine feeding the same port. */
   mine2?: number;
   /** Industry/city end stations: terminals or plain stations. */
@@ -86,7 +94,16 @@ interface Spot {
   y: number;
 }
 
+/** Plays `st`; a silver line whose smelter station has no way on to the mint is retried with the next smelter tile. */
 export function runStrategy(id: string, st: Strategy): SolveResult {
+  let r = runStrategyOnce(id, st);
+  for (let k = 1; k < 8 && r.status === "error" && st.smelterPick !== undefined; k++)
+    r = runStrategyOnce(id, { ...st, smelterPick: k });
+  if (r.status === "error") r.status = "lost";
+  return r;
+}
+
+function runStrategyOnce(id: string, st: Strategy): SolveResult {
   const def = scenarioById(id)!;
   const state = createGameState(scenarioNewGameOptions(def));
   const W = state.map.width;
@@ -98,6 +115,8 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
   let spent = 0;
   const startCash = state.cash;
 
+  const pickK = (tiles: number[], k: number): number[] =>
+    k === 0 ? tiles : [...tiles.slice(k * 3), ...tiles.slice(0, k * 3)];
   const around = (at: Spot, toward: Spot, radius: number, tiles?: number[]): number[] => {
     const taken = new Set(state.trackGraph.allNodes());
     const cand: number[] = tiles ? [...tiles] : [];
@@ -158,7 +177,7 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
 
   /** Builds track along the stops (one candidate tile list per stop) and a station at each. Returns the station ids. */
   function buildChain(
-    stops: Array<{ tiles: number[]; type: "station" | "terminal" }>,
+    stops: Array<{ tiles: number[]; type: StationType }>,
     upTo = stops.length,
   ): number[] | null {
     const ids: number[] = [];
@@ -238,9 +257,19 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
     if (!loco) return false;
     const at = leg.stops[0]!;
     const station = state.stations.find((s) => s.id === at)!;
-    if (!station.hasEngineShed && !buildEngineShed(state, at).ok) return false;
+    if (!station.hasEngineShed) {
+      const sh = buildEngineShed(state, at);
+      if (!sh.ok) {
+        note += ` [shed ${(sh as { reason?: string }).reason}]`;
+        return false;
+      }
+    }
     const before = state.cash;
-    if (!buyTrain(state, at, loco.id, Array(loco.cars).fill(leg.cargo)).ok) return false;
+    const bought = buyTrain(state, at, loco.id, Array(loco.cars).fill(leg.cargo));
+    if (!bought.ok) {
+      note += ` [buy ${(bought as { reason?: string }).reason}]`;
+      return false;
+    }
     spent += before - state.cash;
     const t = state.trains[state.trains.length - 1]!;
     const rule = st.fullLoad ? "fullLoad" : "auto";
@@ -260,7 +289,7 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
   }
 
   function startLeg(
-    stops: Array<{ tiles: number[]; type: "station" | "terminal" }>,
+    stops: Array<{ tiles: number[]; type: StationType }>,
     cargo: CargoType,
     n: number,
     route: (ids: number[]) => number[],
@@ -282,9 +311,9 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
     toward: Spot,
   ): Array<{ tiles: number[]; type: "station" }> =>
     (names ?? []).map((n) => ({ tiles: cityTiles(n, toward), type: "station" as const }));
-  let preLink: { stops: Array<{ tiles: number[]; type: "station" | "terminal" }> } | null = null;
+  let preLink: { stops: Array<{ tiles: number[]; type: StationType }> } | null = null;
   let staged: {
-    stops: Array<{ tiles: number[]; type: "station" | "terminal" }>;
+    stops: Array<{ tiles: number[]; type: StationType }>;
     leg: Leg;
     from: number;
   } | null = null;
@@ -305,13 +334,13 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
       },
       ...viaTiles(via, B),
       { tiles: cityTiles(b.name, A), type: et },
-    ] as Array<{ tiles: number[]; type: "station" | "terminal" }>;
+    ] as Array<{ tiles: number[]; type: StationType }>;
     if (st.pre && st.stageMonth) {
       const P = state.cities.find((c) => c.name === st.pre)!;
       const first = [
         { tiles: cityTiles(a.name, { x: P.anchorX, y: P.anchorY }), type: et },
         { tiles: cityTiles(P.name, A), type: et },
-      ] as Array<{ tiles: number[]; type: "station" | "terminal" }>;
+      ] as Array<{ tiles: number[]; type: StationType }>;
       const leg = startLeg(first, "passengers", st.trains[0] ?? 2, (ids) => ids);
       if (leg) {
         const aTile = state.stations.find((x) => x.id === leg.ids[0])!.tile;
@@ -319,7 +348,7 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
           stops: [
             { tiles: [aTile], type: et },
             { tiles: cityTiles(b.name, A), type: et },
-          ] as Array<{ tiles: number[]; type: "station" | "terminal" }>,
+          ] as Array<{ tiles: number[]; type: StationType }>,
         };
       } else note += " [pre failed]";
     } else if (st.stageMonth && via.length > 0) {
@@ -347,7 +376,7 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
       { tiles: around(mine, port, 2), type: et },
       ...viaTiles(st.via?.[0], port),
       { tiles: around(port, mine, 2), type: et },
-    ] as Array<{ tiles: number[]; type: "station" | "terminal" }>;
+    ] as Array<{ tiles: number[]; type: StationType }>;
     startLeg(stops, "coal", st.trains[0] ?? 2, (ids) => [ids[0]!, ids[ids.length - 1]!]);
     if (st.mine2 !== undefined && mines[st.mine2]) {
       const m2 = mines[st.mine2]!;
@@ -356,7 +385,7 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
         [
           { tiles: around(m2, port, 2), type: et },
           { tiles: around(port, m2, 2), type: et },
-        ] as Array<{ tiles: number[]; type: "station" | "terminal" }>,
+        ] as Array<{ tiles: number[]; type: StationType }>,
         "coal",
         st.trains[0] ?? 2,
         (ids) => [ids[0]!, ids[ids.length - 1]!],
@@ -367,38 +396,101 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
     const mine = find("silverMine");
     const plant = find("smelter");
     const sink = find("mint");
-    const l1 = startLeg(
-      [
-        { tiles: around(mine, plant, 2), type: et },
-        ...viaTiles(st.via?.[0], plant),
-        { tiles: around(plant, mine, 2), type: et },
-      ] as Array<{ tiles: number[]; type: "station" | "terminal" }>,
-      "silverOre",
-      st.trains[0] ?? 1,
-      (ids) => [ids[0]!, ids[ids.length - 1]!],
-    );
-    if (l1) {
-      const smelterStn = l1.ids[l1.ids.length - 1]!;
-      const smelterTile = state.stations.find((s) => s.id === smelterStn)!.tile;
-      const startTile = [smelterTile];
-      // second leg starts at the smelter's own output station (a second station, or the same one)
-      const taken = new Set(state.stations.map((s) => s.tile));
-      const outTiles = around(plant, sink, 2).filter((t) => !taken.has(t));
-      const l2 = startLeg(
+    if (st.singleSmelterStation) {
+      // the smelter has ONE station (a second one would split the smelter's output with it): the bar line is built
+      // first from it to the mint, then the ore line runs into the same station from the other side
+      const v0 = st.via?.[0] ?? [];
+      const cash0 = state.cash;
+      // a Depot on the line 14 tiles past the smelter, in the direction the ore line arrives from, keeps the station's two
+      // legs straight (a through station may not bend more than 45 degrees); trains only stop where their orders say
+      const dx = plant.x - mine.x;
+      const dy = plant.y - mine.y;
+      const dl = Math.hypot(dx, dy) || 1;
+      const way = {
+        x: Math.round(plant.x + (dx / dl) * 14),
+        y: Math.round(plant.y + (dy / dl) * 14),
+      };
+      const idsBars = buildChain([
+        { tiles: pickK(around(plant, sink, 2), st.smelterPick ?? 0), type: et },
+        { tiles: around(way, sink, 3), type: "depot" as const },
+        { tiles: around(sink, way, 2), type: "station" as const },
+      ] as Array<{ tiles: number[]; type: StationType }>);
+      let ok = false;
+      if (idsBars) {
+        const sTile = state.stations.find((x) => x.id === idsBars[0])!.tile;
+        const idsOre = buildChain([
+          { tiles: around(mine, plant, 2), type: et },
+          ...viaTiles(v0, plant),
+          { tiles: [sTile], type: et },
+        ] as Array<{ tiles: number[]; type: StationType }>);
+        if (idsOre) {
+          ok = true;
+          const mk = (cargo: CargoType, stops: number[], n: number): void => {
+            const leg: Leg = { ids: stops, cargo, trains: 0, cap: st.grow ?? n, stops };
+            legs.push(leg);
+            for (let i = 0; i < n; i++) if (!addTrain(leg)) break;
+          };
+          mk("silverOre", [idsOre[0]!, idsOre[idsOre.length - 1]!], st.trains[0] ?? 1);
+          mk("silverBars", [idsBars[0]!, idsBars[2]!], st.trains[1] ?? 1);
+        }
+      }
+      spent += cash0 - state.cash;
+      if (!ok) {
+        note += " [chain failed]";
+        if (st.smelterPick !== undefined) return failed("error");
+      }
+    } else {
+      const l1 = startLeg(
         [
-          { tiles: outTiles.length ? outTiles : startTile, type: et },
-          ...viaTiles(st.via?.[1], sink),
-          { tiles: around(sink, plant, 2), type: "station" as const },
-        ] as Array<{ tiles: number[]; type: "station" | "terminal" }>,
-        "silverBars",
-        st.trains[1] ?? 1,
+          { tiles: around(mine, plant, 2), type: et },
+          ...viaTiles(st.via?.[0], plant),
+          { tiles: around(plant, mine, 2), type: st.oreType ?? et },
+        ] as Array<{ tiles: number[]; type: StationType }>,
+        "silverOre",
+        st.trains[0] ?? 1,
         (ids) => [ids[0]!, ids[ids.length - 1]!],
       );
-      if (!l2) note += " [leg 2 failed]";
-    } else note += " [leg 1 failed]";
+      if (l1) {
+        const smelterStn = l1.ids[l1.ids.length - 1]!;
+        const smelterTile = state.stations.find((s) => s.id === smelterStn)!.tile;
+        const startTile = [smelterTile];
+        // second leg starts at the smelter's own output station (a second station, or the same one)
+        const taken = new Set(state.stations.map((s) => s.tile));
+        const outTiles = around(plant, sink, 2).filter((t) => !taken.has(t));
+        const l2 = startLeg(
+          [
+            {
+              tiles: outTiles.length ? outTiles : startTile,
+              type: et,
+            },
+            ...viaTiles(st.via?.[1], sink),
+            { tiles: around(sink, plant, 2), type: "station" as const },
+          ] as Array<{ tiles: number[]; type: StationType }>,
+          "silverBars",
+          st.trains[1] ?? 1,
+          (ids) => [ids[0]!, ids[ids.length - 1]!],
+        );
+        if (!l2) note += " [leg 2 failed]";
+      } else note += " [leg 1 failed]";
+    }
   }
 
   const t0 = state.ticks;
+  function failed(status: string): SolveResult {
+    return {
+      id,
+      label: st.label ?? "",
+      status,
+      stars: 0,
+      finishMonth: 9999,
+      finish: "-",
+      profit: 0,
+      spent: Math.round(spent),
+      netWorth: 0,
+      note,
+      strategy: st,
+    };
+  }
   void t0;
   const monthsMax = st.maxMonths ?? 14 * 12;
   let month = 0;
@@ -412,7 +504,7 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
       const ly = state.finance.lastYear;
       console.error(
         year() - 1,
-        `rev ${Math.round(ledgerRevenue(ly) / 1000)}k costs ${Math.round(ledgerOperatingCosts(ly) / 1000)}k profit ${Math.round(ledgerOperatingProfit(ly) / 1000)}k cash ${Math.round(state.cash / 1000)}k loans ${Math.round(state.finance.loans / 1000)}k trains ${state.trains.length} waiting ${[
+        `rev ${Math.round(ledgerRevenue(ly) / 1000)}k [pax ${Math.round(ly.passengers / 1000)} mail ${Math.round(ly.mail / 1000)} freight ${Math.round(ly.freight / 1000)}] cost-parts [loco ${Math.round(ly.trainMaintenance / 1000)} crew ${Math.round(ly.crewWages / 1000)} track ${Math.round(ly.trackMaintenance / 1000)} admin ${Math.round(ly.administration / 1000)} wear ${Math.round(ly.trackWear / 1000)} stn ${Math.round(ly.stationMaintenance / 1000)} tax ${Math.round(ly.propertyTax / 1000)} int ${Math.round(ly.interest / 1000)}] costs ${Math.round(ledgerOperatingCosts(ly) / 1000)}k profit ${Math.round(ledgerOperatingProfit(ly) / 1000)}k cash ${Math.round(state.cash / 1000)}k loans ${Math.round(state.finance.loans / 1000)}k trains ${state.trains.length} waiting ${[
           ...state.stationCargo.entries(),
         ]
           .map(
@@ -428,6 +520,18 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
           )} status ${state.trains.map((t) => t.status[0]).join("")} progress ${Math.round(state.scenario!.progress)}`,
       );
     }
+    if (process.env["SUPPLY"] && month % 6 === 1)
+      console.error(
+        month,
+        [...state.stationEconomy.entries()]
+          .map(([id, e]) => `${id}:${JSON.stringify(e.supply)}`)
+          .join(" "),
+        JSON.stringify(
+          [...state.industryEconomy.entries()]
+            .filter(([, e]) => Object.keys(e.monthlyOutput).length)
+            .map(([id, e]) => [id, e.monthlyOutput]),
+        ),
+      );
     // loans keep the company alive while it still has a plan
     if (state.cash < reserve) takeLoan(state, 100_000);
     if (staged && month >= st.stageMonth!) {
@@ -522,7 +626,13 @@ export function routeCandidates(id: string): Strategy[] {
   const state = createGameState(scenarioNewGameOptions(def));
   const g = def.goal;
   const out: Strategy[] = [];
-  const base = { engine: "fast" as EngineRule, cars: 4, trains: [2, 2], fullLoad: true };
+  const base = {
+    engine: "fast" as EngineRule,
+    cars: 4,
+    trains: [2, 2],
+    fullLoad: true,
+    smelterPick: 0,
+  };
   if (g.type === "connect") {
     const a = state.cities.find((c) => c.name === g.cities[0])!;
     const b = state.cities.find((c) => c.name === g.cities[1])!;
