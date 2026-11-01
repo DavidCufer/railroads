@@ -3069,3 +3069,26 @@ force-push. Never loosen a test bound.
    months; do not change the numbers without the owner). SPEC §6.1 updated (deviation recorded).
 4. e2e (station panel line + screenshot), PROGRESS; tick ONLY Phase 78.
 Status: [x] 1 [x] 2 [x] 3 [x] 4
+
+## Phase 79 — Why 1870 is so rich and Hard is not harder (investigate, then propose)
+
+Owner (2026-11-01, "Investigate, then propose"): Phase 77's smarter strong player (V2) shows 1870 Normal is far too
+easy for a good player (y16 operating profit $6.5M, net worth $42M, 3.5x the old bot) and 1840 moderately so (1.7x),
+while 1900, 1930 and 1950 are about as before. Hard is not harder than Normal in 1840 and 1870 (Hard 1870: $40M). V2's
+1870 strength is passenger trunk lines plus small-town feeders. Branch `phase-79-balance`, created from
+`origin/phase-77-strongbot` (it needs `tools/bench/strongPlayer.ts` V2); investigation only: no changes under `src/`.
+Never push to main. Benches in pieces of at most ~15 minutes, pushed; never end a turn mid-bench.
+
+1. **1870 decomposed.** For V2 1870 Normal (and 1840 / 1900 for contrast), split revenue and profit by line type
+   (trunk passenger, feeder, freight, chain) and by year; show what one good trunk line earns per km and per train in
+   each era and why (trips per head anchors: 1850 0.0113 -> 1860 0.0338 a month; real fares; engine speed and
+   capacity per era; costs per train-km; city sizes on the maps). Find the one or two mechanisms that make 1870 the
+   outlier, and compare with a real-world figure (e.g. railway return on capital in the 1870s, Britain and the US).
+2. **Hard decomposed.** List every Hard vs. Normal difference in `src/data` (cash, loans, prices, costs, events) and
+   measure each one's effect on V2 (switch them one at a time on 1870 seeds). Say which levers a good player shrugs
+   off and why.
+3. **Proposals for the owner**, each with a real mechanism and a measured effect on V2 (1840 / 1870 / 1900 Normal and
+   Hard): what to change, by how much, the source or reason, and what it does to the old bot and the cautious bot (no
+   era should become unplayable for them). Rank them. STOP: push the report in `docs/bench/phase79.md` and a short
+   PROGRESS entry; the orchestrator shows the owner. Change nothing under `src/`.
+Status: [ ] 1 [ ] 2 [ ] 3

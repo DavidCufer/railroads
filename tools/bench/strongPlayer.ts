@@ -20,6 +20,7 @@
  *   - feeder lines: a small town into the nearest big station;
  *   - full-load waits at big freight sources, double track only where trains were seen waiting for a block.
  */
+import "./p79Env";
 import "./pairEnv";
 import * as commands from "../../src/sim/commands";
 import { createGameState } from "../../src/sim/state";
@@ -1173,6 +1174,28 @@ for (let y = 1; startYear + y <= endYear + 0; y++) {
   rows.push(
     `YEAR ${startYear + y} cash ${(state.cash / 1e6).toFixed(2)}M NW ${(nw / 1e6).toFixed(2)}M trains ${state.trains.length} edges ${trackTiles} stations ${state.stations.length} rev ${(rev / 1e6).toFixed(2)}M opcost ${(op / 1e6).toFixed(2)}M opratio ${rev > 0 ? (op / rev).toFixed(2) : "-"} opprofit ${(ledgerOperatingProfit(last) / 1e6).toFixed(2)}M capital ${(state.finance.capitalInvested / 1e6).toFixed(2)}M loans ${(state.finance.loans / 1e6).toFixed(1)}M idle ${((100 * Math.max(0, state.cash)) / Math.max(1, nw)).toFixed(0)}% stock ${((nw - state.cash + state.finance.loans - 0.5 * state.finance.capitalInvested) / 1e6).toFixed(2)}M split ${splitOf(last)}`,
   );
+  // Phase 79: LINES=1 prints the completed year's books split by line type (trunk passenger / feeder / freight by cargo / chain).
+  if (process.env["LINES"]) {
+    const agg = new Map<string, { n: number; trains: number; tiles: number; rev: number; profit: number }>();
+    for (const l of lines) {
+      const kind = l.chain ? "chain" : l.feeder ? "feeder" : l.kind === "pax" ? "trunk" : `freight:${l.cargo}`;
+      const a = agg.get(kind) ?? { n: 0, trains: 0, tiles: 0, rev: 0, profit: 0 };
+      a.n++;
+      a.tiles += l.path.length;
+      for (const id of l.trains) {
+        const t = state.trains.find((q) => q.id === id);
+        if (!t) continue;
+        a.trains++;
+        a.rev += t.profit.lastYear.revenue;
+        a.profit += booksProfit(t.profit.lastYear);
+      }
+      agg.set(kind, a);
+    }
+    for (const [k, a] of agg)
+      rows.push(
+        `LINES ${startYear + y} ${k} lines ${a.n} trains ${a.trains} tiles ${a.tiles} rev ${(a.rev / 1e3).toFixed(0)}k trainProfit ${(a.profit / 1e3).toFixed(0)}k revPerTile ${(a.rev / Math.max(1, a.tiles)).toFixed(0)} revPerTrain ${(a.rev / Math.max(1, a.trains) / 1e3).toFixed(0)}k`,
+      );
+  }
   if (wanted.has(y))
     report.push(
       [

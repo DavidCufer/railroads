@@ -8,6 +8,7 @@
  * engine per pair, add trains up to 4 per pair when cash allows, Post Office and Hotel in cities >= 40k, borrow when a good
  * project is short of cash and repay when cash piles up, relay worn track, rebuild washed-out bridges.
  */
+import "./p79Env";
 import * as commands from "../../src/sim/commands";
 import { PAIR_DEMAND, TRAVEL_RANGE_ANCHORS, TRIPS_PER_HEAD_ANCHORS } from "../../src/data/economy";
 
