@@ -7533,4 +7533,4 @@ Formula unchanged (`strongPlayerAmount`: median x priceIndex(goal year) / priceI
 - Caveat: V2 does well because it plays the chain and keeps building. Medians use survivors; 1930's median is of 8 runs. The V1 numbers on current main differ from Phase 69's (1900 y16 2.17, was 2.96): Phases 70-78 changed things; the new-vs-old goal table above compares to the goals on main (Phase 69 medians).
 
 ### Results
-`npm run check`: 961 passed, 1 skipped; `goalCalibration` bounds untouched. e2e: see the last line. Bench: 150 runs in 21 pieces (Phase 77 bench driver `tools/bench/phase77.ts`, summary `phase77Summary.ts`), all pushed.
+`npm run check`: 961 passed, 1 skipped; `goalCalibration` bounds untouched. e2e: 298 passed after one fixture follows the formula (`phase46` scenario-won card text: Coal for Trieste's third-star profit $400k -> $450k). Bench: 150 runs in 21 pieces (Phase 77 bench driver `tools/bench/phase77.ts`, summary `phase77Summary.ts`), all pushed.
