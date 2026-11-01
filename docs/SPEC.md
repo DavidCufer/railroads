@@ -258,7 +258,7 @@ the figure above; the proposal is on branch `phase-59-costs`.
 - Trains longer than the station max can still stop but load/unload 50% slower.
 - Station name defaults to the nearest city name (with "Junction", "Mine", "Crossing" etc. suffixes
   when not in a city, e.g. "Harlow Coal Mine").
-- Catchments of two stations may overlap; overlapping supply is split evenly between them.
+- Catchments of two stations may overlap. A town's overlapping supply is split evenly between them. An industry's output (Phase 78, deviation from the even split) goes to the covering stations that collect that cargo — a train loaded it there in the last ~90 days, or a train's orders load it there — weighted by what each collected (even among collectors while there is no history; even among all covering stations when none collects, so the cargo waits as before). The station panel says when output is shared ("Smelter: 50 % here, 50 % via Smelter 2").
 
 ### 6.2 Station improvements (buildable once per station)
 
