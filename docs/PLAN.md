@@ -3045,3 +3045,27 @@ pushed pieces).
    origin main`); `goalCalibration` green without changing its bounds. STOP with the old -> new table at the top of the
    PROGRESS entry; the orchestrator shows the owner.
 Status: [ ] 1 [ ] 2 [ ] 3
+
+## Phase 78 — Industries ship through the stations that collect their cargo
+
+Owner (2026-11-01, "Ship to stations with pickups"): today an industry covered by several stations splits its output
+evenly between them (SPEC §6.1 "overlapping supply is split evenly", `src/sim/stations/economy.ts` ~106-150), even to
+a station where no train ever loads that cargo, so it rots there. Phase 76 measured it in Silver Rush: two stations at
+the Smelter delivered ~60 t of bars a year vs ~105 t with one. Real-world rule: a works ships through the station whose
+trains come for its goods. Branch `phase-78-pickups`; never push to main. Never rebase over merge commits, never
+force-push. Never loosen a test bound.
+
+1. **The rule.** For each industry output cargo covered by more than one station: split it between the covering
+   stations that collect that cargo (a train has loaded it there within the last ~90 days, or a train's orders load it
+   there), weighted by the amount each collected over that window (deterministic, bounded history in state; even split
+   among collectors while no history exists). If none collects it, keep today's even split (the cargo waits, as now).
+   Towns' passengers and mail keep their own model (Phase 35/62); only industry outputs change. Saves: old saves load
+   (history starts empty).
+2. **Show it.** The station panel's supply line says when part of an industry's output goes to another station
+   ("Smelter: 50 % here, 50 % via Smelter 2") so the player can see it.
+3. **Re-check what depends on it.** Unit tests for the split (one collector takes all; two collectors by pickups; none
+   = even). Phase 76's solver: rerun Silver Rush and the coal scenario; the two-station layout should now match the
+   one-station one, and the approved scenario numbers must still hold (report if a star date moves by more than a few
+   months; do not change the numbers without the owner). SPEC §6.1 updated (deviation recorded).
+4. e2e (station panel line + screenshot), PROGRESS; tick ONLY Phase 78.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
