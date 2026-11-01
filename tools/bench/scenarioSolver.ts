@@ -472,18 +472,18 @@ export function opsCandidates(base: Strategy, id: string): Strategy[] {
   const mk = (over: Partial<Strategy>, tag: string): void => {
     out.push({ ...base, ...over, label: `${base.label} | ${tag}` });
   };
-  for (const engine of ["fast", "strong"] as EngineRule[])
-    for (const cars of [4, 6, 8])
+  for (const engine of ["fast", "value"] as EngineRule[])
+    for (const cars of [4, 8])
       for (const n of [1, 2, 3])
-        for (const fullLoad of [true, false]) {
-          if (!fullLoad && n < 2) continue;
-          mk(
-            { engine, cars, fullLoad, trains: Array(legsN).fill(n) as number[] },
-            `${engine} ${cars}c x${n}${fullLoad ? " FL" : ""}`,
-          );
-        }
+        mk(
+          { engine, cars, fullLoad: true, trains: Array(legsN).fill(n) as number[] },
+          `${engine} ${cars}c x${n} FL`,
+        );
   for (const grow of [4, 6])
     mk({ grow, trains: Array(legsN).fill(2) as number[] }, `grow to ${grow}`);
+  if (def.goal.type === "connect" && base.via)
+    for (const stageMonth of [12, 24, 36])
+      mk({ stageMonth, grow: 4, trains: [2] }, `stage ${stageMonth} grow 4`);
   const fixed = def.goal.type === "connect" ? 1 : 0;
   void fixed;
   return out;
@@ -592,9 +592,11 @@ async function main(): Promise<void> {
       const routes = await pool(def.id, routeCandidates(def.id), jobs);
       best = routes[0];
     }
+    if (phase === "ops" && args.includes("--base"))
+      best = { strategy: JSON.parse(args[args.indexOf("--base") + 1]!) as Strategy } as SolveResult;
     if ((phase === "ops" || phase === "all") && best) {
       const ops = await pool(def.id, opsCandidates(best.strategy, def.id), jobs);
-      if (better(ops[0]!, best) < 0) best = ops[0];
+      if (!best.id || better(ops[0]!, best) < 0) best = ops[0];
     }
     if (best) console.log(`BEST ${def.id}: ${JSON.stringify(best)}`);
   }
