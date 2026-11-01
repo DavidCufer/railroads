@@ -37,7 +37,13 @@ export interface StationFlow {
   lastYear: FlowPeriod;
   /** Smoothed fare per unit of cargo loaded here (EMA of delivered revenue ÷ units). */
   fare: Partial<Record<CargoType, number>>;
+  /** Phase 78: units of each cargo trains loaded here, per month; [0] is the running month, then the two before it
+   * (a rolling ~90-day window). Absent in older saves (history starts empty). */
+  pickups?: Partial<Record<CargoType, number[]>>;
 }
+
+/** Months of loading history that decide where an industry's output goes (Phase 78). */
+export const PICKUP_WINDOW_MONTHS = 3;
 
 export function emptyStationFlow(): StationFlow {
   return { month: {}, lastMonth: {}, year: {}, lastYear: {}, fare: {} };
@@ -92,6 +98,9 @@ export function recordSent(
     const b = bucket(period, cargo);
     b.sent = (b.sent ?? 0) + units;
   }
+  const pickups = (flow.pickups ??= {});
+  const months = (pickups[cargo] ??= new Array<number>(PICKUP_WINDOW_MONTHS).fill(0));
+  months[0] = (months[0] ?? 0) + units;
 }
 
 export function recordDelivered(
@@ -145,6 +154,12 @@ export function monthlyStationFlowRollover(state: GameState): void {
   for (const flow of state.stationFlow.values()) {
     flow.lastMonth = flow.month;
     flow.month = {};
+    if (flow.pickups)
+      for (const cargo of Object.keys(flow.pickups) as CargoType[]) {
+        const months = flow.pickups[cargo] as number[];
+        months.unshift(0);
+        months.length = PICKUP_WINDOW_MONTHS;
+      }
   }
 }
 

@@ -250,6 +250,9 @@ export const strings = {
     /** Phase 40: the long-haul chain's one line under the supply chips. */
     chainPay: (sink: string, perTon: number, perYear: string) =>
       `Pays on arrival at the ${sink}: ~$${Math.round(perTon).toLocaleString("en-US")}/t · ~${perYear}/yr at full output`,
+    /** Phase 78: an industry's output shared between stations ("Smelter: 50 % here, 50 % via Smelter 2"). */
+    outputSplit: (works: string, here: number, others: Array<{ pct: number; station: string }>) =>
+      `${works}: ${here} % here${others.map((o) => `, ${o.pct} % via ${o.station}`).join("")}`,
     /** Phase 42: small towns lose local trips to buses and cars. */
     roadCompetition: (pct: number, since: number) =>
       `Road competition: \u2212${pct} % since ${since}`,

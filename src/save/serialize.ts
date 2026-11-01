@@ -14,6 +14,7 @@ import type { Goal } from "../sim/goals/types";
 import type { GameMap } from "../sim/map/types";
 import { TrackGraph } from "../sim/track/graph";
 import { PARTY_SIZE } from "../data/economy";
+import { collectPickups } from "../sim/stations/pickups";
 import { computeStationEconomies } from "../sim/stations/economy";
 import { destinationSets, passengerNetwork } from "../sim/stations/destinations";
 import { emptyLedgerPeriod, type LedgerPeriod } from "../data/finance";
@@ -218,6 +219,7 @@ export function deserializeGameState(data: SerializedGameStateV3): GameState {
     state.industryEconomy,
     destinationSets(state.trains),
     links,
+    collectPickups(state),
   );
   clampInputStocks(state); // Phase 38: stockpiles are capped now
   if ((data.passengerParty ?? 1) !== PARTY_SIZE) migratePassengers(state, data.passengerParty ?? 1);
