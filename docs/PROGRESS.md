@@ -7569,4 +7569,4 @@ Random maps: gold within bounds on 12 seeds x 3 difficulties.
 | scenario profit stars: Semmering / Coal for Trieste / Transcontinental | $370k / $400k / $410k | $410k / $450k / $460k (year 5, unchanged by this step) |
 
 Consequences to flag for the owner: the gold goals roughly double or triple (us-west gold 3x) because they now ask what the V2 bot earns in its sixteenth year; the two hand-set silver goals had to rise 2-5x because against the new operator they would otherwise fall under the calibration's "not trivial" floor (0.3), which the owner kept. A human play-tester will find these harder than before; whether the owner wants them lower means a different (lower) year index, which `goalCalibration` allows down to the 0.8x gold floor (about year 13-14 for the profit golds).
-`npm run check`: 961 passed, 1 skipped. e2e: see the end of this entry.
+`npm run check`: 961 passed, 1 skipped. e2e: 298 passed.
