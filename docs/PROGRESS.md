@@ -7455,3 +7455,10 @@ mine. Silver bars are bound by full-load waits and by track costs ($2M for two l
    bound as before); e2e `phase46.spec.ts` / `phase49bWords.spec.ts` progress 8,000 and the ladder text. Blurbs in
    `strings.ts`. `npm run check` 955 passed.
 4. Never touched: the economy, `strongPlayer.ts`, goals.
+
+### Orchestrator: Phase 76 merged (2026-11-01)
+- Reviewed `phase-76-scenarios` (a233063). The first solver failed the owner sanity check (2 stars, no profit, against
+  the owner's 3 stars by Oct 1882 with $688k profit); the cause was the output split between two smelter stations. The
+  owner confirmed one station at the Smelter, and the solver now reproduces his run (3 stars 1882-04, $792k). `npm run
+  check` 955 passed; e2e 149 + 148 passed. Owner approved the table ("Approve all"); merged.
+- Owner chose the real-world output rule ("Ship to stations with pickups"): Phase 78.
