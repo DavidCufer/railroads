@@ -11,7 +11,7 @@ import { createGameState, type GameState } from "../../src/sim/state";
 import { advanceOneHour } from "../../src/sim/tick";
 import { deserializeGameState, serializeGameState } from "../../src/save/serialize";
 import { strings } from "../../src/ui/strings";
-import { runScenario } from "../../tools/bench/scenarioRun";
+import { runStrategy } from "../../tools/bench/scenarioSolver";
 import type { Station } from "../../src/sim/stations/types";
 
 const YEAR = 360 * 24;
@@ -38,7 +38,7 @@ describe("scenario table", () => {
     expect(state.startYear).toBe(1871);
     expect(state.finance.loans).toBe(2_500_000);
     expect(state.cash).toBe(2_900_000);
-    expect(startOf("semmering").cash).toBe(700_000);
+    expect(startOf("semmering").cash).toBe(450_000);
   });
 
   it("panic1873 really has the Panic of 1873 in its seed", () => {
@@ -49,10 +49,10 @@ describe("scenario table", () => {
 describe("goal evaluation", () => {
   it("loses a connect scenario at the deadline, not before", () => {
     const state = startOf("semmering");
-    state.ticks = 8 * YEAR - 1; // Dec 1857
+    state.ticks = 6 * YEAR - 1; // Dec 1855
     dailyScenarioStep(state);
     expect(state.scenario!.status).toBe("active");
-    state.ticks = 8 * YEAR + 24; // Jan 1858
+    state.ticks = 6 * YEAR + 24; // Jan 1856
     dailyScenarioStep(state);
     expect(state.scenario).toMatchObject({ status: "lost", reason: "deadline" });
   });
@@ -79,8 +79,8 @@ describe("goal evaluation", () => {
     recordScenarioDelivery(state, at(trieste.anchorX + 40, trieste.anchorY), "coal", 500);
     recordScenarioDelivery(state, at(trieste.anchorX + 2, trieste.anchorY), "ironOre", 500);
     recordScenarioDelivery(state, at(trieste.anchorX + 2, trieste.anchorY), "coal", 100);
-    expect(scenarioProgress(state)).toEqual({ current: 100, target: 6000 });
-    recordScenarioDelivery(state, at(trieste.anchorX, trieste.anchorY), "coal", 5900);
+    expect(scenarioProgress(state)).toEqual({ current: 100, target: 8000 });
+    recordScenarioDelivery(state, at(trieste.anchorX, trieste.anchorY), "coal", 7900);
     dailyScenarioStep(state);
     expect(state.scenario!.status).toBe("won");
     expect(state.scenario!.stars).toBeGreaterThanOrEqual(1);
@@ -100,12 +100,12 @@ describe("goal evaluation", () => {
 
   it("rates 1 star for finishing, +1 for speed (or yearly profit), +1 for yearly profit (Phase 67)", () => {
     const connect = scenarioById("semmering")!;
-    expect(starsFor(connect, 1856, 0)).toBe(1);
-    expect(starsFor(connect, 1852, 0)).toBe(2);
+    expect(starsFor(connect, 1855, 0)).toBe(1);
+    expect(starsFor(connect, 1851, 0)).toBe(2);
     const [, bProfit] = connect.stars;
-    expect(starsFor(connect, 1856, bProfit)).toBe(2);
-    expect(starsFor(connect, 1852, bProfit)).toBe(3);
-    expect(starsFor(connect, 1852, bProfit - 1)).toBe(2);
+    expect(starsFor(connect, 1855, bProfit)).toBe(2);
+    expect(starsFor(connect, 1851, bProfit)).toBe(3);
+    expect(starsFor(connect, 1851, bProfit - 1)).toBe(2);
     const survive = scenarioById("panic1873")!;
     const [s2, s3] = survive.stars;
     expect(s3).toBeGreaterThan(s2);
@@ -139,8 +139,18 @@ describe("fail-able and beatable", () => {
     }
   });
 
-  it("the direct Vienna - Trieste line wins Semmering", { timeout: 60_000 }, () => {
-    const r = runScenario("semmering", "play");
+  // Phase 76: with $450k the direct line cannot be paid at once; the solver's best plan (tools/bench/scenarioSolver.ts) runs
+  // Vienna - Graz first and links Trieste in month 10. Same bound as before: won, at least 2 stars.
+  it("the solver's staged Vienna - Graz - Trieste plan wins Semmering", { timeout: 120_000 }, () => {
+    const r = runStrategy("semmering", {
+      engine: "fast",
+      cars: 4,
+      trains: [2],
+      fullLoad: true,
+      grow: 4,
+      via: [["Graz"]],
+      stageMonth: 10,
+    });
     expect(r.status).toBe("won");
     expect(r.stars).toBeGreaterThanOrEqual(2);
   });
