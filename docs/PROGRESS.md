@@ -7413,7 +7413,7 @@ Reported, not changed (owner decides):
 | Panic of 1873 | survive to 1878, debt < $500k (same) | same | $400k + $2.5M debt (same) | profit $560k / $790k -> $750k / $950k | 2 pairs, repay above $300k: 3 stars, profit 1.40M | same plan: 3 stars (at about $1.0M finish profit); one pair + repay: 1 star ($525k), too cautious or not repaying: lost |
 | Coal for Trieste 1858 | 6,000 t -> 8,000 t | 1866 -> 1865 | $2.5M -> $1.5M | by 1863 -> by 1864 / $400k (same) | one mine (34 tiles) 1864-09, 1 star; two mines 1863-03, 2 stars | one mine alone 1866-04: too late, lost; two mines (34 + 104 tiles, $988k) 1864-08: 2 stars |
 | Transcontinental 1860 | connect Sacramento-Salt Lake City (same) | 1869 -> 1866 | $900k -> $650k | by 1865 -> by 1862 / $410k (same) | direct line, month 0: 2 stars | direct line unaffordable at once; Sacramento-San Francisco pair first, link in month 12 (loans): 1860-12, 2 stars; link in month 36: 1866-08 (too late for the new date, 1 star) |
-| Silver rush 1880 | 200 t -> 300 t of silver bars | 1890 -> 1889 | $4M (same) | by 1887 -> by 1885 / $610k (same) | ore via Turin + 4 trains: 1883-03, 2 stars | same plan: 1884-07, 2 stars; a plain 1-train plan wins only 1888-12 (1 star) |
+| Silver rush 1880 | 200 -> 600 t of silver bars | 1890 (same) | $4M (same) | by 1887 -> by 1885 / $610k -> $800k | two smelter stations (the old layout), 1883-03, 2 stars | one smelter station + 4 trains: 1883-08, 3 stars, profit $826k; simple plans: 1 train 1886-11 (1 star), 4 cars x3 1885-04 / 8 cars x1 1885-08 (2 stars) |
 
 Why: the old connect scenarios were won by one line in month 0 (the goal checks the link, so a bot that builds it first
 finishes at once and the date star is free); less cash makes the link wait for earnings or loans, the date star then
@@ -7427,13 +7427,26 @@ mine. Silver bars are bound by full-load waits and by track costs ($2M for two l
    strong, value, cheap), cars, 1-3 trains per leg, full-load waits, growth by buying trains from cash, repaying. Each
    run is a child process (4 in parallel); ranking: stars, then finish date, then profit. Survival (`panic1873`) is
    `goodPlayer.ts` over MAXPAIRS x KEEP; goodPlayer's SCENARIO line now also prints last year's profit.
-2. **Sanity check on Silver Rush: not reproduced.** The owner's run (`docs/playtests/pt10-silver-rush.jpg`): 3 stars in
-   Oct 1882 with $2.8M cash and last year's profit $688k. The solver's best old plan finished 1883-03 with 2 stars and
-   profit near zero: with silver alone, bars bring about $6-7k a ton and the line costs about $500k a year to run, so
-   $688k a year needs more income than one 100 t-a-year chain, or a cheaper line than the pathfinder's ($2M for two
-   legs). I could not find what the owner did differently. Consequence: **no non-survival scenario's 3rd star was
-   reached by the solver**, so the profit bars (still the strong-player medians; Phase 77 re-derives those) are
-   unverified; I did not lower them, because a human beats the solver.
+2. **Sanity check on Silver Rush: reproduced (after a fix).** Owner: 3 stars Oct 1882, profit $688k, $2.8M left. Solver
+   (one smelter station, fast 75 km/h engine, 4 cars, full-load waits, 4 trains per leg grown from profit, the 200 t
+   goal): 3 stars 1882-04, profit $792k. At the new 600 t: 3 stars 1883-08, profit $826k. Findings that mattered: ore pays
+   nothing (`baseRate` 0), there is one mine, one smelter and one mint on the seed-7 map, the UI drag uses the solver's
+   pathfinder options, full-load waits double throughput, and **the output-split trap** (below). Per-year books:
+   `YEARLY=1` (revenue by cargo, cost parts); `SUPPLY=1` (per-station supply).
+   **Finding for the owner: the output-split trap.** A producer's output is split evenly between every station whose
+   catchment covers it (`stations/economy.ts`). With the usual layout, one station where the ore is dropped and a second
+   where the bars are loaded, both cover the smelter, so half of the bars go to the ore station, where no train loads
+   them, and rot (50 bars a month: 25 + 25). Same seed, same trains (2 + 2, 4 cars, full load), bars delivered a year:
+   two smelter stations about 60 t (46 / 65 / 56 in 1880-82), one station about 105 t (39 / 108 / 104); revenue 1881
+   $299k vs $712k. Nothing in the game tells the player. The solver builds the one-station layout by running the mint
+   line first (smelter station at its end) and joining the ore line to it a few tiles away: a through station mine -
+   smelter - mint is impossible here (the smelter is on the east coast, the mint to the north-east: a bend of 70+ degrees
+   against the 45 degree station rule). *Option, not implemented:* an industry ships through the stations whose trains
+   actually collect that cargo, split by pickups (a station nobody loads from gets no share), or at least show the split
+   on the station panel.
+   Still true for the other three non-survival scenarios (Semmering, Coal, Transcontinental): the solver does not reach
+   their 3rd star (profit bars unchanged, strong-player medians); Panic's bars are at the solver's level. Silver's 3rd
+   star ($800k) is only the solver's plan (4 trains grown from profit).
 3. Tests: `scenarios.test.ts` follows the new numbers (cash $450k, deadline Dec 1855 / Jan 1856, coal 8,000 t, star
    ladder at 1851) and the Semmering "beatable" test now plays the solver's staged plan (won, at least 2 stars; same
    bound as before); e2e `phase46.spec.ts` / `phase49bWords.spec.ts` progress 8,000 and the ladder text. Blurbs in

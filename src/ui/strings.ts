@@ -1108,7 +1108,7 @@ export const strings = {
       },
       silverRush: {
         name: "Silver rush",
-        blurb: "Deliver 300 t of silver bars to the Mint by 1889.",
+        blurb: "Deliver 600 t of silver bars to the Mint by 1890.",
       },
     } as Record<string, { name: string; blurb: string }>,
     goalLine: {

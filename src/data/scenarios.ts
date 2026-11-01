@@ -87,8 +87,8 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     startYear: 1880,
     difficulty: "normal",
     startCash: 4_000_000,
-    goal: { type: "deliver", cargo: "silverBars", amount: 300, byYear: 1889 },
-    stars: [1885, strongPlayerAmount("profit", 5, 1890, 1880)],
+    goal: { type: "deliver", cargo: "silverBars", amount: 600, byYear: 1890 },
+    stars: [1885, 800_000],
   },
   // Owner (2026-10-31): the hardest scenario, listed last.
   {
