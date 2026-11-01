@@ -502,7 +502,7 @@ function snapshot(label: string): void {
     [
       label,
       `cash ${(state.cash / 1e6).toFixed(2)}M`,
-      `NW ${(netWorth(state) / 1e6).toFixed(2)}M`,
+      `NW ${(netWorth(state) / 1e6).toFixed(2)}M profit ${Math.round(ledgerOperatingProfit(state.finance.lastYear) / 1000)}k`,
       `rev ${(ledgerRevenue(last) / 1e6).toFixed(2)}M`,
       `loans ${(state.finance.loans / 1e6).toFixed(1)}M`,
       `trains ${state.trains.length}`,
@@ -602,7 +602,7 @@ if (process.env["CONTRACTS"] && process.env["TRACE"]) {
 void STATION_TYPE_DEFS;
 if (state.scenario)
   console.log(
-    `SCENARIO ${state.scenario.id}: ${state.scenario.status} stars ${state.scenario.stars} ${state.scenario.reason ?? ""} loans ${(state.finance.loans / 1e6).toFixed(2)}M NW ${(netWorth(state) / 1e6).toFixed(2)}M`,
+    `SCENARIO ${state.scenario.id}: ${state.scenario.status} stars ${state.scenario.stars} ${state.scenario.reason ?? ""} loans ${(state.finance.loans / 1e6).toFixed(2)}M NW ${(netWorth(state) / 1e6).toFixed(2)}M profit ${Math.round(ledgerOperatingProfit(state.finance.lastYear) / 1000)}k`,
   );
 console.log(`# ${region} ${startYear} ${difficulty} seed ${seed}`);
 console.log(report.join("\n"));

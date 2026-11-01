@@ -57,6 +57,8 @@ export interface Strategy {
   repayAbove?: number;
   /** connect: build the second half of the line only in this month (needs one via city). */
   stageMonth?: number;
+  /** connect: first run a pair line from the first city to this (rich) town, link the goal cities at `stageMonth`. */
+  pre?: string;
   /** connect: trains also stop in the via town. */
   stopVia?: boolean;
   /** connect: lay extra pair lines (A to a nearby town) before the link. */
@@ -267,6 +269,7 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
   const et = st.endType ?? "station";
   const viaTiles = (names: string[] | undefined, toward: Spot): Array<{ tiles: number[]; type: "station" }> =>
     (names ?? []).map((n) => ({ tiles: cityTiles(n, toward), type: "station" as const }));
+  let preLink: { stops: Array<{ tiles: number[]; type: "station" | "terminal" }> } | null = null;
   let staged: { stops: Array<{ tiles: number[]; type: "station" | "terminal" }>; leg: Leg; from: number } | null =
     null;
 
@@ -281,7 +284,23 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
       ...viaTiles(via, B),
       { tiles: cityTiles(b.name, A), type: et },
     ] as Array<{ tiles: number[]; type: "station" | "terminal" }>;
-    if (st.stageMonth && via.length > 0) {
+    if (st.pre && st.stageMonth) {
+      const P = state.cities.find((c) => c.name === st.pre)!;
+      const first = [
+        { tiles: cityTiles(a.name, { x: P.anchorX, y: P.anchorY }), type: et },
+        { tiles: cityTiles(P.name, A), type: et },
+      ] as Array<{ tiles: number[]; type: "station" | "terminal" }>;
+      const leg = startLeg(first, "passengers", st.trains[0] ?? 2, (ids) => ids);
+      if (leg) {
+        const aTile = state.stations.find((x) => x.id === leg.ids[0])!.tile;
+        preLink = {
+          stops: [
+            { tiles: [aTile], type: et },
+            { tiles: cityTiles(b.name, A), type: et },
+          ] as Array<{ tiles: number[]; type: "station" | "terminal" }>,
+        };
+      } else note += " [pre failed]";
+    } else if (st.stageMonth && via.length > 0) {
       const first = all.slice(0, 2);
       const leg = startLeg(first, "passengers", st.trains[0] ?? 2, (ids) => ids);
       if (leg) staged = { stops: all, leg, from: 1 };
@@ -396,6 +415,18 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
         staged = null;
       }
     }
+    if (preLink && month >= st.stageMonth!) {
+      for (let k = 0; k < 8 && state.cash < 700_000; k++) takeLoan(state, 100_000);
+      const cash0 = state.cash;
+      const ids = buildChain(preLink.stops);
+      spent += cash0 - state.cash;
+      if (ids) {
+        const leg: Leg = { ids, cargo: "passengers", trains: 0, cap: 2, stops: ids };
+        legs.push(leg);
+        for (let i = 0; i < 2; i++) if (!addTrain(leg)) break;
+        preLink = null;
+      }
+    }
     for (const leg of legs) {
       while (
         leg.trains < leg.cap &&
@@ -464,6 +495,18 @@ export function routeCandidates(id: string): Strategy[] {
     for (const v of near(state, { x: a.anchorX, y: a.anchorY }, { x: b.anchorX, y: b.anchorY }, 25, g.cities).slice(0, 3))
       out.push({ ...base, label: `via ${v}`, via: [[v]], stopVia: true });
     out.push({ ...base, label: "direct terminals", endType: "terminal" });
+    const bigNear = state.cities
+      .filter(
+        (c) =>
+          !g.cities.includes(c.name) &&
+          c.population >= 8000 &&
+          Math.hypot(c.anchorX - a.anchorX, c.anchorY - a.anchorY) < 70,
+      )
+      .sort((p, q) => q.population - p.population)
+      .slice(0, 2);
+    for (const c of bigNear)
+      for (const stageMonth of [12, 24, 36])
+        out.push({ ...base, label: `pre ${c.name} link ${stageMonth}`, pre: c.name, stageMonth, trains: [2] });
     for (const v of near(state, { x: a.anchorX, y: a.anchorY }, { x: b.anchorX, y: b.anchorY }, 40, g.cities).slice(0, 4))
       for (const stageMonth of [10, 22, 34])
         out.push({ ...base, label: `stage ${stageMonth} via ${v}`, via: [[v]], stageMonth, grow: 4, trains: [2] });
