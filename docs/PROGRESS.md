@@ -7479,3 +7479,8 @@ mine. Silver bars are bound by full-load waits and by track costs ($2M for two l
    date star; not a split effect. Route phase (1 + 1 trains): one 1886-11 / two 1889-06, both 1 star. Coal (routes):
    unchanged from Phase 76 (two mines 1864-08, 2 stars; one mine lost). Scenario numbers not changed.
 4. Tests: `npm run check` 961 passed; e2e shards 149 + 149 passed. `tests/sim/stations/pickups.test.ts` (6), e2e `phase78.spec.ts`. SPEC §6.1 updated (deviation).
+
+### Orchestrator: Phase 78 merged (2026-11-01)
+- Reviewed `phase-78-pickups` (86bad6a): pickup-weighted split for industry outputs, panel line, 6 unit tests, SPEC
+  §6.1 deviation. `npm run check` 961 passed; e2e 149 + 149 passed. Silver Rush one vs. two smelter stations now within
+  4 % profit (was ~60 vs ~105 t of bars a year); scenario numbers unchanged. Merged.
