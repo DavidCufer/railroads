@@ -50,9 +50,9 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     seed: 7,
     startYear: 1850,
     difficulty: "normal",
-    startCash: 700_000,
-    goal: { type: "connect", cities: ["Vienna", "Trieste"], byYear: 1857 },
-    stars: [1853, strongPlayerAmount("profit", 5, 1857, 1850)],
+    startCash: 450_000,
+    goal: { type: "connect", cities: ["Vienna", "Trieste"], byYear: 1855 },
+    stars: [1851, strongPlayerAmount("profit", 5, 1857, 1850)],
   },
   {
     id: "coalTrieste",
@@ -60,15 +60,15 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     seed: 7,
     startYear: 1858,
     difficulty: "normal",
-    startCash: 2_500_000,
+    startCash: 1_500_000,
     goal: {
       type: "deliver",
       cargo: "coal",
-      amount: 6_000,
-      byYear: 1866,
+      amount: 8_000,
+      byYear: 1865,
       nearCity: { name: "Trieste", withinTiles: 8 },
     },
-    stars: [1863, strongPlayerAmount("profit", 5, 1866, 1858)],
+    stars: [1864, strongPlayerAmount("profit", 5, 1866, 1858)],
   },
   {
     id: "transcontinental",
@@ -76,9 +76,9 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     seed: 7,
     startYear: 1860,
     difficulty: "normal",
-    startCash: 900_000,
-    goal: { type: "connect", cities: ["Sacramento", "Salt Lake City"], byYear: 1869 },
-    stars: [1865, strongPlayerAmount("profit", 5, 1869, 1860)],
+    startCash: 650_000,
+    goal: { type: "connect", cities: ["Sacramento", "Salt Lake City"], byYear: 1866 },
+    stars: [1862, strongPlayerAmount("profit", 5, 1869, 1860)],
   },
   {
     id: "silverRush",
@@ -87,8 +87,8 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     startYear: 1880,
     difficulty: "normal",
     startCash: 4_000_000,
-    goal: { type: "deliver", cargo: "silverBars", amount: 200, byYear: 1890 },
-    stars: [1887, strongPlayerAmount("profit", 5, 1890, 1880)],
+    goal: { type: "deliver", cargo: "silverBars", amount: 600, byYear: 1890 },
+    stars: [1885, 800_000],
   },
   // Owner (2026-10-31): the hardest scenario, listed last.
   {
@@ -100,10 +100,7 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     startCash: 400000,
     startLoans: 2_500_000,
     goal: { type: "survive", untilYear: 1878, maxDebt: 500_000 },
-    stars: [
-      strongPlayerAmount("profit", 5, 1878, 1871),
-      strongPlayerAmount("profit", 7, 1878, 1871),
-    ],
+    stars: [750_000, 950_000],
   },
 ];
 
