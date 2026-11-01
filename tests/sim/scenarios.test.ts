@@ -141,17 +141,21 @@ describe("fail-able and beatable", () => {
 
   // Phase 76: with $450k the direct line cannot be paid at once; the solver's best plan (tools/bench/scenarioSolver.ts) runs
   // Vienna - Graz first and links Trieste in month 10. Same bound as before: won, at least 2 stars.
-  it("the solver's staged Vienna - Graz - Trieste plan wins Semmering", { timeout: 120_000 }, () => {
-    const r = runStrategy("semmering", {
-      engine: "fast",
-      cars: 4,
-      trains: [2],
-      fullLoad: true,
-      grow: 4,
-      via: [["Graz"]],
-      stageMonth: 10,
-    });
-    expect(r.status).toBe("won");
-    expect(r.stars).toBeGreaterThanOrEqual(2);
-  });
+  it(
+    "the solver's staged Vienna - Graz - Trieste plan wins Semmering",
+    { timeout: 120_000 },
+    () => {
+      const r = runStrategy("semmering", {
+        engine: "fast",
+        cars: 4,
+        trains: [2],
+        fullLoad: true,
+        grow: 4,
+        via: [["Graz"]],
+        stageMonth: 10,
+      });
+      expect(r.status).toBe("won");
+      expect(r.stars).toBeGreaterThanOrEqual(2);
+    },
+  );
 });

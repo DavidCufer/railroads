@@ -150,7 +150,8 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
         if (!path || path.length < 4) continue;
         const plan = computeBuildPlan(state, path);
         if (!plan.valid) continue;
-        if (!best || plan.cost < best.cost) best = { path: [...path], cost: plan.cost, a: ta, b: tb };
+        if (!best || plan.cost < best.cost)
+          best = { path: [...path], cost: plan.cost, a: ta, b: tb };
       }
     return best;
   }
@@ -167,7 +168,10 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
       const from = prev === undefined ? sample(stops[0]!.tiles, 4) : [prev];
       const pick =
         cheapest(from, sample(stops[i]!.tiles, 4)) ??
-        cheapest(prev === undefined ? stops[0]!.tiles.slice(0, 8) : from, stops[i]!.tiles.slice(0, 8));
+        cheapest(
+          prev === undefined ? stops[0]!.tiles.slice(0, 8) : from,
+          stops[i]!.tiles.slice(0, 8),
+        );
       if (!pick) {
         note += ` [no path stop ${i}]`;
         return null;
@@ -196,7 +200,10 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
     return ids;
   }
 
-  function pickLoco(cars: number, cargo: CargoType): { id: string; cars: number; cost: number } | null {
+  function pickLoco(
+    cars: number,
+    cargo: CargoType,
+  ): { id: string; cars: number; cost: number } | null {
     const all = buyableLocomotivesIn(year()).filter(
       (l) => l.type !== "electric" && (cargo === "passengers" || !l.passengerMailOnly),
     );
@@ -239,8 +246,11 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
     const rule = st.fullLoad ? "fullLoad" : "auto";
     const orders = leg.stops.map((stationId, i) => ({
       stationId,
-      rule: i === 0 || i === leg.stops.length - 1 ? (rule as "auto" | "fullLoad") : ("auto" as const),
-      ...(rule === "fullLoad" && (i === 0 || i === leg.stops.length - 1) ? { maxWaitDays: 12 } : {}),
+      rule:
+        i === 0 || i === leg.stops.length - 1 ? (rule as "auto" | "fullLoad") : ("auto" as const),
+      ...(rule === "fullLoad" && (i === 0 || i === leg.stops.length - 1)
+        ? { maxWaitDays: 12 }
+        : {}),
     }));
     // freight: wait to load at the producer only, never at the sink
     if (leg.cargo !== "passengers" && st.fullLoad) orders[orders.length - 1]!.rule = "auto";
@@ -267,11 +277,17 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
 
   const g = def.goal;
   const et = st.endType ?? "station";
-  const viaTiles = (names: string[] | undefined, toward: Spot): Array<{ tiles: number[]; type: "station" }> =>
+  const viaTiles = (
+    names: string[] | undefined,
+    toward: Spot,
+  ): Array<{ tiles: number[]; type: "station" }> =>
     (names ?? []).map((n) => ({ tiles: cityTiles(n, toward), type: "station" as const }));
   let preLink: { stops: Array<{ tiles: number[]; type: "station" | "terminal" }> } | null = null;
-  let staged: { stops: Array<{ tiles: number[]; type: "station" | "terminal" }>; leg: Leg; from: number } | null =
-    null;
+  let staged: {
+    stops: Array<{ tiles: number[]; type: "station" | "terminal" }>;
+    leg: Leg;
+    from: number;
+  } | null = null;
 
   if (g.type === "connect") {
     const a = state.cities.find((c) => c.name === g.cities[0])!;
@@ -280,7 +296,13 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
     const B = { x: b.anchorX, y: b.anchorY };
     const via = st.via?.[0] ?? [];
     const all = [
-      { tiles: cityTiles(a.name, via.length ? (state.cities.find((c) => c.name === via[0])! as never as Spot) : B), type: et },
+      {
+        tiles: cityTiles(
+          a.name,
+          via.length ? (state.cities.find((c) => c.name === via[0])! as never as Spot) : B,
+        ),
+        type: et,
+      },
       ...viaTiles(via, B),
       { tiles: cityTiles(b.name, A), type: et },
     ] as Array<{ tiles: number[]; type: "station" | "terminal" }>;
@@ -390,7 +412,20 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
       const ly = state.finance.lastYear;
       console.error(
         year() - 1,
-        `rev ${Math.round(ledgerRevenue(ly) / 1000)}k costs ${Math.round(ledgerOperatingCosts(ly) / 1000)}k profit ${Math.round(ledgerOperatingProfit(ly) / 1000)}k cash ${Math.round(state.cash / 1000)}k loans ${Math.round(state.finance.loans / 1000)}k trains ${state.trains.length} waiting ${[...state.stationCargo.entries()].map(([i, p]) => `${i}:` + Object.entries(p).filter(([, v]) => v!.amount >= 1).map(([k, v]) => `${k}=${Math.round(v!.amount)}`).join('/')).join(' ')} status ${state.trains.map((t) => t.status[0]).join('')} progress ${Math.round(state.scenario!.progress)}`,
+        `rev ${Math.round(ledgerRevenue(ly) / 1000)}k costs ${Math.round(ledgerOperatingCosts(ly) / 1000)}k profit ${Math.round(ledgerOperatingProfit(ly) / 1000)}k cash ${Math.round(state.cash / 1000)}k loans ${Math.round(state.finance.loans / 1000)}k trains ${state.trains.length} waiting ${[
+          ...state.stationCargo.entries(),
+        ]
+          .map(
+            ([i, p]) =>
+              `${i}:` +
+              Object.entries(p)
+                .filter(([, v]) => v!.amount >= 1)
+                .map(([k, v]) => `${k}=${Math.round(v!.amount)}`)
+                .join("/"),
+          )
+          .join(
+            " ",
+          )} status ${state.trains.map((t) => t.status[0]).join("")} progress ${Math.round(state.scenario!.progress)}`,
       );
     }
     // loans keep the company alive while it still has a plan
@@ -492,7 +527,13 @@ export function routeCandidates(id: string): Strategy[] {
     const a = state.cities.find((c) => c.name === g.cities[0])!;
     const b = state.cities.find((c) => c.name === g.cities[1])!;
     out.push({ ...base, label: "direct" });
-    for (const v of near(state, { x: a.anchorX, y: a.anchorY }, { x: b.anchorX, y: b.anchorY }, 25, g.cities).slice(0, 3))
+    for (const v of near(
+      state,
+      { x: a.anchorX, y: a.anchorY },
+      { x: b.anchorX, y: b.anchorY },
+      25,
+      g.cities,
+    ).slice(0, 3))
       out.push({ ...base, label: `via ${v}`, via: [[v]], stopVia: true });
     out.push({ ...base, label: "direct terminals", endType: "terminal" });
     const bigNear = state.cities
@@ -506,10 +547,29 @@ export function routeCandidates(id: string): Strategy[] {
       .slice(0, 2);
     for (const c of bigNear)
       for (const stageMonth of [12, 24, 36])
-        out.push({ ...base, label: `pre ${c.name} link ${stageMonth}`, pre: c.name, stageMonth, trains: [2] });
-    for (const v of near(state, { x: a.anchorX, y: a.anchorY }, { x: b.anchorX, y: b.anchorY }, 40, g.cities).slice(0, 4))
+        out.push({
+          ...base,
+          label: `pre ${c.name} link ${stageMonth}`,
+          pre: c.name,
+          stageMonth,
+          trains: [2],
+        });
+    for (const v of near(
+      state,
+      { x: a.anchorX, y: a.anchorY },
+      { x: b.anchorX, y: b.anchorY },
+      40,
+      g.cities,
+    ).slice(0, 4))
       for (const stageMonth of [10, 22, 34])
-        out.push({ ...base, label: `stage ${stageMonth} via ${v}`, via: [[v]], stageMonth, grow: 4, trains: [2] });
+        out.push({
+          ...base,
+          label: `stage ${stageMonth} via ${v}`,
+          via: [[v]],
+          stageMonth,
+          grow: 4,
+          trains: [2],
+        });
   } else if (g.type === "deliver" && g.cargo === "coal") {
     for (let m = 0; m < 2; m++) out.push({ ...base, label: `mine #${m}`, mine: m, trains: [2] });
     for (let m = 1; m < 4; m++)
@@ -521,8 +581,10 @@ export function routeCandidates(id: string): Strategy[] {
     out.push({ ...base, label: "direct", trains: [1, 1] });
     const v1 = near(state, mine, plant, 30, []).slice(0, 2);
     const v2 = near(state, plant, sink, 30, []).slice(0, 3);
-    for (const v of v1) out.push({ ...base, label: `ore via ${v}`, trains: [1, 1], via: [[v], []] });
-    for (const v of v2) out.push({ ...base, label: `bars via ${v}`, trains: [1, 1], via: [[], [v]] });
+    for (const v of v1)
+      out.push({ ...base, label: `ore via ${v}`, trains: [1, 1], via: [[v], []] });
+    for (const v of v2)
+      out.push({ ...base, label: `bars via ${v}`, trains: [1, 1], via: [[], [v]] });
   }
   return out;
 }
