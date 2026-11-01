@@ -66,7 +66,7 @@ export type GoalDefByName =
 export type GoalMetric = "profit" | "revenue";
 
 /** Strong player V2 (Phase 77, `tools/bench/strongPlayer.ts`), Normal, medians ($M, completed years 5 / 10 / 16;
- * `docs/bench/phase77.md`, 10 seeds per era, the runs still alive), after the travellers' game scale of 0.8
+ * `docs/bench/phase77.md`, run on the merged branch with Phases 76 and 78, 10 seeds per era, the runs still alive), after the travellers' game scale of 0.8
  * (`TRIPS_GAME_SCALE`). Replaces the Phase 69 medians (the Phase 59-69 bot, kept as `strongPlayerV1.ts`). 1930: 8 of the 10
  * runs live through the 1931 crisis (the old bot: 3 of 10, so the Phase 69 row was the cautious bot's); these are the
  * survivors' medians, as for every era. */
@@ -75,9 +75,9 @@ export const STRONG_PLAYER_MEDIANS: ReadonlyArray<{
   revenue: readonly [number, number, number];
   profit: readonly [number, number, number];
 }> = [
-  { era: 1840, revenue: [0.8, 2.3, 7.7], profit: [0.37, 1.23, 5.03] },
-  { era: 1870, revenue: [2.41, 8.88, 11.14], profit: [1.45, 5.2, 6.42] },
-  { era: 1900, revenue: [2.42, 4.11, 5.65], profit: [1.35, 1.71, 1.76] },
+  { era: 1840, revenue: [0.8, 2.3, 7.89], profit: [0.37, 1.23, 4.88] },
+  { era: 1870, revenue: [2.41, 9.29, 11.46], profit: [1.45, 5.64, 6.5] },
+  { era: 1900, revenue: [2.42, 4.11, 7.5], profit: [1.35, 1.71, 2.5] },
   { era: 1930, revenue: [0.81, 0.84, 0.85], profit: [0.29, 0.2, 0.18] },
   { era: 1950, revenue: [2.92, 3.34, 3.98], profit: [1.04, 0.94, 1.29] },
 ];
