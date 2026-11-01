@@ -1,0 +1,12 @@
+# Phase 79 runs (raw rows). Year n = the nth year played (the `YEAR start+n` row, as in Phase 77's driver). `-` = not reached (run ends earlier, or bankrupt).
+
+| label | bot | start | diff | seed | end | bankrupt | NW $M (last year) | trains | revenue $M y5 / y10 / y16 | op profit $M y5 / y10 / y16 | op ratio y10 / y16 | min cash $M |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| H | strong | 1870 | hard | 1 | 1881 | no | 15.29 | 88 | 2.04 / 7.17 / - | 1.36 / 4.34 / - | 0.39 / - | 0.03 |
+| N | strong | 1870 | normal | 2 | 1881 | no | 21.32 | 96 | 2.69 / 10.63 / - | 1.63 / 6.53 / - | 0.39 / - | 0.02 |
+| N | strong | 1870 | normal | 1 | 1881 | no | 15.11 | 112 | 1.91 / 8.32 / - | 1.15 / 4.93 / - | 0.41 / - | 0.01 |
+| N | strong | 1870 | normal | 3 | 1881 | no | 18.11 | 114 | 2.43 / 9.11 / - | 1.46 / 5.12 / - | 0.44 / - | 0.02 |
+| H | strong | 1870 | hard | 2 | 1881 | no | 17.02 | 79 | 2.31 / 8.29 / - | 1.59 / 5.14 / - | 0.38 / - | 0.03 |
+| N+cash | strong | 1870 | normal | 2 | 1881 | no | 28.87 | 88 | 3.32 / 12.24 / - | 2.1 / 8.13 / - | 0.34 / - | 0.03 |
+| H | strong | 1870 | hard | 3 | 1881 | no | 16 | 79 | 2.05 / 6.84 / - | 1.37 / 4.13 / - | 0.4 / - | 0.03 |
+| N+cash | strong | 1870 | normal | 1 | 1881 | no | 22.36 | 101 | 2.57 / 10.85 / - | 1.54 / 6.44 / - | 0.41 / - | 0.04 |
