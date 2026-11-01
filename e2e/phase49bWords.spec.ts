@@ -166,7 +166,7 @@ test("scenario end cards", async ({ page }) => {
   await page.evaluate(() => window.__game?.startScenario("coalTrieste"));
   await page.evaluate(() => {
     const s = window.__game!.getState() as unknown as { scenario?: { progress: number } };
-    s.scenario!.progress = 6000;
+    s.scenario!.progress = 8000;
     window.__game!.setSpeed(1);
   });
   await expect(page.getByTestId("scenario-end")).toBeVisible({ timeout: 15_000 });

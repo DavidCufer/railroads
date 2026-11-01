@@ -1092,7 +1092,7 @@ export const strings = {
     items: {
       semmering: {
         name: "The Semmering line",
-        blurb: "Connect Vienna to Trieste over the Alps by 1857.",
+        blurb: "Connect Vienna to Trieste over the Alps by 1855.",
       },
       panic1873: {
         name: "Panic of 1873",
@@ -1100,15 +1100,15 @@ export const strings = {
       },
       coalTrieste: {
         name: "Coal for Trieste",
-        blurb: "Deliver 6,000 t of coal to the Trieste docks by 1866.",
+        blurb: "Deliver 8,000 t of coal to the Trieste docks by 1865.",
       },
       transcontinental: {
         name: "Transcontinental",
-        blurb: "Connect Sacramento to Salt Lake City by 1869.",
+        blurb: "Connect Sacramento to Salt Lake City by 1866.",
       },
       silverRush: {
         name: "Silver rush",
-        blurb: "Deliver 200 t of silver bars to the Mint by 1890.",
+        blurb: "Deliver 600 t of silver bars to the Mint by 1890.",
       },
     } as Record<string, { name: string; blurb: string }>,
     goalLine: {

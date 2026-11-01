@@ -47,7 +47,7 @@ test.describe("Phase 46 - scenarios", () => {
     await startScenario(page, "coalTrieste");
     await page.evaluate(() => {
       const s = window.__game!.getState() as unknown as ScenarioStateShape;
-      s.scenario!.progress = 6000;
+      s.scenario!.progress = 8000;
       window.__game!.setSpeed(1);
     });
     await expect(page.getByTestId("scenario-end")).toBeVisible({ timeout: 15_000 });
@@ -63,7 +63,7 @@ test.describe("Phase 46 - scenarios", () => {
     await startScenario(page, "coalTrieste");
     await page.evaluate(() => {
       const s = window.__game!.getState() as unknown as ScenarioStateShape;
-      s.scenario!.progress = 6000;
+      s.scenario!.progress = 8000;
       window.__game!.setSpeed(2);
     });
     await expect(page.getByTestId("scenario-end")).toBeVisible({ timeout: 15_000 });
@@ -85,7 +85,7 @@ test.describe("Phase 46 - scenarios", () => {
     const ladder = page.getByTestId("scenario-ladder");
     await expect(ladder.locator("li")).toHaveCount(3);
     await expect(ladder.locator("li.earned")).toHaveCount(2);
-    await expect(ladder).toContainText("Deliver 6,000 t of coal by 1866");
+    await expect(ladder).toContainText("Deliver 8,000 t of coal by 1865");
     await page.waitForTimeout(500);
     await page.screenshot({ path: shot("scenario-goals-ladder") });
   });
