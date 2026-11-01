@@ -7447,6 +7447,9 @@ mine. Silver bars are bound by full-load waits and by track costs ($2M for two l
    Still true for the other three non-survival scenarios (Semmering, Coal, Transcontinental): the solver does not reach
    their 3rd star (profit bars unchanged, strong-player medians); Panic's bars are at the solver's level. Silver's 3rd
    star ($800k) is only the solver's plan (4 trains grown from profit).
+   Rerun with the final solver (2026-11-01, routes + ops for Semmering, Transcontinental, Coal): same bests as the table
+   (2 stars 1850-10 / 1860-12 / 1864-08); the one-station layout only concerns Silver Rush. The owner confirmed one
+   smelter station (ore dropped and bars loaded at the same station): that is the layout the solver builds.
 3. Tests: `scenarios.test.ts` follows the new numbers (cash $450k, deadline Dec 1855 / Jan 1856, coal 8,000 t, star
    ladder at 1851) and the Semmering "beatable" test now plays the solver's staged plan (won, at least 2 stars; same
    bound as before); e2e `phase46.spec.ts` / `phase49bWords.spec.ts` progress 8,000 and the ladder text. Blurbs in
