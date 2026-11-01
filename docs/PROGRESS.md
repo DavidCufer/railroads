@@ -7539,3 +7539,34 @@ Formula unchanged (`strongPlayerAmount`: median x priceIndex(goal year) / priceI
 
 ### Results
 `npm run check`: 961 passed, 1 skipped; `goalCalibration` bounds untouched. Bench: 150 runs, twice (pre-78 and the rerun above). e2e: 298 passed after one fixture follows the formula (`phase46` scenario-won card text: Coal for Trieste's third-star profit $400k -> $450k). Bench: 150 runs in 21 pieces (Phase 77 bench driver `tools/bench/phase77.ts`, summary `phase77Summary.ts`), all pushed.
+
+### Phase 77 follow-up: reference operator at V2's level; goals back to year 16 (owner OK 2026-11-01, "Update reference, then goals")
+**Operator** (`tests/sim/referenceOperator.ts`): `referenceOperator` now returns the V2 strong player's own medians (Normal, or Hard when the start cash is below Normal's), by era row (latest benched era not after the start): linear from nothing to the year-5, -10, -16 medians, flat in real terms after year 16, in each year's money. The numbers are copied into the test file as literals (`V2_MEDIANS_NORMAL`, `V2_MEDIANS_HARD`), not read from `goals.ts`, so the test still compares the goals with an independent record. The Phase 28A compounding model is kept as `compoundingOperator` (the reproduction test of the play-test still uses it via the `OLD_ECONOMY` table). **`goalCalibration` bounds unchanged** (gold 0.8-3x, silver 0.3-1.5x).
+
+**V2 vs the operator on the calibration maps.** At y5 / y10 / y16 the operator equals V2's medians by construction (it is them). Beyond year 16 the operator holds real profit flat; checked on one long V2 run (central-eu 1840 Normal seed 1, 36 years): V2's profit is $3.1M (y15), then 7.1 / 7.2 / 7.4 / 7.1M in years 20 / 25 / 30 / 35, revenue 11.4-13.1M, against the operator's 5.1-5.7M profit, 8.2-9.3M revenue at the same years. So the operator's flat extension is conservative by about 1.35x on that seed (the bot keeps growing a few years past 16, then flattens); the other two long runs (1840 seed 2, 1870 seed 1) were stopped unfinished after over an hour and give no data. The operator ignores start cash except Normal vs Hard.
+
+| calibration map | goal | amount | operator at the deadline | ratio (limit) |
+|---|---|---|---|---|
+| gb gold | profit by 1865 | $5.3M | $5.33M | 0.99 (0.8-3) |
+| central-eu gold | profit by 1875 | $5.7M | $5.78M | 0.99 (0.8-3) |
+| us-west gold | revenue by 1900 | $11.0M | $11.17M | 0.99 (0.8-3) |
+| us-east silver | revenue by 1880 | $5.3M | $9.71M | 0.55 (0.3-1.5) |
+| us-west silver | revenue by 1880 | $5.3M | $9.71M | 0.55 (0.3-1.5) |
+
+Random maps: gold within bounds on 12 seeds x 3 difficulties.
+
+### Goals, old (main, Phase 69 medians) -> new (V2 medians, new operator; gold year 16, silver year 12)
+| goal | old | new |
+|---|---|---|
+| gb gold (profit by 1865) | $2.5M | **$5.3M** |
+| central-eu gold (profit by 1875) | $2.7M | **$5.7M** |
+| us-west gold (revenue by 1900) | $3.6M (hand-set 4.5M x 0.8) | **$11M** (V2 year-16 revenue, 1840 row) |
+| us-west silver (revenue by 1880) | $1.0M | **$5.3M** (year 12; at year 5 it was 0.10x the operator, under the 0.3 floor) |
+| us-east silver (revenue by 1880) | $2.5M (hand-set) | **$5.3M** (year 12; hand-set 2.5M was 0.26x, under the 0.3 floor) |
+| random-map profit gold, start 1830 / 1840 / 1870 / 1900 / 1930 / 1950 (deadline +50) | $3.8M / 4.1M / 5.9M / 3.5M / 0.22M / 0.66M | **$6.0M / 6.4M / 8.1M / 3.0M / 0.21M / 1.4M** |
+| random-map revenue gold (same start years) | 4.6 x start cash x 0.8 (about $3.7M at Normal 1830) | **$9.7M / 10M / 14M / 9.0M / 1.0M / 4.6M** (V2 year-16 revenue; `generate.ts` no longer uses the start cash) |
+| achievement rungs (profit a year) | $0.25M / $2.5M / $5M | $0.25M / $2.5M / $7M (unchanged by this step) |
+| scenario profit stars: Semmering / Coal for Trieste / Transcontinental | $370k / $400k / $410k | $410k / $450k / $460k (year 5, unchanged by this step) |
+
+Consequences to flag for the owner: the gold goals roughly double or triple (us-west gold 3x) because they now ask what the V2 bot earns in its sixteenth year; the two hand-set silver goals had to rise 2-5x because against the new operator they would otherwise fall under the calibration's "not trivial" floor (0.3), which the owner kept. A human play-tester will find these harder than before; whether the owner wants them lower means a different (lower) year index, which `goalCalibration` allows down to the 0.8x gold floor (about year 13-14 for the profit golds).
+`npm run check`: 961 passed, 1 skipped. e2e: see the end of this entry.
