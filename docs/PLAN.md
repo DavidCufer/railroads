@@ -2991,3 +2991,57 @@ force-push. Never loosen a test bound. Look at every PNG.
 4. If none exists on the map (a chain from another era), say so in one short line instead of an empty list.
 5. e2e with screenshots of the Mint, Smelter and Silver Mine panels; PROGRESS; tick ONLY Phase 75.
 Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5
+
+## Phase 76 — A scenario solver bot; scenarios that need good play
+
+Owner (2026-11-01, `docs/playtests/pt10-silver-rush.jpg`): "I am seriously doubting our test bots. Silver rush is dead
+simple. Just connect silver ore to factory to mint and nothing else. Buy fastest train and you win. No need to earn any
+money to do that. So easy not even interesting. I am afraid that other maps are similarly easy. Spend some time refining
+bots, make them smarter please." The owner got 3 stars in Silver Rush by Oct 1882 (start 1880, deadline 1890). Our
+scripted scenario run (`tools/bench/scenarioRun.ts`) built $2M of track and went bankrupt, so it said "hard". Branch
+`phase-76-scenarios`; never push to main. Never rebase over merge commits, never force-push. Never loosen a test bound.
+Benches in pieces of at most ~15 minutes, pushed; never end a turn mid-bench.
+
+1. **Scenario solver.** `tools/bench/scenarioSolver.ts`: for each scenario, search over a small set of real strategies
+   instead of one script: the shortest buildable route between the goal's places (and alternatives: via existing
+   towns, via the cheapest terrain), station types, the fastest/strongest affordable engine vs. cheaper ones, 1-4
+   trains, cars per train, full-load waits, double track only when trains queue, and (for "survive") repaying debt
+   vs. expanding. Run every candidate, keep the best by stars, then by finish date, then by profit. Seeds as in the
+   scenario (fixed map). Report per scenario: best finish date, stars, profit, money spent, and the strategy.
+   Sanity check: Silver Rush must reproduce what the owner did (3 stars around 1882).
+2. **Re-set each scenario so it takes good play** (game design; real place names and periods stay). Targets against
+   the solver's best: 1 star = the goal reached by a decent plan (about 1.5-2x the solver's time, within the
+   deadline), 2 stars = close to the solver's date, 3 stars = only the solver's level, and it must need the economy
+   (profit, money management or a second train), not one train on one line. Levers, in order of preference: a bigger
+   goal amount (e.g. Silver Rush: enough bars that one train cannot carry them in time), a tighter deadline, less
+   start cash or opening debt, a 3-star profit bar the solver only just reaches. Keep the first scenario (Semmering)
+   the gentlest but not trivial. Never change the economy for this.
+3. **STOP before merging**: push the branch with a table at the top of the PROGRESS entry: per scenario old -> new
+   goal, deadline, cash, star rules, solver result old vs. new, and why. The orchestrator shows the owner.
+4. Tests: `scenarios.test.ts` and e2e follow the new numbers (state the source); never weaken a bound.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+
+## Phase 77 — A smarter strong player; free-play goals from it
+
+Owner (2026-11-01, same message as Phase 76): bots too weak, maps maybe too easy. The goals and difficulty checks lean
+on `tools/bench/strongPlayer.ts`; if a real player does far better, our medians understate what is easy. Branch
+`phase-77-strongbot`; never push to main. Same rules as Phase 76 (no economy tuning, no loosened bounds, benches in
+pushed pieces).
+
+1. **Make the strong player play like a good human** (keep the old one as `strongPlayerV1.ts` for comparison):
+   - pick the best engine per route by the route's own payback (speed, capacity, running cost), not one rule;
+   - right-size trains from the load history (Phase 74's per-train load months): remove cars on trains under ~40 %
+     full, add cars or trains where cargo piles up;
+   - go for the long-haul chain (silver / uranium) and the high-value cargo when it pays, as the owner did;
+   - build feeder lines that fill trunk lines (a small town into the nearest big station), use Terminals and full-load
+     waits where output is big, double track only where trains wait;
+   - replace engines when a much better one appears (payback rule), lay up losers;
+   - keep the reserve and borrowing rules unless a measured better rule exists.
+2. **Measure** (same bench shape as Phase 69: strong 10 seeds Normal / 5 Hard, all eras): new vs. V1 medians
+   (profit, revenue, net worth, bankruptcies, idle cash year). If the new bot earns much more, say which eras now look
+   too easy on Normal and by how much; do not tune the economy.
+3. **Goals from the new medians** on the same branch: re-derive `STRONG_PLAYER_MEDIANS`, goals, achievements and the
+   scenario profit stars that use them (coordinate with Phase 76: if its branch is merged first, `git pull --no-rebase
+   origin main`); `goalCalibration` green without changing its bounds. STOP with the old -> new table at the top of the
+   PROGRESS entry; the orchestrator shows the owner.
+Status: [ ] 1 [ ] 2 [ ] 3
