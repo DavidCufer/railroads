@@ -72,7 +72,7 @@ test.describe("Phase 46 - scenarios", () => {
     await expect(page.locator(".speed-group button.active")).toHaveAttribute("aria-label", "Pause");
     await expect(page.locator(".speed-group button.active")).toHaveCount(1);
     // The card names what the next star needs (short: it has a word limit); the full ladder is in Goals.
-    await expect(page.getByTestId("scenario-end")).toContainText("★★★ profit $450k");
+    await expect(page.getByTestId("scenario-end")).toContainText("★★★ profit $400k");
     await page.screenshot({ path: shot("scenario-won-ladder") });
     await page.getByRole("button", { name: "Keep playing" }).click();
     await expect(page.getByTestId("scenario-end")).toHaveCount(0);
@@ -125,7 +125,7 @@ test.describe("Phase 46 - achievements and company history", () => {
     await page.locator("[aria-label='Menu']").first().click();
     await page.locator('[data-testid="menu-achievements"]').click();
     await expect(page.getByTestId("achievement-firstTrain")).toHaveClass(/unlocked/);
-    await expect(page.getByTestId("achievement-profit7M")).toHaveClass(/locked/);
+    await expect(page.getByTestId("achievement-profit5M")).toHaveClass(/locked/);
     await page.screenshot({ path: shot("achievements") });
     const stored = await page.evaluate(() => window.localStorage.getItem("railroads.profile"));
     expect(JSON.parse(stored as string).achievements.firstTrain).toMatch(/^\d{4}-\d{2}-\d{2}$/);

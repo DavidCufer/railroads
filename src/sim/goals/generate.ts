@@ -106,11 +106,10 @@ export function generateRandomGoals(state: GameState): Goal[] {
       tier: "gold",
       def: {
         type: "annualProfit",
-        // The strong player's year-12 profit in the company's starting era (Phase 77: year 16 of the V2 bot is 3.8x the
-        // reference operator on a 1830/1840 start, over goalCalibration's limit of 3), in the goal year's money
+        // The strong player's year-16 profit in the company's starting era, in the goal year's money
         // (`strongPlayerAmount`). The same on every difficulty: start cash only speeds the first lines, it does
         // not change what a mature railway earns (Hard's strong-player median is about 17 % lower, Phase 65).
-        amount: strongPlayerAmount("profit", 12, goldByYear, state.startYear),
+        amount: strongPlayerAmount("profit", 16, goldByYear, state.startYear),
         byYear: goldByYear,
       },
     });

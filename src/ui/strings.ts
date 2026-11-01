@@ -1074,7 +1074,7 @@ export const strings = {
       metropolisServed: { name: "Metropolis served", desc: "Serve a metropolis with a station." },
       profit250k: { name: "$0.25M a year", desc: "Earn $0.25M operating profit in a year." },
       profit2500k: { name: "$2.5M a year", desc: "Earn $2.5M operating profit in a year." },
-      profit7M: { name: "$7M a year", desc: "Earn $7M operating profit in a year." },
+      profit5M: { name: "$5M a year", desc: "Earn $5M operating profit in a year." },
       passengers100k: { name: "100,000 passengers", desc: "Carry 100,000 passengers." },
       freight10k: { name: "10,000 t of freight", desc: "Deliver 10,000 t of freight." },
       goalReached: { name: "Goal reached", desc: "Complete a bronze, silver or gold goal." },

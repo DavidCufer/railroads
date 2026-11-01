@@ -56,30 +56,27 @@ export type GoalDefByName =
  * - the inflation factor restates the bench's money in the goal year's money (`priceIndex`, SPEC §9.5).
  * Phase 73: the era row is the REGION'S start year (gb 1830, central-eu 1840, us-west 1860), never the goal's own year: Central
  * Europe's gold was "profit $170k by 1930", the cautious 1930 bot's number, in a game that starts in 1840, and the owner
- * reached it in 1851. A gold goal asks the strong player's year-11 level (region goals; year 14 under the Phase 69 medians,
- * year 16 originally), with a deadline about twice that. Phase 77: the stronger V2 bot's medians put year 14 at 4.1x the
- * reference operator (limit 3), so the year index came down again; random maps use year 12 (`generate.ts`). The reference
- * operator (`tests/sim/referenceOperator.ts`) was not changed and `goalCalibration`'s bounds are untouched.
+ * reached it in 1851. A gold goal now asks the strong player's year-14 level, with a deadline about twice that.
  * Rounded down to two significant figures. Operating profit is the Finance overview's: revenue minus running costs
  * (`ledgerOperatingProfit`), no construction.
  */
 export type GoalMetric = "profit" | "revenue";
 
-/** Strong player V2 (Phase 77, `tools/bench/strongPlayer.ts`), Normal, medians ($M, completed years 5 / 10 / 16;
- * `docs/bench/phase77.md`, run on the merged branch with Phases 76 and 78, 10 seeds per era, the runs still alive), after the travellers' game scale of 0.8
- * (`TRIPS_GAME_SCALE`). Replaces the Phase 69 medians (the Phase 59-69 bot, kept as `strongPlayerV1.ts`). 1930: 8 of the 10
- * runs live through the 1931 crisis (the old bot: 3 of 10, so the Phase 69 row was the cautious bot's); these are the
- * survivors' medians, as for every era. */
+/** Strong player, Normal, medians of Phase 69 ($M, completed years 5 / 10 / 16; `docs/bench/phase69.md`, 10 seeds per era,
+ * the runs still alive), after the travellers' game scale of 0.8 (`TRIPS_GAME_SCALE`). Replaces the Phase 67 medians. */
 export const STRONG_PLAYER_MEDIANS: ReadonlyArray<{
   era: number;
   revenue: readonly [number, number, number];
   profit: readonly [number, number, number];
 }> = [
-  { era: 1840, revenue: [0.8, 2.3, 7.89], profit: [0.37, 1.23, 4.88] },
-  { era: 1870, revenue: [2.41, 9.29, 11.46], profit: [1.45, 5.64, 6.5] },
-  { era: 1900, revenue: [2.42, 4.11, 7.5], profit: [1.35, 1.71, 2.5] },
-  { era: 1930, revenue: [0.81, 0.84, 0.85], profit: [0.29, 0.2, 0.18] },
-  { era: 1950, revenue: [2.92, 3.34, 3.98], profit: [1.04, 0.94, 1.29] },
+  { era: 1840, revenue: [0.73, 1.38, 5.49], profit: [0.33, 0.6, 3.12] },
+  { era: 1870, revenue: [1.13, 2.74, 9.45], profit: [0.55, 1.13, 4.73] },
+  { era: 1900, revenue: [1.63, 5.04, 9.52], profit: [0.74, 2.15, 2.96] },
+  // 1930 is the cautious ("good") bot's Normal medians (revenue 0.77 / 1.00 / 1.14, profit 0.29 / 0.31 / 0.19, 5 of 5 alive),
+  // not the strong bot's: 7 of its 10 runs go bankrupt in the 1931 crisis (the owner keeps 1930 hard, 2026-10-30) and the
+  // 3 survivors' medians (profit 0.27 / 0.07 / 0.02) are no goal. A 1930 goal is what a careful player who survives earns.
+  { era: 1930, revenue: [0.77, 1.0, 1.14], profit: [0.29, 0.31, 0.19] },
+  { era: 1950, revenue: [3.06, 3.19, 3.5], profit: [1.08, 0.33, 0.57] },
 ];
 
 const MEDIAN_YEARS = [5, 10, 16] as const;
@@ -137,7 +134,7 @@ export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
       tier: "gold",
       def: {
         type: "annualProfit",
-        amount: strongPlayerAmount("profit", 11, 1865, 1830),
+        amount: strongPlayerAmount("profit", 14, 1865, 1830),
         byYear: 1865,
       },
     },
@@ -149,7 +146,7 @@ export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
       tier: "gold",
       def: {
         type: "annualProfit",
-        amount: strongPlayerAmount("profit", 11, 1875, 1840),
+        amount: strongPlayerAmount("profit", 14, 1875, 1840),
         byYear: 1875,
       },
     },
