@@ -7,6 +7,7 @@
  * an optimiser: every January it spends 90 % of its cash on trains and their share of track and stations.
  */
 import { priceIndex } from "../../src/data/economy";
+import { DIFFICULTY } from "../../src/data/finance";
 import { measureMean } from "./balanceRoutes";
 
 const ERAS = [
@@ -78,8 +79,78 @@ export interface OperatorYear {
   netWorth: number;
 }
 
-/** The operator's books at the end of each year from `startYear` (difficulty start cash given). */
+/**
+ * Phase 77: the strong player V2's median results (`tools/bench/strongPlayer.ts`, `docs/bench/phase77.md`, run on the
+ * merged branch with Phases 76 and 78): $M of the completed year 5 / 10 / 16 played, money of the year earned, by the
+ * era the company starts in, survivors only. Copied here as plain numbers, not read from `src/data/goals.ts`, so the
+ * calibration test compares the goals with an independent record of what the bot earned.
+ */
+export interface BenchMedians {
+  era: number;
+  revenue: readonly [number, number, number];
+  profit: readonly [number, number, number];
+}
+export const V2_MEDIANS_NORMAL: readonly BenchMedians[] = [
+  { era: 1840, revenue: [0.8, 2.3, 7.89], profit: [0.37, 1.23, 4.88] },
+  { era: 1870, revenue: [2.41, 9.29, 11.46], profit: [1.45, 5.64, 6.5] },
+  { era: 1900, revenue: [2.42, 4.11, 7.5], profit: [1.35, 1.71, 2.5] },
+  { era: 1930, revenue: [0.81, 0.84, 0.85], profit: [0.29, 0.2, 0.18] },
+  { era: 1950, revenue: [2.92, 3.34, 3.98], profit: [1.04, 0.94, 1.29] },
+];
+/** The same on Hard (5 seeds per era). */
+export const V2_MEDIANS_HARD: readonly BenchMedians[] = [
+  { era: 1840, revenue: [1.0, 2.4, 8.23], profit: [0.61, 1.42, 5.3] },
+  { era: 1870, revenue: [2.05, 6.94, 12.1], profit: [1.37, 4.15, 7.57] },
+  { era: 1900, revenue: [2.2, 2.94, 4.62], profit: [1.46, 1.23, 1.77] },
+  { era: 1930, revenue: [1.43, 1.74, 2.48], profit: [0.92, 0.82, 0.86] },
+  { era: 1950, revenue: [0.49, 0.73, 0.71], profit: [0.13, 0.23, 0.1] },
+];
+
+/** What V2 earns in its year `k` (1-based): linear from nothing to the year-5, -10 and -16 medians (no earlier data), then
+ * flat in real terms after year 16 (the bench ends there; the lines it built saturate: 1900, 1930 and 1950 are flat from
+ * year 5 on). Stated in the money of `year`. */
+function v2Value(row: BenchMedians, metric: "revenue" | "profit", k: number, year: number): number {
+  const m = row[metric];
+  const xs = [0, 5, 10, 16];
+  const ys = [0, m[0], m[1], m[2]];
+  const kk = Math.min(k, 16);
+  let i = 1;
+  while (i < xs.length - 1 && (xs[i] as number) < kk) i++;
+  const t = (kk - (xs[i - 1] as number)) / ((xs[i] as number) - (xs[i - 1] as number));
+  const value = ((ys[i - 1] as number) + ((ys[i] as number) - (ys[i - 1] as number)) * t) * 1e6;
+  return (value * priceIndex(year)) / priceIndex(row.era + kk - 1);
+}
+
+/** The reference operator: plays at the strong player V2's level (PLAN Phase 77, owner OK 2026-11-01). Its books in each
+ * year from `startYear` are V2's medians for the era the company starts in (the latest benched era not after the start;
+ * Hard's medians when `startCash` is below Normal's), stated in the money of each year. Replaces the compounding model of
+ * Phase 28A, which sat 4-30x under what the bot earns (kept below as `compoundingOperator`). */
 export function referenceOperator(
+  startYear: number,
+  endYear: number,
+  startCash: number,
+  table?: readonly EraMeasure[],
+): OperatorYear[] {
+  if (table) return compoundingOperator(startYear, endYear, startCash, table);
+  const medians = startCash < DIFFICULTY.normal.startingCash ? V2_MEDIANS_HARD : V2_MEDIANS_NORMAL;
+  let row = medians[0] as BenchMedians;
+  for (const r of medians) if (r.era <= startYear) row = r;
+  const out: OperatorYear[] = [];
+  for (let year = startYear; year <= endYear; year++) {
+    const k = year - startYear + 1;
+    out.push({
+      year,
+      fleet: 0,
+      revenue: v2Value(row, "revenue", k, year),
+      profit: v2Value(row, "profit", k, year),
+      netWorth: 0,
+    });
+  }
+  return out;
+}
+
+/** The Phase 28A operator: its books at the end of each year from `startYear` (difficulty start cash given). */
+export function compoundingOperator(
   startYear: number,
   endYear: number,
   startCash: number,

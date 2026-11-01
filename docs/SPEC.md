@@ -1053,7 +1053,7 @@ Each real-world region ships with 1–2 optional goal sets (bronze/silver/gold),
 **No goal counts cash or net worth** (Phase 64; owner: "we want players to spend money to build things, not hoard it" —
 net worth counted construction at half, so every dollar of track lowered it). Money goals are `annualProfit` (operating
 profit of the last completed calendar year: revenue minus running costs, no construction) or `annualRevenue`. Amounts
-follow one formula in `src/data/goals.ts` from the strong-player medians of Phase 77, bot V2 (`STRONG_PLAYER_MEDIANS`; Phase 69 before, `docs/bench/phase77.md`; gold goals ask the bot's year 11 / 12 level, not 16, to stay under `goalCalibration`'s 3x limit): `round-down-2sf(median(metric, era row,
+follow one formula in `src/data/goals.ts` from the strong-player medians of Phase 77, bot V2 (`STRONG_PLAYER_MEDIANS`; Phase 69 before, `docs/bench/phase77.md`; gold goals ask the bot's year-16 level; the calibration's reference operator plays at that bot's level (Phase 77)): `round-down-2sf(median(metric, era row,
 year) x priceIndex(goal year) / priceIndex(year earned))`; a saved net-worth goal loads as the matching yearly-profit goal.
 
 Goal types (data-driven): `connect(cityA, cityB, byYear)`, `annualRevenue(amount, byYear)`,

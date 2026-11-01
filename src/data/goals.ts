@@ -26,7 +26,7 @@
 import type { CargoType } from "./cargo";
 import type { CityTier } from "./cities";
 import type { RegionId } from "../sim/regions/types";
-import { priceIndex, TRIPS_GAME_SCALE } from "./economy";
+import { priceIndex } from "./economy";
 import { WORLD_SCALE } from "./scale";
 
 export type GoalTier = "bronze" | "silver" | "gold";
@@ -56,10 +56,10 @@ export type GoalDefByName =
  * - the inflation factor restates the bench's money in the goal year's money (`priceIndex`, SPEC §9.5).
  * Phase 73: the era row is the REGION'S start year (gb 1830, central-eu 1840, us-west 1860), never the goal's own year: Central
  * Europe's gold was "profit $170k by 1930", the cautious 1930 bot's number, in a game that starts in 1840, and the owner
- * reached it in 1851. A gold goal asks the strong player's year-11 level (region goals; year 14 under the Phase 69 medians,
- * year 16 originally), with a deadline about twice that. Phase 77: the stronger V2 bot's medians put year 14 at 4.1x the
- * reference operator (limit 3), so the year index came down again; random maps use year 12 (`generate.ts`). The reference
- * operator (`tests/sim/referenceOperator.ts`) was not changed and `goalCalibration`'s bounds are untouched.
+ * reached it in 1851. A gold goal asks the strong player's year-16 level, with a deadline about twice that. Phase 77: the
+ * reference operator (`tests/sim/referenceOperator.ts`) now plays at the V2 strong player's level (its medians), so year 16
+ * is allowed again by `goalCalibration`'s unchanged bounds (gold 0.8-3x, silver 0.3-1.5x); the hand-set revenue goals
+ * follow the same medians (silver year 12, gold year 16).
  * Rounded down to two significant figures. Operating profit is the Finance overview's: revenue minus running costs
  * (`ledgerOperatingProfit`), no construction.
  */
@@ -117,7 +117,14 @@ export interface RegionGoalDef {
 export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
   "us-east": [
     { tier: "bronze", def: { type: "connect", cities: ["New York", "Chicago"], byYear: 1860 } },
-    { tier: "silver", def: { type: "annualRevenue", amount: 2_500_000, byYear: 1880 } },
+    {
+      tier: "silver",
+      def: {
+        type: "annualRevenue",
+        amount: strongPlayerAmount("revenue", 12, 1880, 1830),
+        byYear: 1880,
+      },
+    },
     {
       tier: "gold",
       def: { type: "cityTier", city: "Chicago", tier: "metropolis", byYear: 1900 },
@@ -137,7 +144,7 @@ export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
       tier: "gold",
       def: {
         type: "annualProfit",
-        amount: strongPlayerAmount("profit", 11, 1865, 1830),
+        amount: strongPlayerAmount("profit", 16, 1865, 1830),
         byYear: 1865,
       },
     },
@@ -149,7 +156,7 @@ export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
       tier: "gold",
       def: {
         type: "annualProfit",
-        amount: strongPlayerAmount("profit", 11, 1875, 1840),
+        amount: strongPlayerAmount("profit", 16, 1875, 1840),
         byYear: 1875,
       },
     },
@@ -163,13 +170,17 @@ export const REGION_GOALS: Record<RegionId, RegionGoalDef[]> = {
       tier: "silver",
       def: {
         type: "annualRevenue",
-        amount: strongPlayerAmount("revenue", 5, 1880, 1860),
+        amount: strongPlayerAmount("revenue", 12, 1880, 1860),
         byYear: 1880,
       },
     },
     {
       tier: "gold",
-      def: { type: "annualRevenue", amount: 4_500_000 * TRIPS_GAME_SCALE, byYear: 1900 },
+      def: {
+        type: "annualRevenue",
+        amount: strongPlayerAmount("revenue", 16, 1900, 1860),
+        byYear: 1900,
+      },
     },
   ],
 };
