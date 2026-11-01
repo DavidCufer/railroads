@@ -3019,7 +3019,7 @@ Benches in pieces of at most ~15 minutes, pushed; never end a turn mid-bench.
 3. **STOP before merging**: push the branch with a table at the top of the PROGRESS entry: per scenario old -> new
    goal, deadline, cash, star rules, solver result old vs. new, and why. The orchestrator shows the owner.
 4. Tests: `scenarios.test.ts` and e2e follow the new numbers (state the source); never weaken a bound.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+Status: [x] 1 [x] 2 [x] 3 [x] 4
 
 ## Phase 77 — A smarter strong player; free-play goals from it
 

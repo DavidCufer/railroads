@@ -7402,3 +7402,40 @@ Reported, not changed (owner decides):
 - Reviewed `phase-75-chains` (01bcf44): chain strip, Accepts + Nearest sources on sinks, Nearest buyers on producers.
   No test changed except the new spec. `npm run check` 955 passed; e2e 149 + 148 passed. Mint, Smelter and Silver
   Mine panel shots looked at. Merged to main.
+
+### Phase 76: a scenario solver; scenarios that need good play (branch `phase-76-scenarios`)
+
+**Old -> new (solver = `tools/bench/scenarioSolver.ts`, fixed seed 7 maps; "profit" star bars unchanged, see caveats)**
+
+| Scenario | Goal old -> new | Deadline | Start cash | Stars 2 / 3 (date, profit) | Solver best old | Solver best new |
+|---|---|---|---|---|---|---|
+| Semmering 1850 | connect Vienna-Trieste (same) | 1857 -> 1855 | $700k -> $450k | by 1853 -> by 1851 / $370k (same) | direct line, month 0: 2 stars (staged via Graz, 34 months: profit 309k, 2 stars) | Vienna-Graz first, Graz-Trieste linked month 10 (loans): 1850-10, 2 stars; the direct line is no longer affordable (needs $405k + reserve at once), or lost |
+| Panic of 1873 | survive to 1878, debt < $500k (same) | same | $400k + $2.5M debt (same) | profit $560k / $790k -> $750k / $950k | 2 pairs, repay above $300k: 3 stars, profit 1.40M | same plan: 3 stars (at about $1.0M finish profit); one pair + repay: 1 star ($525k), too cautious or not repaying: lost |
+| Coal for Trieste 1858 | 6,000 t -> 8,000 t | 1866 -> 1865 | $2.5M -> $1.5M | by 1863 -> by 1864 / $400k (same) | one mine (34 tiles) 1864-09, 1 star; two mines 1863-03, 2 stars | one mine alone 1866-04: too late, lost; two mines (34 + 104 tiles, $988k) 1864-08: 2 stars |
+| Transcontinental 1860 | connect Sacramento-Salt Lake City (same) | 1869 -> 1866 | $900k -> $650k | by 1865 -> by 1862 / $410k (same) | direct line, month 0: 2 stars | direct line unaffordable at once; Sacramento-San Francisco pair first, link in month 12 (loans): 1860-12, 2 stars; link in month 36: 1866-08 (too late for the new date, 1 star) |
+| Silver rush 1880 | 200 t -> 300 t of silver bars | 1890 -> 1889 | $4M (same) | by 1887 -> by 1885 / $610k (same) | ore via Turin + 4 trains: 1883-03, 2 stars | same plan: 1884-07, 2 stars; a plain 1-train plan wins only 1888-12 (1 star) |
+
+Why: the old connect scenarios were won by one line in month 0 (the goal checks the link, so a bot that builds it first
+finishes at once and the date star is free); less cash makes the link wait for earnings or loans, the date star then
+means "got it done fast". Coal is bound by one mine's output (about 900 t a year), so a bigger amount needs a second
+mine. Silver bars are bound by full-load waits and by track costs ($2M for two legs); full load doubled the throughput.
+
+1. **Solver** (`tools/bench/scenarioSolver.ts`): `npx tsx tools/bench/scenarioSolver.ts <id|all> [--phase routes|ops|all]
+   [--jobs 4] [--base '<json>']`, `--one <id> '<strategy json>'`. Strategies: via-town waypoints (each gets a Station),
+   cheapest sampled stretch between candidate tiles, station or terminal ends, mine choice and a second mine (coal),
+   staged connects (build a part, earn, link later) and a "pre" pair line (A to a rich town first), engine rule (fast,
+   strong, value, cheap), cars, 1-3 trains per leg, full-load waits, growth by buying trains from cash, repaying. Each
+   run is a child process (4 in parallel); ranking: stars, then finish date, then profit. Survival (`panic1873`) is
+   `goodPlayer.ts` over MAXPAIRS x KEEP; goodPlayer's SCENARIO line now also prints last year's profit.
+2. **Sanity check on Silver Rush: not reproduced.** The owner's run (`docs/playtests/pt10-silver-rush.jpg`): 3 stars in
+   Oct 1882 with $2.8M cash and last year's profit $688k. The solver's best old plan finished 1883-03 with 2 stars and
+   profit near zero: with silver alone, bars bring about $6-7k a ton and the line costs about $500k a year to run, so
+   $688k a year needs more income than one 100 t-a-year chain, or a cheaper line than the pathfinder's ($2M for two
+   legs). I could not find what the owner did differently. Consequence: **no non-survival scenario's 3rd star was
+   reached by the solver**, so the profit bars (still the strong-player medians; Phase 77 re-derives those) are
+   unverified; I did not lower them, because a human beats the solver.
+3. Tests: `scenarios.test.ts` follows the new numbers (cash $450k, deadline Dec 1855 / Jan 1856, coal 8,000 t, star
+   ladder at 1851) and the Semmering "beatable" test now plays the solver's staged plan (won, at least 2 stars; same
+   bound as before); e2e `phase46.spec.ts` / `phase49bWords.spec.ts` progress 8,000 and the ladder text. Blurbs in
+   `strings.ts`. `npm run check` 955 passed.
+4. Never touched: the economy, `strongPlayer.ts`, goals.
