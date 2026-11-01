@@ -40,6 +40,8 @@ export interface Strategy {
   via?: string[][];
   /** deliver coal: which mine (0 = nearest to the port). */
   mine?: number;
+  /** deliver coal: a second mine feeding the same port. */
+  mine2?: number;
   /** Industry/city end stations: terminals or plain stations. */
   endType?: "station" | "terminal";
   engine: EngineRule;
@@ -306,6 +308,19 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
       { tiles: around(port, mine, 2), type: et },
     ] as Array<{ tiles: number[]; type: "station" | "terminal" }>;
     startLeg(stops, "coal", st.trains[0] ?? 2, (ids) => [ids[0]!, ids[ids.length - 1]!]);
+    if (st.mine2 !== undefined && mines[st.mine2]) {
+      const m2 = mines[st.mine2]!;
+      note += ` mine2 ${Math.round(dist(m2, port))} tiles;`;
+      startLeg(
+        [
+          { tiles: around(m2, port, 2), type: et },
+          { tiles: around(port, m2, 2), type: et },
+        ] as Array<{ tiles: number[]; type: "station" | "terminal" }>,
+        "coal",
+        st.trains[0] ?? 2,
+        (ids) => [ids[0]!, ids[ids.length - 1]!],
+      );
+    }
   } else if (g.type === "deliver") {
     const find = (type: string) => state.industries.find((i) => i.type === type)!;
     const mine = find("silverMine");
@@ -362,25 +377,24 @@ export function runStrategy(id: string, st: Strategy): SolveResult {
     // loans keep the company alive while it still has a plan
     if (state.cash < reserve) takeLoan(state, 100_000);
     if (staged && month >= st.stageMonth!) {
+      const viaTile = state.stations.find((x) => x.id === staged!.leg.ids[1])!.tile;
+      const rest = [{ tiles: [viaTile], type: "station" as const }, ...staged.stops.slice(2)];
+      for (let k = 0; k < 8 && state.cash < 600_000; k++) takeLoan(state, 100_000);
       const cash0 = state.cash;
-      const ids = buildChain(staged.stops);
+      const ids = buildChain(rest);
       spent += cash0 - state.cash;
       if (ids) {
-        for (const t of state.trains.filter((x) => x.orders.length === 2)) {
-          void t;
-        }
         const l = staged.leg;
-        const ends = [ids[0]!, ids[ids.length - 1]!];
-        for (const t of state.trains) {
+        const ends = [l.ids[0]!, ids[ids.length - 1]!];
+        for (const t of state.trains)
           setOrders(
             state,
             t.id,
             ends.map((stationId) => ({ stationId, rule: "auto" as const })),
           );
-        }
         l.stops = ends;
+        staged = null;
       }
-      staged = null;
     }
     for (const leg of legs) {
       while (
@@ -450,8 +464,13 @@ export function routeCandidates(id: string): Strategy[] {
     for (const v of near(state, { x: a.anchorX, y: a.anchorY }, { x: b.anchorX, y: b.anchorY }, 25, g.cities).slice(0, 3))
       out.push({ ...base, label: `via ${v}`, via: [[v]], stopVia: true });
     out.push({ ...base, label: "direct terminals", endType: "terminal" });
+    for (const v of near(state, { x: a.anchorX, y: a.anchorY }, { x: b.anchorX, y: b.anchorY }, 40, g.cities).slice(0, 4))
+      for (const stageMonth of [10, 22, 34])
+        out.push({ ...base, label: `stage ${stageMonth} via ${v}`, via: [[v]], stageMonth, grow: 4, trains: [2] });
   } else if (g.type === "deliver" && g.cargo === "coal") {
-    for (let m = 0; m < 4; m++) out.push({ ...base, label: `mine #${m}`, mine: m, trains: [3] });
+    for (let m = 0; m < 2; m++) out.push({ ...base, label: `mine #${m}`, mine: m, trains: [2] });
+    for (let m = 1; m < 4; m++)
+      out.push({ ...base, label: `mines #0+#${m}`, mine: 0, mine2: m, trains: [2] });
   } else if (g.type === "deliver") {
     const mine = state.industries.find((i) => i.type === "silverMine")!;
     const plant = state.industries.find((i) => i.type === "smelter")!;
