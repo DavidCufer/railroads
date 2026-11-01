@@ -1121,6 +1121,27 @@ for (let y = 1; startYear + y <= endYear + 0; y++) {
       layUp.manage(state);
       spend();
     }
+    if (process.env["DIAG"] && m === 10) {
+      const rev: Record<string, number> = {};
+      for (const t of state.trains) {
+        const k = t.cars[0]?.cargoType ?? "none";
+        rev[k] = (rev[k] ?? 0) + t.profit.thisYear.revenue;
+      }
+      const sup: string[] = [];
+      for (const st of state.stations) {
+        const e = state.stationEconomy.get(st.id);
+        const bits = Object.entries(e?.supply ?? {}).filter(
+          ([c]) => !["passengers", "mail"].includes(c),
+        );
+        if (bits.length)
+          sup.push(
+            `st${st.id}:` + bits.map(([c, v]) => `${c}=${Math.round(v as number)}`).join(","),
+          );
+      }
+      console.log(
+        `DIAG ${year()} delivered ${JSON.stringify(state.cargoDeliveredThisYear)} trainRev ${JSON.stringify(Object.fromEntries(Object.entries(rev).map(([k, v]) => [k, Math.round(v / 1000)])))} supply ${sup.join(" ")}`,
+      );
+    }
     fixWeightBridges(state);
     layUp.sample(state);
     if (m % 3 === 0) housekeeping();
