@@ -7462,3 +7462,20 @@ mine. Silver bars are bound by full-load waits and by track costs ($2M for two l
   owner confirmed one station at the Smelter, and the solver now reproduces his run (3 stars 1882-04, $792k). `npm run
   check` 955 passed; e2e 149 + 148 passed. Owner approved the table ("Approve all"); merged.
 - Owner chose the real-world output rule ("Ship to stations with pickups"): Phase 78.
+
+### Phase 78: industries ship through the stations that collect their cargo (branch `phase-78-pickups`)
+
+1. **Rule** (`src/sim/stations/pickups.ts`, `economy.ts`): an industry output covered by several stations goes to the
+   covering stations that collect that cargo: pickups over a rolling 3-month window (`StationFlow.pickups`, filled by
+   `recordSent`, rolled monthly; absent in old saves = empty history) or a train whose orders load that cargo there
+   (a stop that is not unloadOnly/passThrough, with a car of that cargo). Weighted by pickups; a collector with orders
+   but no history yet counts as the average collector; even among collectors without history; nobody collects = the old
+   even split. Towns' passengers and mail are unchanged.
+2. **Panel**: "Smelter: 50 % here, 50 % via Smelter 2" (`data-testid=output-split`), shown only where an output is shared.
+   Screenshot: `docs/screenshots/phase-78-station-split.png`.
+3. **Solver** (same trains, 2 + 2, 4 cars, full load; `--one`): Silver Rush one station 2 stars 1885-07, profit $298k;
+   two stations 1 star 1886-01, profit $287k (was about 60 vs 105 t of bars a year; profit now within 4 %). The finish
+   date still differs by 6 months: the one-station layout spends more ($2.95M vs $2.31M, junction track) but earns the
+   date star; not a split effect. Route phase (1 + 1 trains): one 1886-11 / two 1889-06, both 1 star. Coal (routes):
+   unchanged from Phase 76 (two mines 1864-08, 2 stars; one mine lost). Scenario numbers not changed.
+4. Tests: `npm run check` 961 passed; e2e shards 149 + 149 passed. `tests/sim/stations/pickups.test.ts` (6), e2e `phase78.spec.ts`. SPEC §6.1 updated (deviation).

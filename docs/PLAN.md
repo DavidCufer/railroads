@@ -3068,4 +3068,4 @@ force-push. Never loosen a test bound.
    one-station one, and the approved scenario numbers must still hold (report if a star date moves by more than a few
    months; do not change the numbers without the owner). SPEC §6.1 updated (deviation recorded).
 4. e2e (station panel line + screenshot), PROGRESS; tick ONLY Phase 78.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+Status: [x] 1 [x] 2 [x] 3 [x] 4

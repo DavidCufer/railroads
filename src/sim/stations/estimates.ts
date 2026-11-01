@@ -19,6 +19,7 @@ import { DAYS_PER_MONTH, calendarFromTicks } from "../time";
 import { stationCatchmentTiles } from "./placement";
 import { destinationSets, passengerNetwork } from "./destinations";
 import { computeStationEconomies } from "./economy";
+import { collectPickups } from "./pickups";
 import { emptyStationFlow } from "./flow";
 import type { Station } from "./types";
 
@@ -121,6 +122,7 @@ export function typeUpgradeEstimate(
     state.industryEconomy,
     destinationSets(state.trains),
     passengerNetwork(state),
+    collectPickups(state),
   ).get(station.id);
   const before = state.stationEconomy.get(station.id);
   if (!after || !before) return undefined;

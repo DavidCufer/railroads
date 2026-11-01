@@ -60,6 +60,7 @@ import { bridgeKind, type Washout } from "./track/washout";
 import { landPrices, passingLoopLandCost, stationLandCost } from "./economy/land";
 import { passingLoopCost, stationCost, stationUpgradeCost } from "./stations/cost";
 import { defaultStationName } from "./stations/naming";
+import { collectPickups } from "./stations/pickups";
 import { computeStationEconomies } from "./stations/economy";
 import { destinationSets, passengerNetwork } from "./stations/destinations";
 import type { Station } from "./stations/types";
@@ -734,6 +735,7 @@ export function refreshStationEconomy(state: GameState): void {
     state.industryEconomy,
     destinationSets(state.trains),
     passengerNetwork(state),
+    collectPickups(state),
   );
 }
 

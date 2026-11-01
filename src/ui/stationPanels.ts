@@ -257,6 +257,25 @@ function economyBody(
         ),
       )
     : null;
+  // Phase 78: where an industry's output is shared with another station, say how.
+  const splitLines =
+    state && economy.outputSplits
+      ? economy.outputSplits.map((sp) => {
+          const industry = state.industries[sp.industryId];
+          const works = industry ? INDUSTRIES[industry.type].name : strings.fallback.place;
+          const others = sp.others
+            .filter((o) => o.share >= 0.005)
+            .map((o) => ({
+              pct: Math.round(o.share * 100),
+              station: state.stations.find((x) => x.id === o.stationId)?.name ?? "?",
+            }));
+          return h(
+            "div",
+            { className: "panel-row hint", "data-testid": "output-split" },
+            strings.station.outputSplit(works, Math.round(sp.share * 100), others),
+          );
+        })
+      : [];
   // Phase 42: ONE line when buses and cars take this town's local trips.
   const roadTown =
     economy.passengerTownId !== undefined ? state?.cities[economy.passengerTownId] : undefined;
@@ -328,6 +347,7 @@ function economyBody(
             )
           : emptyState(strings.station.noSupplies, "cargo"),
         ...(chainLine ? [chainLine] : []),
+        ...splitLines,
         ...(roadLine ? [roadLine] : []),
         ...(growthHint ? [growthHint] : []),
       ],

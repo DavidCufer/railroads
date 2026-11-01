@@ -26,6 +26,7 @@ import { computePassengerFlows, type PassengerRoute } from "./passengerFlows";
 import { hasImprovement } from "./improvements";
 import { stationCatchmentTiles } from "./placement";
 import type { Station } from "./types";
+import { outputShares, type Pickups } from "./pickups";
 import type { StationType } from "../../data/stations";
 
 export interface StationEconomy {
@@ -45,6 +46,17 @@ export interface StationEconomy {
   passengerPool?: number;
   /** Towns in travel range that no train connects to, with the people a month they would send. */
   passengerUnconnected?: Array<{ cityId: number; perMonth: number }>;
+  /** Phase 78: industry outputs this station shares with other covering stations (only where it is split). */
+  outputSplits?: OutputSplit[];
+}
+
+export interface OutputSplit {
+  industryId: number;
+  cargo: CargoType;
+  /** This station's part of the output, 0..1. */
+  share: number;
+  /** The other covering stations and their parts (stations that get nothing are listed with 0). */
+  others: Array<{ stationId: number; share: number }>;
 }
 
 function addTo(target: Partial<Record<CargoType, number>>, cargo: CargoType, amount: number): void {
@@ -60,6 +72,7 @@ export function computeStationEconomies(
   industryEconomy?: ReadonlyMap<number, IndustryEconomyState>,
   destinations?: ReadonlyMap<number, ReadonlySet<number>>,
   links?: ReadonlyMap<number, ReadonlySet<number>>,
+  pickups?: Pickups,
 ): Map<number, StationEconomy> {
   const all = stations;
   stations = stations.filter((s) => !s.passingLoop); // a passing loop draws and accepts nothing (Phase 30A)
@@ -128,9 +141,20 @@ export function computeStationEconomies(
     // placement preview).
     const produces = industryEconomy?.get(industry.id)?.monthlyOutput ?? def.produces;
     for (const [cargo, monthly] of Object.entries(produces) as Array<[CargoType, number]>) {
-      const share = monthly / covering.length;
+      const shares = outputShares(covering, cargo, pickups);
       for (const stationId of covering) {
-        addTo((result.get(stationId) as StationEconomy).supply, cargo, share);
+        const part = shares.get(stationId) ?? 0;
+        const economy = result.get(stationId) as StationEconomy;
+        addTo(economy.supply, cargo, monthly * part);
+        if (covering.length > 1)
+          (economy.outputSplits ??= []).push({
+            industryId: industry.id,
+            cargo,
+            share: part,
+            others: covering
+              .filter((id) => id !== stationId)
+              .map((id) => ({ stationId: id, share: shares.get(id) ?? 0 })),
+          });
       }
     }
   }
