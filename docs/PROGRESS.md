@@ -7484,3 +7484,53 @@ mine. Silver bars are bound by full-load waits and by track costs ($2M for two l
 - Reviewed `phase-78-pickups` (86bad6a): pickup-weighted split for industry outputs, panel line, 6 unit tests, SPEC
   §6.1 deviation. `npm run check` 961 passed; e2e 149 + 149 passed. Silver Rush one vs. two smelter stations now within
   4 % profit (was ~60 vs ~105 t of bars a year); scenario numbers unchanged. Merged.
+
+## 2026-11-01 - Phase 77: a smarter strong player; goals from it (branch `phase-77-strongbot`, NOT merged; orchestrator reviews)
+
+### Goals, old -> new (for the owner)
+Formula unchanged (`strongPlayerAmount`: median x priceIndex(goal year) / priceIndex(year earned), rounded DOWN to 2 figures), now on the **V2** strong player's Normal medians (`docs/bench/phase77.md`, 10 seeds per era, survivors; `docs/bench/phase77-summary.md`). Old = the Phase 69 table now on main. Medians ($M, y5 / y10 / y16): profit 1840 0.37/1.23/5.03, 1870 1.45/5.20/6.42, 1900 1.35/1.71/1.76, 1930 0.29/0.20/0.18, 1950 1.04/0.94/1.29; revenue 1840 0.80/2.30/7.70, 1870 2.41/8.88/11.14, 1900 2.42/4.11/5.65, 1930 0.81/0.84/0.85, 1950 2.92/3.34/3.98. **1930 is now the strong bot's own row** (8 of 10 survive the 1931 crisis; V1 3 of 10, so Phase 69 used the cautious bot's).
+
+| goal | old | **new** | note |
+|---|---|---|---|
+| gb gold (profit by 1865) | $2.5M (year 14) | **$2.1M** (year **11**) | year 14 would be 4.1x the reference operator, over the 3x limit |
+| central-eu gold (profit by 1875) | $2.7M (year 14) | **$2.3M** (year **11**) | year 14 = 4.15x |
+| us-west silver / gold (revenue) | $1.0M / $3.6M | same | no 1860-row change (the 1860 start uses the 1840 row's year 5, 0.80 vs 0.73 rounds the same at 2 figures) |
+| random-map profit gold, start 1830 / 1840 / 1870 / 1900 / 1930 / 1950 | $3.8M / 4.1M / 5.9M / 3.5M / 0.22M / 0.66M (year 16) | **$3.1M / 3.4M / 7.2M / 2.1M / 0.23M / 1.2M** (year **12**) | year 16 = 3.8x on a 1830/1840 start; year 12 = 1.95x |
+| random-map revenue gold | 4.6 x start cash x 0.8 | same | hand-set, unchanged |
+| achievement rungs (profit a year) | $0.25M / $2.5M / $5M (`profit250k`, `profit2500k`, `profit5M`) | **$0.25M / $1.5M / $6.5M** (`profit250k`, `profit1500k`, `profit6500k`) | lowest y5 median 0.29; middle of the five y16 medians 1.76 (rounded down); just above the best, 1870: 6.42 |
+| scenario profit stars: Semmering / Coal for Trieste / Transcontinental | $370k / $400k / $410k | **$410k / $450k / $460k** | these three follow the medians; Phase 76 hand-set Silver rush ($800k) and Panic of 1873 ($750k, $950k), untouched |
+
+`goalCalibration` is green with its bounds untouched (the three gold goals needed the lower year index; the test literals follow the formula: 1.7M -> 2.6M, 4.2M -> 5.7M). Achievement ids renamed (`profit2500k` -> `profit1500k`, `profit5M` -> `profit6500k`; strings, test, e2e). The reference operator is still far below the bot (4x at year 14); a re-calibration of the operator would let gold return to year 16 (Phase 69's proposal stands).
+
+### The bot (`tools/bench/strongPlayer.ts`; the old one is `strongPlayerV1.ts`, unchanged)
+- **Engine per route by payback** (as V1) **plus replacement**: every 6 months a train's engine is swapped when the best engine's estimated profit gain pays back its net price in 4 years.
+- **Right-sizing from Phase 74's load history**: every 2 months, 5+ months after the last edit: a train under 40 % full (freight judged doubled, it runs loaded one way) loses cars (to ~65 % fill); a train over 88 % full with cargo piled at its line gains up to 2 cars (max 8). New trains of the line follow.
+- **Long-haul chain** (silver / uranium) as one candidate project: two legs, terminals, full-load waits, trains sized to the mine's output, judged by the bars' fare over the mine-to-mint distance. Built in the 1840 and 1870 single-seed tests (1880 / 1852 starts of the build); in 1950 the cheaper pax lines rank ahead and it is never reached.
+- **Feeders**: unconnected towns from 1,500 people into the nearest big (12,000+) station, one station, 1-3 trains, revenue scaled by pop/8,000.
+- **Full-load waits** at any freight source of 4+ carloads a month (not only Terminals); **double track only where trains were seen waiting for a block** (12 % of 10-day samples, 3+ trains); **sell** a train that lost money all last year on a line with others (not in a panic).
+- **Capital allocation**: a line-crowding factor on passenger projects (rank = payback x (1 + 0.08 per passenger line built); the estimate sizes every line as if alone), and **saving for the best project** within reach (cash + credit + 2.5 years of profit): small spends that pay back slower wait. Reserve and borrowing rules unchanged.
+- Cost: a V2 run is 5-17 minutes (V1 about 3): the candidate list now plans feeders and the chain.
+
+### Bench: V2 vs V1 on current main (Normal 10 seeds / Hard 5; medians of survivors; full table in `phase77-summary.md`)
+| era | diff | operating profit $M y5 / y10 / y16: V1 -> V2 | revenue y16: V1 -> V2 | bankrupt: V1 -> V2 | final NW $M: V1 -> V2 | cash > 20 % of NW (median year; runs never): V1 -> V2 |
+|---|---|---|---|---|---|---|
+| 1840 | normal | 0.33 / 0.60 / 3.07 -> 0.37 / 1.23 / 5.03 | 5.50 -> 7.70 | 0 -> 0 | 10.7 -> 16.6 | 3; 1 -> 4; 2 |
+| 1870 | normal | 0.55 / 1.07 / 3.34 -> **1.45 / 5.20 / 6.42** | 7.43 -> 11.14 | 0 -> 0 | 12.0 -> **40.7** | 4; 4 -> 2.5; 0 |
+| 1900 | normal | 0.68 / 1.62 / 2.17 -> 1.35 / 1.71 / 1.76 | 7.65 -> 5.65 | 0 -> 0 | 12.6 -> 10.8 | 4; 0 -> 3; 1 |
+| 1930 | normal | 0.24 / 0.11 / 0.05 -> 0.29 / 0.20 / 0.18 | 0.91 -> 0.85 | **7 -> 2** | 1.3 -> 1.3 | 5; 3 -> 10; 6 |
+| 1950 | normal | 1.14 / 0.57 / 1.08 -> 1.04 / 0.94 / 1.29 | 4.04 -> 3.98 | 2 -> 0 | 5.4 -> 5.2 | 4; 0 -> 6; 0 |
+| 1840 | hard | 0.41 / 0.32 / 1.88 -> 0.61 / 1.42 / 5.30 | 3.17 -> 8.23 | 0 -> 0 | 5.3 -> **18.4** | 2; 0 -> 5; 1 |
+| 1870 | hard | 1.49 / 1.71 / 4.27 -> 1.37 / 4.06 / 7.23 | 8.90 -> 11.82 | 0 -> 0 | 19.6 -> **41.5** | 3; 0 -> 3; 0 |
+| 1900 | hard | 0.26 / 0.14 / 0.08 -> 1.46 / 1.23 / 1.77 | 0.66 -> 4.62 | 0 -> 1 | 1.3 -> 6.9 | 3; 0 -> 2; 0 |
+| 1930 | hard | 0.96 / 0.67 / 1.00 -> 0.92 / 0.82 / 0.86 | 2.80 -> 2.48 | 1 -> 0 | 3.9 -> 4.1 | 2; 1 -> 2; 0 |
+| 1950 | hard | 0.19 / 0.29 / 0.14 -> 0.13 / 0.23 / 0.10 | 0.88 -> 0.71 | 1 -> 0 | 1.5 -> 1.3 | 2; 0 -> 2; 0 |
+
+**Which eras look too easy (Normal), not tuned:**
+- **1870: yes, clearly.** A good player earns 4.9x the old bot's y10 profit (5.2M vs 1.07M) and 1.9x at y16, and ends with 3.4x the net worth ($41M vs $12M); Hard is nearly as rich ($41M). The chain (silver at 1870: output x2) and many feeder/trunk passenger lines are why.
+- **1840: moderately.** y10 2.0x, y16 1.6x, NW 1.55x (Hard 1840: y16 2.8x, NW 3.5x, the old bot barely made money there).
+- **1900 Hard: the old bot was broken** (0.08M at y16); V2 earns 1.77M (one bankruptcy in 5).
+- **1900 Normal, 1950 Normal and 1930: no easier.** 1900 y16 is *lower* than V1's (1.76 vs 2.17; y5 doubles, the plateau comes early: the lines saturate), 1950 about equal, 1930 still hard (profit 0.2M, 2 of 10 bankrupt, but V1 lost 7 of 10).
+- Caveat: V2 does well because it plays the chain and keeps building. Medians use survivors; 1930's median is of 8 runs. The V1 numbers on current main differ from Phase 69's (1900 y16 2.17, was 2.96): Phases 70-78 changed things; the new-vs-old goal table above compares to the goals on main (Phase 69 medians).
+
+### Results
+`npm run check`: 961 passed, 1 skipped; `goalCalibration` bounds untouched. e2e: see the last line. Bench: 150 runs in 21 pieces (Phase 77 bench driver `tools/bench/phase77.ts`, summary `phase77Summary.ts`), all pushed.
