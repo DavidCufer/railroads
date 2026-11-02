@@ -3140,4 +3140,4 @@ loosen a test bound. Look at every PNG.
 3. Highlight pickable stations (and ones already in the orders) while picking, so small stations are easy to hit.
 4. e2e at 800x360 with a station near the bottom map edge: pick it, before/after screenshots; PROGRESS; tick ONLY
    Phase 81.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+Status: [x] 1 [x] 2 [x] 3 [x] 4

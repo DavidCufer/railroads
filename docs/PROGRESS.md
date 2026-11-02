@@ -7593,3 +7593,9 @@ Report: `docs/bench/phase79.md` (rows `phase79-runs.md`, summary `phase79-summar
 ### Orchestrator: Phase 79 merged (2026-11-02)
 - Report reviewed (no `src/` change against its base). Owner chose proposal 2 only ("Fares 8 % lower", all eras; aware
   the cautious bot loses about half in 1870). Phase 80 implements it, re-measures and re-derives the goals.
+
+## 2026-11-02 - Phase 81: picking stations near the screen's lower edge (branch `phase-81-pick`)
+- "Tap a station on the map" now collapses the route sheet to a slim 84 px bar (chips of the stops so far, Cancel = undo this pick session, Done); the full sheet returns on Done/Cancel. The camera re-centres on the free map area as the sheet changes height.
+- `Camera.coverBottom/coverRight`: `main.ts` measures the open panel each frame; the pan limit grows by that much on that side (bottom sheet: height; side panel: width), and snaps back when the panel closes. Applies to every panel (station, train, wizard).
+- While picking (wizard or train panel Add stop) every station gets a pulsing ring; stations already in the orders get a green filled ring (`drawPickHighlights`, `ui/pickMarks.ts`).
+- e2e `phase81.spec.ts` (800x360, line on the bottom map row). Screenshots: `docs/screenshots/phase-81-{before,after,restored}.png`. "Before" is the full sheet (the previous behaviour); the old camera clamp can't be shown on the same map without the change.

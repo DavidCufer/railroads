@@ -1,3 +1,4 @@
+import { getPickMarks } from "./ui/pickMarks";
 import { GameLoop, type GameSpeed } from "./render/loop";
 import { carCapacity } from "./sim/trains/capacity";
 import { routesAt } from "./sim/track/routes";
@@ -10,6 +11,7 @@ import { drawCityLabels, cityWorldCenter } from "./render/labels";
 import { refreshSafeInsets } from "./render/safeInsets";
 import {
   drawStations,
+  drawPickHighlights,
   drawStationLabels,
   stationFootprintCityTiles,
   stationWorldOf,
@@ -677,6 +679,14 @@ function main(): void {
     else if (outcome.type === "choose") showChooser(ui, canvasX, canvasY, outcome.options, onPick);
   }
 
+  /** Screen px of the map covered by the open panel (bottom sheet: its height; side panel: its width). */
+  function coveredByPanel(): { bottom: number; right: number } {
+    const el = document.querySelector<HTMLElement>(".panel.panel-open");
+    if (!el) return { bottom: 0, right: 0 };
+    if (el.classList.contains("panel-bottom")) return { bottom: el.offsetHeight, right: 0 };
+    return { bottom: 0, right: el.offsetWidth };
+  }
+
   function openBuyTrain(stationId: number): void {
     openBuyTrainPanel(ui, state, stationId, {
       pickStationOnMap: (onPicked) => {
@@ -1300,6 +1310,12 @@ function main(): void {
       const viewportW = window.innerWidth;
       const viewportH = window.innerHeight;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // Phase 81: the pan limit grows by the height / width of the panel covering the map, then snaps back.
+      {
+        const cover = coveredByPanel();
+        camera.coverBottom = cover.bottom;
+        camera.coverRight = cover.right;
+      }
       camera.setViewport(viewportW, viewportH);
       drawSeaBackdrop(ctx, viewportW, viewportH);
 
@@ -1336,6 +1352,17 @@ function main(): void {
         );
       }
       drawStations(ctx, camera, viewportW, viewportH, stationWorldOf(state));
+      if (stationPickHandler) {
+        drawPickHighlights(
+          ctx,
+          camera,
+          viewportW,
+          viewportH,
+          stationWorldOf(state),
+          getPickMarks(),
+          now,
+        );
+      }
       drawStationSupplyBubbles(ctx, camera, viewportW, viewportH, state);
       drawZoomMarkers(
         ctx,
