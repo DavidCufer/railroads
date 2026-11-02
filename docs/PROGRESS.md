@@ -7599,3 +7599,9 @@ Report: `docs/bench/phase79.md` (rows `phase79-runs.md`, summary `phase79-summar
 - `Camera.coverBottom/coverRight`: `main.ts` measures the open panel each frame; the pan limit grows by that much on that side (bottom sheet: height; side panel: width), and snaps back when the panel closes. Applies to every panel (station, train, wizard).
 - While picking (wizard or train panel Add stop) every station gets a pulsing ring; stations already in the orders get a green filled ring (`drawPickHighlights`, `ui/pickMarks.ts`).
 - e2e `phase81.spec.ts` (800x360, line on the bottom map row). Screenshots: `docs/screenshots/phase-81-{before,after,restored}.png`. "Before" is the full sheet (the previous behaviour); the old camera clamp can't be shown on the same map without the change.
+
+### Orchestrator: Phase 81 merged (2026-11-02)
+- Reviewed `phase-81-pick` (542dc81): slim pick bar while tapping stations, camera may pan past the map edge by the
+  covered height (`Camera.coverBottom/coverRight`), pickable-station rings. The branch had re-committed 33 unowned
+  screenshots: reverted. `npm run check` 961 passed; e2e 150 + 150 passed. Also fixed main's formatting (Phase 79 bench
+  tools, 7a6e604).
