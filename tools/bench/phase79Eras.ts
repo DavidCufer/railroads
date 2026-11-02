@@ -21,7 +21,8 @@ console.log(
   "| year | price index | pax fare index (nominal) | real fare | wage index | trips/head/month | travel range tiles | fare 100 km one pax $ (before competition) | road/air competition loss at 100 km | fastest engine km/h | its price $k | its upkeep $k/yr | ref tiles/day |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|",
 );
 for (const y of [1840, 1850, 1856, 1860, 1870, 1880, 1886, 1900, 1910, 1916, 1930, 1950]) {
-  const fare = CARGO.passengers.baseRate * (100 / 5 / REVENUE_DISTANCE_TILES) * fareIndex(y, "passengers");
+  const fare =
+    CARGO.passengers.baseRate * (100 / 5 / REVENUE_DISTANCE_TILES) * fareIndex(y, "passengers");
   const locos = buyableLocomotivesIn(y).filter((l) => !l.passengerMailOnly || true);
   const best = locos.reduce((a, b) => (b.maxSpeedKmh > a.maxSpeedKmh ? b : a));
   console.log(

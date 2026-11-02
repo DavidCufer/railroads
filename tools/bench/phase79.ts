@@ -55,13 +55,26 @@ void keyOf;
 
 const num = (s: string | undefined): number => (s === undefined ? NaN : Number(s));
 async function run(j: Job): Promise<string> {
-  const script = j.bot === "strongV1" ? "strongPlayerV1.ts" : j.bot === "good" ? "goodPlayer.ts" : "strongPlayer.ts";
+  const script =
+    j.bot === "strongV1"
+      ? "strongPlayerV1.ts"
+      : j.bot === "good"
+        ? "goodPlayer.ts"
+        : "strongPlayer.ts";
   let out = "";
   try {
     out = (
       await execFileAsync(
         "npx",
-        ["tsx", `tools/bench/${script}`, "central-eu", String(j.start), j.diff, String(j.end), String(j.seed)],
+        [
+          "tsx",
+          `tools/bench/${script}`,
+          "central-eu",
+          String(j.start),
+          j.diff,
+          String(j.end),
+          String(j.seed),
+        ],
         { encoding: "utf8", maxBuffer: 1 << 26, env: { ...process.env, ...(j.env ?? {}) } },
       )
     ).stdout;

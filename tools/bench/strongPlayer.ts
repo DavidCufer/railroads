@@ -1176,9 +1176,18 @@ for (let y = 1; startYear + y <= endYear + 0; y++) {
   );
   // Phase 79: LINES=1 prints the completed year's books split by line type (trunk passenger / feeder / freight by cargo / chain).
   if (process.env["LINES"]) {
-    const agg = new Map<string, { n: number; trains: number; tiles: number; rev: number; profit: number }>();
+    const agg = new Map<
+      string,
+      { n: number; trains: number; tiles: number; rev: number; profit: number }
+    >();
     for (const l of lines) {
-      const kind = l.chain ? "chain" : l.feeder ? "feeder" : l.kind === "pax" ? "trunk" : `freight:${l.cargo}`;
+      const kind = l.chain
+        ? "chain"
+        : l.feeder
+          ? "feeder"
+          : l.kind === "pax"
+            ? "trunk"
+            : `freight:${l.cargo}`;
       const a = agg.get(kind) ?? { n: 0, trains: 0, tiles: 0, rev: 0, profit: 0 };
       a.n++;
       a.tiles += l.path.length;
