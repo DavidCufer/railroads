@@ -3112,4 +3112,12 @@ Never rebase over merge commits, never force-push. Never loosen a test bound: a 
 4. **Goals again** by the Phase 77 method (reference operator = V2 medians, gold year 16, silver 12, achievements,
    scenario profit stars; Phase 76's hand-set stars re-checked with the scenario solver). `goalCalibration` green with its
    bounds unchanged. STOP with the old -> new table at the top of the PROGRESS entry; the orchestrator shows the owner.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+5. **Silver Rush needs planning (owner 2026-11-02):** "Silver rush is still simple scenario. No planning no tactics.
+   Just buy rail needed and buy a couple of trains. No fun. Maybe start with only 2 mil?" Start cash $4M -> **$2M**, so
+   the whole chain (about $2.0-2.2M of track, stations and trains, Phase 76) cannot be bought at once and the ore leg
+   earns nothing until the bars reach the Mint: the player has to earn first (passenger or freight lines), borrow, or
+   build in stages. Rerun the scenario solver (with its staged and "pre" pair-line strategies, under the new fares) and
+   re-set the goal, deadline and stars by Phase 76's targets so that 1 star needs a working plan, 2 stars good timing,
+   3 stars near the solver's best. If $2M makes it unwinnable, report the smallest start cash that keeps it winnable
+   and needs a staged plan. In the same table as item 4.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
