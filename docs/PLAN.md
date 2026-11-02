@@ -3092,3 +3092,24 @@ Never push to main. Benches in pieces of at most ~15 minutes, pushed; never end 
    era should become unplayable for them). Rank them. STOP: push the report in `docs/bench/phase79.md` and a short
    PROGRESS entry; the orchestrator shows the owner. Change nothing under `src/`.
 Status: [x] 1 [x] 2 [x] 3
+
+## Phase 80 — Passenger fares 8 % lower; re-measure; goals again
+
+Owner (2026-11-02, chose proposal 2 of Phase 79: "Fares 8 % lower"). Phase 79 found a good player's lines pay back in
+about two years in every era; the owner picked the broad margin lever. Branch `phase-80-fares`; never push to main.
+Never rebase over merge commits, never force-push. Never loosen a test bound: a balance test that fails is reported
+(old/new value and cause) and the branch STOPS for the owner. Benches in pieces of at most ~15 minutes, pushed.
+
+1. **The change.** Real passenger fares x0.92 on every `PASSENGER_REAL_FARE_ANCHORS` point (passengers only; mail and
+   freight unchanged), as a named constant with a doc comment (owner's OK, date, Phase 79's measured effect, and the
+   historical story: the 1844 Railway Regulation Act's penny-a-mile trains and cheap-fare competition kept real fares
+   falling). Anchors' sources stay as written.
+2. **Tests.** `npm run check` + both e2e shards. Fixture values that follow directly from the fare may be updated with the
+   arithmetic in a comment; a bound that fails is reported, not loosened (expected candidates: `balancePassengers` pax
+   vs coal ratios, `balanceEarly` Grasshopper break-even).
+3. **Re-measure** (Phase 77's bench shape: V2 strong 10 seeds Normal / 5 Hard, V1, cautious 5, all eras) and report next to
+   the Phase 77 medians, with bankruptcies; call out 1840 and 1930 (both weak for the cautious player).
+4. **Goals again** by the Phase 77 method (reference operator = V2 medians, gold year 16, silver 12, achievements,
+   scenario profit stars; Phase 76's hand-set stars re-checked with the scenario solver). `goalCalibration` green with its
+   bounds unchanged. STOP with the old -> new table at the top of the PROGRESS entry; the orchestrator shows the owner.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
