@@ -3121,3 +3121,23 @@ Never rebase over merge commits, never force-push. Never loosen a test bound: a 
    3 stars near the solver's best. If $2M makes it unwinnable, report the smallest start cash that keeps it winnable
    and needs a staged plan. In the same table as item 4.
 Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+
+## Phase 81 — Picking stations on the map when they are near the screen's lower edge
+
+Owner (2026-11-02, phone screenshot not committed: it shows a private notification): in Buy train -> Route, "Tap a
+station on the map", "I cannot see the lower ones because the screen end is close". The route sheet covers the lower
+half of a phone screen, and near the map's edge (Genoa, on the coast) the camera cannot pan the stations above the
+sheet, because it stops at the map border. Phase 72 had reported "the Route step's bottom sheet covers the stations on a
+360 px screen". Branch `phase-81-pick`; never push to main. Never rebase over merge commits, never force-push. Never
+loosen a test bound. Look at every PNG.
+
+1. **While picking on the map, get the sheet out of the way:** "Tap a station on the map" collapses the sheet to a slim
+   bar (title, the stops picked so far as chips, Done / Cancel). The map uses the whole screen, and tapping stations
+   adds them. Done or Back restores the sheet.
+2. **The camera may pan past the map edge** by the height of whatever covers the map (sheet, side panel, bars), so any
+   station can be brought into the free area. This also applies to the other panels that cover the map (station and
+   train panels, the Phase 72 framing). Snap back inside when nothing covers the map.
+3. Highlight pickable stations (and ones already in the orders) while picking, so small stations are easy to hit.
+4. e2e at 800x360 with a station near the bottom map edge: pick it, before/after screenshots; PROGRESS; tick ONLY
+   Phase 81.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
