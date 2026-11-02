@@ -1,0 +1,36 @@
+YEAR 1871 trains 8 edges 68 stations 3 rev 0.97M opcost 0.31M opratio 0.32 opprofit 0.66M capital 0.74M loans 0.3M idle 11% stock 0.96M split trainMaintenance=45,crewWages=44,trackMaintenance=55,trackWear=3,stationMaintenance=112,administration=25,propertyTax=4,breakdownRepairs=2,interest=18,incomeTax=0
+LINES 1871 trunk lines 1 trains 8 tiles 26 rev 965k trainProfit 765k revPerTile 37125 revPerTrain 121k
+YEAR 1872 trains 13 edges 122 stations 5 rev 1.69M opcost 0.52M opratio 0.31 opprofit 1.18M capital 1.27M loans 0.5M idle 9% stock 1.63M split trainMaintenance=82,crewWages=87,trackMaintenance=75,trackWear=5,stationMaintenance=195,administration=42,propertyTax=5,breakdownRepairs=2,interest=24,incomeTax=0
+LINES 1872 trunk lines 2 trains 13 tiles 81 rev 1695k trainProfit 1331k revPerTile 20925 revPerTrain 130k
+YEAR 1873 trains 20 edges 249 stations 10 rev 2.79M opcost 0.90M opratio 0.32 opprofit 1.89M capital 2.40M loans 0.9M idle 12% stock 2.45M split trainMaintenance=152,crewWages=146,trackMaintenance=135,trackWear=11,stationMaintenance=321,administration=75,propertyTax=8,breakdownRepairs=4,interest=44,incomeTax=0
+LINES 1873 trunk lines 3 trains 17 tiles 134 rev 2619k trainProfit 2044k revPerTile 19547 revPerTrain 154k
+LINES 1873 feeder lines 3 trains 3 tiles 78 rev 168k trainProfit 124k revPerTile 2158 revPerTrain 56k
+YEAR 1874 trains 33 edges 329 stations 14 rev 3.41M opcost 1.21M opratio 0.36 opprofit 2.20M capital 3.49M loans 1.0M idle 5% stock 3.88M split trainMaintenance=195,crewWages=173,trackMaintenance=238,trackWear=15,stationMaintenance=401,administration=105,propertyTax=15,breakdownRepairs=9,interest=61,incomeTax=0
+LINES 1874 trunk lines 5 trains 30 tiles 216 rev 3102k trainProfit 2403k revPerTile 14359 revPerTrain 103k
+LINES 1874 feeder lines 3 trains 3 tiles 78 rev 309k trainProfit 239k revPerTile 3957 revPerTrain 103k
+YEAR 1875 trains 50 edges 410 stations 19 rev 4.75M opcost 1.68M opratio 0.35 opprofit 3.07M capital 4.62M loans 1.0M idle 4% stock 5.73M split trainMaintenance=292,crewWages=255,trackMaintenance=306,trackWear=23,stationMaintenance=559,administration=148,propertyTax=20,breakdownRepairs=15,interest=63,incomeTax=0
+LINES 1875 trunk lines 7 trains 47 tiles 266 rev 4477k trainProfit 3436k revPerTile 16830 revPerTrain 95k
+LINES 1875 feeder lines 3 trains 3 tiles 78 rev 277k trainProfit 211k revPerTile 3557 revPerTrain 92k
+YEAR 1876 trains 73 edges 715 stations 32 rev 6.66M opcost 2.41M opratio 0.36 opprofit 4.25M capital 7.23M loans 2.1M idle 4% stock 8.22M split trainMaintenance=422,crewWages=372,trackMaintenance=453,trackWear=33,stationMaintenance=786,administration=217,propertyTax=28,breakdownRepairs=21,interest=82,incomeTax=0
+LINES 1876 trunk lines 12 trains 70 tiles 488 rev 6374k trainProfit 4862k revPerTile 13062 revPerTrain 91k
+LINES 1876 feeder lines 3 trains 3 tiles 78 rev 290k trainProfit 221k revPerTile 3715 revPerTrain 97k
+YEAR 1877 trains 102 edges 1064 stations 40 rev 9.69M opcost 3.75M opratio 0.39 opprofit 5.94M capital 9.69M loans 3.1M idle 15% stock 10.26M split trainMaintenance=610,crewWages=545,trackMaintenance=805,trackWear=47,stationMaintenance=1157,administration=342,propertyTax=44,breakdownRepairs=24,interest=175,incomeTax=0
+LINES 1877 trunk lines 13 trains 89 tiles 516 rev 9393k trainProfit 7197k revPerTile 18203 revPerTrain 106k
+LINES 1877 feeder lines 3 trains 3 tiles 78 rev 297k trainProfit 228k revPerTile 3812 revPerTrain 99k
+LINES 1877 chain lines 2 trains 10 tiles 249 rev 0k trainProfit -27k revPerTile 0 revPerTrain 0k
+YEAR 1878 trains 109 edges 1064 stations 40 rev 10.97M opcost 4.29M opratio 0.39 opprofit 6.68M capital 13.28M loans 3.0M idle 22% stock 10.39M split trainMaintenance=684,crewWages=617,trackMaintenance=979,trackWear=52,stationMaintenance=1283,administration=396,propertyTax=58,breakdownRepairs=25,interest=195,incomeTax=0
+LINES 1878 trunk lines 13 trains 90 tiles 516 rev 10388k trainProfit 7991k revPerTile 20131 revPerTrain 115k
+LINES 1878 feeder lines 3 trains 3 tiles 78 rev 333k trainProfit 256k revPerTile 4272 revPerTrain 111k
+LINES 1878 chain lines 2 trains 16 tiles 249 rev 245k trainProfit 161k revPerTile 984 revPerTrain 15k
+YEAR 1879 trains 109 edges 1064 stations 40 rev 11.82M opcost 4.80M opratio 0.41 opprofit 7.03M capital 19.83M loans 2.9M idle 17% stock 9.90M split trainMaintenance=712,crewWages=626,trackMaintenance=1250,trackWear=55,stationMaintenance=1403,administration=447,propertyTax=86,breakdownRepairs=35,interest=185,incomeTax=0
+LINES 1879 trunk lines 13 trains 90 tiles 516 rev 11471k trainProfit 8932k revPerTile 22231 revPerTrain 127k
+LINES 1879 feeder lines 3 trains 3 tiles 78 rev 334k trainProfit 258k revPerTile 4276 revPerTrain 111k
+LINES 1879 chain lines 2 trains 16 tiles 249 rev 18k trainProfit -91k revPerTile 72 revPerTrain 1k
+YEAR 1880 trains 106 edges 1064 stations 40 rev 12.93M opcost 4.81M opratio 0.37 opprofit 8.12M capital 23.96M loans 0.1M idle 17% stock 9.17M split trainMaintenance=714,crewWages=637,trackMaintenance=1279,trackWear=55,stationMaintenance=1478,administration=454,propertyTax=109,breakdownRepairs=37,interest=48,incomeTax=0
+LINES 1880 trunk lines 13 trains 87 tiles 516 rev 12098k trainProfit 9480k revPerTile 23446 revPerTrain 139k
+LINES 1880 feeder lines 3 trains 3 tiles 78 rev 371k trainProfit 288k revPerTile 4757 revPerTrain 124k
+LINES 1880 chain lines 2 trains 16 tiles 249 rev 456k trainProfit 345k revPerTile 1832 revPerTrain 29k
+YEAR 1881 trains 105 edges 1064 stations 40 rev 12.87M opcost 4.80M opratio 0.37 opprofit 8.07M capital 24.48M loans 0.1M idle 33% stock 9.25M split trainMaintenance=727,crewWages=633,trackMaintenance=1295,trackWear=55,stationMaintenance=1465,administration=459,propertyTax=121,breakdownRepairs=39,interest=5,incomeTax=0
+LINES 1881 trunk lines 13 trains 86 tiles 516 rev 11986k trainProfit 9372k revPerTile 23228 revPerTrain 139k
+LINES 1881 feeder lines 3 trains 3 tiles 78 rev 354k trainProfit 276k revPerTile 4543 revPerTrain 118k
+LINES 1881 chain lines 2 trains 16 tiles 249 rev 529k trainProfit 414k revPerTile 2124 revPerTrain 33k

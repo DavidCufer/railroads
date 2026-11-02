@@ -3091,4 +3091,4 @@ Never push to main. Benches in pieces of at most ~15 minutes, pushed; never end 
    Hard): what to change, by how much, the source or reason, and what it does to the old bot and the cautious bot (no
    era should become unplayable for them). Rank them. STOP: push the report in `docs/bench/phase79.md` and a short
    PROGRESS entry; the orchestrator shows the owner. Change nothing under `src/`.
-Status: [ ] 1 [ ] 2 [ ] 3
+Status: [x] 1 [x] 2 [x] 3

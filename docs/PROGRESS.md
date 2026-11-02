@@ -7584,3 +7584,12 @@ Consequences to flag for the owner: the gold goals roughly double or triple (us-
   12; top achievement $7M). Merged `phase-77-strongbot` (d96bcfe) as a merge commit whose tree is the branch plus the
   Phase 79 plan, which undoes revert 4d7deab. Phase 79 (balance investigation) runs on `phase-79-balance`; if its
   proposals change the economy, the goals are re-derived the same way.
+## 2026-11-02 - Phase 79: why 1870 is so rich and Hard is not harder (branch `phase-79-balance`, from phase-77-strongbot 1a14560; investigation only, nothing under `src/` changed)
+Report: `docs/bench/phase79.md` (rows `phase79-runs.md`, summary `phase79-summary.md`, per-line books `phase79/`). Tools: `LINES=1` report in `strongPlayer.ts`, `p79Env.ts` (difficulty / fare / wage / anchor overrides), `phase79.ts` driver, `phase79Summary.ts`, `phase79Eras.ts`.
+- **Mechanisms:** (1) trips per head triple between 1850 and 1860 and then stay flat while wages (+58 % 1870 -> 1900) and engine prices (x2.6) keep rising: 1870 has 1900's demand at 1870's costs (operating ratio 0.44 vs 0.66); 1840 is the same ramp arriving by year 16. (2) Return on capital is 25-50 % a year in every era (real railways 3-5 %): capital per km is $5-9k against roughly $20-100k real, so a payback of two years makes every capital/credit lever of Hard (cash, build, land, interest, credit, panics) a delay of months. 93 % of 1870 revenue is trunk passenger lines; feeders 2.6 %.
+- **Hard:** each lever alone is within seed noise (+-30 %; land x1.5 even raises V2 59 % by rerouting); all together -15 % at year 10. `revenueMult` is 1.0 on Hard.
+- **Ranked proposals (V2 y10 profit effect; no bankruptcies):** 1 Hard `revenueMult` 0.9 (Hard 1870 -34 %, 1840 -24 %, 1900 -5 %); 2 real passenger fare x0.92 (-30 / -26 / -22 %; cautious bot -50 % in 1870); 3 build cost x1.5 (-30 / -48 / -35 %, hurts 1840 and weak bots; ramp by era if used); 4 moving the 1850-60 demand step: not recommended (1840 y16 -67 %, 1870 unchanged). Caveats: 2-3 seeds, year 11 horizon for 1870/1900, 1930/1950 untested, real-world capital/km figures are from memory.
+
+### Orchestrator: Phase 79 merged (2026-11-02)
+- Report reviewed (no `src/` change against its base). Owner chose proposal 2 only ("Fares 8 % lower", all eras; aware
+  the cautious bot loses about half in 1870). Phase 80 implements it, re-measures and re-derives the goals.
