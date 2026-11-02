@@ -7593,3 +7593,11 @@ Report: `docs/bench/phase79.md` (rows `phase79-runs.md`, summary `phase79-summar
 ### Orchestrator: Phase 79 merged (2026-11-02)
 - Report reviewed (no `src/` change against its base). Owner chose proposal 2 only ("Fares 8 % lower", all eras; aware
   the cautious bot loses about half in 1870). Phase 80 implements it, re-measures and re-derives the goals.
+
+## 2026-11-02 - Phase 80: passenger fares 8 % lower (branch `phase-80-fares`) - STOPPED at item 2 for the owner
+- Item 1 done: `PASSENGER_FARE_FACTOR = 0.92` in `src/data/economy.ts`, applied in `fareIndex` to passengers only (mail uses the anchors unchanged, freight unchanged). Anchors untouched. Also ran prettier on four Phase 79 bench files that were failing `npm run check` on main (formatting only).
+- `npm run check`: 958 passed, 1 skipped, **3 balance bounds fail** (none loosened):
+  1. `balanceEarly` 1840 Norris, 10-tile Town-Town line: return on price **0.241** (bound >= 0.25). Cause: the fare cut takes about 8 % off revenue; the line was just above the bound.
+  2. `balancePassengers` 1900 pax vs coal ratio (Atlantic 4-4-2): **1.477** (bound > 1.5, < 2.6; was 1.61). Cause: passenger revenue x0.92 with coal unchanged.
+  3. `economicModel` "Hard is clearly harder than Normal on the same 1920 route": Hard profit **-5,024** (bound > 0). Cause: a 1920 Hard route was marginally profitable and the fare cut makes it a loss.
+- Not done: e2e, re-measure bench (item 3), goals (item 4). Waiting for the owner on how to treat the three bounds.

@@ -3112,4 +3112,4 @@ Never rebase over merge commits, never force-push. Never loosen a test bound: a 
 4. **Goals again** by the Phase 77 method (reference operator = V2 medians, gold year 16, silver 12, achievements,
    scenario profit stars; Phase 76's hand-set stars re-checked with the scenario solver). `goalCalibration` green with its
    bounds unchanged. STOP with the old -> new table at the top of the PROGRESS entry; the orchestrator shows the owner.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+Status: [x] 1 [ ] 2 (STOPPED: 3 balance bounds fail, see PROGRESS) [ ] 3 [ ] 4
