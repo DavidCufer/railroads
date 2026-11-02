@@ -3044,7 +3044,7 @@ pushed pieces).
    scenario profit stars that use them (coordinate with Phase 76: if its branch is merged first, `git pull --no-rebase
    origin main`); `goalCalibration` green without changing its bounds. STOP with the old -> new table at the top of the
    PROGRESS entry; the orchestrator shows the owner.
-Status: [ ] 1 [ ] 2 [ ] 3
+Status: [x] 1 [x] 2 [x] 3
 
 ## Phase 78 — Industries ship through the stations that collect their cargo
 

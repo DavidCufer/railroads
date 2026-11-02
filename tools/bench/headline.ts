@@ -5,7 +5,10 @@ export function yearFigures(
   startYear: number,
   yearIndex: number,
 ): { revenueM: number; profitM: number } | null {
-  const row = rows.find((r) => r.startsWith(`YEAR ${startYear + yearIndex - 1} `));
+  // `YEAR n` is printed when year n begins and holds the books of the year that just ended, so year `yearIndex` played
+  // (start = year 1) is the row `YEAR start+yearIndex`, as the bench drivers read it (Phase 77: this was start+yearIndex-1,
+  // which made the printed y5/y10/y16 the 4th/9th/15th year).
+  const row = rows.find((r) => r.startsWith(`YEAR ${startYear + yearIndex} `));
   if (!row) return null;
   const rev = /rev (-?[\d.]+)M/.exec(row);
   const profit = /opprofit (-?[\d.]+)M/.exec(row);
