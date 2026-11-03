@@ -749,6 +749,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     const bars: CargoType = def.id === "silver" ? "silverBars" : "enrichedUranium";
     if (CARGO[ore].era > year()) return null;
     const out = state.industryEconomy.get(mine.id)?.monthlyOutput[ore] ?? 0;
+    if (process.env["CHAINDBG"]) console.log("CHAIN1 start", year(), "out", out);
     if (out <= 0) return null;
     const legB = planLeg(
       freeAround(indTile(plant), indTile(sink), 2),
@@ -760,6 +761,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     const legA = legB
       ? planLeg(freeAround(indTile(mine), indTile(plant), 2), joins(legB), 8)
       : null;
+    if (process.env["CHAINDBG"]) console.log("CHAIN1", year(), "legB", !!legB, "legA", !!legA);
     if (!legB || !legA) {
       chainRetryAt = state.ticks + 90 * DAY;
       return null;

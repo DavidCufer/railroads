@@ -22,7 +22,9 @@ const stats = plain ? null : attachStrategist(bot);
 const t0 = Date.now();
 const lastYear = (def.goal.type === "survive" ? def.goal.untilYear : def.goal.byYear) + 1;
 let months = 0;
-while (state.scenario?.status === "active" && bot.year() <= lastYear) {
+const monthsArg = process.argv.indexOf("--months");
+const maxMonths = monthsArg > 0 ? Number(process.argv[monthsArg + 1]) : Infinity;
+while (state.scenario?.status === "active" && bot.year() <= lastYear && months < maxMonths) {
   bot.monthA();
   bot.monthB(Math.floor(state.ticks / 720) % 12);
   months++;
