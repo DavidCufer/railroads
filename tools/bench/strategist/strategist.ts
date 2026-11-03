@@ -42,6 +42,8 @@ export interface StrategistStats {
 }
 
 const WAIT = "\u0000wait";
+/** Hold every other build until the scenario goal's own project is affordable, then build it. */
+const SAVE = "\u0000save";
 const HOUR = 1;
 const MONTH_HOURS = 30 * 24 * HOUR;
 
@@ -71,9 +73,11 @@ export function scenarioBonus(bot: StrongBot, ratePerMonth = 0): number {
     return 6e6 + 0.5e6 * run.stars + 0.2e6 * left;
   }
   if (def.goal.type === "deliver") {
+    const cargo = def.goal.cargo;
+    const infra = bot.lines.some((l) => l.chain || l.cargo === cargo) ? 2.5e6 : 0;
     const monthsLeft = Math.max(0, (def.goal.byYear + 1 - bot.year()) * 12);
     const projected = run.progress + Math.max(0, ratePerMonth) * monthsLeft;
-    return 5e6 * Math.min(1, projected / def.goal.amount);
+    return infra + 5e6 * Math.min(1, projected / def.goal.amount);
   }
   return 0;
 }
@@ -112,6 +116,8 @@ export function attachStrategist(
   const opt = { ...DEFAULT_OPTIONS, ...options };
   const stats: StrategistStats = { decisions: 0, rollouts: 0, ms: 0, picks: {}, waits: 0 };
   bot.setGoalLabels(goalLabels(bot));
+  const goal = goalLabels(bot);
+  let plan: string | null = null; // a committed SAVE: build the goal project as soon as it is a move
   let lastTick = -1;
   let lastChoice: string | null = null;
 
@@ -123,6 +129,10 @@ export function attachStrategist(
     const holdUntil = fork.state.ticks + opt.waitMonths * MONTH_HOURS;
     fork.setChooser((options) => {
       if (move === WAIT) return fork.state.ticks < holdUntil ? null : (options[0]?.label ?? null);
+      if (move === SAVE) {
+        const hit = options.find((o) => goal.some((g) => o.label.startsWith(g)));
+        return hit ? hit.label : null;
+      }
       if (!used) {
         used = true;
         return options.some((o) => o.label === move) ? move : (options[0]?.label ?? null);
@@ -139,12 +149,22 @@ export function attachStrategist(
     // one decision per ten-day step: the bot calls this up to six times in a step
     if (t === lastTick) return null;
     lastTick = t;
+    if (plan) {
+      const hit = options.find((o) => o.label.startsWith(plan as string));
+      if (hit) {
+        plan = null;
+        stats.picks["goal"] = (stats.picks["goal"] ?? 0) + 1;
+        return hit.label;
+      }
+      return null;
+    }
     const t0 = Date.now();
     const moves = options.slice(0, opt.maxMoves).map((o) => o.label);
     let best = WAIT;
     let bestScore = -Infinity;
     // a company with no line yet never waits: it has nothing to protect and nothing to learn from waiting
-    for (const m of bot.lines.length === 0 ? moves : [...moves, WAIT]) {
+    const saving = goal.length > 0 && bot.lines.length > 0 && bot.hasGoalMove() ? [SAVE] : [];
+    for (const m of bot.lines.length === 0 ? moves : [...moves, WAIT, ...saving]) {
       const v = rollout(m);
       if (process.env["STDEBUG"])
         console.log(
@@ -160,7 +180,11 @@ export function attachStrategist(
     }
     stats.decisions++;
     stats.ms += Date.now() - t0;
-    if (best === WAIT) {
+    if (best === SAVE) {
+      plan = goal[0] ?? null;
+      stats.picks["save"] = (stats.picks["save"] ?? 0) + 1;
+      lastChoice = null;
+    } else if (best === WAIT) {
       stats.waits++;
       lastChoice = null;
     } else {

@@ -1205,6 +1205,9 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     monthB,
     exportMemory,
     setChooser,
+    hasGoalMove: (): boolean =>
+      goalLabels.length > 0 &&
+      candidates().some((p) => p.payback <= 40 && goalLabels.some((g) => p.label.startsWith(g))),
     setGoalLabels,
     setCandidateBudget,
     simMs: (): number => simMs,
