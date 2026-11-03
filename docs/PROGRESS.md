@@ -7668,3 +7668,8 @@ $2M is winnable, so no smaller start cash is needed.
 - `src/ui/intro.ts`: `startIntro` (rotating lines from `strings.intro`), `finishIntro` (fade ~300 ms after the title screen is mounted, at least 1 s after page start; `?introMs=N` overrides the hold, used by the e2e), `withIntro` (re-used around `regenerate` / `loadGame`; fades in via a CSS animation after 250 ms, which runs on the compositor while the map generates, so steps under ~250 ms are never seen). Removed at once under `?debug=1`; failsafe hide after 15 s.
 - Android splash background `#1E2A38` -> `#0E2C20` (the icon / intro green) for a seamless hand-off. Deviation: none otherwise.
 - e2e `e2e/intro.spec.ts`; screenshots `docs/screenshots/phase-85-intro-{phone,tablet}-{first,mid}.png` (800x360 and 1280x800), all viewed.
+
+### Orchestrator: Phase 85 merged (2026-11-03)
+- Reviewed `phase-85-intro` (380be8c): inline intro in `index.html` (no image files), `intro.ts` hand-off and reuse
+  for slow map generation / loading, Android splash colour matched. `npm run check` 962 passed; e2e 152 + 151 passed.
+  Phone and tablet intro screenshots looked at.
