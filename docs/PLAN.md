@@ -3182,7 +3182,7 @@ rollouts are for big decisions only):
 7. **Scenario check (orchestrator, 2026-11-03):** with a scenario the Strategist plays it through the real goal: Silver
    Rush from $2M must reach at least 2 stars (the solver gets 3); each other scenario at least the solver's stars, or the
    difference is explained. V2 reference = the Phase 80 medians (merged). STOP after this phase with a short summary.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6 (bench met) [ ] 7 (scenarios NOT met, see PROGRESS)
 
 ## Phase 83 — Map difficulty report
 
