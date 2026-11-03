@@ -7661,3 +7661,10 @@ $2M is winnable, so no smaller start cash is needed.
   re-derived by the Phase 77 method, Silver Rush from $2M (direct chain bankrupt; staged plan 3 stars 1885). No other
   bound changed. `npm run check` 962 passed; e2e 150 + 150 passed on the merged tree. Owner approved the table
   ("Approve") and chose to leave 1930 / 1950 as they are ("Leave them").
+
+
+## Phase 85: intro screen while the game loads
+- `index.html`: inline `#intro` overlay (CSS + inline SVG engine copied from the app icon, rising smoke, brass progress line, rotating line), painted before JS. `prefers-reduced-motion` stops the animation.
+- `src/ui/intro.ts`: `startIntro` (rotating lines from `strings.intro`), `finishIntro` (fade ~300 ms after the title screen is mounted, at least 1 s after page start; `?introMs=N` overrides the hold, used by the e2e), `withIntro` (re-used around `regenerate` / `loadGame`; fades in via a CSS animation after 250 ms, which runs on the compositor while the map generates, so steps under ~250 ms are never seen). Removed at once under `?debug=1`; failsafe hide after 15 s.
+- Android splash background `#1E2A38` -> `#0E2C20` (the icon / intro green) for a seamless hand-off. Deviation: none otherwise.
+- e2e `e2e/intro.spec.ts`; screenshots `docs/screenshots/phase-85-intro-{phone,tablet}-{first,mid}.png` (800x360 and 1280x800), all viewed.
