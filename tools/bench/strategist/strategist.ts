@@ -78,6 +78,8 @@ export function attachStrategist(
 
   const rollout = (move: string): number => {
     const fork = forkBot(bot);
+    // one planning pass (to find the move's build); afterwards the fork only operates, which is what makes rollouts cheap
+    fork.setCandidateBudget(1);
     let used = false;
     const holdUntil = fork.state.ticks + opt.waitMonths * MONTH_HOURS;
     fork.setChooser((options) => {

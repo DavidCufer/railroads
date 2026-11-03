@@ -808,6 +808,12 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     // ranked once a month: the pathfinding for a dozen candidates is the bot's main cost
     if (candidateCache && state.ticks - candidateCache.tick < 30 * DAY)
       return candidateCache.projects;
+    // Phase 82: a rollout may plan only so many times (planning is the bot's main cost); after that it only operates
+    if (candidateBudget <= 0) {
+      candidateCache = { tick: state.ticks, projects: [] };
+      return [];
+    }
+    candidateBudget--;
     const projects: Project[] = [];
     const hubs = state.cities.filter((c) => connected.has(c.id) && c.tiles.length > 0);
     if (hubs.length === 0) {
@@ -881,6 +887,10 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
   }
 
   /** Phase 82: picks which affordable project to build (by label), or null to wait; absent = the best by payback (V2). */
+  let candidateBudget = Infinity;
+  const setCandidateBudget = (n: number): void => {
+    candidateBudget = n;
+  };
   let chooser:
     ((options: Array<{ label: string; payback: number; total: number }>) => string | null) | null =
     null;
@@ -1186,6 +1196,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     monthB,
     exportMemory,
     setChooser,
+    setCandidateBudget,
     simMs: (): number => simMs,
   };
 }
