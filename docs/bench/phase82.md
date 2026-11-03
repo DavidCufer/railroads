@@ -5,3 +5,4 @@ Revenue and operating profit are those of the completed year (year 5 = the fifth
 | bot | start | diff | seed | bankrupt | min cash $M | final NW $M | revenue $M y5 | y10 | y16 | op profit $M y5 | y10 | y16 | op ratio y3 | y10 | y16 | return on capital y3 | y10 | y16 | cash>20% NW year (years from start) | laid up / returned |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | strategist | 1840 | normal | 1 | no | 0.03 | 16.46 | 1.41 | 3.28 | 7.73 | 0.8 | 1.76 | 4.79 | 0.39 | 0.46 | 0.38 | 0.24 | 0.15 | 0.23 | 3 | 0 / 0 |
+| strategist | 1840 | normal | 3 | no | 0.01 | 15.92 | 0.83 | 2.18 | 7.98 | 0.4 | 1.17 | 5.17 | 0.43 | 0.46 | 0.35 | 0.22 | 0.17 | 0.26 | 3 | 0 / 0 |
