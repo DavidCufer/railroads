@@ -784,12 +784,15 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     const nB = Math.min(1, trainsFor(barLoads, pickB.cars, dB, pickB.id));
     // plain stations: a terminal at the shared smelter blocks the ore trains while a bar train waits there for its full load
     const big: StationType = "station";
-    const costA = commands.computeBuyTrainPlan(state, pickA.id, Array(pickA.cars).fill(ore)).cost;
-    const costB = commands.computeBuyTrainPlan(state, pickB.id, Array(pickB.cars).fill(bars)).cost;
+    const carsA = Math.max(4, pickA.cars);
+    const carsB = Math.max(4, pickB.cars);
+    const costA = commands.computeBuyTrainPlan(state, pickA.id, Array(carsA).fill(ore)).cost;
+    const costB = commands.computeBuyTrainPlan(state, pickB.id, Array(carsB).fill(bars)).cost;
     const stations =
       stationCost(legB.ta, big) + stationCost(legB.tb, "station") + stationCost(legA.ta, big);
     const track = legA.trackCost + legB.trackCost;
-    const total = track + stations + nA * costA + nB * costB;
+    // the ore and bar trains are bought inside the build; leave room for two more of each
+    const total = track + stations + (nA + 1) * costA + (nB + 1) * costB;
     const dTotal = dist(indTile(mine), indTile(sink));
     const kmh = Math.min(
       locomotiveById(pickB.id)!.maxSpeedKmh,
