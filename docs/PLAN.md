@@ -3179,7 +3179,10 @@ rollouts are for big decisions only):
    at least 2 of 3 and has no more bankruptcies; 1930 bankruptcies lower than V2's. Report next to V2 (Phase 80 medians
    or Phase 77 if unmerged) with run times; if it is worse, report why, do not tune toward the target.
    Unit tests: fork equality, rollout determinism, candidates are valid on 3 maps. `npm run check` must pass.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
+7. **Scenario check (orchestrator, 2026-11-03):** with a scenario the Strategist plays it through the real goal: Silver
+   Rush from $2M must reach at least 2 stars (the solver gets 3); each other scenario at least the solver's stars, or the
+   difference is explained. V2 reference = the Phase 80 medians (merged). STOP after this phase with a short summary.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6 [ ] 7
 
 ## Phase 83 — Map difficulty report
 
