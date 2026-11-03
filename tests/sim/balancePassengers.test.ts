@@ -56,10 +56,11 @@ describe("Phase 26A passenger & mail balance", () => {
     expect(ratio).toBeLessThan(3.5);
   });
 
-  it("1900: Town↔Town passengers earn 1.5-2.6x a coal train (measured 1.61x at 0.8x travellers)", () => {
+  it("1900: Town↔Town passengers earn 1.4-2.6x a coal train (measured 1.48x at 0.8x travellers, fares x0.92)", () => {
     const ratio = paxVsCoal(1900, "atlantic-4-4-2");
     // Phase 69 (owner OK 2026-10-24): was > 1.8, measured 1.61 with travellers at 0.8x (TRIPS_GAME_SCALE).
-    expect(ratio).toBeGreaterThan(1.5);
+    // Phase 80 (owner OK 2026-11-02): was > 1.5, measured 1.477 with passenger fares x0.92; coal is unchanged.
+    expect(ratio).toBeGreaterThan(1.4);
     expect(ratio).toBeLessThan(2.6);
   });
 

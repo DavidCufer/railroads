@@ -1,0 +1,16 @@
+== silverRush
+  pre Genoa-Milan chain 12 | fast 8c x1 FL     lost 0* 1881-03 profit 275k spent 3504k bankrupt progress 0
+  pre Genoa-Milan chain 12 | fast 4c x2 FL     won 3* 1885-08 profit 1070k spent 4497k [buy cant-afford] progress 614
+  pre Genoa-Milan chain 12 | fast 4c x1 FL     won 3* 1885-05 profit 1045k spent 4378k progress 604
+  pre Genoa-Milan chain 12 | fast 4c x3 FL     lost 0* 1881-05 profit 329k spent 3767k bankrupt [buy cant-afford] progress 0
+  pre Genoa-Milan chain 12 | fast 8c x2 FL     lost 0* 1881-08 profit 276k spent 3376k bankrupt [buy cant-afford] progress 0
+  pre Genoa-Milan chain 12 | value 4c x1 FL    lost 0* 1881-07 profit 40k spent 2492k bankrupt [buy cant-afford] progress 0
+  pre Genoa-Milan chain 12 | fast 8c x3 FL     lost 0* 1881-06 profit 275k spent 3424k bankrupt [buy cant-afford] progress 0
+  pre Genoa-Milan chain 12 | value 4c x2 FL    lost 0* 1881-07 profit 54k spent 2540k bankrupt [buy cant-afford] progress 0
+  pre Genoa-Milan chain 12 | value 4c x3 FL    lost 0* 1881-05 profit 54k spent 2588k bankrupt [buy cant-afford] progress 0
+  pre Genoa-Milan chain 12 | value 8c x2 FL    lost 0* 1881-03 profit 117k spent 2901k bankrupt [buy cant-afford] progress 0
+  pre Genoa-Milan chain 12 | value 8c x1 FL    lost 0* 1881-05 profit 117k spent 2853k bankrupt [buy cant-afford] progress 0
+  pre Genoa-Milan chain 12 | value 8c x3 FL    lost 0* 1881-03 profit 116k spent 2949k bankrupt [buy cant-afford] progress 0
+  pre Genoa-Milan chain 12 | grow to 4         won 3* 1885-08 profit 1070k spent 4497k [buy cant-afford] progress 614
+  pre Genoa-Milan chain 12 | grow to 6         lost 0* 1882-02 profit -73k spent 3348k bankrupt [shed cant-afford] progress 0
+BEST silverRush: {"id":"silverRush","label":"pre Genoa-Milan chain 12 | fast 4c x1 FL","status":"won","stars":3,"finishMonth":64,"finish":"1885-05","profit":1045349,"spent":4377639,"netWorth":4225166,"note":" progress 604","strategy":{"engine":"fast","cars":4,"trains":[1,1],"fullLoad":true,"smelterPick":0,"singleSmelterStation":true,"label":"pre Genoa-Milan chain 12 | fast 4c x1 FL","prePair":["Genoa","Milan"],"stageMonth":12,"silverCash":2400000,"grow":4}}

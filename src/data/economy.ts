@@ -58,9 +58,17 @@ export function wageIndex(year: number): number {
 /** Annual wage of one railwayman (driver, fireman, guard, porter, platelayer) at 1830 prices. */
 export const WAGE_1830 = 350;
 
+/** Phase 80 (owner's OK, 2026-11-02): passenger fares sit this much below the sourced anchors below. Phase 79 found a
+ * good player's lines pay back in about two years in every era; the owner chose this broad margin lever (V2 strong
+ * player, operating profit at year 10: 1870 -30 %, 1840 -26 %, 1900 -22 %). Historically the 1844 Railway Regulation
+ * Act's penny-a-mile trains and cheap-fare competition kept real fares falling. Applies to passengers only; mail and
+ * freight are unchanged. */
+export const PASSENGER_FARE_FACTOR = 0.92;
+
 /** Real-terms passenger and mail fare level, relative to the general price level. Rail was a premium novelty in
  * the 1830s (stagecoach-priced, first class only); the 1844 Railway Regulation Act forced cheap third-class
- * fares, and mass suburban and excursion traffic pushed real fares down for the next sixty years. */
+ * fares, and mass suburban and excursion traffic pushed real fares down for the next sixty years. The anchors
+ * are the sourced values; passengers get `PASSENGER_FARE_FACTOR` on top (see `fareIndex`). */
 export const PASSENGER_REAL_FARE_ANCHORS: Anchors = [
   [1830, 1.9],
   [1845, 1.45],
@@ -135,9 +143,11 @@ export const PARTY_SIZE = 3;
 /** Nominal fare/rate multiplier on `CargoDef.baseRate` (which is quoted at 1830 prices). */
 export function fareIndex(year: number, cargo: CargoType): number {
   const real =
-    cargo === "passengers" || cargo === "mail"
-      ? interpolateYear(PASSENGER_REAL_FARE_ANCHORS, year)
-      : interpolateYear(FREIGHT_REAL_RATE_ANCHORS, year);
+    cargo === "passengers"
+      ? interpolateYear(PASSENGER_REAL_FARE_ANCHORS, year) * PASSENGER_FARE_FACTOR
+      : cargo === "mail"
+        ? interpolateYear(PASSENGER_REAL_FARE_ANCHORS, year)
+        : interpolateYear(FREIGHT_REAL_RATE_ANCHORS, year);
   return priceIndex(year) * real;
 }
 

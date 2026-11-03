@@ -1298,7 +1298,15 @@ Player report (Central Europe, 1840s), with phone screenshots:
    `npm run bench` / goodPlayer and the Hard vs Normal gap, update BALANCE.md, and record the SPEC change
    (§9.5b). No flat multipliers.
 
-Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6 [x] 7 [x] 8 [x] 9 [x] 10
+5. **Silver Rush needs planning (owner 2026-11-02):** "Silver rush is still simple scenario. No planning no tactics.
+   Just buy rail needed and buy a couple of trains. No fun. Maybe start with only 2 mil?" Start cash $4M -> **$2M**, so
+   the whole chain (about $2.0-2.2M of track, stations and trains, Phase 76) cannot be bought at once and the ore leg
+   earns nothing until the bars reach the Mint: the player has to earn first (passenger or freight lines), borrow, or
+   build in stages. Rerun the scenario solver (with its staged and "pre" pair-line strategies, under the new fares) and
+   re-set the goal, deadline and stars by Phase 76's targets so that 1 star needs a working plan, 2 stars good timing,
+   3 stars near the solver's best. If $2M makes it unwinnable, report the smallest start cash that keeps it winnable
+   and needs a staged plan. In the same table as item 4.
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 (STOP: orchestrator shows the owner)
 
 ## Phase 35 — Play-test 15: passenger destinations the player can see (replaces Phase 34 item 10's boarding rule)
 Player report: after Phase 34, Venice always shows hundreds waiting (e.g. "672 waiting") but trains on "Full load"
@@ -3120,7 +3128,7 @@ Never rebase over merge commits, never force-push. Never loosen a test bound: a 
    re-set the goal, deadline and stars by Phase 76's targets so that 1 star needs a working plan, 2 stars good timing,
    3 stars near the solver's best. If $2M makes it unwinnable, report the smallest start cash that keeps it winnable
    and needs a staged plan. In the same table as item 4.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5
 
 ## Phase 81 — Picking stations on the map when they are near the screen's lower edge
 

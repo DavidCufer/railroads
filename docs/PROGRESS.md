@@ -7605,3 +7605,59 @@ Report: `docs/bench/phase79.md` (rows `phase79-runs.md`, summary `phase79-summar
   covered height (`Camera.coverBottom/coverRight`), pickable-station rings. The branch had re-committed 33 unowned
   screenshots: reverted. `npm run check` 961 passed; e2e 150 + 150 passed. Also fixed main's formatting (Phase 79 bench
   tools, 7a6e604).
+## 2026-11-02 - Phase 80: passenger fares 8 % lower; goals again; Silver Rush from $2M (branch `phase-80-fares`, NOT merged; orchestrator reviews)
+
+### Goals, old -> new (for the owner)
+Old = main (Phase 77 V2 medians); new = V2 medians re-benched with passenger fares x0.92 (`docs/bench/phase80.md`, summary `phase80-summary.md`; 10 seeds Normal / 5 Hard, survivors). Formula, years (gold 16, silver 12) and `goalCalibration` bounds unchanged; the calibration test is green with no bound touched. Reference operator = the new medians (Normal and Hard literals in `tests/sim/referenceOperator.ts`).
+
+| goal | old | **new** |
+|---|---|---|
+| gb gold (profit by 1865) | $5.3M | **$4.0M** |
+| central-eu gold (profit by 1875) | $5.7M | **$4.3M** |
+| us-west gold (revenue by 1900) | $11M | **$8.9M** |
+| us-west / us-east silver (revenue by 1880) | $5.3M / $5.3M | **$4.0M / $4.0M** |
+| random-map profit gold, start 1830 / 1840 / 1870 / 1900 / 1930 / 1950 | $6.0M / 6.4M / 8.1M / 3.0M / 0.21M / 1.4M | **$4.5M / 4.8M / 7.4M / 2.9M / 0.16M / 0.58M** |
+| random-map revenue gold (same starts) | $9.7M / 10M / 14M / 9.0M / 1.0M / 4.6M | **$7.7M / 8.3M / 13M / 8.2M / 0.94M / 3.9M** |
+| achievement rungs (profit a year) | $0.25M / $2.5M / $7M | **$0.25M / $2.5M / $6M** (`profit7M` -> `profit6M`; lowest y5 median 0.23, middle y16 median 2.42, best 5.92) |
+| scenario profit stars: Semmering / Coal for Trieste / Transcontinental | $410k / $450k / $460k | **$320k / $350k / $360k** (year-5 medians) |
+| Silver Rush: start cash; stars (date, profit) | $4M; 1885, $800k | **$2M**; 1885, **$1.0M** (item 5 below) |
+| Panic of 1873 stars (profit) | $750k / $950k | **$650k / $850k** (solver under the new fares: 2 stars at $950k, 3 at $850k; before the fares 3 stars) |
+
+Notes: 1930 Normal medians are of 5 survivors (5 of 10 went bankrupt, V2 was 2 of 10 before), which is why the 1930 goals fell most (0.16M profit). Random-map gold now 0.16M for 1930 starts.
+
+### Bench (V2 strong, V1, cautious; central-eu; Phase 77 medians in brackets; $M operating profit y5 / y10 / y16, bankruptcies)
+| era | diff | V2 Phase 80 (Phase 77) | bankrupt | V1 Phase 80 (Phase 77) | cautious (5) |
+|---|---|---|---|---|---|
+| 1840 | N | 0.29 / 0.82 / 3.70 (0.37 / 1.23 / 4.88) | 0 (0) | 0.29 / 0.48 / 2.85 (0.33 / 0.60 / 2.92) | **0.23 / 0.29 / 2.06**, 0 |
+| 1870 | N | 0.96 / 3.34 / 5.92 (1.45 / 5.64 / 6.50) | 0 (0) | 0.39 / 0.77 / 1.36 (0.55 / 1.07 / 3.42) | 1.08 / 2.53 / 4.24, 0 |
+| 1900 | N | 0.85 / 1.48 / 2.42 (1.35 / 1.71 / 2.50) | 0 (0) | 0.44 / 1.15 / 1.79 (0.68 / 1.62 / 2.33) | 0.69 / 0.95 / 0.54, 0 |
+| 1930 | N | 0.23 / 0.11 / 0.14 (0.29 / 0.20 / 0.18) | **5** (2) | 0.21 / 0.11 / -0.04 (0.24 / 0.11 / 0.05) | **0.28 / 0.21 / 0.16**, 0 |
+| 1950 | N | 0.88 / 0.46 / 0.50 (1.04 / 0.94 / 1.29) | 1 (0) | 0.93 / 0.53 / 0.98 (1.14 / 0.57 / 1.08) | 0.12 / 0.18 / 0.29, 0 |
+| 1840 | H | 0.55 / 0.98 / 3.78 (0.61 / 1.42 / 5.30) | 0 (0) | 0.39 / 0.27 / 1.17 | n/a |
+| 1870 | H | 1.19 / 2.96 / 6.31 (1.37 / 4.15 / 7.57) | 0 (0) | 1.20 / 1.49 / 2.35 | n/a |
+| 1900 | H | 1.24 / 1.10 / 0.86 (1.46 / 1.23 / 1.77) | 0 (1) | 0.22 / 0.15 / 0.04 | n/a |
+| 1930 | H | 0.75 / 0.79 / 0.97 (0.92 / 0.82 / 0.86) | 1 (0) | 0.25 / 0.58 / 0.67 | n/a |
+| 1950 | H | 0.09 / 0.16 / 0.17 (0.13 / 0.23 / 0.10) | 0 (0) | 0.14 / 0.23 / 0.12 | n/a |
+
+Final net worth (V2 Normal, $M): 1840 12.7 (16.3), 1870 **26.9 (42.1)**, 1900 12.2 (13.5), 1930 1.3 (1.3), 1950 3.9 (5.2). V2 y16 profit moves -24 % (1840), -9 % (1870), -3 % (1900), -22 % (1930), -61 % (1950); y10 1870 -41 %. Calls: **1840** (cautious): y16 2.06M vs the cautious bot's 2.75M before the fares (Phase 79) - still earns and no bankruptcy, but the early years are thin (y5 0.23M); **1930**: V2 bankruptcies 2 -> 5 of 10 and V1 7 -> 9 of 10 (the cautious bot survives all 5 with y16 0.16M); 1930 is now a hard era for every bot except the cautious one. **1950 Normal** halved at y10/y16 and has 1 bankruptcy: fares x0.92 matters most where the margin is already thin. 1870 remains the richest era (V2 net worth 27M) but 1.6x lower than before. Not asked, flagged: 1930 / 1950 probably want a look if the owner intends them to stay playable.
+
+### What changed
+1. `PASSENGER_FARE_FACTOR = 0.92` (`src/data/economy.ts`), passengers only, with the history doc comment; mail and freight unchanged.
+2. Three balance bounds failed and the **owner accepted new limits** (orchestrator pushed ebb0d35): Norris 10-tile return >= 0.23 (measured 0.241), 1900 pax/coal > 1.4 (1.477), 1920 Hard route profit > -$10k (-5,024). `npm run check` 962 passed; e2e 149 + 149 passed. Fixture changes that follow from formulas: `goalCalibration` literals (1900 revenue y5 2.6M -> 1.8M = 1.68M x 1.07; 1870 profit y16 5.7M -> 5.2M = 5.92M x 1.48/1.67), e2e `phase46` third star text $450k -> $350k, achievement id `profit7M` -> `profit6M`. Prettier on four Phase 79 bench files that failed `npm run check` on main.
+3. Bench: `tools/bench/phase80.ts` (Phase 77 shape plus the cautious bot, 175 runs in about 45 pieces of 13 minutes, each pushed), `phase80Summary.ts`.
+4. Goals: table above (`STRONG_PLAYER_MEDIANS`, reference operator literals, achievements, scenario stars).
+
+### Item 5: Silver Rush from $2M
+`startCash` 4,000,000 -> 2,000,000. Solver extended (`scenarioSolver.ts`, strategies `prePair` / `stageMonth` / `silverCash`: a passenger pair line first, the chain built later with loans; or loans at the start). Results under the new fares (`$2M`):
+- Direct chain (as at $4M, 1-2 trains): **bankrupt 1881** (spent $2.15M of $2M, no income until bars reach the Mint). Same for every engine/cars/trains variant.
+- Borrow $2.3-2.6M at the start: wins **1 star**, Nov 1886, profit $67k.
+- Genoa-Milan passenger line, chain built at month 12 (loans to $2.4M), 4-car fast engines, 2 + 1 trains grown to 4: **3 stars, May 1885, profit $1.045M**. Chain at month 6 or 24, or Turin-Genoa / Turin-Milan / Turin-Zurich lines: lost (bankrupt, deadline, or junction too dear). Fragile: only this plan wins 3 stars, which is what the owner asked for (a staged plan with timing).
+- Stars set: win = 1 (a working plan), 2 = by 1885, 3 = profit $1.0M (96 % of the solver's best; Phase 76 used 97 %). Goal (600 t by 1890) unchanged. Test `scenarios.test.ts`: the direct chain loses, the staged plan wins 3 stars (takes about 3 minutes).
+$2M is winnable, so no smaller start cash is needed.
+
+
+### Orchestrator: Phase 80 merged (2026-11-03)
+- Reviewed `phase-80-fares` (908cce1): fares x0.92 (passengers), owner-approved bounds (ebb0d35), 175-run bench, goals
+  re-derived by the Phase 77 method, Silver Rush from $2M (direct chain bankrupt; staged plan 3 stars 1885). No other
+  bound changed. `npm run check` 962 passed; e2e 150 + 150 passed on the merged tree. Owner approved the table
+  ("Approve") and chose to leave 1930 / 1950 as they are ("Leave them").

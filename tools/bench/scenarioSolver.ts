@@ -67,6 +67,10 @@ export interface Strategy {
   stageMonth?: number;
   /** connect: first run a pair line from the first city to this (rich) town, link the goal cities at `stageMonth`. */
   pre?: string;
+  /** silver (Phase 80): first run a passenger line between these two (rich) towns, build the chain at `stageMonth` with
+   * loans topped up to `silverCash`. Without `prePair`, `stageMonth` 0 = borrow up to `silverCash` at the start. */
+  prePair?: [string, string];
+  silverCash?: number;
   /** connect: trains also stop in the via town. */
   stopVia?: boolean;
   /** connect: lay extra pair lines (A to a nearby town) before the link. */
@@ -314,6 +318,7 @@ function runStrategyOnce(id: string, st: Strategy): SolveResult {
   ): Array<{ tiles: number[]; type: "station" }> =>
     (names ?? []).map((n) => ({ tiles: cityTiles(n, toward), type: "station" as const }));
   let preLink: { stops: Array<{ tiles: number[]; type: StationType }> } | null = null;
+  let silverLater: (() => SolveResult | null) | null = null;
   let staged: {
     stops: Array<{ tiles: number[]; type: StationType }>;
     leg: Leg;
@@ -398,77 +403,108 @@ function runStrategyOnce(id: string, st: Strategy): SolveResult {
     const mine = find("silverMine");
     const plant = find("smelter");
     const sink = find("mint");
-    if (st.singleSmelterStation) {
-      // ONE station at the smelter (two would split its output). It is the end of the line to the mint; the ore line
-      // joins that line a few tiles from the station (a junction) and its trains reverse in the station.
-      const cash0 = state.cash;
-      const idsBars = buildChain([
-        { tiles: pickK(around(plant, sink, 2), st.smelterPick ?? 0), type: et },
-        { tiles: around(sink, plant, 2), type: "station" as const },
-      ]);
-      let ok = false;
-      if (idsBars) {
-        const trunk = lastPath;
-        const joins = [4, 6, 8, 12, 16, 24, 32]
-          .map((k) => trunk[k])
-          .filter((t): t is number => t !== undefined);
-        const pick = cheapest(sample(around(mine, plant, 2), 4), joins);
-        if (!pick) note += " [no junction path]";
-        else if (state.cash < pick.cost + reserve)
-          note += ` [junction too dear ${Math.round(pick.cost / 1000)}k]`;
-        else if (
-          buildTrack(state, pick.path).ok &&
-          (state.stations.some((x) => x.tile === pick.a) || buildStation(state, pick.a, et).ok)
-        ) {
-          ok = true;
-          const oreId = state.stations.find((x) => x.tile === pick.a)!.id;
-          const mk = (cargo: CargoType, stops: number[], n: number): void => {
-            const leg: Leg = { ids: stops, cargo, trains: 0, cap: st.grow ?? n, stops };
-            legs.push(leg);
-            for (let i = 0; i < n; i++) if (!addTrain(leg)) break;
-          };
-          mk("silverOre", [oreId, idsBars[0]!], st.trains[0] ?? 1);
-          mk("silverBars", [idsBars[0]!, idsBars[1]!], st.trains[1] ?? 1);
+    const buildSilver = (): SolveResult | null => {
+      if (st.singleSmelterStation) {
+        // ONE station at the smelter (two would split its output). It is the end of the line to the mint; the ore line
+        // joins that line a few tiles from the station (a junction) and its trains reverse in the station.
+        const cash0 = state.cash;
+        const idsBars = buildChain([
+          { tiles: pickK(around(plant, sink, 2), st.smelterPick ?? 0), type: et },
+          { tiles: around(sink, plant, 2), type: "station" as const },
+        ]);
+        let ok = false;
+        if (idsBars) {
+          const trunk = lastPath;
+          const joins = [4, 6, 8, 12, 16, 24, 32]
+            .map((k) => trunk[k])
+            .filter((t): t is number => t !== undefined);
+          const pick = cheapest(sample(around(mine, plant, 2), 4), joins);
+          if (!pick) note += " [no junction path]";
+          else if (state.cash < pick.cost + reserve)
+            note += ` [junction too dear ${Math.round(pick.cost / 1000)}k]`;
+          else if (
+            buildTrack(state, pick.path).ok &&
+            (state.stations.some((x) => x.tile === pick.a) || buildStation(state, pick.a, et).ok)
+          ) {
+            ok = true;
+            const oreId = state.stations.find((x) => x.tile === pick.a)!.id;
+            const mk = (cargo: CargoType, stops: number[], n: number): void => {
+              const leg: Leg = { ids: stops, cargo, trains: 0, cap: st.grow ?? n, stops };
+              legs.push(leg);
+              for (let i = 0; i < n; i++) if (!addTrain(leg)) break;
+            };
+            mk("silverOre", [oreId, idsBars[0]!], st.trains[0] ?? 1);
+            mk("silverBars", [idsBars[0]!, idsBars[1]!], st.trains[1] ?? 1);
+          }
         }
-      }
-      spent += cash0 - state.cash;
-      if (!ok) {
-        note += " [chain failed]";
-        if (st.smelterPick !== undefined) return failed("error");
-      }
-    } else {
-      const l1 = startLeg(
-        [
-          { tiles: around(mine, plant, 2), type: et },
-          ...viaTiles(st.via?.[0], plant),
-          { tiles: around(plant, mine, 2), type: st.oreType ?? et },
-        ] as Array<{ tiles: number[]; type: StationType }>,
-        "silverOre",
-        st.trains[0] ?? 1,
-        (ids) => [ids[0]!, ids[ids.length - 1]!],
-      );
-      if (l1) {
-        const smelterStn = l1.ids[l1.ids.length - 1]!;
-        const smelterTile = state.stations.find((s) => s.id === smelterStn)!.tile;
-        const startTile = [smelterTile];
-        // second leg starts at the smelter's own output station (a second station, or the same one)
-        const taken = new Set(state.stations.map((s) => s.tile));
-        const outTiles = around(plant, sink, 2).filter((t) => !taken.has(t));
-        const l2 = startLeg(
+        spent += cash0 - state.cash;
+        if (!ok) {
+          note += " [chain failed]";
+          if (st.smelterPick !== undefined) return failed("error");
+        }
+      } else {
+        const l1 = startLeg(
           [
-            {
-              tiles: outTiles.length ? outTiles : startTile,
-              type: et,
-            },
-            ...viaTiles(st.via?.[1], sink),
-            { tiles: around(sink, plant, 2), type: "station" as const },
+            { tiles: around(mine, plant, 2), type: et },
+            ...viaTiles(st.via?.[0], plant),
+            { tiles: around(plant, mine, 2), type: st.oreType ?? et },
           ] as Array<{ tiles: number[]; type: StationType }>,
-          "silverBars",
-          st.trains[1] ?? 1,
+          "silverOre",
+          st.trains[0] ?? 1,
           (ids) => [ids[0]!, ids[ids.length - 1]!],
         );
-        if (!l2) note += " [leg 2 failed]";
-      } else note += " [leg 1 failed]";
+        if (l1) {
+          const smelterStn = l1.ids[l1.ids.length - 1]!;
+          const smelterTile = state.stations.find((s) => s.id === smelterStn)!.tile;
+          const startTile = [smelterTile];
+          // second leg starts at the smelter's own output station (a second station, or the same one)
+          const taken = new Set(state.stations.map((s) => s.tile));
+          const outTiles = around(plant, sink, 2).filter((t) => !taken.has(t));
+          const l2 = startLeg(
+            [
+              {
+                tiles: outTiles.length ? outTiles : startTile,
+                type: et,
+              },
+              ...viaTiles(st.via?.[1], sink),
+              { tiles: around(sink, plant, 2), type: "station" as const },
+            ] as Array<{ tiles: number[]; type: StationType }>,
+            "silverBars",
+            st.trains[1] ?? 1,
+            (ids) => [ids[0]!, ids[ids.length - 1]!],
+          );
+          if (!l2) note += " [leg 2 failed]";
+        } else note += " [leg 1 failed]";
+      }
+      return null;
+    };
+    const borrow = (): void => {
+      for (let k = 0; k < 40 && state.cash < (st.silverCash ?? 2_400_000); k++)
+        takeLoan(state, 100_000);
+    };
+    if (st.prePair) {
+      const [pa, pb] = st.prePair.map((n) => state.cities.find((c) => c.name === n)!) as [
+        (typeof state.cities)[number],
+        (typeof state.cities)[number],
+      ];
+      const leg = startLeg(
+        [
+          { tiles: cityTiles(pa.name, { x: pb.anchorX, y: pb.anchorY }), type: et },
+          { tiles: cityTiles(pb.name, { x: pa.anchorX, y: pa.anchorY }), type: et },
+        ] as Array<{ tiles: number[]; type: StationType }>,
+        "passengers",
+        st.trains[0] ?? 2,
+        (ids) => ids,
+      );
+      if (!leg) note += " [pre failed]";
+      silverLater = (): SolveResult | null => {
+        borrow();
+        return buildSilver();
+      };
+    } else {
+      if (st.stageMonth === 0) borrow();
+      const f = buildSilver();
+      if (f) return f;
     }
   }
 
@@ -550,6 +586,11 @@ function runStrategyOnce(id: string, st: Strategy): SolveResult {
         l.stops = ends;
         staged = null;
       }
+    }
+    if (silverLater && month >= (st.stageMonth ?? 0)) {
+      const f = silverLater();
+      silverLater = null;
+      if (f) return f;
     }
     if (preLink && month >= st.stageMonth!) {
       for (let k = 0; k < 8 && state.cash < 700_000; k++) takeLoan(state, 100_000);
@@ -685,6 +726,41 @@ export function routeCandidates(id: string): Strategy[] {
     const one = { ...base, singleSmelterStation: true };
     out.push({ ...one, label: "one smelter station", trains: [1, 1] });
     out.push({ ...base, label: "two smelter stations", trains: [1, 1] });
+    // Phase 80 (silver from $2M): borrow at the start, or earn on a passenger pair line first and build the chain later.
+    for (const cash of [2_300_000, 2_600_000])
+      out.push({
+        ...one,
+        label: `loans at start to ${cash / 1000}k`,
+        trains: [1, 1],
+        stageMonth: 0,
+        silverCash: cash,
+      });
+    const mineI = state.industries.find((i) => i.type === "silverMine")!;
+    const big = state.cities
+      .filter((c) => c.population >= 8000)
+      .sort(
+        (p, q) =>
+          Math.hypot(p.anchorX - mineI.x, p.anchorY - mineI.y) -
+          Math.hypot(q.anchorX - mineI.x, q.anchorY - mineI.y),
+      )
+      .slice(0, 5);
+    const pairs: Array<[string, string]> = [];
+    for (let i = 0; i < big.length; i++)
+      for (let j = i + 1; j < big.length; j++) {
+        const d = Math.hypot(big[i]!.anchorX - big[j]!.anchorX, big[i]!.anchorY - big[j]!.anchorY);
+        if (d >= 15 && d <= 70) pairs.push([big[i]!.name, big[j]!.name]);
+      }
+    for (const prePair of pairs.slice(0, 4))
+      for (const stageMonth of [6, 12, 24])
+        out.push({
+          ...one,
+          label: `pre ${prePair[0]}-${prePair[1]} chain ${stageMonth}`,
+          trains: [2, 2],
+          prePair,
+          stageMonth,
+          silverCash: 2_400_000,
+          grow: 4,
+        });
   }
   return out;
 }

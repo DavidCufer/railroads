@@ -22,7 +22,7 @@ describe("early-era balance", () => {
     });
   }
 
-  it("1840 Norris on a 10-tile (50 km) Town↔Town line returns ≥ 25 %/yr of its price", () => {
+  it("1840 Norris on a 10-tile (50 km) Town↔Town line returns ≥ 23 %/yr of its price", () => {
     const r = measureMean({
       cargo: "passengers",
       km: 50,
@@ -33,7 +33,8 @@ describe("early-era balance", () => {
       population: 26_000,
       tier: "town",
     });
-    expect(r.profit / r.price).toBeGreaterThanOrEqual(0.25);
+    // Phase 80 (owner OK 2026-11-02): was >= 0.25, measured 0.241 with passenger fares x0.92 (PASSENGER_FARE_FACTOR).
+    expect(r.profit / r.price).toBeGreaterThanOrEqual(0.23);
   });
 
   it("the fare curve is a premium early and falls in real terms; there is no income tax before the 1910s", () => {

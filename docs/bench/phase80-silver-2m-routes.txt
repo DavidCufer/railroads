@@ -1,0 +1,18 @@
+== silverRush
+  one smelter station                          lost 0* 1881-09 profit -369k spent 2149k bankrupt progress 0
+  two smelter stations                         lost 0* 1881-11 profit -351k spent 1818k bankrupt [buy cant-afford] progress 0
+  loans at start to 2300k                      won 1* 1886-11 profit 67k spent 2342k progress 603
+  loans at start to 2600k                      won 1* 1886-11 profit 68k spent 2342k progress 603
+  pre Turin-Genoa chain 12                     lost 0* 1881-06 profit 325k spent 3726k bankrupt [buy cant-afford] progress 0
+  pre Turin-Genoa chain 24                     lost 0* 1883-04 profit -78k spent 3923k bankrupt progress 0
+  pre Turin-Milan chain 6                      lost 0* 1891-01 profit 100k spent 3336k deadline [buy cant-afford] progress 0
+  pre Turin-Milan chain 12                     lost 0* 1891-01 profit 163k spent 3993k deadline progress 127
+  pre Turin-Milan chain 24                     lost 0* 1891-01 profit -10k spent 4013k deadline progress 84
+  pre Turin-Genoa chain 6                      lost 0* - profit 0k spent 2037k [junction too dear 561k] [chain failed]
+  pre Genoa-Milan chain 6                      lost 0* 1883-08 profit 2k spent 2727k bankrupt [buy cant-afford] [shed cant-afford] progress 0
+  pre Turin-Zurich chain 6                     lost 0* - profit 0k spent 2382k [junction too dear 504k] [chain failed]
+  pre Turin-Zurich chain 12                    lost 0* - profit 0k spent 2382k [junction too dear 504k] [chain failed]
+  pre Genoa-Milan chain 12                     won 3* 1885-08 profit 1070k spent 4497k [buy cant-afford] progress 614
+  pre Genoa-Milan chain 24                     lost 0* 1882-11 profit 344k spent 3881k bankrupt progress 0
+  pre Turin-Zurich chain 24                    lost 0* - profit 0k spent 2389k [junction too dear 508k] [chain failed]
+BEST silverRush: {"id":"silverRush","label":"pre Genoa-Milan chain 12","status":"won","stars":3,"finishMonth":68,"finish":"1885-08","profit":1069960,"spent":4496627,"netWorth":4300192,"note":" [buy cant-afford] progress 614","strategy":{"engine":"fast","cars":4,"trains":[2,2],"fullLoad":true,"smelterPick":0,"singleSmelterStation":true,"label":"pre Genoa-Milan chain 12","prePair":["Genoa","Milan"],"stageMonth":12,"silverCash":2400000,"grow":4}}

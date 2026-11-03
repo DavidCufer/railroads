@@ -158,4 +158,31 @@ describe("fail-able and beatable", () => {
       expect(r.stars).toBeGreaterThanOrEqual(2);
     },
   );
+
+  // Phase 80 (owner 2026-11-02): Silver Rush starts with $2M, so the whole chain (about $2.15M) cannot be bought at once.
+  it(
+    "Silver Rush from $2M: the direct chain goes bankrupt, the staged Genoa - Milan plan wins 3 stars",
+    { timeout: 300_000 },
+    () => {
+      const chain = {
+        engine: "fast" as const,
+        cars: 4,
+        fullLoad: true,
+        smelterPick: 0,
+        singleSmelterStation: true,
+      };
+      const direct = runStrategy("silverRush", { ...chain, trains: [1, 1] });
+      expect(direct.status).toBe("lost");
+      const staged = runStrategy("silverRush", {
+        ...chain,
+        trains: [2, 1],
+        prePair: ["Genoa", "Milan"],
+        stageMonth: 12,
+        silverCash: 2_400_000,
+        grow: 4,
+      });
+      expect(staged.status).toBe("won");
+      expect(staged.stars).toBe(3);
+    },
+  );
 });

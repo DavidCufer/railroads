@@ -86,9 +86,9 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     seed: 7,
     startYear: 1880,
     difficulty: "normal",
-    startCash: 4_000_000,
+    startCash: 2_000_000,
     goal: { type: "deliver", cargo: "silverBars", amount: 600, byYear: 1890 },
-    stars: [1885, 800_000],
+    stars: [1885, 1_000_000],
   },
   // Owner (2026-10-31): the hardest scenario, listed last.
   {
@@ -100,7 +100,7 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     startCash: 400000,
     startLoans: 2_500_000,
     goal: { type: "survive", untilYear: 1878, maxDebt: 500_000 },
-    stars: [750_000, 950_000],
+    stars: [650_000, 850_000],
   },
 ];
 
