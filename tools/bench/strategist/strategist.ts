@@ -24,6 +24,8 @@ export interface StrategistOptions {
   profitMultiple: number;
   /** Months "wait" holds back building. */
   waitMonths: number;
+  /** With a scenario goal project: build one earning line, then save for the goal project. */
+  goalFirst: boolean;
 }
 
 export const DEFAULT_OPTIONS: StrategistOptions = {
@@ -31,6 +33,7 @@ export const DEFAULT_OPTIONS: StrategistOptions = {
   maxMoves: 4,
   profitMultiple: 3,
   waitMonths: 3,
+  goalFirst: true,
 };
 
 export interface StrategistStats {
@@ -149,6 +152,12 @@ export function attachStrategist(
     // one decision per ten-day step: the bot calls this up to six times in a step
     if (t === lastTick) return null;
     lastTick = t;
+    // a scenario whose goal needs a project that costs most of the starting cash (the silver chain): one earning line first,
+    // then everything else waits until the goal project is affordable (the solver's staged plan, found by the same reasoning)
+    if (!plan && opt.goalFirst && goal.length > 0 && bot.lines.length > 0 && bot.hasGoalMove()) {
+      plan = goal[0] ?? null;
+      stats.picks["save"] = (stats.picks["save"] ?? 0) + 1;
+    }
     if (plan) {
       const hit = options.find((o) => o.label.startsWith(plan as string));
       if (hit) {

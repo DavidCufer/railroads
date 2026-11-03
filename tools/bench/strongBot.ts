@@ -278,11 +278,11 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
   }
 
   /** The first legal track between a tile of `from` and a tile of `to` (pathfinder, build rules). */
-  function planLeg(from: number[], to: number[]): Leg | null {
+  function planLeg(from: number[], to: number[], tries = 2): Leg | null {
     const stationTiles = new Set(state.stations.map((s) => s.tile));
     const land = landPrices(state);
-    for (const ta of from.slice(0, 2))
-      for (const tb of to.slice(0, 2)) {
+    for (const ta of from.slice(0, tries))
+      for (const tb of to.slice(0, tries)) {
         const path = findBuildPath(state.map, ta, tb, year(), {
           respectTurns: { graph: state.trackGraph, stationTiles },
           land,
@@ -563,33 +563,52 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
    * terminal at each end of each, full-load waits, and trains sized to the mine's output. The ore pays nothing itself; the
    * bars pay on arrival for the distance from the mine (cargo.ts `chainLeg`). */
   let chainBuilt = false;
+  /** Phase 82: a chain that cannot be planned now (lines built since block the corridor) is retried later, not given up. */
+  let chainRetryAt = 0;
   function chainProject(): Project | null {
-    if (chainBuilt || failed.has("chain")) return null;
+    if (process.env["CHAINDBG"])
+      console.log(
+        "CHAIN call",
+        year(),
+        "built",
+        chainBuilt,
+        "failed",
+        failed.has("chain"),
+        "lines",
+        lines.length,
+      );
+    if (chainBuilt || failed.has("chain") || state.ticks < chainRetryAt) return null;
     const def = longHaulChainFor(state.startYear);
     const chain = LONG_HAUL_CHAINS[def.id];
     const mine = state.industries.find((i) => i.type === chain.mine);
     const plant = state.industries.find((i) => i.type === chain.processor);
     const sink = state.industries.find((i) => i.type === chain.sink);
+    if (process.env["CHAINDBG"]) console.log("CHAIN null at", 2, year());
     if (!mine || !plant || !sink) return null;
     const ore: CargoType = def.id === "silver" ? "silverOre" : "uraniumOre";
     const bars: CargoType = def.id === "silver" ? "silverBars" : "enrichedUranium";
+    if (process.env["CHAINDBG"]) console.log("CHAIN null at", 3, year());
     if (CARGO[ore].era > year()) return null;
     const out = state.industryEconomy.get(mine.id)?.monthlyOutput[ore] ?? 0;
+    if (process.env["CHAINDBG"]) console.log("CHAIN null at", 4, year());
     if (out <= 0) return null;
     const legA = planLeg(
       freeAround(indTile(mine), indTile(plant), 2),
       freeAround(indTile(plant), indTile(mine), 2),
     );
     if (!legA) {
-      failed.add("chain");
+      chainRetryAt = state.ticks + 90 * DAY;
+      if (process.env["CHAINDBG"]) console.log("CHAIN null at", 5, year());
       return null;
     }
     const legB = planLeg(
       freeAround(indTile(plant), indTile(sink), 3).filter((t) => dist(t, legA.tb) > 1.5),
       freeAround(indTile(sink), indTile(plant), 2),
+      goalLabels.length > 0 ? 8 : 2,
     );
     if (!legB) {
-      failed.add("chain");
+      chainRetryAt = state.ticks + 90 * DAY;
+      if (process.env["CHAINDBG"]) console.log("CHAIN null at", 6, year());
       return null;
     }
     const dA = dist(legA.ta, legA.tb);
@@ -601,6 +620,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       CARGO[bars].capacity;
     const pickA = bestFreightLoco(ore, dA, oreLoads * 12);
     const pickB = bestFreightLoco(bars, dB, barLoads * 12);
+    if (process.env["CHAINDBG"]) console.log("CHAIN null at", 7, year());
     if (!pickA || !pickB) return null;
     const tpd = (loco: string): number =>
       (locomotiveById(loco)!.maxSpeedKmh * 0.8 * AVERAGE_SPEED_SHARE) / KMH_PER_TILE_PER_DAY;
@@ -867,6 +887,44 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       for (const p of producers) {
         const f = freightProject(p.i, p.c, p.out);
         if (f) projects.push(f);
+      }
+    }
+    // Phase 82: with a chain as the scenario's goal, passenger lines keep clear of its corridor (mine, smelter, mint): a line
+    // built through it makes the chain unplannable for good
+    if (goalLabels.includes("chain")) {
+      const def = longHaulChainFor(state.startYear);
+      const chain = LONG_HAUL_CHAINS[def.id];
+      const spots = [chain.mine, chain.processor, chain.sink]
+        .map((t) => state.industries.find((i) => i.type === t))
+        .filter((i): i is Industry => !!i)
+        .map(indTile);
+      const near = (a: number, b: number, c: number): boolean => {
+        const [ax, ay] = xy(a);
+        const [bx, by] = xy(b);
+        const [cx, cy] = xy(c);
+        const dx = bx - ax;
+        const dy = by - ay;
+        const len2 = dx * dx + dy * dy || 1;
+        const t = Math.max(0, Math.min(1, ((cx - ax) * dx + (cy - ay) * dy) / len2));
+        return Math.hypot(ax + t * dx - cx, ay + t * dy - cy) < 9;
+      };
+      const cityByName = (n: string): City | undefined => state.cities.find((c) => c.name === n);
+      for (let k = projects.length - 1; k >= 0; k--) {
+        const label = projects[k]!.label;
+        const m = /^(pax|feeder) (.+)-(.+)$/.exec(label);
+        const ext = /^extend (.+)$/.exec(label);
+        if (!m && !ext) continue;
+        const ca = cityByName(m ? m[2]! : ext![1]!);
+        const cb = m
+          ? cityByName(m[3]!)
+          : state.cities
+              .filter((c) => connected.has(c.id) && c.tiles.length > 0)
+              .sort(
+                (p, q) =>
+                  dist(cityCentre(p), cityCentre(ca!)) - dist(cityCentre(q), cityCentre(ca!)),
+              )[0];
+        if (ca && cb && spots.some((sp) => near(cityCentre(ca), cityCentre(cb), sp)))
+          projects.splice(k, 1);
       }
     }
     const crowd = 1 + 0.08 * lines.filter((l) => l.kind === "pax").length;
