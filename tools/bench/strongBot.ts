@@ -1012,9 +1012,32 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     if (!goalPair) return false;
     const names = new Set(corridor.map((c) => c.name));
     const m = /^(pax|feeder) (.+)-(.+)$/.exec(label);
-    if (m) return names.has(m[2]!) && names.has(m[3]!);
+    if (m)
+      return (
+        (names.has(m[2]!) && names.has(m[3]!)) ||
+        goalPair.includes(m[2]!) ||
+        goalPair.includes(m[3]!)
+      );
     const e = /^extend (.+)$/.exec(label);
     return !!e && names.has(e[1]!);
+  };
+  /** 0 = the direct line between the goal's two cities, 1 = a leg between corridor towns, 2 = a line from either end city
+   * (earns money next to the goal), 3 = anything else. */
+  const goalRank = (label: string): number => {
+    if (!goalPair) return 3;
+    const m = /^(pax|feeder) (.+)-(.+)$/.exec(label);
+    if (m) {
+      const x = m[2]!;
+      const y = m[3]!;
+      if ((x === goalPair[0] && y === goalPair[1]) || (x === goalPair[1] && y === goalPair[0]))
+        return 0;
+      const names = new Set(corridor.map((c) => c.name));
+      if (names.has(x) && names.has(y)) return 1;
+      if (goalPair.includes(x) || goalPair.includes(y)) return 2;
+      return 3;
+    }
+    const e = /^extend (.+)$/.exec(label);
+    return e && corridor.some((c) => c.name === e[1]) ? 1 : 3;
   };
   /** Share of the corridor's towns the company's lines already reach. */
   const corridorProgress = (): number =>
@@ -1344,6 +1367,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       candidates().some((p) => p.payback <= 40 && isGoalMove(p.label)),
     setGoalLabels,
     setConnectGoal,
+    goalRank,
     corridorProgress,
     setRepayKeep,
     setCandidateBudget,

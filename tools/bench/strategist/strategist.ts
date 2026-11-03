@@ -125,6 +125,7 @@ export function attachStrategist(
   // a survival goal (the Panic of 1873): two lines, then no more building, and debt repaid out of every dollar above a
   // small cash cushion (the solver's good plan: MAXPAIRS 2, KEEP 300k)
   const survive = sc?.goal.type === "survive";
+  const connect = sc?.goal.type === "connect";
   if (survive) bot.setRepayKeep(300_000);
   const goal = goalLabels(bot);
   let plan: string | null = null; // a committed SAVE: build the goal project as soon as it is a move
@@ -160,6 +161,19 @@ export function attachStrategist(
     if (t === lastTick) return null;
     lastTick = t;
     if (survive) return bot.lines.length >= 2 ? null : (options[0]?.label ?? null);
+    // a connect goal: build toward it, in order of how directly a project connects the two cities; wait (save) when none
+    // of the projects that serve the goal is affordable
+    if (connect) {
+      const ranked = options
+        .map((o) => ({ o, r: bot.goalRank(o.label) }))
+        .filter((x) => x.r < 3)
+        .sort((p, q) => p.r - q.r || p.o.payback - q.o.payback);
+      if (ranked[0]) {
+        stats.picks["goal"] = (stats.picks["goal"] ?? 0) + 1;
+        return ranked[0].o.label;
+      }
+      return bot.lines.length === 0 ? (options[0]?.label ?? null) : null;
+    }
     // a scenario whose goal needs a project that costs most of the starting cash (the silver chain): one earning line first,
     // then everything else waits until the goal project is affordable (the solver's staged plan, found by the same reasoning)
     if (!plan && opt.goalFirst && goal.length > 0 && bot.lines.length > 0 && bot.hasGoalMove()) {
