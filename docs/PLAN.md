@@ -1306,7 +1306,7 @@ Player report (Central Europe, 1840s), with phone screenshots:
    re-set the goal, deadline and stars by Phase 76's targets so that 1 star needs a working plan, 2 stars good timing,
    3 stars near the solver's best. If $2M makes it unwinnable, report the smallest start cash that keeps it winnable
    and needs a staged plan. In the same table as item 4.
-Status: [x] 1 [x] 2 (bounds re-set by owner) [ ] 3 (bench running) [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 (STOP: orchestrator shows the owner)
 
 ## Phase 35 — Play-test 15: passenger destinations the player can see (replaces Phase 34 item 10's boarding rule)
 Player report: after Phase 34, Venice always shows hundreds waiting (e.g. "672 waiting") but trains on "Full load"
