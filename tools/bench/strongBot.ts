@@ -163,7 +163,11 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
   }
 
   function repayIfIdle(): void {
-    while (state.finance.loans >= 100_000 && state.cash > state.finance.loans + 6 * reserve())
+    while (
+      state.finance.loans >= 100_000 &&
+      (state.cash > state.finance.loans + 6 * reserve() ||
+        (repayKeep > 0 && state.cash > repayKeep + 100_000))
+    )
       if (!ok(commands.repayLoan(state, 100_000))) break;
   }
 
@@ -889,6 +893,34 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
         if (f) projects.push(f);
       }
     }
+    // Phase 82b: a connect goal's corridor: the direct line between the two cities (however long) and every corridor town
+    if (goalPair) {
+      const ca = state.cities.find((c) => c.name === goalPair![0]);
+      const cb = state.cities.find((c) => c.name === goalPair![1]);
+      const have = new Set(projects.map((q) => q.label));
+      const add = (q: Project | null): void => {
+        if (q && !have.has(q.label)) {
+          projects.push(q);
+          have.add(q.label);
+        }
+      };
+      if (ca && cb && !(connected.has(ca.id) && connected.has(cb.id))) add(paxProject(ca, cb));
+      for (const c of corridor) {
+        if (connected.has(c.id)) continue;
+        const near = [...connected]
+          .map((id) => state.cities.find((x) => x.id === id)!)
+          .filter((x) => x && x.tiles.length > 0)
+          .sort(
+            (p, q) => dist(cityCentre(p), cityCentre(c)) - dist(cityCentre(q), cityCentre(c)),
+          )[0];
+        if (near) {
+          add(extendProject(c));
+          add(paxProject(c, near));
+        } else {
+          for (const o of corridor) if (o !== c && o.id < c.id) add(paxProject(c, o));
+        }
+      }
+    }
     // Phase 82: with a chain as the scenario's goal, passenger lines keep clear of its corridor (mine, smelter, mint): a line
     // built through it makes the chain unplannable for good
     if (goalLabels.includes("chain")) {
@@ -946,8 +978,52 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
 
   /** Phase 82: picks which affordable project to build (by label), or null to wait; absent = the best by payback (V2). */
   let goalLabels: string[] = [];
+  /** Phase 82b: a connect goal (two city names): the towns near the straight line between them are the corridor. */
+  let goalPair: [string, string] | null = null;
+  let corridor: City[] = [];
   const setGoalLabels = (g: string[]): void => {
     goalLabels = g;
+  };
+  const setConnectGoal = (a: string, b: string): void => {
+    goalPair = [a, b];
+    const ca = state.cities.find((c) => c.name === a);
+    const cb = state.cities.find((c) => c.name === b);
+    if (!ca || !cb) return;
+    const A = cityCentre(ca);
+    const B = cityCentre(cb);
+    corridor = state.cities.filter((c) => {
+      if (c.tiles.length === 0) return false;
+      if (c === ca || c === cb) return true;
+      const [ax, ay] = xy(A);
+      const [bx, by] = xy(B);
+      const [cx, cy] = xy(cityCentre(c));
+      const dx = bx - ax;
+      const dy = by - ay;
+      const t = Math.max(
+        0,
+        Math.min(1, ((cx - ax) * dx + (cy - ay) * dy) / (dx * dx + dy * dy || 1)),
+      );
+      return Math.hypot(ax + t * dx - cx, ay + t * dy - cy) <= 16 && c.population >= 3_000;
+    });
+  };
+  /** True for a project that serves the scenario's goal (a goal prefix, or a corridor town of a connect goal). */
+  const isGoalMove = (label: string): boolean => {
+    if (goalLabels.some((g) => label.startsWith(g))) return true;
+    if (!goalPair) return false;
+    const names = new Set(corridor.map((c) => c.name));
+    const m = /^(pax|feeder) (.+)-(.+)$/.exec(label);
+    if (m) return names.has(m[2]!) && names.has(m[3]!);
+    const e = /^extend (.+)$/.exec(label);
+    return !!e && names.has(e[1]!);
+  };
+  /** Share of the corridor's towns the company's lines already reach. */
+  const corridorProgress = (): number =>
+    corridor.length === 0
+      ? 0
+      : corridor.filter((c) => connected.has(c.id)).length / corridor.length;
+  let repayKeep = 0;
+  const setRepayKeep = (n: number): void => {
+    repayKeep = n;
   };
   let candidateBudget = Infinity;
   const setCandidateBudget = (n: number): void => {
@@ -969,7 +1045,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     // Phase 82: projects that serve a scenario's goal are always moves, whatever their payback rank
     const base = lines.length === 0 ? list : list.slice(0, 3);
     const goalMoves = candidates().filter(
-      (p) => p.payback <= 40 && goalLabels.some((g) => p.label.startsWith(g)) && !base.includes(p),
+      (p) => p.payback <= 40 && isGoalMove(p.label) && !base.includes(p),
     );
     const affordable = (lines.length === 0 ? base : [...base, ...goalMoves]).filter(
       (p) => state.cash + borrowRoom() >= p.total + reserve(),
@@ -1264,9 +1340,12 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     exportMemory,
     setChooser,
     hasGoalMove: (): boolean =>
-      goalLabels.length > 0 &&
-      candidates().some((p) => p.payback <= 40 && goalLabels.some((g) => p.label.startsWith(g))),
+      (goalLabels.length > 0 || goalPair !== null) &&
+      candidates().some((p) => p.payback <= 40 && isGoalMove(p.label)),
     setGoalLabels,
+    setConnectGoal,
+    corridorProgress,
+    setRepayKeep,
     setCandidateBudget,
     simMs: (): number => simMs,
   };

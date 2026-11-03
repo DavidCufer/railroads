@@ -75,6 +75,7 @@ export function scenarioBonus(bot: StrongBot, ratePerMonth = 0): number {
     );
     return 6e6 + 0.5e6 * run.stars + 0.2e6 * left;
   }
+  if (def.goal.type === "connect") return 3e6 * bot.corridorProgress();
   if (def.goal.type === "deliver") {
     const cargo = def.goal.cargo;
     const infra = bot.lines.some((l) => l.chain || l.cargo === cargo) ? 2.5e6 : 0;
@@ -119,6 +120,12 @@ export function attachStrategist(
   const opt = { ...DEFAULT_OPTIONS, ...options };
   const stats: StrategistStats = { decisions: 0, rollouts: 0, ms: 0, picks: {}, waits: 0 };
   bot.setGoalLabels(goalLabels(bot));
+  const sc = bot.state.scenario ? scenarioById(bot.state.scenario.id) : undefined;
+  if (sc?.goal.type === "connect") bot.setConnectGoal(sc.goal.cities[0]!, sc.goal.cities[1]!);
+  // a survival goal (the Panic of 1873): two lines, then no more building, and debt repaid out of every dollar above a
+  // small cash cushion (the solver's good plan: MAXPAIRS 2, KEEP 300k)
+  const survive = sc?.goal.type === "survive";
+  if (survive) bot.setRepayKeep(300_000);
   const goal = goalLabels(bot);
   let plan: string | null = null; // a committed SAVE: build the goal project as soon as it is a move
   let lastTick = -1;
@@ -152,6 +159,7 @@ export function attachStrategist(
     // one decision per ten-day step: the bot calls this up to six times in a step
     if (t === lastTick) return null;
     lastTick = t;
+    if (survive) return bot.lines.length >= 2 ? null : (options[0]?.label ?? null);
     // a scenario whose goal needs a project that costs most of the starting cash (the silver chain): one earning line first,
     // then everything else waits until the goal project is affordable (the solver's staged plan, found by the same reasoning)
     if (!plan && opt.goalFirst && goal.length > 0 && bot.lines.length > 0 && bot.hasGoalMove()) {

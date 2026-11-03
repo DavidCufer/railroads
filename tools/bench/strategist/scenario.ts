@@ -26,6 +26,10 @@ while (state.scenario?.status === "active" && bot.year() <= lastYear) {
   bot.monthA();
   bot.monthB(Math.floor(state.ticks / 720) % 12);
   months++;
+  if (months % 12 === 0)
+    console.log(
+      `PROGRESS ${bot.year()} cash ${Math.round(state.cash / 1000)}k loans ${Math.round(state.finance.loans / 1000)}k NW ${(netWorth(state) / 1e6).toFixed(2)}M lines ${bot.lines.length} trains ${state.trains.length} progress ${Math.round(state.scenario!.progress)} ${Math.round((Date.now() - t0) / 1000)}s`,
+    );
   if (state.finance.bankrupt) break;
 }
 const run = state.scenario!;
