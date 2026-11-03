@@ -780,9 +780,10 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       (locomotiveById(loco)!.maxSpeedKmh * 0.8 * AVERAGE_SPEED_SHARE) / KMH_PER_TILE_PER_DAY;
     const trainsFor = (loads: number, cars: number, d: number, loco: string): number =>
       Math.max(1, Math.min(4, Math.ceil(loads / (cars * (30 / (2 * (d / tpd(loco)) + 6))))));
-    const nA = trainsFor(oreLoads, pickA.cars, dA, pickA.id);
-    const nB = trainsFor(barLoads, pickB.cars, dB, pickB.id);
-    const big: StationType = year() >= 1870 ? "terminal" : "station";
+    const nA = Math.min(1, trainsFor(oreLoads, pickA.cars, dA, pickA.id));
+    const nB = Math.min(1, trainsFor(barLoads, pickB.cars, dB, pickB.id));
+    // plain stations: a terminal at the shared smelter blocks the ore trains while a bar train waits there for its full load
+    const big: StationType = "station";
     const costA = commands.computeBuyTrainPlan(state, pickA.id, Array(pickA.cars).fill(ore)).cost;
     const costB = commands.computeBuyTrainPlan(state, pickB.id, Array(pickB.cars).fill(bars)).cost;
     const stations =
@@ -832,14 +833,16 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
           samples: 0,
           blocked: 0,
           carloadsPerMonth: barLoads,
-          cars: pickB.cars,
+          cars: Math.max(4, pickB.cars),
           chain: true,
         };
         lines.push(barLine);
-        for (let i = 0; i < nB; i++) addTrain(barLine);
         // the ore line is planned again now that the bars line's track is on the map
         const again = planLeg(freeAround(indTile(mine), indTile(plant), 2), joins(legB), 8);
-        if (!again || !ok(commands.buildTrack(state, again.path))) return true;
+        if (!again || !ok(commands.buildTrack(state, again.path))) {
+          for (let i = 0; i < Math.min(nB, 2); i++) addTrain(barLine);
+          return true;
+        }
         if (!ok(commands.buildStation(state, again.ta, big))) return true;
         const m = state.stations.find((x) => x.tile === again.ta)!;
         shed(m);
@@ -854,12 +857,14 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
           samples: 0,
           blocked: 0,
           carloadsPerMonth: oreLoads,
-          cars: pickA.cars,
+          cars: Math.max(4, pickA.cars),
           chain: true,
         };
         lines.push(oreLine);
         servedIndustries.add(mine.id);
+        // ore trains first (they are the supply; bar trains with nothing to haul are idle), then a few bar trains
         for (let i = 0; i < nA; i++) addTrain(oreLine);
+        for (let i = 0; i < Math.min(nB, 2); i++) addTrain(barLine);
         return true;
       },
     };
@@ -1318,7 +1323,16 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       const cars = lineCarCount(line);
       const load =
         line.kind === "pax" ? (40 / PARTY_SIZE) * cars : CARGO[line.cargo].capacity * cars;
-      const cap = line.kind === "pax" ? (line.feeder ? 3 : 8) : line.chain ? 8 : 6;
+      const cap =
+        line.kind === "pax"
+          ? line.feeder
+            ? 3
+            : 8
+          : line.chain
+            ? goalLabels.includes("chain")
+              ? 2
+              : 8
+            : 6;
       if (line.trains.length >= cap || waiting(line) <= load) continue;
       if (layUp.lineHasLaidUp(state, line.trains)) continue; // bring a laid-up train back first
       // a train is worth adding only if it pays for itself within the payback the bot accepts

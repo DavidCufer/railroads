@@ -34,6 +34,33 @@ while (state.scenario?.status === "active" && bot.year() <= lastYear && months <
     );
   if (state.finance.bankrupt) break;
 }
+if (process.env["DUMP"]) {
+  for (const t of state.trains)
+    console.log(
+      "TRAIN",
+      t.id,
+      t.status,
+      `cars ${t.cars.map((c) => c.cargoType).join(",")}`,
+      `orders ${t.orders.map((o) => o.stationId + ":" + o.rule).join(">")}`,
+      `laidUp ${t.laidUp}`,
+    );
+  for (const st of state.stations)
+    console.log(
+      "STATION",
+      st.id,
+      st.type,
+      `tile ${st.tile}`,
+      JSON.stringify(
+        Object.fromEntries(
+          Object.entries(state.stationCargo.get(st.id) ?? {}).map(([k, v]) => [
+            k,
+            Math.round((v as { amount: number }).amount),
+          ]),
+        ),
+      ),
+    );
+  console.log("CARGO delivered", JSON.stringify(state.cargoDeliveredThisYear));
+}
 const run = state.scenario!;
 const profit = Math.round(ledgerOperatingProfit(state.finance.lastYear) / 1000);
 console.log(
