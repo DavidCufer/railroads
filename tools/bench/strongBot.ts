@@ -909,10 +909,11 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     const list = candidates().filter((p) => p.payback <= MAX_PAYBACK_YEARS);
     // the first line: any the company can pay for (a poor start, Hard, may afford only the cheaper ones)
     // Phase 82: projects that serve a scenario's goal are always moves, whatever their payback rank
+    const base = lines.length === 0 ? list : list.slice(0, 3);
     const goalMoves = candidates().filter(
-      (p) => p.payback <= 40 && goalLabels.some((g) => p.label.startsWith(g)) && !list.includes(p),
+      (p) => p.payback <= 40 && goalLabels.some((g) => p.label.startsWith(g)) && !base.includes(p),
     );
-    const affordable = (lines.length === 0 ? list : [...list.slice(0, 3), ...goalMoves]).filter(
+    const affordable = (lines.length === 0 ? base : [...base, ...goalMoves]).filter(
       (p) => state.cash + borrowRoom() >= p.total + reserve(),
     );
     if (affordable.length === 0) return false;

@@ -146,6 +146,13 @@ export function attachStrategist(
     // a company with no line yet never waits: it has nothing to protect and nothing to learn from waiting
     for (const m of bot.lines.length === 0 ? moves : [...moves, WAIT]) {
       const v = rollout(m);
+      if (process.env["STDEBUG"])
+        console.log(
+          bot.year(),
+          `cash ${Math.round(bot.state.cash / 1000)}k`,
+          m.replace("\u0000", ""),
+          Math.round(v / 1000),
+        );
       if (v > bestScore) {
         bestScore = v;
         best = m;
