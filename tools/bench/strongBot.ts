@@ -887,6 +887,10 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
   }
 
   /** Phase 82: picks which affordable project to build (by label), or null to wait; absent = the best by payback (V2). */
+  let goalLabels: string[] = [];
+  const setGoalLabels = (g: string[]): void => {
+    goalLabels = g;
+  };
   let candidateBudget = Infinity;
   const setCandidateBudget = (n: number): void => {
     candidateBudget = n;
@@ -904,7 +908,11 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     if (state.cash + borrowRoom() < 150_000) return false;
     const list = candidates().filter((p) => p.payback <= MAX_PAYBACK_YEARS);
     // the first line: any the company can pay for (a poor start, Hard, may afford only the cheaper ones)
-    const affordable = (lines.length === 0 ? list : list.slice(0, 3)).filter(
+    // Phase 82: projects that serve a scenario's goal are always moves, whatever their payback rank
+    const goalMoves = candidates().filter(
+      (p) => p.payback <= 40 && goalLabels.some((g) => p.label.startsWith(g)) && !list.includes(p),
+    );
+    const affordable = (lines.length === 0 ? list : [...list.slice(0, 3), ...goalMoves]).filter(
       (p) => state.cash + borrowRoom() >= p.total + reserve(),
     );
     if (affordable.length === 0) return false;
@@ -1196,6 +1204,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     monthB,
     exportMemory,
     setChooser,
+    setGoalLabels,
     setCandidateBudget,
     simMs: (): number => simMs,
   };

@@ -46,18 +46,19 @@ const HOUR = 1;
 const MONTH_HOURS = 30 * 24 * HOUR;
 
 /** The company's value at the end of a rollout. */
-export function score(bot: StrongBot, profitMultiple: number): number {
+export function score(bot: StrongBot, profitMultiple: number, ratePerMonth = 0): number {
   const s = bot.state;
   if (s.finance.bankrupt) return -1e9;
   const months = s.finance.monthHistory.slice(-6);
   const yearly = months.length
     ? (months.reduce((a, m) => a + ledgerOperatingProfit(m), 0) / months.length) * 12
     : 0;
-  return netWorth(s) + profitMultiple * yearly + scenarioBonus(bot);
+  return netWorth(s) + profitMultiple * yearly + scenarioBonus(bot, ratePerMonth);
 }
 
-/** With a scenario the goal is part of the position: delivered share of a delivery goal, a win (earlier is better). */
-export function scenarioBonus(bot: StrongBot): number {
+/** With a scenario the goal is part of the position: a win (earlier is better), and for a delivery goal the share the
+ * company will have delivered by the deadline if it keeps the pace of the last months (`ratePerMonth`). */
+export function scenarioBonus(bot: StrongBot, ratePerMonth = 0): number {
   const run = bot.state.scenario;
   const def = run ? scenarioById(run.id) : undefined;
   if (!run || !def) return 0;
@@ -69,20 +70,39 @@ export function scenarioBonus(bot: StrongBot): number {
     );
     return 6e6 + 0.5e6 * run.stars + 0.2e6 * left;
   }
-  if (def.goal.type === "deliver") return 3e6 * Math.min(1, run.progress / def.goal.amount);
+  if (def.goal.type === "deliver") {
+    const monthsLeft = Math.max(0, (def.goal.byYear + 1 - bot.year()) * 12);
+    const projected = run.progress + Math.max(0, ratePerMonth) * monthsLeft;
+    return 5e6 * Math.min(1, projected / def.goal.amount);
+  }
   return 0;
+}
+
+/** Move labels that serve a scenario's goal (always offered as moves). */
+export function goalLabels(bot: StrongBot): string[] {
+  const run = bot.state.scenario;
+  const def = run ? scenarioById(run.id) : undefined;
+  if (!def) return [];
+  if (def.goal.type !== "deliver") return [];
+  return def.goal.cargo === "silverBars" || def.goal.cargo === "enrichedUranium"
+    ? ["chain"]
+    : [`freight ${def.goal.cargo}`];
 }
 
 function monthOfYear(bot: StrongBot): number {
   return Math.floor(bot.state.ticks / MONTH_HOURS) % 12;
 }
 
-function playMonths(bot: StrongBot, months: number): void {
+/** Plays `months` months; returns the delivery pace (units a month) over the last four. */
+function playMonths(bot: StrongBot, months: number): number {
+  let mid = bot.state.scenario?.progress ?? 0;
   for (let i = 0; i < months; i++) {
+    if (i === months - 4) mid = bot.state.scenario?.progress ?? 0;
     bot.monthA();
     bot.monthB(monthOfYear(bot));
-    if (bot.state.finance.bankrupt) return;
+    if (bot.state.finance.bankrupt) break;
   }
+  return months >= 4 ? ((bot.state.scenario?.progress ?? 0) - mid) / 4 : 0;
 }
 
 export function attachStrategist(
@@ -91,6 +111,7 @@ export function attachStrategist(
 ): StrategistStats {
   const opt = { ...DEFAULT_OPTIONS, ...options };
   const stats: StrategistStats = { decisions: 0, rollouts: 0, ms: 0, picks: {}, waits: 0 };
+  bot.setGoalLabels(goalLabels(bot));
   let lastTick = -1;
   let lastChoice: string | null = null;
 
@@ -108,9 +129,9 @@ export function attachStrategist(
       }
       return options[0]?.label ?? null;
     });
-    playMonths(fork, opt.horizonMonths);
+    const pace = playMonths(fork, opt.horizonMonths);
     stats.rollouts++;
-    return score(fork, opt.profitMultiple);
+    return score(fork, opt.profitMultiple, pace);
   };
 
   bot.setChooser((options) => {
