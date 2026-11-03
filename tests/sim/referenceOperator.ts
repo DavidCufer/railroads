@@ -91,19 +91,19 @@ export interface BenchMedians {
   profit: readonly [number, number, number];
 }
 export const V2_MEDIANS_NORMAL: readonly BenchMedians[] = [
-  { era: 1840, revenue: [0.8, 2.3, 7.89], profit: [0.37, 1.23, 4.88] },
-  { era: 1870, revenue: [2.41, 9.29, 11.46], profit: [1.45, 5.64, 6.5] },
-  { era: 1900, revenue: [2.42, 4.11, 7.5], profit: [1.35, 1.71, 2.5] },
-  { era: 1930, revenue: [0.81, 0.84, 0.85], profit: [0.29, 0.2, 0.18] },
-  { era: 1950, revenue: [2.92, 3.34, 3.98], profit: [1.04, 0.94, 1.29] },
+  { era: 1840, revenue: [0.69, 1.57, 6.31], profit: [0.29, 0.82, 3.7] },
+  { era: 1870, revenue: [1.63, 5.98, 10.66], profit: [0.96, 3.34, 5.92] },
+  { era: 1900, revenue: [1.68, 3.54, 6.83], profit: [0.85, 1.48, 2.42] },
+  { era: 1930, revenue: [0.78, 0.77, 0.8], profit: [0.23, 0.11, 0.14] },
+  { era: 1950, revenue: [2.63, 2.61, 3.42], profit: [0.88, 0.46, 0.5] },
 ];
 /** The same on Hard (5 seeds per era). */
 export const V2_MEDIANS_HARD: readonly BenchMedians[] = [
-  { era: 1840, revenue: [1.0, 2.4, 8.23], profit: [0.61, 1.42, 5.3] },
-  { era: 1870, revenue: [2.05, 6.94, 12.1], profit: [1.37, 4.15, 7.57] },
-  { era: 1900, revenue: [2.2, 2.94, 4.62], profit: [1.46, 1.23, 1.77] },
-  { era: 1930, revenue: [1.43, 1.74, 2.48], profit: [0.92, 0.82, 0.86] },
-  { era: 1950, revenue: [0.49, 0.73, 0.71], profit: [0.13, 0.23, 0.1] },
+  { era: 1840, revenue: [0.88, 1.74, 6.39], profit: [0.55, 0.98, 3.78] },
+  { era: 1870, revenue: [1.81, 4.95, 10.55], profit: [1.19, 2.96, 6.31] },
+  { era: 1900, revenue: [1.85, 2.61, 2.85], profit: [1.24, 1.1, 0.86] },
+  { era: 1930, revenue: [1.14, 1.63, 2.06], profit: [0.75, 0.79, 0.97] },
+  { era: 1950, revenue: [0.45, 0.65, 0.68], profit: [0.09, 0.16, 0.17] },
 ];
 
 /** What V2 earns in its year `k` (1-based): linear from nothing to the year-5, -10 and -16 medians (no earlier data), then
