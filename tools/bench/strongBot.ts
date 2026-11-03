@@ -123,6 +123,8 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     /** Phase 77: ten-day samples, and those in which a train of the line stood waiting for a block. */
     samples: number;
     blocked: number;
+    /** Phase 82b: the engine every train of this line uses (the chain: the fastest freight engine, as the solver's plan). */
+    locoId?: string;
     /** Phase 82b: never wait for a full load (the bar train at the shared smelter station would block the ore trains). */
     noFullLoad?: boolean;
     /** Phase 77: feeder lines share the hub's station and have no stops of their own to extend. */
@@ -357,10 +359,11 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
   function addTrain(line: Line): boolean {
     const d = lineDistance(line);
     const locoId =
-      line.kind === "pax"
+      line.locoId ??
+      (line.kind === "pax"
         ? bestPaxLoco(line.cities, d).id
         : (bestFreightLoco(line.cargo, d, line.carloadsPerMonth * 12, line.cars)?.id ??
-          freightLocos()[0]!.id);
+          freightLocos()[0]!.id));
     const cars = lineConsist(line, locoId);
     const cost = commands.computeBuyTrainPlan(state, locoId, cars).cost;
     if (!ensureCash(cost + reserve())) return false;
@@ -776,9 +779,16 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       (out * (INDUSTRIES[plant.type].produces[bars] ?? 0)) /
       Math.max(1, INDUSTRIES[plant.type].consumes[ore] ?? 1) /
       CARGO[bars].capacity;
-    const pickA = bestFreightLoco(ore, dA, oreLoads * 12);
-    const pickB = bestFreightLoco(bars, dB, barLoads * 12);
-    if (!pickA || !pickB) return null;
+    const pickA0 = bestFreightLoco(ore, dA, oreLoads * 12);
+    const pickB0 = bestFreightLoco(bars, dB, barLoads * 12);
+    if (!pickA0 || !pickB0) return null;
+    // the solver's plan: the fastest freight engine, four cars
+    const fast = [...freightLocos()].sort(
+      (p, q) => q.maxSpeedKmh - p.maxSpeedKmh || q.maxCars - p.maxCars,
+    )[0]!;
+    const fastCars = Math.min(fast.maxCars, 4);
+    const pickA = { ...pickA0, id: fast.id, cars: fastCars };
+    const pickB = { ...pickB0, id: fast.id, cars: fastCars };
     const tpd = (loco: string): number =>
       (locomotiveById(loco)!.maxSpeedKmh * 0.8 * AVERAGE_SPEED_SHARE) / KMH_PER_TILE_PER_DAY;
     const trainsFor = (loads: number, cars: number, d: number, loco: string): number =>
@@ -787,8 +797,8 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     const nB = Math.min(1, trainsFor(barLoads, pickB.cars, dB, pickB.id));
     // plain stations: a terminal at the shared smelter blocks the ore trains while a bar train waits there for its full load
     const big: StationType = "station";
-    const carsA = Math.max(4, pickA.cars);
-    const carsB = Math.max(4, pickB.cars);
+    const carsA = pickA.cars;
+    const carsB = pickB.cars;
     const costA = commands.computeBuyTrainPlan(state, pickA.id, Array(carsA).fill(ore)).cost;
     const costB = commands.computeBuyTrainPlan(state, pickB.id, Array(carsB).fill(bars)).cost;
     const stations =
@@ -839,7 +849,8 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
           samples: 0,
           blocked: 0,
           carloadsPerMonth: barLoads,
-          cars: Math.max(4, pickB.cars),
+          cars: pickB.cars,
+          locoId: fast.id,
           noFullLoad: true,
           chain: true,
         };
@@ -864,7 +875,8 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
           samples: 0,
           blocked: 0,
           carloadsPerMonth: oreLoads,
-          cars: Math.max(4, pickA.cars),
+          cars: pickA.cars,
+          locoId: fast.id,
           chain: true,
         };
         lines.push(oreLine);

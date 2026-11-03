@@ -34,6 +34,30 @@ while (state.scenario?.status === "active" && bot.year() <= lastYear && months <
     );
   if (state.finance.bankrupt) break;
 }
+if (process.env["DUMP"] === "2") {
+  for (const t of state.trains)
+    if (t.cars.some((c) => c.cargoType.startsWith("silver")))
+      console.log(
+        "DETAIL",
+        t.id,
+        JSON.stringify({
+          status: t.status,
+          order: t.currentOrderIndex,
+          routeLen: t.route.length,
+          routeIndex: t.routeIndex,
+          cars: t.cars.map((c) => ({
+            cargo: c.cargoType,
+            load:
+              (c as unknown as { load?: unknown }).load ??
+              (c as unknown as { cargo?: unknown }).cargo ??
+              null,
+          })),
+          waitingOn: t.waitingOn,
+          stationId: (t as unknown as { stationId?: number }).stationId,
+          lastDelivered: t.profit?.thisYear,
+        }),
+      );
+}
 if (process.env["DUMP"]) {
   for (const t of state.trains)
     console.log(
