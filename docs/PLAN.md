@@ -3168,4 +3168,4 @@ merge commits, never force-push. Never loosen a test bound. Look at every PNG.
    takes over ~300 ms ("Building the map…", "Loading your railway…").
 4. Never under `?debug=1` (e2e speed), except a dedicated e2e that shows it, takes screenshots at 800x360 and on a 10"
    tablet (light of the first frame and mid-animation), and checks it disappears. PROGRESS; tick ONLY Phase 85.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
+Status: [x] 1 [x] 2 [x] 3 [x] 4

@@ -1148,6 +1148,12 @@ export const strings = {
     retry: "Try again",
     toScenarios: "Scenarios",
   },
+  intro: {
+    /** Rotating lines on the first-load intro. */
+    boot: ["Laying track…", "Stoking the boiler…", "Surveying the land…", "Polishing the brass…"],
+    buildingMap: "Building the map…",
+    loadingSave: "Loading your railway…",
+  },
   titleScreen: {
     gameTitle: "Iron & Steam",
     overline: "A Railway Tycoon",

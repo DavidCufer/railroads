@@ -185,6 +185,7 @@ import { renderSettingsScreen } from "./ui/settingsScreen";
 import { renderSaveLoadScreen } from "./ui/saveLoadScreen";
 import { drawGridOverlay } from "./render/overlays";
 import { showFirstGameHints, showHintCard } from "./ui/hints";
+import { finishIntro, startIntro, withIntro } from "./ui/intro";
 import { initSound, playSound } from "./ui/sound";
 
 const RIVER_ID = terrainId("river");
@@ -216,6 +217,7 @@ interface DragState {
 }
 
 function main(): void {
+  startIntro(DEBUG);
   const canvas = document.getElementById("game-canvas") as HTMLCanvasElement | null;
   if (!canvas) throw new Error("missing #game-canvas");
   const ctx = canvas.getContext("2d");
@@ -441,7 +443,14 @@ function main(): void {
     setTool("info");
   }
 
+  /** Phase 85: new maps and loaded saves run behind the intro overlay when slow (never under `?debug=1`, whose e2e
+   * tests call these synchronously). */
   function regenerate(options: NewGameOptions): void {
+    if (DEBUG) regenerateNow(options);
+    else withIntro(strings.intro.buildingMap, () => regenerateNow(options));
+  }
+
+  function regenerateNow(options: NewGameOptions): void {
     currentOptions = options;
     applyState(createGameState(options));
     if (!DEBUG) {
@@ -462,6 +471,11 @@ function main(): void {
    * isn't being freshly generated, so `currentOptions` is only a best-effort guess (only used by
    * the `?debug=1`-only regenerate control, never reachable from a real loaded game). */
   function loadGame(loaded: GameState): void {
+    if (DEBUG) loadGameNow(loaded);
+    else withIntro(strings.intro.loadingSave, () => loadGameNow(loaded));
+  }
+
+  function loadGameNow(loaded: GameState): void {
     const loadedScenario = scenarioDefOf(loaded);
     currentOptions = loadedScenario
       ? scenarioNewGameOptions(loadedScenario)
@@ -1571,6 +1585,7 @@ function main(): void {
       onStart: (options) => regenerate(options),
       onLoad: (loaded) => loadGame(loaded),
     });
+    finishIntro();
   }
 
   let debugOverlay: HTMLDivElement | null = null;
@@ -2260,6 +2275,7 @@ function main(): void {
 
 if (DEBUG && new URLSearchParams(window.location.search).has("gallery")) {
   // Rolling-stock art gallery (PLAN Phase 19); replaces the game entirely.
+  document.getElementById("intro")?.remove();
   void import("./render/art/gallery").then((m) => m.mountGallery());
 } else {
   main();
