@@ -123,5 +123,26 @@ export function createLayUpPolicy(opts: LayUpOptions) {
   const lineHasLaidUp = (state: GameState, trainIds: readonly number[]): boolean =>
     state.trains.some((t) => t.laidUp && trainIds.includes(t.id));
 
-  return { sample, manage, lineHasLaidUp, stats };
+  /** Phase 82: the policy's memory as plain data, so a bot can be forked together with the game state it plays. */
+  function exportState(): {
+    snapshots: Array<Array<[number, number]>>;
+    lastReturn: Array<[string, number]>;
+    stats: LayUpStats;
+  } {
+    return {
+      snapshots: snapshots.map((m) => [...m]),
+      lastReturn: [...lastReturn],
+      stats: { ...stats },
+    };
+  }
+  function importState(m: ReturnType<typeof exportState>): void {
+    snapshots.length = 0;
+    for (const x of m.snapshots) snapshots.push(new Map(x));
+    lastReturn.clear();
+    for (const [k, v] of m.lastReturn) lastReturn.set(k, v);
+    stats.laidUp = m.stats.laidUp;
+    stats.returned = m.stats.returned;
+  }
+
+  return { sample, manage, lineHasLaidUp, stats, exportState, importState };
 }
