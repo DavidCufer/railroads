@@ -3141,3 +3141,57 @@ loosen a test bound. Look at every PNG.
 4. e2e at 800x360 with a station near the bottom map edge: pick it, before/after screenshots; PROGRESS; tick ONLY
    Phase 81.
 Status: [x] 1 [x] 2 [x] 3 [x] 4
+
+## Phase 82 — Strategist: a bot that looks ahead (rollouts), general on every map
+
+Owner (2026-11-03): "good hard bots that can think and are strategic, general, run on all maps, tell me how hard the map
+is; think in advance a bit, like chess". Accepted: ratings may take hours (a quick mode takes minutes); the Strategist
+replaces V2 as the goal reference (Phase 84). Branch `phase-82-strategist`; never push to main (orchestrator merges); never
+rebase over merge commits, never force-push; benches in pieces of at most ~15 minutes, each pushed. `src/sim/**` untouched.
+Phase 80 (fares x0.92, new goals) may be unmerged: do not depend on it; Phase 84 re-derives goals after both are in.
+
+Design (measured: an empty year simulates in ~0.12 s, a save/clone of the state ~0.2 s; a real network is much slower, so
+rollouts are for big decisions only):
+1. **Engine** (`tools/bench/strategist/`): `fork(state)` (serialize/deserialize, verified identical to the original
+   by running both on N days), `rollout(state, move, months, policy)` -> `Outcome` (net worth, profit trend, debt,
+   min cash, bankrupt, goal progress), a **default policy** (V2's cheap upkeep: right-size, add trains, repay) for the
+   rest of the horizon, and a time budget per decision.
+2. **Moves** (general, from the map alone, no per-map constants): new passenger line between a town pair; freight chain
+   (any producer to any consumer, incl. 2-leg chains); staged plan (pair line first, chain later); double track; buy /
+   replace engines; **wait and save**; repay debt. Candidates come from map analysis (towns, industries, distances,
+   terrain cost) with V2's `candidates.ts` / `paybackEstimate.ts` reused.
+3. **Search**: prune by analytic payback to the best 5-8 moves, roll each out 1-2 years, pick the best by score (net
+   worth + profit trend - debt and crisis penalties + scenario/goal progress). Depth 2 ("this, then that") only at the
+   start and after big events. **Panic awareness**: the panic schedule is a pure function of the seed, so the bot keeps
+   cash cover before a known panic and avoids debt that a credit cut calls (V2 loses 5 of 10 Normal 1930 starts).
+4. **Goal-aware**: with a scenario it scores goal progress and the deadline (Silver Rush needs the staged plan).
+5. Same entry as the other bots: `npx tsx tools/bench/strategist.ts <region> <start> <diff> <endYear> <seed> [--quick]`,
+   same `YEAR ...` / `HEADLINE` output lines so `phase77.ts`-style drivers and summaries work.
+6. **Acceptance**: on 3 maps (central-eu 1840 / 1870 / 1930) x 3 seeds it is >= V2 on year-16 profit and net worth in
+   at least 2 of 3 and has no more bankruptcies; 1930 bankruptcies lower than V2's. Report next to V2 (Phase 80 medians
+   or Phase 77 if unmerged) with run times; if it is worse, report why, do not tune toward the target.
+   Unit tests: fork equality, rollout determinism, candidates are valid on 3 maps. `npm run check` must pass.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5 [ ] 6
+
+## Phase 83 — Map difficulty report
+
+Branch `phase-83-difficulty` (after Phase 82). `npx tsx tools/bench/difficulty.ts <region|scenarioId|random seed> <start> <diff>
+[--quick]` plays the Strategist, a cautious variant and a sloppy variant (several seeds / starts) and prints:
+- median and spread of operating profit at years 5, 10, 16; bankruptcy rate; time to first profit; years to pay back the
+  first line; strong - sloppy gap (how much skill matters);
+- a rating **easy / fair / hard / brutal** from bands calibrated against the existing eras (1870 should come out easy,
+  1930 brutal; the bands and the calibration table are written down), with the reasons (capital-limited, crisis at year N,
+  few good town pairs, long distances, ...);
+- works on every region, random-map seed, start year, difficulty and scenario (a scenario reports the stars the
+  Strategist reaches and the margin).
+`--quick` (minutes: 1 seed, 8 years, no depth-2) gives a coarse rating. Output as markdown for `docs/bench/difficulty-*.md`.
+Tests: the report runs on a tiny map in quick mode and the rating function is monotonic. Status: [ ] done
+
+## Phase 84 — Canary test and goals from the Strategist
+
+Branch `phase-84-canary`. (a) A fast test (`tests/sim/canary.test.ts`, under a minute): the Strategist's quick mode on one
+fixed seed per era (Normal and Hard) must stay inside wide bands around recorded year-5 profit and rating; it fails when
+a balance change moves an era far (the Phase 79/80 problem: 1870 too rich, Hard not harder) and says which. (b) Goals
+re-derived from the Strategist's medians (Phase 77 method: reference operator = its medians, gold year 16, silver 12,
+achievements, scenario stars via the solver); `goalCalibration` bounds unchanged. STOP with an old -> new table for the
+owner. Status: [ ] a [ ] b
