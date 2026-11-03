@@ -388,3 +388,39 @@ export function drawStationLabels(
     ctx.fillText(station.name, s.x, labelY + 1);
   }
 }
+
+/** Phase 81: while the player picks stations on the map, ring every station (green and filled when it is already in
+ * the orders) so small stations are easy to see and hit. Screen-space, drawn over the sprites. */
+export function drawPickHighlights(
+  ctx: CanvasRenderingContext2D,
+  camera: Camera,
+  viewportW: number,
+  viewportH: number,
+  world: StationWorld,
+  inOrders: readonly number[],
+  nowMs: number,
+): void {
+  const size = TILE_SIZE * camera.zoom;
+  const mapWidth = world.map.width;
+  const pulse = 0.5 + 0.5 * Math.sin(nowMs / 280);
+  for (const station of world.stations) {
+    const [wx, wy] = tileWorldOrigin(station.tile, mapWidth);
+    const s = camera.worldToScreen(wx, wy, viewportW, viewportH);
+    const cx = s.x + size / 2;
+    const cy = s.y + size / 2;
+    if (cx < -40 || cy < -40 || cx > viewportW + 40 || cy > viewportH + 40) continue;
+    const used = inOrders.includes(station.id);
+    const r = Math.max(14, size * 0.7) + (used ? 0 : pulse * 3);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = used ? "#4fbf6a" : "#f2c14e";
+    if (used) {
+      ctx.fillStyle = "rgba(79,191,106,0.25)";
+      ctx.fill();
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+}

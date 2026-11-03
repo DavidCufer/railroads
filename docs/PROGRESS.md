@@ -7594,6 +7594,17 @@ Report: `docs/bench/phase79.md` (rows `phase79-runs.md`, summary `phase79-summar
 - Report reviewed (no `src/` change against its base). Owner chose proposal 2 only ("Fares 8 % lower", all eras; aware
   the cautious bot loses about half in 1870). Phase 80 implements it, re-measures and re-derives the goals.
 
+## 2026-11-02 - Phase 81: picking stations near the screen's lower edge (branch `phase-81-pick`)
+- "Tap a station on the map" now collapses the route sheet to a slim 84 px bar (chips of the stops so far, Cancel = undo this pick session, Done); the full sheet returns on Done/Cancel. The camera re-centres on the free map area as the sheet changes height.
+- `Camera.coverBottom/coverRight`: `main.ts` measures the open panel each frame; the pan limit grows by that much on that side (bottom sheet: height; side panel: width), and snaps back when the panel closes. Applies to every panel (station, train, wizard).
+- While picking (wizard or train panel Add stop) every station gets a pulsing ring; stations already in the orders get a green filled ring (`drawPickHighlights`, `ui/pickMarks.ts`).
+- e2e `phase81.spec.ts` (800x360, line on the bottom map row). Screenshots: `docs/screenshots/phase-81-{before,after,restored}.png`. "Before" is the full sheet (the previous behaviour); the old camera clamp can't be shown on the same map without the change.
+
+### Orchestrator: Phase 81 merged (2026-11-02)
+- Reviewed `phase-81-pick` (542dc81): slim pick bar while tapping stations, camera may pan past the map edge by the
+  covered height (`Camera.coverBottom/coverRight`), pickable-station rings. The branch had re-committed 33 unowned
+  screenshots: reverted. `npm run check` 961 passed; e2e 150 + 150 passed. Also fixed main's formatting (Phase 79 bench
+  tools, 7a6e604).
 ## 2026-11-02 - Phase 80: passenger fares 8 % lower; goals again; Silver Rush from $2M (branch `phase-80-fares`, NOT merged; orchestrator reviews)
 
 ### Goals, old -> new (for the owner)
@@ -7644,3 +7655,9 @@ Final net worth (V2 Normal, $M): 1840 12.7 (16.3), 1870 **26.9 (42.1)**, 1900 12
 - Stars set: win = 1 (a working plan), 2 = by 1885, 3 = profit $1.0M (96 % of the solver's best; Phase 76 used 97 %). Goal (600 t by 1890) unchanged. Test `scenarios.test.ts`: the direct chain loses, the staged plan wins 3 stars (takes about 3 minutes).
 $2M is winnable, so no smaller start cash is needed.
 
+
+### Orchestrator: Phase 80 merged (2026-11-03)
+- Reviewed `phase-80-fares` (908cce1): fares x0.92 (passengers), owner-approved bounds (ebb0d35), 175-run bench, goals
+  re-derived by the Phase 77 method, Silver Rush from $2M (direct chain bankrupt; staged plan 3 stars 1885). No other
+  bound changed. `npm run check` 962 passed; e2e 150 + 150 passed on the merged tree. Owner approved the table
+  ("Approve") and chose to leave 1930 / 1950 as they are ("Leave them").

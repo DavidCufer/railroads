@@ -3120,4 +3120,32 @@ Never rebase over merge commits, never force-push. Never loosen a test bound: a 
 4. **Goals again** by the Phase 77 method (reference operator = V2 medians, gold year 16, silver 12, achievements,
    scenario profit stars; Phase 76's hand-set stars re-checked with the scenario solver). `goalCalibration` green with its
    bounds unchanged. STOP with the old -> new table at the top of the PROGRESS entry; the orchestrator shows the owner.
-Status: [x] 1 [ ] 2 (STOPPED: 3 balance bounds fail, see PROGRESS) [ ] 3 [ ] 4
+5. **Silver Rush needs planning (owner 2026-11-02):** "Silver rush is still simple scenario. No planning no tactics.
+   Just buy rail needed and buy a couple of trains. No fun. Maybe start with only 2 mil?" Start cash $4M -> **$2M**, so
+   the whole chain (about $2.0-2.2M of track, stations and trains, Phase 76) cannot be bought at once and the ore leg
+   earns nothing until the bars reach the Mint: the player has to earn first (passenger or freight lines), borrow, or
+   build in stages. Rerun the scenario solver (with its staged and "pre" pair-line strategies, under the new fares) and
+   re-set the goal, deadline and stars by Phase 76's targets so that 1 star needs a working plan, 2 stars good timing,
+   3 stars near the solver's best. If $2M makes it unwinnable, report the smallest start cash that keeps it winnable
+   and needs a staged plan. In the same table as item 4.
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5
+
+## Phase 81 — Picking stations on the map when they are near the screen's lower edge
+
+Owner (2026-11-02, phone screenshot not committed: it shows a private notification): in Buy train -> Route, "Tap a
+station on the map", "I cannot see the lower ones because the screen end is close". The route sheet covers the lower
+half of a phone screen, and near the map's edge (Genoa, on the coast) the camera cannot pan the stations above the
+sheet, because it stops at the map border. Phase 72 had reported "the Route step's bottom sheet covers the stations on a
+360 px screen". Branch `phase-81-pick`; never push to main. Never rebase over merge commits, never force-push. Never
+loosen a test bound. Look at every PNG.
+
+1. **While picking on the map, get the sheet out of the way:** "Tap a station on the map" collapses the sheet to a slim
+   bar (title, the stops picked so far as chips, Done / Cancel). The map uses the whole screen, and tapping stations
+   adds them. Done or Back restores the sheet.
+2. **The camera may pan past the map edge** by the height of whatever covers the map (sheet, side panel, bars), so any
+   station can be brought into the free area. This also applies to the other panels that cover the map (station and
+   train panels, the Phase 72 framing). Snap back inside when nothing covers the map.
+3. Highlight pickable stations (and ones already in the orders) while picking, so small stations are easy to hit.
+4. e2e at 800x360 with a station near the bottom map edge: pick it, before/after screenshots; PROGRESS; tick ONLY
+   Phase 81.
+Status: [x] 1 [x] 2 [x] 3 [x] 4

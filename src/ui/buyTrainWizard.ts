@@ -38,6 +38,7 @@ import { bestOf, engineStats } from "./locoStats";
 import { closePanel, openPanel } from "./panel";
 import { cargoGaps } from "../sim/trains/cargoGaps";
 import { cargoGapLine } from "./cargoGapNote";
+import { setPickMarks } from "./pickMarks";
 import { openRulePicker } from "./rulePicker";
 import { RULE_ICONS } from "./routeTimeline";
 import { startLive } from "./live";
@@ -158,6 +159,7 @@ export function openBuyTrainPanel(
 
   function endWizard(): void {
     routeStepToken++;
+    setPickMarks([]);
     stopPicking();
     unpanForSheet();
   }
@@ -711,7 +713,13 @@ export function openBuyTrainPanel(
         {
           className: `train-pick-station-btn${picking ? " active" : ""}`,
           disabled: orders.length >= 8,
-          onClick: togglePick,
+          onClick: () => {
+            // Phase 81: the sheet shrinks to a slim bar so the whole map is free for tapping stations.
+            pickEnabled = true;
+            focus = true;
+            focusBase = orders.map((o) => ({ ...o }));
+            render();
+          },
         },
         icon("mapPin", "icon-sm"),
         h("span", null, picking ? t.tapAStation : w.tapOnMap),
@@ -791,10 +799,45 @@ export function openBuyTrainPanel(
       });
     }
 
-    function togglePick(): void {
-      pickEnabled = !pickEnabled;
-      if (!pickEnabled) stopPicking();
-      render();
+    let focus = false;
+    let focusBase: TrainOrder[] = [];
+    function slimBody(): Node[] {
+      const chips = h(
+        "div",
+        { className: "rs-chips", "data-testid": "pick-chips" },
+        ...(orders.length === 0
+          ? [h("span", { className: "rs-chip-hint" }, w.pickHint)]
+          : orders.map((o, i) =>
+              h("span", { className: "rs-chip tabular" }, `${i + 1} ${stationLabel(o.stationId)}`),
+            )),
+      );
+      const cancel = h(
+        "button",
+        {
+          className: "rs-slim-btn",
+          "data-testid": "pick-cancel",
+          onClick: () => {
+            orders.length = 0;
+            orders.push(...focusBase);
+            focus = false;
+            render();
+          },
+        },
+        w.pickCancel,
+      );
+      const done = h(
+        "button",
+        {
+          className: "rs-slim-btn rs-slim-done",
+          "data-testid": "pick-done",
+          onClick: () => {
+            focus = false;
+            render();
+          },
+        },
+        w.pickDone,
+      );
+      return [h("div", { className: "rs-slim" }, chips, cancel, done)];
     }
 
     function backButton(): HTMLElement {
@@ -818,25 +861,29 @@ export function openBuyTrainPanel(
     }
 
     function render(): void {
+      if (listMode || orders.length >= 8) focus = focus && !listMode;
       if (picking && (listMode || !pickEnabled || orders.length >= 8)) stopPicking();
       else if (!picking && pickEnabled && !listMode && orders.length < 8) startPicking();
       switching = true;
       openPanel(container, {
         title: listMode ? w.addFromListTitle : `${w.title(stationName)} · ${w.steps.route}`,
         subtitle: undefined,
-        body: listMode ? stationListBody() : mainBody(),
+        body: focus ? slimBody() : listMode ? stationListBody() : mainBody(),
         placement: "bottom",
-        className: `route-sheet${listMode ? " route-sheet-tall" : ""}`,
+        className: `route-sheet${listMode ? " route-sheet-tall" : ""}${focus ? " route-sheet-slim" : ""}`,
         key: "route-step",
         onClose: () => {
           if (!switching) endWizard();
         },
       });
       switching = false;
-      if (sheetPan === 0) {
-        const sheetH = document.querySelector(".panel-bottom")?.getBoundingClientRect().height ?? 0;
-        sheetPan = Math.round(sheetH / 2);
-        handlers.panCameraBy?.(sheetPan);
+      setPickMarks(orders.map((o) => o.stationId));
+      // Keep the free map area centred on the camera as the sheet changes height (full <-> slim bar).
+      const sheetH = document.querySelector<HTMLElement>(".panel-bottom")?.offsetHeight ?? 0;
+      const wanted = Math.round(sheetH / 2);
+      if (wanted !== sheetPan) {
+        handlers.panCameraBy?.(wanted - sheetPan);
+        sheetPan = wanted;
       }
     }
 

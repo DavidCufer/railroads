@@ -3,6 +3,7 @@
  * Route / Stats tabs, action-bar footer), the Edit cars sheet (reuses the consist builder), the
  * Replace-locomotive picker and the train list. The buy wizard lives in `buyTrainWizard.ts`.
  */
+import { setPickMarks } from "./pickMarks";
 import { carCapacity } from "../sim/trains/capacity";
 import { repairPhase } from "../sim/trains/repairCrew";
 import { CARGO, type CargoType } from "../data/cargo";
@@ -531,6 +532,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
 
     function routeTab(t: Train): Node {
       syncPicking(t);
+      setPickMarks(t.orders.map((o) => o.stationId));
       const canPick = pickHooks !== null && t.orders.length < 8;
       const passedOrders = passedOrderStops(state, t);
       const pickBtn = h(
@@ -806,6 +808,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
           picking = false;
           pickHooks?.cancelPickStationOnMap();
         }
+        setPickMarks([]);
       },
     });
     // The replaced panel's onClose has just cancelled picking: resume it for the new one.

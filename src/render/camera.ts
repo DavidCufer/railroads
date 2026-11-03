@@ -31,6 +31,10 @@ export class Camera {
   /** Viewport size in CSS px, set by the renderer each frame; 0 until known. */
   private viewportW = 0;
   private viewportH = 0;
+  /** Screen px at the bottom / right of the viewport covered by a panel (Phase 81). The pan limit grows by that much on
+   * that side, so any map-edge station can be brought into the free area; 0 snaps the view back inside. */
+  coverBottom = 0;
+  coverRight = 0;
 
   constructor(
     private mapTilesWidth: number,
@@ -105,14 +109,20 @@ export class Camera {
 
   /** Re-applies the pan limits (call after setting `zoom`, `x` or `y` directly). */
   clampToMap(): void {
-    this.x = this.clampAxis(this.x, this.worldWidth, this.viewportW);
-    this.y = this.clampAxis(this.y, this.worldHeight, this.viewportH);
+    this.x = this.clampAxis(this.x, this.worldWidth, this.viewportW, this.coverRight);
+    this.y = this.clampAxis(this.y, this.worldHeight, this.viewportH, this.coverBottom);
   }
 
   /** At most `EDGE_MARGIN_FRACTION` of the viewport may show beyond the map edge on either side;
    * a map smaller than the view on that axis is centred. */
-  private clampAxis(v: number, world: number, viewport: number): number {
+  private clampAxis(v: number, world: number, viewport: number, cover: number): number {
     if (viewport <= 0) return clamp(v, 0, world);
+    if (cover > 0) {
+      const half = viewport / (2 * this.zoom);
+      const margin = (viewport * EDGE_MARGIN_FRACTION) / this.zoom;
+      const lo = Math.min(half - margin, world / 2);
+      return clamp(v, lo, Math.max(world - half + margin, world / 2) + cover / this.zoom);
+    }
     const half = viewport / (2 * this.zoom);
     const margin = (viewport * EDGE_MARGIN_FRACTION) / this.zoom;
     const min = half - margin;
