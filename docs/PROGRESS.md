@@ -7673,3 +7673,39 @@ $2M is winnable, so no smaller start cash is needed.
 - Reviewed `phase-85-intro` (380be8c): inline intro in `index.html` (no image files), `intro.ts` hand-off and reuse
   for slow map generation / loading, Android splash colour matched. `npm run check` 962 passed; e2e 152 + 151 passed.
   Phone and tablet intro screenshots looked at.
+## 2026-11-03 - Phase 82: the Strategist, a bot that looks ahead (branch `phase-82-strategist`, NOT merged; orchestrator reviews)
+**Result in one line: on the economy the Strategist beats V2 on every seed (net worth +50-60 % in 1840 / 1870, 1930 survives 3 of 3 where V2 survives 1 of 3); on scenarios it does NOT yet meet item 7 (Silver Rush lost, Semmering / Transcontinental lost, Panic bankrupt): it plays the economy, not the goal.**
+
+### What was built (`tools/bench/strategist/`, `tools/bench/strategist.ts`)
+- `strongBot.ts`: V2's policy as a factory `createStrongBot(state, memory?)` with exportable memory (lines by station / city id, connected, served, failed, sheds, lay-up policy state). `strongPlayer.ts` is now a thin driver; its output is byte-identical to the old script (checked on 1900 seed 1, 6 years; `layUp.ts` gained export/import of its state, no behaviour change). Hooks added: `setChooser` (which affordable project to build, or none), `setCandidateBudget` (a rollout plans once, then only operates), `setGoalLabels`.
+- `fork.ts`: game state through the save format + bot memory re-attached by id. Test: a fork plays on identical to the original (cash, net worth, trains, stations, edges, loans, lines).
+- `strategist.ts`: when the bot is about to build, the best 4 affordable projects and "wait" are the moves; each is played on a fork for 18 months by the default policy and scored (net worth + 3 x yearly operating profit; bankruptcy = loss; scenario goal progress / win bonus). Best move is played. One decision per ten-day step; a company with no line never waits. Because the panic schedule is in the state, a coming crisis shows up in the score.
+- `phase82.ts` / `phase82Summary.ts` (bench), `scenario.ts` (plays a scenario through its goal), `profile*.ts`, tests `tests/bench/strategistFork.test.ts`.
+- Cost finding: a forked state simulates as fast as the original (170 ms a month); the cost was V2's planning (candidate pathfinding, ~2 s). Limiting a rollout to one planning pass cut a rollout from 33 s to 6 s. A Strategist run is about 3x a V2 run (6-year 1870: 394 s vs 129 s; 16-year runs 1 to several hours with three at a time).
+
+### Acceptance bench (item 6; `docs/bench/phase82.md`, `phase82-summary.md`; seeds 1-3, Normal, 16 years, V2 rows from the merged Phase 80 bench)
+| era | V2 median NW $M | Strategist | V2 y16 profit | Strategist | bankrupt V2 -> Strategist |
+|---|---|---|---|---|---|
+| 1840 | 10.9 | **16.5** | 3.35 | **5.17** | 0 -> 0 |
+| 1870 | 26.1 | **40.6** | 5.95 | **8.08** | 0 -> 0 |
+| 1930 | 1.3 | **10.0** | 0.14 (1 survivor) | **1.34** | 2 of 3 -> 0 of 3 |
+Ahead on every one of the 9 seed pairs (year-5 profit too: 1930 1.9-2.2 vs 0.3). Acceptance (>= V2 on year-16 profit and net worth in at least 2 of 3 eras, no more bankruptcies, fewer in 1930) is met. Not yet checked: Hard, other regions' long runs (the unit test only runs gb / us-east / central-eu for 6 months).
+
+### Scenario check (item 7): NOT met, with reasons
+| scenario | solver | Strategist |
+|---|---|---|
+| Silver Rush ($2M) | 3 stars (Genoa-Milan line, chain at month 12) | **lost** (deadline): chain built in 1888, no bars delivered |
+| Semmering | 2 stars | **lost** (deadline): economy only, no connect-goal move |
+| Transcontinental | 2 stars | **lost**: 2 pax lines, then out of cash (-$19k profit) |
+| Coal for Trieste | 2 stars | **not finished**: over 2 hours, stopped by me without a result (the runner prints only at the end) |
+| Panic of 1873 | 2-3 stars | **bankrupt 1874**: expanded into the panic; the survival goal needs debt repayment, not growth |
+Diagnosis (Silver Rush, found by tracing V2's chain planner): (1) `chainProject` gave up permanently once any other track was laid ("legB" unplannable); made retryable and the passenger projects keep clear of the corridor, but (2) the planner tries only 4 end-tile pairs (8 now when a scenario goal is set) and still fails after the first lines, so (3) the chain is built late. The Strategist now offers goal projects as moves whatever their payback rank, has a SAVE plan (hold other building, build the goal project when affordable, "goal first" after one earning line) and credits delivery pace; none of that reaches the solver's plan because the chain planner itself is the weak link. V2 plain on Silver Rush also loses (earns $6M a year, never builds the chain).
+Proposed next step (Phase 82b, before Phase 83): goal-directed moves as first-class projects: connect goals (staged connect through towns, as the solver does), delivery goals (a chain / freight line planned FIRST so its corridor is reserved, then staged build), survival goals (debt repayment mode). Ask whether to do it before the difficulty report or after; the difficulty report works on the economy and does not need it, but scenarios are rated by whether a plan exists.
+
+### Other
+`npm run check` 965 passed. Phase 80's merged medians were used as the V2 reference. Two shell mishaps cost time (a `pkill -f` matched its own shell; a `git stash` during a pull merge conflicted on PLAN.md: resolved by keeping Phases 82-84 and main's Phase 85).
+
+### Orchestrator: Phase 82 merged (2026-11-03)
+- Reviewed `phase-82-strategist` (426026c): tools only (Strategist, fork, scenario runner, strongBot factory with
+  byte-identical V2 output) plus a fork test. Economy acceptance met (ahead of V2 on all 9 seeds; 1930 0 of 3 bankrupt).
+  Scenario acceptance not met; Phase 82b (goal-directed moves) comes before Phase 83.
