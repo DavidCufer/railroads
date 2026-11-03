@@ -57,12 +57,7 @@ if (pending.length === 0) {
 const num = (s: string | undefined): number => (s === undefined ? NaN : Number(s));
 async function run(j: Job): Promise<string> {
   const text = true;
-  const script =
-    j.bot === "strongV1"
-      ? "strongPlayerV1.ts"
-      : j.bot === "good"
-        ? "goodPlayer.ts"
-        : "strongPlayer.ts";
+  const script = "strategist.ts";
   const args = text
     ? ["central-eu", String(j.start), j.diff, String(j.start + 16), String(j.seed)]
     : [j.bot, String(j.start), j.diff, String(j.start + 16), String(j.seed)];
