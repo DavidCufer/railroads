@@ -97,6 +97,17 @@ export function goalLabels(bot: StrongBot): string[] {
     : [`freight ${def.goal.cargo}`];
 }
 
+/** Big cities close together: sqrt(population product) / (distance + 10), the cautious player's line ranking. */
+function popScore(bot: StrongBot, label: string): number {
+  const m = /^pax (.+)-(.+)$/.exec(label);
+  if (!m) return 0;
+  const a = bot.state.cities.find((c) => c.name === m[1]);
+  const b = bot.state.cities.find((c) => c.name === m[2]);
+  if (!a || !b) return 0;
+  const d = Math.hypot(a.anchorX - b.anchorX, a.anchorY - b.anchorY);
+  return Math.sqrt(a.population * b.population) / (d + 10);
+}
+
 function monthOfYear(bot: StrongBot): number {
   return Math.floor(bot.state.ticks / MONTH_HOURS) % 12;
 }
@@ -126,7 +137,10 @@ export function attachStrategist(
   // small cash cushion (the solver's good plan: MAXPAIRS 2, KEEP 300k)
   const survive = sc?.goal.type === "survive";
   const connect = sc?.goal.type === "connect";
-  if (survive) bot.setRepayKeep(300_000);
+  if (survive) {
+    bot.setRepayKeep(300_000);
+    bot.setWideMoves(40);
+  }
   const goal = goalLabels(bot);
   let plan: string | null = null; // a committed SAVE: build the goal project as soon as it is a move
   let lastTick = -1;
@@ -139,6 +153,7 @@ export function attachStrategist(
     let used = false;
     const holdUntil = fork.state.ticks + opt.waitMonths * MONTH_HOURS;
     fork.setChooser((options) => {
+      if (survive && fork.lines.length >= 2) return null;
       if (move === WAIT) return fork.state.ticks < holdUntil ? null : (options[0]?.label ?? null);
       if (move === SAVE) {
         const hit = options.find((o) => goal.some((g) => o.label.startsWith(g)));
@@ -151,6 +166,12 @@ export function attachStrategist(
       return options[0]?.label ?? null;
     });
     const pace = playMonths(fork, opt.horizonMonths);
+    if (process.env["STDEBUG"] === "2")
+      console.log(
+        "  rollout",
+        move.replace("\u0000", ""),
+        `bankrupt ${fork.state.finance.bankrupt} status ${fork.state.scenario?.status} cash ${Math.round(fork.state.cash / 1000)}k loans ${Math.round(fork.state.finance.loans / 1000)}k lines ${fork.lines.length} year ${fork.year()}`,
+      );
     stats.rollouts++;
     return score(fork, opt.profitMultiple, pace);
   };
@@ -160,7 +181,7 @@ export function attachStrategist(
     // one decision per ten-day step: the bot calls this up to six times in a step
     if (t === lastTick) return null;
     lastTick = t;
-    if (survive) return bot.lines.length >= 2 ? null : (options[0]?.label ?? null);
+    if (survive && bot.lines.length >= 2) return null;
     // a connect goal: build toward it, in order of how directly a project connects the two cities; wait (save) when none
     // of the projects that serve the goal is affordable
     if (connect) {
@@ -190,7 +211,11 @@ export function attachStrategist(
       return null;
     }
     const t0 = Date.now();
-    const moves = options.slice(0, opt.maxMoves).map((o) => o.label);
+    const moves = (
+      survive
+        ? [...options].sort((p, q) => popScore(bot, q.label) - popScore(bot, p.label)).slice(0, 6)
+        : options.slice(0, opt.maxMoves)
+    ).map((o) => o.label);
     let best = WAIT;
     let bestScore = -Infinity;
     // a company with no line yet never waits: it has nothing to protect and nothing to learn from waiting

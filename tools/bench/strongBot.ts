@@ -74,6 +74,11 @@ export interface BotMemory {
   chainBuilt: boolean;
   lastEdit: Array<[number, number]>;
   layUp: ReturnType<ReturnType<typeof createLayUpPolicy>["exportState"]>;
+  /** Phase 82b: the scenario goal settings a fork must keep. */
+  goalLabels?: string[];
+  goalPair?: [string, string] | null;
+  repayKeep?: number;
+  wideMoves?: number;
 }
 
 /** The V2 strong player as an object: `createStrongBot(state)` plays `state` (any state, a fork too). */
@@ -1044,6 +1049,11 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     corridor.length === 0
       ? 0
       : corridor.filter((c) => connected.has(c.id)).length / corridor.length;
+  /** Phase 82b: how many of the best projects (by payback) are offered as moves (3 = V2). */
+  let wideMoves = 3;
+  const setWideMoves = (n: number): void => {
+    wideMoves = n;
+  };
   let repayKeep = 0;
   const setRepayKeep = (n: number): void => {
     repayKeep = n;
@@ -1066,7 +1076,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     const list = candidates().filter((p) => p.payback <= MAX_PAYBACK_YEARS);
     // the first line: any the company can pay for (a poor start, Hard, may afford only the cheaper ones)
     // Phase 82: projects that serve a scenario's goal are always moves, whatever their payback rank
-    const base = lines.length === 0 ? list : list.slice(0, 3);
+    const base = lines.length === 0 ? list : list.slice(0, wideMoves);
     const goalMoves = candidates().filter(
       (p) => p.payback <= 40 && isGoalMove(p.label) && !base.includes(p),
     );
@@ -1312,6 +1322,10 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       chainBuilt,
       lastEdit: [...lastEdit],
       layUp: layUp.exportState(),
+      goalLabels: [...goalLabels],
+      goalPair,
+      repayKeep,
+      wideMoves,
     };
   }
   if (memory) {
@@ -1330,6 +1344,10 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     chainBuilt = memory.chainBuilt;
     for (const [k, v] of memory.lastEdit) lastEdit.set(k, v);
     layUp.importState(memory.layUp);
+    goalLabels = memory.goalLabels ?? [];
+    repayKeep = memory.repayKeep ?? 0;
+    wideMoves = memory.wideMoves ?? 3;
+    if (memory.goalPair) setConnectGoal(memory.goalPair[0], memory.goalPair[1]);
   }
 
   /** The first part of a month: three ten-day steps (sample blocks, lay-up policy, spend). */
@@ -1370,6 +1388,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     goalRank,
     corridorProgress,
     setRepayKeep,
+    setWideMoves,
     setCandidateBudget,
     simMs: (): number => simMs,
   };
