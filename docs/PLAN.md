@@ -3206,3 +3206,23 @@ a balance change moves an era far (the Phase 79/80 problem: 1870 too rich, Hard 
 re-derived from the Strategist's medians (Phase 77 method: reference operator = its medians, gold year 16, silver 12,
 achievements, scenario stars via the solver); `goalCalibration` bounds unchanged. STOP with an old -> new table for the
 owner. Status: [ ] a [ ] b
+
+## Phase 85 — Intro screen while the game loads
+
+Owner (2026-11-03): "maybe create some intro screen to show when the game is loading". Today the app shows Android's
+system splash (`Theme.SplashScreen`, plain background), then a blank WebView while the JS loads and `main()` builds a
+first game state (map generation), then the title screen. Branch `phase-85-intro`; never push to main. Never rebase over
+merge commits, never force-push. Never loosen a test bound. Look at every PNG.
+
+1. **An intro that shows from the first paint**: inline HTML/CSS (or inline SVG) in `index.html`, so it appears before any
+   JS runs: the title "Iron & Steam" in the game's display font and palette, a small steam engine drawn procedurally (CSS
+   or inline SVG, matching the app icon and the Phase 70 look) with gently rising smoke, a thin brass progress line, and
+   a short rotating line ("Laying track…", "Stoking the boiler…"; strings.ts after JS loads). No image files.
+2. **Hand-off:** it stays until the title screen is ready (at least ~1 s so it never flashes, at most until ready),
+   then fades out in ~300 ms. The Android system splash uses the same background colour, so the change is seamless.
+   `prefers-reduced-motion` stops the animation.
+3. **Reuse for slow steps:** the same overlay (without the long hold) while a new map is generated or a save loads, if that
+   takes over ~300 ms ("Building the map…", "Loading your railway…").
+4. Never under `?debug=1` (e2e speed), except a dedicated e2e that shows it, takes screenshots at 800x360 and on a 10"
+   tablet (light of the first frame and mid-animation), and checks it disappears. PROGRESS; tick ONLY Phase 85.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4
