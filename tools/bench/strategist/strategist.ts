@@ -11,6 +11,7 @@
  */
 import { netWorth } from "../../../src/sim/finance/ledger";
 import { ledgerOperatingProfit } from "../../../src/data/finance";
+import { scenarioById } from "../../../src/data/scenarios";
 import type { StrongBot } from "../strongBot";
 import { forkBot } from "./fork";
 
@@ -52,7 +53,24 @@ export function score(bot: StrongBot, profitMultiple: number): number {
   const yearly = months.length
     ? (months.reduce((a, m) => a + ledgerOperatingProfit(m), 0) / months.length) * 12
     : 0;
-  return netWorth(s) + profitMultiple * yearly;
+  return netWorth(s) + profitMultiple * yearly + scenarioBonus(bot);
+}
+
+/** With a scenario the goal is part of the position: delivered share of a delivery goal, a win (earlier is better). */
+export function scenarioBonus(bot: StrongBot): number {
+  const run = bot.state.scenario;
+  const def = run ? scenarioById(run.id) : undefined;
+  if (!run || !def) return 0;
+  if (run.status === "lost") return -1e9;
+  if (run.status === "won") {
+    const left = Math.max(
+      0,
+      (def.goal.type === "survive" ? def.goal.untilYear : def.goal.byYear) - bot.year(),
+    );
+    return 6e6 + 0.5e6 * run.stars + 0.2e6 * left;
+  }
+  if (def.goal.type === "deliver") return 3e6 * Math.min(1, run.progress / def.goal.amount);
+  return 0;
 }
 
 function monthOfYear(bot: StrongBot): number {
