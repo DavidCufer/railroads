@@ -23,6 +23,7 @@
 import "./p79Env";
 import "./pairEnv";
 import { createStrongBot } from "./strongBot";
+import { attachStrategist } from "./strategist/strategist";
 import * as commands from "../../src/sim/commands";
 import { createGameState } from "../../src/sim/state";
 import {} from "../../src/sim/tick";
@@ -65,6 +66,8 @@ const seed = Number(process.argv[6] ?? 1);
 const T0 = Date.now();
 const state = createGameState({ seed, region, startYear, difficulty });
 const bot = createStrongBot(state);
+// Phase 82: BOT=strategist plays the same game with a lookahead (tools/bench/strategist/strategist.ts)
+const strategistStats = process.env["BOT"] === "strategist" ? attachStrategist(bot) : null;
 const { lines, layUp } = bot;
 const year = bot.year;
 const simMsNow = (): number => bot.simMs();
@@ -224,3 +227,7 @@ if (process.env["DUMP_SAVE"]) {
   const { writeFileSync } = await import("node:fs");
   writeFileSync(process.env["DUMP_SAVE"], exportSaveJson(state));
 }
+if (strategistStats)
+  console.log(
+    `STRATEGIST decisions ${strategistStats.decisions} rollouts ${strategistStats.rollouts} ms ${strategistStats.ms} waits ${strategistStats.waits} picks ${JSON.stringify(strategistStats.picks)}`,
+  );

@@ -880,27 +880,44 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     return projects;
   }
 
+  /** Phase 82: picks which affordable project to build (by label), or null to wait; absent = the best by payback (V2). */
+  let chooser:
+    ((options: Array<{ label: string; payback: number; total: number }>) => string | null) | null =
+    null;
+  const setChooser = (c: typeof chooser): void => {
+    chooser = c;
+  };
+
   /** Builds the best project the company can pay for; returns true if it built one. */
   function buildBest(): boolean {
     // a project costs at least a station pair and a train: do not plan (the bot's main cost) before that is in reach
     if (state.cash + borrowRoom() < 150_000) return false;
     const list = candidates().filter((p) => p.payback <= MAX_PAYBACK_YEARS);
     // the first line: any the company can pay for (a poor start, Hard, may afford only the cheaper ones)
-    for (const p of lines.length === 0 ? list : list.slice(0, 3)) {
-      if (state.cash + borrowRoom() < p.total + reserve()) continue;
-      if (candidateCache) candidateCache.projects = candidateCache.projects.filter((q) => q !== p);
-      if (process.env["V"])
-        console.log(
-          year(),
-          "build",
-          p.label,
-          `payback ${p.payback.toFixed(1)}`,
-          `total ${Math.round(p.total / 1000)}k`,
-          `cash ${Math.round(state.cash / 1000)}k`,
-        );
-      return p.build();
+    const affordable = (lines.length === 0 ? list : list.slice(0, 3)).filter(
+      (p) => state.cash + borrowRoom() >= p.total + reserve(),
+    );
+    if (affordable.length === 0) return false;
+    // Phase 82: a chooser (the Strategist's lookahead) picks among the affordable projects, or none (wait)
+    let p: Project | undefined = affordable[0];
+    if (chooser) {
+      const label = chooser(
+        affordable.map(({ label, payback, total }) => ({ label, payback, total })),
+      );
+      p = label === null ? undefined : (affordable.find((q) => q.label === label) ?? affordable[0]);
     }
-    return false;
+    if (!p) return false;
+    if (candidateCache) candidateCache.projects = candidateCache.projects.filter((q) => q !== p);
+    if (process.env["V"])
+      console.log(
+        year(),
+        "build",
+        p.label,
+        `payback ${p.payback.toFixed(1)}`,
+        `total ${Math.round(p.total / 1000)}k`,
+        `cash ${Math.round(state.cash / 1000)}k`,
+      );
+    return p.build();
   }
 
   // --- running lines -------------------------------------------------------------------------------------------------
@@ -1168,6 +1185,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     monthA,
     monthB,
     exportMemory,
+    setChooser,
     simMs: (): number => simMs,
   };
 }
