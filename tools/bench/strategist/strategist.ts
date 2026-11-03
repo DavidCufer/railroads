@@ -104,7 +104,8 @@ export function attachStrategist(
     const moves = options.slice(0, opt.maxMoves).map((o) => o.label);
     let best = WAIT;
     let bestScore = -Infinity;
-    for (const m of [...moves, WAIT]) {
+    // a company with no line yet never waits: it has nothing to protect and nothing to learn from waiting
+    for (const m of bot.lines.length === 0 ? moves : [...moves, WAIT]) {
       const v = rollout(m);
       if (v > bestScore) {
         bestScore = v;
