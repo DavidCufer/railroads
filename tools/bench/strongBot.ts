@@ -148,9 +148,9 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
 
   /** What the bot will still borrow: a third of net worth at most, and at most half the lenders' limit, so a panic (which cuts
    * the limit to 60 %) or a lean year does not leave debt over the limit, the lenders call it, and the call empties the cash. */
-  function borrowRoom(): number {
+  function borrowRoom(forGoal = goalBuilding): number {
     // the very first line is financed from the start-up credit, as any player does: nothing yet to lose to a panic
-    if (lines.length === 0)
+    if (lines.length === 0 || forGoal)
       return Math.max(0, 0.9 * commands.creditLimit(state) - state.finance.loans);
     const room = Math.min(
       BORROW_LIMIT_SHARE * commands.creditLimit(state),
@@ -734,6 +734,135 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     };
   }
 
+  /** Phase 82b: the scenario solver's chain layout. ONE station at the smelter (two would split its output and half the bars
+   * would rot): the bars line smelter -> mint is built first, the ore line joins it a few tiles from the smelter station
+   * (a junction) and its trains reverse in the station. */
+  function chainOneStation(): Project | null {
+    if (chainBuilt || state.ticks < chainRetryAt) return null;
+    const def = longHaulChainFor(state.startYear);
+    const chain = LONG_HAUL_CHAINS[def.id];
+    const mine = state.industries.find((i) => i.type === chain.mine);
+    const plant = state.industries.find((i) => i.type === chain.processor);
+    const sink = state.industries.find((i) => i.type === chain.sink);
+    if (!mine || !plant || !sink) return null;
+    const ore: CargoType = def.id === "silver" ? "silverOre" : "uraniumOre";
+    const bars: CargoType = def.id === "silver" ? "silverBars" : "enrichedUranium";
+    if (CARGO[ore].era > year()) return null;
+    const out = state.industryEconomy.get(mine.id)?.monthlyOutput[ore] ?? 0;
+    if (out <= 0) return null;
+    const legB = planLeg(
+      freeAround(indTile(plant), indTile(sink), 2),
+      freeAround(indTile(sink), indTile(plant), 2),
+      8,
+    );
+    const joins = (leg: Leg): number[] =>
+      [4, 6, 8, 12, 16, 24, 32].map((k) => leg.path[k]).filter((t): t is number => t !== undefined);
+    const legA = legB
+      ? planLeg(freeAround(indTile(mine), indTile(plant), 2), joins(legB), 8)
+      : null;
+    if (!legB || !legA) {
+      chainRetryAt = state.ticks + 90 * DAY;
+      return null;
+    }
+    const dA = dist(legA.ta, legA.tb);
+    const dB = dist(legB.ta, legB.tb);
+    const oreLoads = out / CARGO[ore].capacity;
+    const barLoads =
+      (out * (INDUSTRIES[plant.type].produces[bars] ?? 0)) /
+      Math.max(1, INDUSTRIES[plant.type].consumes[ore] ?? 1) /
+      CARGO[bars].capacity;
+    const pickA = bestFreightLoco(ore, dA, oreLoads * 12);
+    const pickB = bestFreightLoco(bars, dB, barLoads * 12);
+    if (!pickA || !pickB) return null;
+    const tpd = (loco: string): number =>
+      (locomotiveById(loco)!.maxSpeedKmh * 0.8 * AVERAGE_SPEED_SHARE) / KMH_PER_TILE_PER_DAY;
+    const trainsFor = (loads: number, cars: number, d: number, loco: string): number =>
+      Math.max(1, Math.min(4, Math.ceil(loads / (cars * (30 / (2 * (d / tpd(loco)) + 6))))));
+    const nA = trainsFor(oreLoads, pickA.cars, dA, pickA.id);
+    const nB = trainsFor(barLoads, pickB.cars, dB, pickB.id);
+    const big: StationType = year() >= 1870 ? "terminal" : "station";
+    const costA = commands.computeBuyTrainPlan(state, pickA.id, Array(pickA.cars).fill(ore)).cost;
+    const costB = commands.computeBuyTrainPlan(state, pickB.id, Array(pickB.cars).fill(bars)).cost;
+    const stations =
+      stationCost(legB.ta, big) + stationCost(legB.tb, "station") + stationCost(legA.ta, big);
+    const track = legA.trackCost + legB.trackCost;
+    const total = track + stations + nA * costA + nB * costB;
+    const dTotal = dist(indTile(mine), indTile(sink));
+    const kmh = Math.min(
+      locomotiveById(pickB.id)!.maxSpeedKmh,
+      locomotiveById(pickA.id)!.maxSpeedKmh,
+    );
+    const days = ((dA + dB) / tpd(pickB.id)) * 1.25 + 8;
+    const fare = computeRevenue(state, bars, dTotal, days, kmh);
+    const delivered = Math.min(
+      barLoads * 12,
+      nB * pickB.cars * 12 * (30 / (2 * (dB / tpd(pickB.id)) + 6)),
+    );
+    const profit =
+      delivered * fare -
+      nA * pickA.costs -
+      nB * pickB.costs -
+      lineUpkeepPerYear(legA.edges + legB.edges, [big, big, "station"], track + stations);
+    return {
+      label: `chain ${def.id} one station (${Math.round(dA)}+${Math.round(dB)} tiles, ${nA}+${nB} trains)`,
+      payback: profit > 0 ? total / profit : Infinity,
+      total,
+      build: () => {
+        if (!ensureCash(total + reserve())) return false;
+        if (!ok(commands.buildTrack(state, legB.path))) return false;
+        if (
+          !ok(commands.buildStation(state, legB.ta, big)) ||
+          !ok(commands.buildStation(state, legB.tb, "station"))
+        )
+          return false;
+        const smelter = state.stations.find((x) => x.tile === legB.ta)!;
+        const mint = state.stations.find((x) => x.tile === legB.tb)!;
+        shed(smelter);
+        chainBuilt = true;
+        const barLine: Line = {
+          kind: "freight",
+          stops: [smelter, mint],
+          cities: [],
+          cargo: bars,
+          trains: [],
+          path: legB.path,
+          doubled: false,
+          samples: 0,
+          blocked: 0,
+          carloadsPerMonth: barLoads,
+          cars: pickB.cars,
+          chain: true,
+        };
+        lines.push(barLine);
+        for (let i = 0; i < nB; i++) addTrain(barLine);
+        // the ore line is planned again now that the bars line's track is on the map
+        const again = planLeg(freeAround(indTile(mine), indTile(plant), 2), joins(legB), 8);
+        if (!again || !ok(commands.buildTrack(state, again.path))) return true;
+        if (!ok(commands.buildStation(state, again.ta, big))) return true;
+        const m = state.stations.find((x) => x.tile === again.ta)!;
+        shed(m);
+        const oreLine: Line = {
+          kind: "freight",
+          stops: [m, smelter],
+          cities: [],
+          cargo: ore,
+          trains: [],
+          path: again.path,
+          doubled: false,
+          samples: 0,
+          blocked: 0,
+          carloadsPerMonth: oreLoads,
+          cars: pickA.cars,
+          chain: true,
+        };
+        lines.push(oreLine);
+        servedIndustries.add(mine.id);
+        for (let i = 0; i < nA; i++) addTrain(oreLine);
+        return true;
+      },
+    };
+  }
+
   /** Sinks that take `cargo`: processors that consume it, and towns whose tiles accept it. */
   function sinksFor(
     cargo: CargoType,
@@ -892,7 +1021,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
         const f = feederProject(t.c);
         if (f) projects.push(f);
       }
-      const ch = chainProject();
+      const ch = goalLabels.includes("chain") ? chainOneStation() : chainProject();
       if (ch) projects.push(ch);
       const producers = state.industries
         .filter((i) => !servedIndustries.has(i.id) && INDUSTRY_TYPES.includes(i.type))
@@ -1022,6 +1151,8 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
 
   /** Phase 82: picks which affordable project to build (by label), or null to wait; absent = the best by payback (V2). */
   let goalLabels: string[] = [];
+  /** Phase 82b: set while a goal project is being checked or built: it may borrow as a first line does. */
+  let goalBuilding = false;
   /** Phase 82b: a connect goal (two city names): the towns near the straight line between them are the corridor. */
   let goalPair: [string, string] | null = null;
   let corridor: City[] = [];
@@ -1125,7 +1256,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       (p) => p.payback <= 40 && isGoalMove(p.label) && !base.includes(p),
     );
     const affordable = (lines.length === 0 ? base : [...base, ...goalMoves]).filter(
-      (p) => state.cash + borrowRoom() >= p.total + reserve(),
+      (p) => state.cash + borrowRoom(isGoalMove(p.label)) >= p.total + reserve(),
     );
     if (affordable.length === 0) return false;
     // Phase 82: a chooser (the Strategist's lookahead) picks among the affordable projects, or none (wait)
@@ -1147,7 +1278,12 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
         `total ${Math.round(p.total / 1000)}k`,
         `cash ${Math.round(state.cash / 1000)}k`,
       );
-    return p.build();
+    goalBuilding = isGoalMove(p.label);
+    try {
+      return p.build();
+    } finally {
+      goalBuilding = false;
+    }
   }
 
   // --- running lines -------------------------------------------------------------------------------------------------
