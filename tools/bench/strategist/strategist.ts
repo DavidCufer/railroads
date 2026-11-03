@@ -135,6 +135,8 @@ export function attachStrategist(
   if (sc?.goal.type === "connect") bot.setConnectGoal(sc.goal.cities[0]!, sc.goal.cities[1]!);
   // a survival goal (the Panic of 1873): two lines, then no more building, and debt repaid out of every dollar above a
   // small cash cushion (the solver's good plan: MAXPAIRS 2, KEEP 300k)
+  if (sc?.goal.type === "deliver" && sc.goal.nearCity)
+    bot.setDeliverGoal(sc.goal.cargo, sc.goal.nearCity.name, sc.goal.nearCity.withinTiles);
   const survive = sc?.goal.type === "survive";
   const connect = sc?.goal.type === "connect";
   if (survive) {

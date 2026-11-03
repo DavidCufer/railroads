@@ -740,6 +740,21 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     from: Industry,
   ): Array<{ tile: number; d: number; city?: City; ind?: Industry }> {
     const out: Array<{ tile: number; d: number; city?: City; ind?: Industry }> = [];
+    const gd = goalDeliver;
+    if (gd && cargo === gd.cargo) {
+      const target = state.cities.find((c) => c.name === gd.city);
+      if (target)
+        return state.industries
+          .filter(
+            (i) =>
+              i.id !== from.id &&
+              (INDUSTRIES[i.type].consumes[cargo] ?? 0) > 0 &&
+              dist(indTile(i), cityCentre(target)) <= gd.within,
+          )
+          .map((i) => ({ tile: indTile(i), d: dist(indTile(i), indTile(from)), ind: i }))
+          .filter((x) => x.d >= 4)
+          .sort((p, q) => p.d - q.d);
+    }
     for (const i of state.industries) {
       if (i.id === from.id || (INDUSTRIES[i.type].consumes[cargo] ?? 0) <= 0) continue;
       out.push({ tile: indTile(i), d: dist(indTile(i), indTile(from)), ind: i });
@@ -897,6 +912,30 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
         const f = freightProject(p.i, p.c, p.out);
         if (f) projects.push(f);
       }
+      // Phase 82b: the delivery goal's cargo: the nearest sources to its sink are always projects
+      if (goalDeliver) {
+        const g = goalDeliver;
+        const target = state.cities.find((c) => c.name === g.city);
+        const have = new Set(projects.map((q) => q.label));
+        const sources = state.industries
+          .filter(
+            (i) => !servedIndustries.has(i.id) && (INDUSTRIES[i.type].produces[g.cargo] ?? 0) > 0,
+          )
+          .sort((p, q) =>
+            target
+              ? dist(indTile(p), cityCentre(target)) - dist(indTile(q), cityCentre(target))
+              : 0,
+          )
+          .slice(0, 3);
+        for (const i of sources) {
+          const out =
+            state.industryEconomy.get(i.id)?.monthlyOutput[g.cargo] ??
+            INDUSTRIES[i.type].produces[g.cargo] ??
+            0;
+          const f = freightProject(i, g.cargo, out);
+          if (f && !have.has(f.label)) projects.push(f);
+        }
+      }
     }
     // Phase 82b: a connect goal's corridor: the direct line between the two cities (however long) and every corridor town
     if (goalPair) {
@@ -1053,6 +1092,11 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
   let wideMoves = 3;
   const setWideMoves = (n: number): void => {
     wideMoves = n;
+  };
+  /** Phase 82b: a delivery goal "cargo to the docks near a city": freight projects of that cargo end at a consumer near it. */
+  let goalDeliver: { cargo: CargoType; city: string; within: number } | null = null;
+  const setDeliverGoal = (cargo: CargoType, city: string, within: number): void => {
+    goalDeliver = { cargo, city, within };
   };
   let repayKeep = 0;
   const setRepayKeep = (n: number): void => {
@@ -1385,6 +1429,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       candidates().some((p) => p.payback <= 40 && isGoalMove(p.label)),
     setGoalLabels,
     setConnectGoal,
+    setDeliverGoal,
     goalRank,
     corridorProgress,
     setRepayKeep,
