@@ -86,7 +86,7 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     seed: 7,
     startYear: 1880,
     difficulty: "normal",
-    startCash: 4_000_000,
+    startCash: 2_000_000,
     goal: { type: "deliver", cargo: "silverBars", amount: 600, byYear: 1890 },
     stars: [1885, 800_000],
   },
