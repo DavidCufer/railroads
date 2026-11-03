@@ -12,8 +12,6 @@ const execFileAsync = promisify(execFile);
 const FILE = "docs/bench/phase82.md";
 const budgetMs = Number(process.argv[2] ?? 13) * 60_000;
 const JOBS = 3;
-const STARTS = [1840, 1870, 1900, 1930, 1950];
-const DIFFS = ["normal", "hard"];
 const ESTIMATE_MIN: Record<string, number> = { strategist: 35 };
 
 interface Job {
