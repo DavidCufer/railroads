@@ -59,6 +59,16 @@ if (process.env["DUMP"]) {
         ),
       ),
     );
+  for (const i of state.industries)
+    if (["silverMine", "smelter", "mint"].includes(i.type))
+      console.log(
+        "INDUSTRY",
+        i.id,
+        i.type,
+        `tile ${i.y * state.map.width + i.x}`,
+        JSON.stringify(state.industryEconomy.get(i.id)?.monthlyOutput ?? {}),
+      );
+  for (const [id, e] of state.stationEconomy) console.log("SUPPLY", id, JSON.stringify(e.supply));
   console.log("CARGO delivered", JSON.stringify(state.cargoDeliveredThisYear));
 }
 const run = state.scenario!;

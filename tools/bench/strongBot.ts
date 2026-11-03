@@ -123,6 +123,8 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     /** Phase 77: ten-day samples, and those in which a train of the line stood waiting for a block. */
     samples: number;
     blocked: number;
+    /** Phase 82b: never wait for a full load (the bar train at the shared smelter station would block the ore trains). */
+    noFullLoad?: boolean;
     /** Phase 77: feeder lines share the hub's station and have no stops of their own to extend. */
     feeder?: boolean;
   }
@@ -326,6 +328,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       // freight: wait for a full load at the source of a long train; everything else loads what is there
       rule:
         line.kind === "freight" &&
+        !line.noFullLoad &&
         i === 0 &&
         (line.stops[0]!.type === "terminal" || line.carloadsPerMonth >= 4)
           ? ("fullLoad" as const)
@@ -837,6 +840,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
           blocked: 0,
           carloadsPerMonth: barLoads,
           cars: Math.max(4, pickB.cars),
+          noFullLoad: true,
           chain: true,
         };
         lines.push(barLine);
