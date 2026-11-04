@@ -612,7 +612,8 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       freeAround(indTile(plant), indTile(mine), 2),
     );
     if (!legA) {
-      chainRetryAt = state.ticks + 90 * DAY;
+      if (goalLabels.length > 0) chainRetryAt = state.ticks + 90 * DAY;
+      else failed.add("chain");
       if (process.env["CHAINDBG"]) console.log("CHAIN null at", 5, year());
       return null;
     }
@@ -622,7 +623,8 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       goalLabels.length > 0 ? 8 : 2,
     );
     if (!legB) {
-      chainRetryAt = state.ticks + 90 * DAY;
+      if (goalLabels.length > 0) chainRetryAt = state.ticks + 90 * DAY;
+      else failed.add("chain");
       if (process.env["CHAINDBG"]) console.log("CHAIN null at", 6, year());
       return null;
     }

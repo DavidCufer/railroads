@@ -7693,3 +7693,27 @@ Proposed next step (Phase 82b, before Phase 83): goal-directed moves as first-cl
 
 ### Other
 `npm run check` 965 passed. Phase 80's merged medians were used as the V2 reference. Two shell mishaps cost time (a `pkill -f` matched its own shell; a `git stash` during a pull merge conflicted on PLAN.md: resolved by keeping Phases 82-84 and main's Phase 85).
+
+## 2026-11-04 - Phase 82b: goal-directed play for scenarios (branch `phase-82b-goals`, from phase-82-strategist 426026c; NOT merged)
+**Result: 3 of the 5 scenarios now reach the solver's stars (Semmering 2, Transcontinental 2, Panic 3); Coal for Trieste and Silver Rush do not, with the reasons below.**
+| scenario | solver | Strategist 82b |
+|---|---|---|
+| Semmering | 2 stars | **won, 2 stars** (month 1) |
+| Transcontinental | 2 stars | **won, 2 stars** (month 1) |
+| Panic of 1873 | 2-3 stars (3 with the Phase 80 bars) | **won, 3 stars**, profit $1.2M, net worth $6.1M (solver $3.8M) |
+| Coal for Trieste | 2 stars | **lost**: 0 t delivered by 1865 (stopped at the deadline year) |
+| Silver Rush ($2M) | 3 stars | **lost**: chain built early (1881) and runs, but 42 t of 600 t by 1887 (stopped) |
+
+### What changed
+- `scenario.ts` prints a PROGRESS line each year (and `--months N`, `DUMP=1|2` of trains / stations / industries); a run now shows where it is.
+- **Connect goals**: the bot knows the corridor (towns within 16 tiles of the line between the two cities); the direct line between them (however long), corridor legs and lines from either end city are always moves (`goalRank` 0 / 1 / 2), and the Strategist builds in that order (wait when none is affordable). Both connect scenarios are won in the first month.
+- **Survival goal**: two lines, then no more building; debt repaid out of every dollar above a $300k cushion; the six best big-city pairs (population / distance, the cautious player's ranking) are tried by rollouts, and rollouts keep the same settings (forks carry the goal settings in the bot memory; before this every rollout over-built and went bankrupt).
+- **Delivery goals**: a goal's cargo projects are always moves (`isGoalMove`), may borrow like a first line (`borrowRoom(forGoal)`), and the delivery pace over the last four rollout months is projected to the deadline in the score. Silver chain: the solver's one-station layout (`chainOneStation`: bars line smelter -> mint first, ore line joining it, plain stations, fastest freight engine, ore trains bought first, bar trains do not wait for a full load at the shared station: a waiting bar train blocked the ore trains and the smelter made nothing).
+
+### Why Silver Rush and Coal are not met
+- **Silver Rush**: the chain now builds at the right time (after one earning line, 1881) and the smelter makes 40 bars a month at best, but the engines in 1880 pull only 2 cars, so one ore train moves about a third of the mine's output over a 100-tile line, and the shared single-track line jams with more trains; the solver's plan gets its 600 t with 4-car trains. I did not find where the 4-car consist the solver uses comes from (`maxCars` of the fastest freight engine is 2 here). Next: read how `scenarioSolver` buys its 4-car trains, and add a second ore leg or a siding.
+- **Coal for Trieste**: freight projects of coal exist but none ends at the Trieste docks; my delivery-goal sink filter (consumers within 8 tiles of Trieste) did not change the run (identical numbers to the run without it), so `sinksFor` for the goal is still not reached or returns nothing; not debugged.
+- Flag for the owner: the two connect scenarios are won in the first month because the bot builds the direct line with the first-line start-up credit (`borrowRoom` for the first line is 0.9 x the credit limit). The solver's staged plans were the "intended" route; with this credit the direct line is affordable at once, so the $450k / $650k starts do not force staging (Phase 76 wanted that).
+
+### Economy acceptance
+Plain V2 output is byte-identical to the Phase 82 branch on 1900 (6 years) and 1870 (5 years) after the 82b changes (checked with a worktree of phase-82-strategist). All goal logic is gated on a scenario goal being set, so the Strategist's economy path is unchanged; I did not rerun the 9-run Phase 82 bench (hours). `npm run check`: 965 passed.
