@@ -139,6 +139,7 @@ export function attachStrategist(
     bot.setDeliverGoal(sc.goal.cargo, sc.goal.nearCity.name, sc.goal.nearCity.withinTiles);
   const survive = sc?.goal.type === "survive";
   const connect = sc?.goal.type === "connect";
+  const deliverFirst = sc?.goal.type === "deliver" && !goalLabels(bot).includes("chain");
   if (survive) {
     bot.setRepayKeep(300_000);
     bot.setWideMoves(40);
@@ -184,6 +185,17 @@ export function attachStrategist(
     if (t === lastTick) return null;
     lastTick = t;
     if (survive && bot.lines.length >= 2) return null;
+    // a delivery goal that is plain freight (coal to a port): its cargo lines come first, best payback first; the passenger
+    // lines that pay for the rest are built only when no goal line is affordable
+    if (deliverFirst) {
+      const g = options
+        .filter((o) => bot.isGoalMove(o.label))
+        .sort((p, q) => p.payback - q.payback)[0];
+      if (g) {
+        stats.picks["goal"] = (stats.picks["goal"] ?? 0) + 1;
+        return g.label;
+      }
+    }
     // a connect goal: build toward it, in order of how directly a project connects the two cities; wait (save) when none
     // of the projects that serve the goal is affordable
     if (connect) {

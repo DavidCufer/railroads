@@ -536,8 +536,17 @@ function runStrategyOnce(id: string, st: Strategy): SolveResult {
     if (process.env["TRACE_CHAIN"] && month >= Number(process.env["TRACE_CHAIN"])) {
       const parts = state.trains
         .filter((t) => t.cars.some((c) => c.cargoType.startsWith("silver")))
-        .map((t) => `t${t.id}:${t.cars[0]!.cargoType === "silverOre" ? "ore" : "bar"}x${t.cars.length}:${t.status}:o${t.currentOrderIndex}:r${t.routeIndex}/${t.route.length}:${t.locoModelId}`);
-      console.log("STRACE", month, parts.join(" "), "| progress", Math.round(state.scenario!.progress));
+        .map(
+          (t) =>
+            `t${t.id}:${t.cars[0]!.cargoType === "silverOre" ? "ore" : "bar"}x${t.cars.length}:${t.status}:o${t.currentOrderIndex}:r${t.routeIndex}/${t.route.length}:${t.locoModelId}`,
+        );
+      console.log(
+        "STRACE",
+        month,
+        parts.join(" "),
+        "| progress",
+        Math.round(state.scenario!.progress),
+      );
     }
     if (process.env["YEARLY"] && month % 12 === 1) {
       const ly = state.finance.lastYear;

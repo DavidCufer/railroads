@@ -1628,6 +1628,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       candidates().some((p) => p.payback <= 40 && isGoalMove(p.label)),
     setGoalLabels,
     setConnectGoal,
+    isGoalMove,
     candidateLabels: (): string[] =>
       candidates().map(
         (p) => `${p.label} pb ${p.payback.toFixed(1)} total ${Math.round(p.total / 1000)}k`,
