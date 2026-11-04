@@ -1436,6 +1436,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
         goalChain &&
         process.env["CHAIN_ONE"] === "1" &&
         line.chain &&
+        !needFirst &&
         state.cash < reserve() + 500_000
       )
         continue;
