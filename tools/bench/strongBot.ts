@@ -785,7 +785,9 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     const pickB0 = bestFreightLoco(bars, dB, barLoads * 12);
     if (!pickA0 || !pickB0) return null;
     // the solver's plan: the fastest freight engine, four cars
-    const fast = [...freightLocos()].sort(
+    // (the solver's `pickLoco`: among the engines that can pull four cars, the fastest)
+    const haulers = freightLocos().filter((l) => l.maxCars >= 4);
+    const fast = [...(haulers.length > 0 ? haulers : freightLocos())].sort(
       (p, q) => q.maxSpeedKmh - p.maxSpeedKmh || q.maxCars - p.maxCars,
     )[0]!;
     const fastCars = Math.min(fast.maxCars, 4);
@@ -1408,6 +1410,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
   function rightSize(): void {
     const saving = savingFor();
     for (const line of lines) {
+      if (line.chain && goalLabels.includes("chain")) continue; // the goal chain keeps the solver's consist
       for (const id of line.trains) {
         const t = state.trains.find((x) => x.id === id);
         if (!t || t.laidUp || t.cars.length === 0) continue;
