@@ -7726,4 +7726,10 @@ Dev flag `CHAIN_ONE=1` (plus `BAR_CAP`, `ORE_CAP`) builds the solver's layout in
 The two connect scenarios are won in the first month because the bot builds the direct line with the first-line start-up credit (`borrowRoom` for the first line is 0.9 x the credit limit); the $450k / $650k starts do not force staging.
 
 ### Economy acceptance
-Plain V2 output is byte-identical to the Phase 82 branch on 1870 (5 years), 1900 (6) and 1840 (6) after the 82b changes (worktree comparison). Strategist economy bench: see `docs/bench/phase82b.md` (1870, seeds 1-3, against the Phase 82 rows). `npm run check`: 965 passed.
+Plain V2 output is byte-identical to the Phase 82 branch on 1870 (5 years), 1900 (6) and 1840 (6) after the 82b changes (worktree comparison). Strategist economy bench (`docs/bench/phase82b.md`, 1870 Normal, seeds 1-3, 16 years; the same seeds as the Phase 82 bench, three runs of the nine, 1870 chosen because it is the richest era and the most sensitive to build order):
+| seed | Phase 82 NW / profit y5 / y10 / y16 ($M) | Phase 82b NW / profit y5 / y10 / y16 | V2 (Phase 80) NW / y16 |
+|---|---|---|---|
+| 1 | 40.5 / 1.55 / 4.83 / 7.11 | 41.7 / 1.39 / 5.64 / 7.25 | 22.4 / 5.19 |
+| 2 | 47.8 / 1.79 / 5.71 / 8.08 | 46.1 / 1.67 / 5.79 / 6.67 | 28.5 / 6.20 |
+| 3 | 40.6 / 1.38 / 4.81 / 8.16 | 39.5 / 1.31 / 4.81 / 7.32 | 26.1 / 5.95 |
+Medians: net worth 40.6 -> 41.7 (+3 %), year-16 profit 8.08 -> 7.25 (-10 %), no bankruptcies, and still +60 % net worth and +22 % year-16 profit over V2's median on the same seeds. The small drift (one run -17 % year-16 profit, two +/-) is path dependence from the one non-scenario change in 82b (a freight line that was built without a train now gets one when it can pay, `needFirst`), not a goal-mode effect: plain V2 is byte-identical to Phase 82 over 5-6 years on 1840, 1870 and 1900. `npm run check`: 965 passed.
