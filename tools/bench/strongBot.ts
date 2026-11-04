@@ -1104,7 +1104,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
               ? dist(indTile(p), cityCentre(target)) - dist(indTile(q), cityCentre(target))
               : 0,
           )
-          .slice(0, 3);
+          .slice(0, 5);
         for (const i of sources) {
           const out =
             state.industryEconomy.get(i.id)?.monthlyOutput[g.cargo] ??
@@ -1302,7 +1302,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     // Phase 82: projects that serve a scenario's goal are always moves, whatever their payback rank
     const base = lines.length === 0 ? list : list.slice(0, wideMoves);
     const goalMoves = candidates().filter(
-      (p) => p.payback <= 40 && isGoalMove(p.label) && !base.includes(p),
+      (p) => (p.payback <= 40 || goalDeliver !== null) && isGoalMove(p.label) && !base.includes(p),
     );
     const affordable = (lines.length === 0 ? base : [...base, ...goalMoves]).filter(
       (p) => state.cash + borrowRoom(isGoalMove(p.label)) >= p.total + reserve(),
@@ -1378,8 +1378,13 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
               : 8
             : 6;
       // the goal chain grows to its cap whenever cash allows (the solver's "grow 4"): a 99-tile leg cannot pile cargo up
-      const goalChain = line.chain && goalLabels.includes("chain");
-      if (line.trains.length >= cap || (!goalChain && waiting(line) <= load)) continue;
+      const goalChain =
+        (line.chain && goalLabels.includes("chain")) ||
+        (goalDeliver !== null && line.kind === "freight" && line.cargo === goalDeliver.cargo);
+      // a line built without a train (the cash ran out after its track) gets one as soon as it can pay for it
+      const needFirst = line.trains.length === 0;
+      if (line.trains.length >= cap || (!goalChain && !needFirst && waiting(line) <= load))
+        continue;
       if (layUp.lineHasLaidUp(state, line.trains)) continue; // bring a laid-up train back first
       // a train is worth adding only if it pays for itself within the payback the bot accepts
       const d = lineDistance(line);
@@ -1388,8 +1393,8 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
           ? bestPaxLoco(line.cities, d, cars)
           : bestFreightLoco(line.cargo, d, line.carloadsPerMonth * 12, line.cars);
       // the chain's ore pays nothing itself: its worth is the bars it feeds, so it is judged with its line's bars
-      if (!line.chain && (!e || !(e.payback <= MAX_PAYBACK_YEARS))) continue;
-      if (saving && !line.chain && e && e.payback > saving.payback * 1.2) continue;
+      if (!needFirst && !line.chain && (!e || !(e.payback <= MAX_PAYBACK_YEARS))) continue;
+      if (!needFirst && saving && !line.chain && e && e.payback > saving.payback * 1.2) continue;
       if (state.cash < reserve() * 2) continue;
       if (addTrain(line)) did = true;
     }
@@ -1625,7 +1630,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     setChooser,
     hasGoalMove: (): boolean =>
       (goalLabels.length > 0 || goalPair !== null) &&
-      candidates().some((p) => p.payback <= 40 && isGoalMove(p.label)),
+      candidates().some((p) => (p.payback <= 40 || goalDeliver !== null) && isGoalMove(p.label)),
     setGoalLabels,
     setConnectGoal,
     isGoalMove,
