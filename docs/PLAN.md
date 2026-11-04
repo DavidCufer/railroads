@@ -3234,3 +3234,36 @@ merge commits, never force-push. Never loosen a test bound. Look at every PNG.
 4. Never under `?debug=1` (e2e speed), except a dedicated e2e that shows it, takes screenshots at 800x360 and on a 10"
    tablet (light of the first frame and mid-animation), and checks it disappears. PROGRESS; tick ONLY Phase 85.
 Status: [x] 1 [x] 2 [x] 3 [x] 4
+
+## Phase 86 — Crest app icon and the 3D intro clip
+
+Owner (2026-11-04): "For now lets take the second icon the crest one. Please also update intro screen. It can be more like
+first icon and train moving animation, maybe fade out in crest." The owner chose a short pre-rendered 3D clip for the intro
+(an approved exception to "all graphics procedural", for the intro clip and the crest only). The art is made: masters in
+`art/`, sources and commands in `tools/art3d/README.md`. Branch `phase-86-crest-intro` from the latest main; never push to
+main. Never loosen a test bound. Look at every PNG.
+
+1. **App icon = the crest.** Legacy `ic_launcher` / `ic_launcher_round` (all densities) from `art/icon/crest-1024.png`
+   (the round one masked to a circle). Adaptive icon: foreground from `art/icon/crest-foreground-1024.png`, scaled so
+   the whole shield and banner fit the 66/108 safe zone; background the crest's green (`#0E2C20` today; match the
+   crest's field). Update `tools/icon/generate.mjs` to resize the masters (headless Chromium, as now; no new dependency)
+   and write the PNGs. `docs/store/icon-512.png` from the crest. A check page with the icon in a circle, rounded-square
+   and squircle mask at 48 px and 192 px, screenshot in `docs/screenshots/`.
+2. **Intro.** On the first load the `#intro` overlay plays `arrival.webm` (copy to `public/intro/`; muted, autoplay,
+   `playsinline`, full screen with `object-fit: cover` on black). At the end of the clip (about 4.8 s) it cross-fades
+   (~600 ms) into the crest (`public/intro/crest.png`, made from the foreground master, about 512 px) centred on the
+   dark green, with the brass progress line and the rotating status line under it. The title screen comes after that
+   (the first-load hold becomes "clip + about 1 s of crest", or until ready if that is later). A tap skips straight to
+   the crest. If the video can't play (error, or not started within ~1.5 s), show the crest at once.
+   `prefers-reduced-motion`: crest only. `withIntro` (slow steps later) shows the crest only, never the clip. The
+   overlay still paints before JS runs (crest + title as now; the video element starts when JS takes over, or with
+   `autoplay` in the markup). Keep `?debug=1` removing it. Drop the old inline SVG engine if nothing else uses it.
+3. **Store art:** `tools/store/feature.mjs` feature graphic (1024x500): the night still (`art/intro/night-still-1024.png`)
+   with the crest. Update `docs/store/listing.md` if it describes the icon.
+4. **Rules and docs:** record the exception in SPEC (assets row + deviations) and the CLAUDE.md hard rule ("no image
+   assets except the app icon, the crest and the intro clip"). Keep the APK growth small (the clip is about 1 MB; say the
+   size).
+5. **Tests:** the Phase 85 intro e2e updated: it shows the clip (a frame mid-way and the crest after it, 800x360 and a 10"
+   tablet), skip-on-tap works, reduced motion shows the crest only, and the overlay goes away. Screenshots owned:
+   `phase-86-*` and the updated `phase-85-*` intro ones only. PROGRESS; tick ONLY Phase 86.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
