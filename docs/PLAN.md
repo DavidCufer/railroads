@@ -3184,6 +3184,14 @@ rollouts are for big decisions only):
    difference is explained. V2 reference = the Phase 80 medians (merged). STOP after this phase with a short summary.
 Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 [x] 6 (bench met) [ ] 7 (scenarios NOT met, see PROGRESS)
 
+## Phase 82b — Goal-directed play for scenarios (orchestrator, 2026-11-03)
+
+Branch `phase-82b-goals` (from `phase-82-strategist`; merge main when Phase 82 lands; never push to main). Goal-directed moves as
+first-class projects: staged connects, delivery chains planned first with their corridor reserved, a debt-repayment mode for
+survival goals; the scenario runner prints progress lines. Acceptance: each of the 5 scenarios reaches at least the solver's
+stars (Silver Rush 3, Semmering 2, Coal 2, Transcontinental 2, Panic 2-3) or the reason is explained exactly; economy acceptance
+no worse. Status: [x] connect goals [x] survival [x] progress lines [ ] delivery goals (Coal, Silver: NOT met, see PROGRESS)
+
 ## Phase 83 — Map difficulty report
 
 Branch `phase-83-difficulty` (after Phase 82). `npx tsx tools/bench/difficulty.ts <region|scenarioId|random seed> <start> <diff>

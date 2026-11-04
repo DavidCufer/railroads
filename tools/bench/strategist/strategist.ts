@@ -75,6 +75,7 @@ export function scenarioBonus(bot: StrongBot, ratePerMonth = 0): number {
     );
     return 6e6 + 0.5e6 * run.stars + 0.2e6 * left;
   }
+  if (def.goal.type === "connect") return 3e6 * bot.corridorProgress();
   if (def.goal.type === "deliver") {
     const cargo = def.goal.cargo;
     const infra = bot.lines.some((l) => l.chain || l.cargo === cargo) ? 2.5e6 : 0;
@@ -94,6 +95,17 @@ export function goalLabels(bot: StrongBot): string[] {
   return def.goal.cargo === "silverBars" || def.goal.cargo === "enrichedUranium"
     ? ["chain"]
     : [`freight ${def.goal.cargo}`];
+}
+
+/** Big cities close together: sqrt(population product) / (distance + 10), the cautious player's line ranking. */
+function popScore(bot: StrongBot, label: string): number {
+  const m = /^pax (.+)-(.+)$/.exec(label);
+  if (!m) return 0;
+  const a = bot.state.cities.find((c) => c.name === m[1]);
+  const b = bot.state.cities.find((c) => c.name === m[2]);
+  if (!a || !b) return 0;
+  const d = Math.hypot(a.anchorX - b.anchorX, a.anchorY - b.anchorY);
+  return Math.sqrt(a.population * b.population) / (d + 10);
 }
 
 function monthOfYear(bot: StrongBot): number {
@@ -119,6 +131,19 @@ export function attachStrategist(
   const opt = { ...DEFAULT_OPTIONS, ...options };
   const stats: StrategistStats = { decisions: 0, rollouts: 0, ms: 0, picks: {}, waits: 0 };
   bot.setGoalLabels(goalLabels(bot));
+  const sc = bot.state.scenario ? scenarioById(bot.state.scenario.id) : undefined;
+  if (sc?.goal.type === "connect") bot.setConnectGoal(sc.goal.cities[0]!, sc.goal.cities[1]!);
+  // a survival goal (the Panic of 1873): two lines, then no more building, and debt repaid out of every dollar above a
+  // small cash cushion (the solver's good plan: MAXPAIRS 2, KEEP 300k)
+  if (sc?.goal.type === "deliver" && sc.goal.nearCity)
+    bot.setDeliverGoal(sc.goal.cargo, sc.goal.nearCity.name, sc.goal.nearCity.withinTiles);
+  const survive = sc?.goal.type === "survive";
+  const connect = sc?.goal.type === "connect";
+  const deliverFirst = sc?.goal.type === "deliver" && !goalLabels(bot).includes("chain");
+  if (survive) {
+    bot.setRepayKeep(300_000);
+    bot.setWideMoves(40);
+  }
   const goal = goalLabels(bot);
   let plan: string | null = null; // a committed SAVE: build the goal project as soon as it is a move
   let lastTick = -1;
@@ -131,6 +156,7 @@ export function attachStrategist(
     let used = false;
     const holdUntil = fork.state.ticks + opt.waitMonths * MONTH_HOURS;
     fork.setChooser((options) => {
+      if (survive && fork.lines.length >= 2) return null;
       if (move === WAIT) return fork.state.ticks < holdUntil ? null : (options[0]?.label ?? null);
       if (move === SAVE) {
         const hit = options.find((o) => goal.some((g) => o.label.startsWith(g)));
@@ -143,6 +169,12 @@ export function attachStrategist(
       return options[0]?.label ?? null;
     });
     const pace = playMonths(fork, opt.horizonMonths);
+    if (process.env["STDEBUG"] === "2")
+      console.log(
+        "  rollout",
+        move.replace("\u0000", ""),
+        `bankrupt ${fork.state.finance.bankrupt} status ${fork.state.scenario?.status} cash ${Math.round(fork.state.cash / 1000)}k loans ${Math.round(fork.state.finance.loans / 1000)}k lines ${fork.lines.length} year ${fork.year()}`,
+      );
     stats.rollouts++;
     return score(fork, opt.profitMultiple, pace);
   };
@@ -152,6 +184,31 @@ export function attachStrategist(
     // one decision per ten-day step: the bot calls this up to six times in a step
     if (t === lastTick) return null;
     lastTick = t;
+    if (survive && bot.lines.length >= 2) return null;
+    // a delivery goal that is plain freight (coal to a port): its cargo lines come first, best payback first; the passenger
+    // lines that pay for the rest are built only when no goal line is affordable
+    if (deliverFirst) {
+      const g = options
+        .filter((o) => bot.isGoalMove(o.label))
+        .sort((p, q) => p.payback - q.payback)[0];
+      if (g) {
+        stats.picks["goal"] = (stats.picks["goal"] ?? 0) + 1;
+        return g.label;
+      }
+    }
+    // a connect goal: build toward it, in order of how directly a project connects the two cities; wait (save) when none
+    // of the projects that serve the goal is affordable
+    if (connect) {
+      const ranked = options
+        .map((o) => ({ o, r: bot.goalRank(o.label) }))
+        .filter((x) => x.r < 3)
+        .sort((p, q) => p.r - q.r || p.o.payback - q.o.payback);
+      if (ranked[0]) {
+        stats.picks["goal"] = (stats.picks["goal"] ?? 0) + 1;
+        return ranked[0].o.label;
+      }
+      return bot.lines.length === 0 ? (options[0]?.label ?? null) : null;
+    }
     // a scenario whose goal needs a project that costs most of the starting cash (the silver chain): one earning line first,
     // then everything else waits until the goal project is affordable (the solver's staged plan, found by the same reasoning)
     if (!plan && opt.goalFirst && goal.length > 0 && bot.lines.length > 0 && bot.hasGoalMove()) {
@@ -168,7 +225,11 @@ export function attachStrategist(
       return null;
     }
     const t0 = Date.now();
-    const moves = options.slice(0, opt.maxMoves).map((o) => o.label);
+    const moves = (
+      survive
+        ? [...options].sort((p, q) => popScore(bot, q.label) - popScore(bot, p.label)).slice(0, 6)
+        : options.slice(0, opt.maxMoves)
+    ).map((o) => o.label);
     let best = WAIT;
     let bestScore = -Infinity;
     // a company with no line yet never waits: it has nothing to protect and nothing to learn from waiting
