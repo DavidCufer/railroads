@@ -28,6 +28,35 @@ while (state.scenario?.status === "active" && bot.year() <= lastYear && months <
   bot.monthA();
   bot.monthB(Math.floor(state.ticks / 720) % 12);
   months++;
+  if (process.env["TRACE_CHAIN"] && months >= Number(process.env["TRACE_CHAIN"])) {
+    const parts = state.trains
+      .filter((t) => t.cars.some((c) => c.cargoType.startsWith("silver")))
+      .map(
+        (t) =>
+          `t${t.id}:${t.cars[0]!.cargoType === "silverOre" ? "ore" : "bar"}:${t.status}:o${t.currentOrderIndex}:r${t.routeIndex}/${t.route.length}`,
+      );
+    const sm = state.industries.find((i) => i.type === "smelter")!;
+    console.log(
+      "TRACE",
+      months,
+      parts.join(" "),
+      "| report",
+      JSON.stringify(
+        (
+          state.industryEconomy.get(sm.id) as unknown as {
+            lastReport?: { tick: number; received: Record<string, number> };
+          }
+        )?.lastReport?.received ?? {},
+      ),
+      "| smelter out",
+      JSON.stringify(state.industryEconomy.get(sm.id)?.monthlyOutput ?? {}),
+      "| stock",
+      state.stationCargo.get(Number(process.env["OREST"] ?? 6))?.silverOre?.amount?.toFixed(0),
+      state.stationCargo.get(Number(process.env["BARST"] ?? 4))?.silverBars?.amount?.toFixed(0),
+      "| progress",
+      Math.round(state.scenario!.progress),
+    );
+  }
   if (months % 12 === 0)
     console.log(
       `PROGRESS ${bot.year()} cash ${Math.round(state.cash / 1000)}k loans ${Math.round(state.finance.loans / 1000)}k NW ${(netWorth(state) / 1e6).toFixed(2)}M lines ${bot.lines.length} trains ${state.trains.length} progress ${Math.round(state.scenario!.progress)} ${Math.round((Date.now() - t0) / 1000)}s`,
@@ -85,6 +114,9 @@ if (process.env["DUMP"]) {
     );
   for (const i of state.industries)
     if (["silverMine", "smelter", "mint"].includes(i.type))
+      console.log("INDECON", i.id, i.type, JSON.stringify(state.industryEconomy.get(i.id)));
+  for (const i of state.industries)
+    if (["silverMine", "smelter", "mint"].includes(i.type))
       console.log(
         "INDUSTRY",
         i.id,
@@ -92,6 +124,17 @@ if (process.env["DUMP"]) {
         `tile ${i.y * state.map.width + i.x}`,
         JSON.stringify(state.industryEconomy.get(i.id)?.monthlyOutput ?? {}),
       );
+  for (const [id, e] of state.stationEconomy)
+    console.log(
+      "STNECON",
+      id,
+      JSON.stringify(Object.keys(e)),
+      JSON.stringify(
+        (e as unknown as { accepts?: unknown; acceptance?: unknown }).accepts ??
+          (e as unknown as { acceptance?: unknown }).acceptance ??
+          null,
+      ),
+    );
   for (const [id, e] of state.stationEconomy) console.log("SUPPLY", id, JSON.stringify(e.supply));
   console.log("CARGO delivered", JSON.stringify(state.cargoDeliveredThisYear));
 }

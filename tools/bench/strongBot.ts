@@ -800,8 +800,8 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       (locomotiveById(loco)!.maxSpeedKmh * 0.8 * AVERAGE_SPEED_SHARE) / KMH_PER_TILE_PER_DAY;
     const trainsFor = (loads: number, cars: number, d: number, loco: string): number =>
       Math.max(1, Math.min(4, Math.ceil(loads / (cars * (30 / (2 * (d / tpd(loco)) + 6))))));
-    const nA = Math.min(1, trainsFor(oreLoads, pickA.cars, dA, pickA.id));
-    const nB = Math.min(1, trainsFor(barLoads, pickB.cars, dB, pickB.id));
+    const nA = 2; // the solver's plan starts with two ore trains and grows to four
+    const nB = 1;
     // plain stations: a terminal at the shared smelter blocks the ore trains while a bar train waits there for its full load
     const big: StationType = "station";
     const carsA = pickA.cars;
@@ -812,7 +812,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       stationCost(legB.ta, big) + stationCost(legB.tb, "station") + stationCost(legA.ta, big);
     const track = legA.trackCost + legB.trackCost;
     // the ore and bar trains are bought inside the build; leave room for two more of each
-    const total = track + stations + (nA + 1) * costA + (nB + 1) * costB;
+    const total = track + stations + nA * costA + nB * costB;
     const dTotal = dist(indTile(mine), indTile(sink));
     const kmh = Math.min(
       locomotiveById(pickB.id)!.maxSpeedKmh,
@@ -1357,10 +1357,14 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
             : 8
           : line.chain
             ? goalLabels.includes("chain")
-              ? 2
+              ? line.cargo === "silverBars" || line.cargo === "enrichedUranium"
+                ? 1
+                : 2
               : 8
             : 6;
-      if (line.trains.length >= cap || waiting(line) <= load) continue;
+      // the goal chain grows to its cap whenever cash allows (the solver's "grow 4"): a 99-tile leg cannot pile cargo up
+      const goalChain = line.chain && goalLabels.includes("chain");
+      if (line.trains.length >= cap || (!goalChain && waiting(line) <= load)) continue;
       if (layUp.lineHasLaidUp(state, line.trains)) continue; // bring a laid-up train back first
       // a train is worth adding only if it pays for itself within the payback the bot accepts
       const d = lineDistance(line);
@@ -1579,7 +1583,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     for (let k = 0; k < 3; k++) {
       day(10);
       sampleBlocks();
-      layUp.manage(state);
+      if (!goalLabels.includes("chain")) layUp.manage(state); // ore pays nothing: its lines would always be "losing"
       spend();
     }
   }
