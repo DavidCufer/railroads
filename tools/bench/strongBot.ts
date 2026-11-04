@@ -1408,7 +1408,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
                   ? Number(process.env["BAR_CAP"] ?? 1)
                   : 6
                 : process.env["CHAIN_ONE"] === "1"
-                  ? 4
+                  ? Number(process.env["ORE_CAP"] ?? 4)
                   : 5
               : 8
             : 6;
