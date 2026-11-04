@@ -907,7 +907,8 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
           .filter(
             (i) =>
               i.id !== from.id &&
-              (INDUSTRIES[i.type].consumes[cargo] ?? 0) > 0 &&
+              // the docks: a port next to the city takes the cargo (it is exported), as do the consumers of it
+              ((INDUSTRIES[i.type].consumes[cargo] ?? 0) > 0 || i.type === "port") &&
               dist(indTile(i), cityCentre(target)) <= gd.within,
           )
           .map((i) => ({ tile: indTile(i), d: dist(indTile(i), indTile(from)), ind: i }))
@@ -1605,6 +1606,10 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       candidates().some((p) => p.payback <= 40 && isGoalMove(p.label)),
     setGoalLabels,
     setConnectGoal,
+    candidateLabels: (): string[] =>
+      candidates().map(
+        (p) => `${p.label} pb ${p.payback.toFixed(1)} total ${Math.round(p.total / 1000)}k`,
+      ),
     setDeliverGoal,
     goalRank,
     corridorProgress,
