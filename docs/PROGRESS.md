@@ -7749,3 +7749,11 @@ Plain V2 output is byte-identical to the Phase 82 branch on 1870 (5 years), 1900
 | 2 | 47.8 / 1.79 / 5.71 / 8.08 | 46.1 / 1.67 / 5.79 / 6.67 | 28.5 / 6.20 |
 | 3 | 40.6 / 1.38 / 4.81 / 8.16 | 39.5 / 1.31 / 4.81 / 7.32 | 26.1 / 5.95 |
 Medians: net worth 40.6 -> 41.7 (+3 %), year-16 profit 8.08 -> 7.25 (-10 %), no bankruptcies, and still +60 % net worth and +22 % year-16 profit over V2's median on the same seeds. The small drift (one run -17 % year-16 profit, two +/-) is path dependence from the one non-scenario change in 82b (a freight line that was built without a train now gets one when it can pay, `needFirst`), not a goal-mode effect: plain V2 is byte-identical to Phase 82 over 5-6 years on 1840, 1870 and 1900. `npm run check`: 965 passed.
+
+### Orchestrator: Phase 82b merged (2026-11-04)
+- Reviewed `phase-82b-goals` (f33389e): tools and docs only, no `src/` or test changes. `npm run check` 965 passed;
+  e2e shards run alone 152 + 151 passed; screenshots reverted (the phase owns none).
+- Scenarios: all five won; four at the solver's stars, Silver Rush 2 of 3 (600 t in June 1888 vs the solver's 1885; the
+  shared-station deadlock in the Strategist's one-station layout is not root-caused, findings above).
+- Economy (1870, seeds 1-3): net worth median +3 %, year-16 profit median -10 % (one seed -17 %); still well ahead of V2.
+- Owner flag: Semmering and Transcontinental are won in month 1 with the first-line start-up credit (no staging needed).
