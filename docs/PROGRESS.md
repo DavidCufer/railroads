@@ -7757,3 +7757,33 @@ Medians: net worth 40.6 -> 41.7 (+3 %), year-16 profit 8.08 -> 7.25 (-10 %), no 
   shared-station deadlock in the Strategist's one-station layout is not root-caused, findings above).
 - Economy (1870, seeds 1-3): net worth median +3 %, year-16 profit median -10 % (one seed -17 %); still well ahead of V2.
 - Owner flag: Semmering and Transcontinental are won in month 1 with the first-line start-up credit (no staging needed).
+
+## 2026-11-04 - Phase 83: the map difficulty report (branch `phase-83-difficulty`, from main 1534723; NOT merged)
+**Result: `npx tsx tools/bench/difficulty.ts <region|scenarioId|random:SEED> [year] [diff] [--quick]` plays three players of the one Strategist bot, rates the map easy / fair / hard / brutal with plain-words reasons, and reports scenarios by the Strategist's stars and margin. Calibrated: 1870 easy (0.3), 1930 brutal (7.5). Tools, tests and docs only; nothing under `src/`.**
+
+### What was built
+- `tools/bench/difficulty.ts` (CLI; plays run in parallel child processes; `--raw FILE` saves every run, `--from FILE` re-rates saved runs in seconds), `difficulty/play.ts` (one play + a map survey), `difficulty/rating.ts` (pure rating), `tests/bench/difficulty.test.ts` (rating monotonic one input at a time, bands increasing, scenario rating, and a quick run on a tiny random map).
+- Players are settings of the same bot: **strong** = the Strategist (`--quick`: 6-month lookahead, best project vs waiting, one decision per 60 days via the new Strategist option `decideEveryDays`, default 0); **cautious** = plain V2 with `setBorrowScale(0.4)` (new setter in `strongBot.ts`, default 1: V2 output unchanged); **sloppy** = plain V2 whose chooser waits 10 % / builds a random affordable project 40 % of the time, from its own seeded generator.
+- Quick mode plays 1 Strategist seed and 3 seeds of the cheap players (bankruptcy is rare; one seed hides it), 8 years: about 4-7 minutes per map on 4 cores. The first quick design (9-month lookahead, 2 moves) took over 15 minutes for 8 years, so it was cut down.
+- Rating = trouble score of five ramps (profit, failure, slow start, skill gap, crisis); bands easy < 2.5, fair < 4.5, hard < 6.5, brutal above. The "good player" for profit and the skill gap is the best of the three players, because the quick Strategist can trail plain V2 (1840, 1860, 1930).
+- Docs: `docs/bench/difficulty-calibration.md` (bands, calibration table, reasons logic, findings, trust), `difficulty-eras.md` (11 era/difficulty rows), `difficulty-random.md`, `difficulty-scenarios.md`, `difficulty-runs.jsonl` (raw runs).
+
+### Results (quick, central-eu)
+| map | score | rating | main reason |
+|---|---|---|---|
+| 1840 / 1860 / 1870 / 1900 normal | 1.0 / 0.0 / 0.3 / 0.8 | easy | first line pays back in 1-2 years, mild crises |
+| 1920 normal | 3.5 | fair | thin profit, 1929 crash (-28 %) ahead |
+| 1930 normal | 7.5 | brutal | banking crisis year 2 (-42 %), sloppy play bankrupt in 2 of 3 runs |
+| random seed 5, 1880 | 3.2 | fair | skill matters (sloppy earns 4 %), one sloppy bankruptcy |
+| Semmering / Transcontinental | - | easy | whole line built in month 1 on the start-up credit |
+| Panic of 1873 | - | fair | won with 3 stars but only 1.42x the profit bar |
+| Coal for Trieste / Silver Rush | - | hard | won with 9 % / 23 % of the time left; Silver Rush 2 of the solver's 3 stars |
+Full-lookahead check, 1930 normal (Strategist 18 months, 1 seed, 8 years): brutal (7.2), as quick.
+
+### Findings for the owner (not changed)
+- **Hard is not harder here**: 1870 Hard 1.5 vs Normal 0.3, 1900 Hard = Normal, and 1930 Hard is easier than 1930 Normal (year-5 profit 0.95M vs 0.33M) although its crisis is deeper. One seed each; same complaint as Phases 79/80; Phase 84's canary should pin it.
+- No era falls in the hard band; its 4.5 / 6.5 edges are set by reasoning, not measured (written in the calibration doc). Scenarios (Coal, Silver Rush) are the only hard maps.
+- Semmering / Transcontinental stay easy because the first-line start-up credit pays for the whole direct line (the Phase 82b flag).
+
+### Checks
+`npm run check` 970 passed (the new test adds about 90 s under load). Both e2e shards: see the line below.
