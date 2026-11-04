@@ -311,6 +311,26 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     return null;
   }
 
+  /** The cheapest valid stretch between any of the start and end tiles (the scenario solver's `cheapest`). */
+  function cheapestLeg(from: number[], to: number[]): Leg | null {
+    const stationTiles = new Set(state.stations.map((x) => x.tile));
+    const land = landPrices(state);
+    let best: Leg | null = null;
+    for (const ta of from)
+      for (const tb of to) {
+        const path = findBuildPath(state.map, ta, tb, year(), {
+          respectTurns: { graph: state.trackGraph, stationTiles },
+          land,
+        });
+        if (!path || path.length < 4) continue;
+        const plan = commands.computeBuildPlan(state, path);
+        if (!plan.valid) continue;
+        if (!best || plan.cost < best.trackCost)
+          best = { ta, tb, path, trackCost: plan.cost, edges: plan.toBuild.length };
+      }
+    return best;
+  }
+
   function stationCost(tile: number, type: StationType): number {
     return commands.computeStationBuildPlan(state, tile, type).cost;
   }
@@ -778,7 +798,18 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     // that cover it, and half of them are lost; the other half is plenty (the smelter makes 40 t a month).
     const oreEnd = (): number[] =>
       freeAround(indTile(plant), indTile(mine), 2).filter((t) => dist(t, legB!.ta) > 2.5);
-    const legA = legB ? planLeg(freeAround(indTile(mine), indTile(plant), 2), oreEnd(), 8) : null;
+    // dev flag CHAIN_ONE=1: the solver's layout (one smelter station, the ore line joining the bars line at the cheapest junction)
+    const one = process.env["CHAIN_ONE"] === "1";
+    const sampleTiles = (tiles: number[], n: number): number[] => {
+      const cap = tiles.slice(0, 24);
+      const step = Math.max(1, Math.floor(cap.length / n));
+      return cap.filter((_, i) => i % step === 0).slice(0, n);
+    };
+    const legA = !legB
+      ? null
+      : one
+        ? cheapestLeg(sampleTiles(freeAround(indTile(mine), indTile(plant), 2), 4), joins(legB))
+        : planLeg(freeAround(indTile(mine), indTile(plant), 2), oreEnd(), 8);
     if (process.env["CHAINDBG"]) console.log("CHAIN1", year(), "legB", !!legB, "legA", !!legA);
     if (!legB || !legA) {
       chainRetryAt = state.ticks + 90 * DAY;
@@ -819,7 +850,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       stationCost(legB.ta, big) +
       stationCost(legB.tb, "station") +
       stationCost(legA.ta, big) +
-      stationCost(legA.tb, big);
+      (one ? 0 : stationCost(legA.tb, big));
     const track = legA.trackCost + legB.trackCost;
     // the ore and bar trains are bought inside the build; leave room for two more of each
     const total = track + stations + nA * costA + nB * costB;
@@ -868,23 +899,22 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
           carloadsPerMonth: barLoads,
           cars: pickB.cars,
           locoId: fast.id,
-          maxWaitDays: 120,
+          maxWaitDays: one ? 12 : 120,
           chain: true,
         };
         lines.push(barLine);
         // the ore line is planned again now that the bars line's track is on the map
-        const again = planLeg(freeAround(indTile(mine), indTile(plant), 2), oreEnd(), 8);
+        const again = one
+          ? cheapestLeg(sampleTiles(freeAround(indTile(mine), indTile(plant), 2), 4), joins(legB))
+          : planLeg(freeAround(indTile(mine), indTile(plant), 2), oreEnd(), 8);
         if (!again || !ok(commands.buildTrack(state, again.path))) {
           for (let i = 0; i < Math.min(nB, 2); i++) addTrain(barLine);
           return true;
         }
-        if (
-          !ok(commands.buildStation(state, again.ta, big)) ||
-          !ok(commands.buildStation(state, again.tb, big))
-        )
-          return true;
+        if (!ok(commands.buildStation(state, again.ta, big))) return true;
+        if (!one && !ok(commands.buildStation(state, again.tb, big))) return true;
         const m = state.stations.find((x) => x.tile === again.ta)!;
-        const oreAtSmelter = state.stations.find((x) => x.tile === again.tb)!;
+        const oreAtSmelter = one ? smelter : state.stations.find((x) => x.tile === again.tb)!;
         shed(m);
         const oreLine: Line = {
           kind: "freight",
@@ -898,6 +928,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
           blocked: 0,
           carloadsPerMonth: oreLoads,
           cars: pickA.cars,
+          ...(one ? { maxWaitDays: 12 } : {}),
           locoId: fast.id,
           chain: true,
         };
@@ -1373,8 +1404,12 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
           : line.chain
             ? goalLabels.includes("chain")
               ? line.cargo === "silverBars" || line.cargo === "enrichedUranium"
-                ? 6
-                : 5
+                ? process.env["CHAIN_ONE"] === "1"
+                  ? 4
+                  : 6
+                : process.env["CHAIN_ONE"] === "1"
+                  ? 4
+                  : 5
               : 8
             : 6;
       // the goal chain grows to its cap whenever cash allows (the solver's "grow 4"): a 99-tile leg cannot pile cargo up
@@ -1396,6 +1431,14 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       if (!needFirst && !line.chain && (!e || !(e.payback <= MAX_PAYBACK_YEARS))) continue;
       if (!needFirst && saving && !line.chain && e && e.payback > saving.payback * 1.2) continue;
       if (state.cash < reserve() * 2) continue;
+      // the solver grows a leg only while there is cash to spare (more than half a million over the reserve)
+      if (
+        goalChain &&
+        process.env["CHAIN_ONE"] === "1" &&
+        line.chain &&
+        state.cash < reserve() + 500_000
+      )
+        continue;
       if (addTrain(line)) did = true;
     }
     return did;
