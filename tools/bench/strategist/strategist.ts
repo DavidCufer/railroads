@@ -26,6 +26,9 @@ export interface StrategistOptions {
   waitMonths: number;
   /** With a scenario goal project: build one earning line, then save for the goal project. */
   goalFirst: boolean;
+  /** Phase 83 (quick difficulty report): between two lookahead decisions at least this many days apart the bot builds its
+   * default best project instead (0 = a decision at every step). */
+  decideEveryDays: number;
 }
 
 export const DEFAULT_OPTIONS: StrategistOptions = {
@@ -34,6 +37,7 @@ export const DEFAULT_OPTIONS: StrategistOptions = {
   profitMultiple: 3,
   waitMonths: 3,
   goalFirst: true,
+  decideEveryDays: 0,
 };
 
 export interface StrategistStats {
@@ -147,6 +151,7 @@ export function attachStrategist(
   const goal = goalLabels(bot);
   let plan: string | null = null; // a committed SAVE: build the goal project as soon as it is a move
   let lastTick = -1;
+  let lastDecision = -1;
   let lastChoice: string | null = null;
 
   const rollout = (move: string): number => {
@@ -224,6 +229,9 @@ export function attachStrategist(
       }
       return null;
     }
+    if (opt.decideEveryDays > 0 && lastDecision >= 0 && t - lastDecision < opt.decideEveryDays * 24)
+      return options[0]?.label ?? null;
+    lastDecision = t;
     const t0 = Date.now();
     const moves = (
       survive

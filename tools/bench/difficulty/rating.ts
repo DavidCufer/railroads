@@ -44,8 +44,7 @@ export function ramp(x: number, from: number, to: number, max: number): number {
 export function parts(m: Metrics): Part[] {
   const profit = m.profitRatio5 === null ? 3 : ramp(m.profitRatio5, 1.0, 0, 3);
   const failure = 4 * m.strongBankrupt + 1.5 * m.cautiousBankrupt + 1 * m.sloppyBankrupt;
-  const slow =
-    (ramp(m.firstProfitMonth ?? 48, 6, 36, 2) + ramp(m.paybackYears ?? 10, 2, 8, 2)) / 2;
+  const slow = (ramp(m.firstProfitMonth ?? 48, 6, 36, 2) + ramp(m.paybackYears ?? 10, 2, 8, 2)) / 2;
   return [
     { name: "profit", points: profit, max: 3 },
     { name: "failure", points: failure, max: 6.5 },
@@ -91,19 +90,27 @@ export function summarize(runs: readonly Run[], refYear = referenceYear(runs)): 
   const strong = of("strong");
   const rate = (rs: Run[]): number =>
     rs.length ? rs.filter((r) => r.bankruptYear !== null).length / rs.length : 0;
-  const med = (rs: Run[]): number | null => median(rs.map((r) => profitAt(r, refYear)).filter(Number.isFinite));
+  const med = (rs: Run[]): number | null =>
+    median(rs.map((r) => profitAt(r, refYear)).filter(Number.isFinite));
   const s = med(strong);
   const l = med(of("sloppy"));
   const startCash = median(strong.map((r) => r.startCash)) ?? 1;
   const ratio = s === null ? null : s / startCash;
-  const gap = s !== null && l !== null && s > 0 ? Math.min(1, Math.max(0, 1 - Math.max(0, l) / s)) : s !== null && s <= 0 ? 0 : 0;
+  const gap =
+    s !== null && l !== null && s > 0
+      ? Math.min(1, Math.max(0, 1 - Math.max(0, l) / s))
+      : s !== null && s <= 0
+        ? 0
+        : 0;
   const depth = Math.max(0, ...strong.flatMap((r) => r.panics.map((p: Panic1) => p.depth)));
   return {
     profitRatio5: ratio,
     strongBankrupt: rate(strong),
     cautiousBankrupt: rate(of("cautious")),
     sloppyBankrupt: rate(of("sloppy")),
-    firstProfitMonth: median(strong.map((r) => r.firstProfitMonth).filter((x): x is number => x !== null)),
+    firstProfitMonth: median(
+      strong.map((r) => r.firstProfitMonth).filter((x): x is number => x !== null),
+    ),
     paybackYears: median(strong.map((r) => r.paybackYears).filter((x): x is number => x !== null)),
     skillGap: gap,
     panicDepth: depth,
@@ -117,16 +124,23 @@ export function reasons(m: Metrics, runs: readonly Run[], survey: Survey | null)
   const p = parts(m);
   const pts = (n: string): number => p.find((x) => x.name === n)?.points ?? 0;
   if (m.strongBankrupt > 0)
-    out.push([10, `even the lookahead player goes bankrupt (${Math.round(m.strongBankrupt * 100)} % of runs)`]);
+    out.push([
+      10,
+      `even the lookahead player goes bankrupt (${Math.round(m.strongBankrupt * 100)} % of runs)`,
+    ]);
   if (m.sloppyBankrupt > 0 || m.cautiousBankrupt > 0)
     out.push([
       pts("failure"),
       `ordinary play goes bankrupt (sloppy ${Math.round(m.sloppyBankrupt * 100)} %, cautious ${Math.round(m.cautiousBankrupt * 100)} % of runs)`,
     ]);
   const idle = median(strong.map((r) => r.idleShare)) ?? 0;
-  const first = median(strong.map((r) => (r.firstLineCapital ?? 0) / (r.startCash + r.startCredit))) ?? 0;
+  const first =
+    median(strong.map((r) => (r.firstLineCapital ?? 0) / (r.startCash + r.startCredit))) ?? 0;
   if (first > 0.6 && idle < 0.05)
-    out.push([3, "capital-limited: the first line eats most of the money and cash never sits idle"]);
+    out.push([
+      3,
+      "capital-limited: the first line eats most of the money and cash never sits idle",
+    ]);
   const first1 = strong.find((r) => r.panics.length)?.panics.sort((a, b) => b.depth - a.depth)[0];
   if (first1 && first1.depth >= 0.08)
     out.push([
@@ -134,21 +148,31 @@ export function reasons(m: Metrics, runs: readonly Run[], survey: Survey | null)
       `crisis at year ${Math.floor(first1.atYear) + 1}: ${first1.name}, demand falls ${Math.round(first1.depth * 100)} %`,
     ]);
   if (pts("profit") >= 1.5)
-    out.push([pts("profit"), `weak profit: about ${(m.profitRatio5 ?? 0).toFixed(2)}x the starting cash a year in year 5`]);
+    out.push([
+      pts("profit"),
+      `weak profit: about ${(m.profitRatio5 ?? 0).toFixed(2)}x the starting cash a year in year 5`,
+    ]);
   if (pts("slow start") >= 1)
     out.push([
       pts("slow start"),
       `slow start: first profit after ${m.firstProfitMonth ?? "never"} months, first line paid back in ${m.paybackYears?.toFixed(1) ?? "never"} years`,
     ]);
   if (m.skillGap >= 0.35)
-    out.push([pts("skill gap"), `skill matters: sloppy play earns ${Math.round((1 - m.skillGap) * 100)} % of the strong player's profit`]);
+    out.push([
+      pts("skill gap"),
+      `skill matters: sloppy play earns ${Math.round((1 - m.skillGap) * 100)} % of the strong player's profit`,
+    ]);
   if (survey) {
     if (survey.good <= 3)
       out.push([2, `few good town pairs: only ${survey.good} projects pay back inside 9 years`]);
     if ((survey.medianPairTiles ?? 0) > 45)
-      out.push([1.5, `long distances: the best town pairs are ${Math.round(survey.medianPairTiles ?? 0)} tiles apart`]);
+      out.push([
+        1.5,
+        `long distances: the best town pairs are ${Math.round(survey.medianPairTiles ?? 0)} tiles apart`,
+      ]);
   }
-  if (out.length === 0) out.push([0, "nothing in the way: money comes quickly and mistakes are forgiven"]);
+  if (out.length === 0)
+    out.push([0, "nothing in the way: money comes quickly and mistakes are forgiven"]);
   return out.sort((a, b) => b[0] - a[0]).map((x) => x[1]);
 }
 

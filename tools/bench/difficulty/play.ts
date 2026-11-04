@@ -1,7 +1,7 @@
 /**
  * Phase 83: plays one company for the difficulty report and returns plain numbers.
  * Three players, all settings of the same bot (`strongBot.ts`), no new bots:
- *   - strong   = the Strategist (lookahead; `quick` shortens the lookahead: 9 months, 2 moves);
+ *   - strong   = the Strategist (lookahead; `quick` shortens it: 6 months, the best project against waiting);
  *   - cautious = the plain V2 policy that borrows 40 % as much as V2 (never leans on the lenders), no lookahead;
  *   - sloppy   = the plain V2 policy that, half the time, builds a random affordable project (not the best) and sometimes
  *                waits, drawn from its own seeded generator (the report must stay deterministic).
@@ -115,7 +115,7 @@ export function playCompany(spec: Spec, variant: Variant, o: PlayOptions): Run {
   if (variant === "strong")
     attachStrategist(
       bot,
-      o.quick ? { horizonMonths: 9, maxMoves: 2, waitMonths: 3 } : {},
+      o.quick ? { horizonMonths: 6, maxMoves: 1, waitMonths: 3, decideEveryDays: 60 } : {},
     );
   else if (variant === "cautious") bot.setBorrowScale(0.4);
   else {

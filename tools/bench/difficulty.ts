@@ -11,7 +11,14 @@ import { execFile } from "node:child_process";
 import { appendFileSync } from "node:fs";
 import { promisify } from "node:util";
 import { scenarioById } from "../../src/data/scenarios";
-import { playCompany, surveyMap, type Run, type Spec, type Survey, type Variant } from "./difficulty/play";
+import {
+  playCompany,
+  surveyMap,
+  type Run,
+  type Spec,
+  type Survey,
+  type Variant,
+} from "./difficulty/play";
 import {
   median,
   profitAt,
@@ -111,7 +118,9 @@ const M = (x: number | null | undefined, d = 2): string =>
   x === null || x === undefined || !Number.isFinite(x) ? "-" : (x / 1e6).toFixed(d);
 const out: string[] = [];
 const title =
-  spec.kind === "scenario" ? `scenario ${spec.id}` : `${spec.id} ${spec.startYear} ${spec.difficulty}`;
+  spec.kind === "scenario"
+    ? `scenario ${spec.id}`
+    : `${spec.id} ${spec.startYear} ${spec.difficulty}`;
 out.push(`## ${title}${quick ? " (quick)" : ""}`, "");
 if (spec.kind === "scenario") {
   const r = results[0]!;
