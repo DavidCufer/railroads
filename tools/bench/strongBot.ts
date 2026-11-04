@@ -156,6 +156,12 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     return Math.max(25_000, month);
   }
 
+  /** Phase 83: the "cautious" difficulty-report player borrows only this share of what V2 would (1 = V2, byte-identical). */
+  let borrowScale = 1;
+  const setBorrowScale = (x: number): void => {
+    borrowScale = x;
+  };
+
   /** What the bot will still borrow: a third of net worth at most, and at most half the lenders' limit, so a panic (which cuts
    * the limit to 60 %) or a lean year does not leave debt over the limit, the lenders call it, and the call empties the cash. */
   function borrowRoom(forGoal = goalBuilding): number {
@@ -166,7 +172,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       BORROW_LIMIT_SHARE * commands.creditLimit(state),
       MAX_DEBT_SHARE * netWorth(state),
     );
-    return Math.max(0, room - state.finance.loans);
+    return Math.max(0, borrowScale * room - state.finance.loans);
   }
 
   function ensureCash(needed: number): boolean {
@@ -1700,6 +1706,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     setRepayKeep,
     setWideMoves,
     setCandidateBudget,
+    setBorrowScale,
     simMs: (): number => simMs,
   };
 }
