@@ -1373,8 +1373,8 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
           : line.chain
             ? goalLabels.includes("chain")
               ? line.cargo === "silverBars" || line.cargo === "enrichedUranium"
-                ? 5
-                : 3
+                ? 6
+                : 5
               : 8
             : 6;
       // the goal chain grows to its cap whenever cash allows (the solver's "grow 4"): a 99-tile leg cannot pile cargo up
