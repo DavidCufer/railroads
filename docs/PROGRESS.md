@@ -7695,25 +7695,27 @@ Proposed next step (Phase 82b, before Phase 83): goal-directed moves as first-cl
 `npm run check` 965 passed. Phase 80's merged medians were used as the V2 reference. Two shell mishaps cost time (a `pkill -f` matched its own shell; a `git stash` during a pull merge conflicted on PLAN.md: resolved by keeping Phases 82-84 and main's Phase 85).
 
 ## 2026-11-04 - Phase 82b: goal-directed play for scenarios (branch `phase-82b-goals`, from phase-82-strategist 426026c; NOT merged)
-**Result: 3 of the 5 scenarios now reach the solver's stars (Semmering 2, Transcontinental 2, Panic 3); Coal for Trieste and Silver Rush do not, with the reasons below.**
+**Result: all five scenarios are won; four reach the solver's stars (Semmering 2, Transcontinental 2, Coal 2, Panic 3) and Silver Rush reaches 2 of the solver's 3 (explained below).**
 | scenario | solver | Strategist 82b |
 |---|---|---|
 | Semmering | 2 stars | **won, 2 stars** (month 1) |
 | Transcontinental | 2 stars | **won, 2 stars** (month 1) |
-| Panic of 1873 | 2-3 stars (3 with the Phase 80 bars) | **won, 3 stars**, profit $1.2M, net worth $6.1M (solver $3.8M) |
-| Coal for Trieste | 2 stars | **lost**: 0 t delivered by 1865 (stopped at the deadline year) |
-| Silver Rush ($2M) | 3 stars | **lost**: chain built early (1881) and runs, but 42 t of 600 t by 1887 (stopped) |
+| Panic of 1873 | 3 stars (Phase 80 bars) | **won, 3 stars**, profit $1.2M, net worth $6.1M (solver $3.8M) |
+| Coal for Trieste | 2 stars | **won, 2 stars**: 8,009 t by March 1865, profit $401k |
+| Silver Rush ($2M) | 3 stars (1885-05, profit $1.07M) | **won, 2 stars**: 600 t in June 1888, profit $1.8M (stars: win, profit >= $1.0M; the date star needs 1885) |
 
-### What changed
-- `scenario.ts` prints a PROGRESS line each year (and `--months N`, `DUMP=1|2` of trains / stations / industries); a run now shows where it is.
-- **Connect goals**: the bot knows the corridor (towns within 16 tiles of the line between the two cities); the direct line between them (however long), corridor legs and lines from either end city are always moves (`goalRank` 0 / 1 / 2), and the Strategist builds in that order (wait when none is affordable). Both connect scenarios are won in the first month.
-- **Survival goal**: two lines, then no more building; debt repaid out of every dollar above a $300k cushion; the six best big-city pairs (population / distance, the cautious player's ranking) are tried by rollouts, and rollouts keep the same settings (forks carry the goal settings in the bot memory; before this every rollout over-built and went bankrupt).
-- **Delivery goals**: a goal's cargo projects are always moves (`isGoalMove`), may borrow like a first line (`borrowRoom(forGoal)`), and the delivery pace over the last four rollout months is projected to the deadline in the score. Silver chain: the solver's one-station layout (`chainOneStation`: bars line smelter -> mint first, ore line joining it, plain stations, fastest freight engine, ore trains bought first, bar trains do not wait for a full load at the shared station: a waiting bar train blocked the ore trains and the smelter made nothing).
+### What changed (all in `tools/bench/`, gated on a scenario goal; nothing under `src/`)
+- `scenario.ts` prints a PROGRESS line each year (`--months N`, `DUMP=1|2`, `TRACE_CHAIN=<month>` dump trains / stations / industries); `scenarioSolver.ts` got the same trace (`STRACE`) to compare against.
+- **Connect goals**: corridor towns (within 16 tiles of the line between the two cities); the direct line, corridor legs and lines from either end city are always moves, built in that order. Both connect scenarios win in the first month (flagged to the owner below).
+- **Survival goal**: two lines, then no building; debt repaid above a $300k cushion; the six best big-city pairs (population / distance) tried by rollouts; rollouts keep the same settings (fork memory carries them; before this every rollout over-built and went bankrupt).
+- **Delivery goals**: goal cargo projects are always moves whatever their payback (Coal needs a second mine at payback 167+ years), the sink is the port next to the city (not the steel mills 12 tiles away: the old filter found no consumer within 8 tiles, so no coal line existed), may borrow like a first line, lines with no train get one when cash allows (the second and third mine lines were built without a train and stayed empty), goal-cargo lines grow to their cap whenever cash allows.
+- **Silver chain** (`chainOneStation`): bars line smelter -> mint first, then the ore line with its **own station and its own track** at the smelter, fastest freight engine that hauls four cars (as the solver's `pickLoco`), 4-car consists, no right-sizing, no lay-up (ore pays nothing, so its lines always "lose"), 2 ore trains first, growth to 5 ore / 6 bar trains, bar trains wait up to 120 days for a load.
 
-### Why Silver Rush and Coal are not met
-- **Silver Rush**: the chain now builds at the right time (after one earning line, 1881) and the smelter makes 40 bars a month at best, but the engines in 1880 pull only 2 cars, so one ore train moves about a third of the mine's output over a 100-tile line, and the shared single-track line jams with more trains; the solver's plan gets its 600 t with 4-car trains. I did not find where the 4-car consist the solver uses comes from (`maxCars` of the fastest freight engine is 2 here). Next: read how `scenarioSolver` buys its 4-car trains, and add a second ore leg or a siding.
-- **Coal for Trieste**: freight projects of coal exist but none ends at the Trieste docks; my delivery-goal sink filter (consumers within 8 tiles of Trieste) did not change the run (identical numbers to the run without it), so `sinksFor` for the goal is still not reached or returns nothing; not debugged.
-- Flag for the owner: the two connect scenarios are won in the first month because the bot builds the direct line with the first-line start-up credit (`borrowRoom` for the first line is 0.9 x the credit limit). The solver's staged plans were the "intended" route; with this credit the direct line is affordable at once, so the $450k / $650k starts do not force staging (Phase 76 wanted that).
+### Why Silver Rush gets 2 stars, not 3 (exactly)
+The solver's 3 stars come from the one-station layout (ore and bars share the smelter station and the line to the mint). In the Strategist that layout deadlocks for years: a bar train inside the shared station waits for the block that an ore train waiting for the platform occupies (traces: bar trains `stuck` at the start of their route, progress flat at 116-120 t from month 32 to 70). With a separate ore station nothing deadlocks, but the smelter's bars are split between the two stations that cover it and half are lost (the game's producer split, the same "output-split trap" Phase 76 found), so the plant's 40 t a month gives about 20 usable; delivered bars run at about 100 t a year, 600 t take until 1888 against the solver's 1885. The next step would be a passing siding or a second platform at the shared station (a game feature, out of scope: "no src changes"), or ore trains that unload without entering the bar platform.
+
+### Flag for the owner (not changed, per the orchestrator)
+The two connect scenarios are won in the first month because the bot builds the direct line with the first-line start-up credit (`borrowRoom` for the first line is 0.9 x the credit limit); the $450k / $650k starts do not force staging.
 
 ### Economy acceptance
-Plain V2 output is byte-identical to the Phase 82 branch on 1900 (6 years) and 1870 (5 years) after the 82b changes (checked with a worktree of phase-82-strategist). All goal logic is gated on a scenario goal being set, so the Strategist's economy path is unchanged; I did not rerun the 9-run Phase 82 bench (hours). `npm run check`: 965 passed.
+Plain V2 output is byte-identical to the Phase 82 branch on 1870 (5 years), 1900 (6) and 1840 (6) after the 82b changes (worktree comparison). Strategist economy bench: see `docs/bench/phase82b.md` (1870, seeds 1-3, against the Phase 82 rows). `npm run check`: 965 passed.
