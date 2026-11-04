@@ -11,7 +11,9 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const res = path.join(root, "android/app/src/main/res");
 const uri = (p) => "data:image/png;base64," + fs.readFileSync(path.join(res, p)).toString("base64");
-const bg = fs.readFileSync(path.join(res, "values/ic_launcher_background.xml"), "utf8").match(/#[0-9A-Fa-f]{6}/)[0];
+const bg = fs
+  .readFileSync(path.join(res, "values/ic_launcher_background.xml"), "utf8")
+  .match(/#[0-9A-Fa-f]{6}/)[0];
 const masks = { circle: "50%", rounded: "22%", squircle: "38% / 38%" };
 const cell = (size, radius, inner) =>
   `<div style="width:${size}px;height:${size}px;border-radius:${radius};overflow:hidden;position:relative;background:#fff">${inner}</div>`;
@@ -27,7 +29,11 @@ for (const size of [48, 192]) {
       `<div style="position:absolute;inset:0;background:${bg}"></div><img src="${fg}" style="position:absolute;width:${(size * 108) / 72}px;left:${(-size * 18) / 72}px;top:${(-size * 18) / 72}px">`,
     );
   }
-  html += cell(size, "50%", `<img src="${uri("mipmap-xxxhdpi/ic_launcher_round.png")}" width="${size}">`);
+  html += cell(
+    size,
+    "50%",
+    `<img src="${uri("mipmap-xxxhdpi/ic_launcher_round.png")}" width="${size}">`,
+  );
   html += cell(size, "12%", `<img src="${uri("mipmap-xxxhdpi/ic_launcher.png")}" width="${size}">`);
   html += `</div>`;
 }

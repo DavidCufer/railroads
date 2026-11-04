@@ -47,7 +47,7 @@ No ads, no purchases, no user-generated content, no violence, no network. Target
 First release of Iron & Steam. Build railways from the steam age to electric trains on real maps or random ones. Scenarios, goals, achievements, and a yearly report. No ads, no accounts, works offline.
 
 ## Graphics
-- App icon: `docs/store/icon-512.png` (512×512)
-- Feature graphic: `docs/store/feature-graphic.png` (1024×500)
+- App icon: `docs/store/icon-512.png` (512×512): the crest (brass shield, 3D engine, "IRON & STEAM" banner)
+- Feature graphic: `docs/store/feature-graphic.png` (1024×500): the night arrival still with the crest
 - Phone screenshots (1920×1080): `docs/store/screenshots/phone-*.png`
 - 10-inch tablet screenshots (2560×1600): `docs/store/screenshots/tablet10-*.png`

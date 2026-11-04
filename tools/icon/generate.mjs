@@ -69,10 +69,16 @@ const write = (p, buf) => fs.writeFileSync(path.join(root, p), buf);
 
 for (const [d, size] of Object.entries(LEGACY)) {
   write(`android/app/src/main/res/mipmap-${d}/ic_launcher.png`, await render(full, size, "square"));
-  write(`android/app/src/main/res/mipmap-${d}/ic_launcher_round.png`, await render(full, size, "round"));
+  write(
+    `android/app/src/main/res/mipmap-${d}/ic_launcher_round.png`,
+    await render(full, size, "round"),
+  );
 }
 for (const [d, size] of Object.entries(FG))
-  write(`android/app/src/main/res/mipmap-${d}/ic_launcher_foreground.png`, await render(fg, size, "fg"));
+  write(
+    `android/app/src/main/res/mipmap-${d}/ic_launcher_foreground.png`,
+    await render(fg, size, "fg"),
+  );
 write(
   "android/app/src/main/res/values/ic_launcher_background.xml",
   `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">${BG}</color>\n</resources>\n`,
