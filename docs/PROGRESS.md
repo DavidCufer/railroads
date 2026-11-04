@@ -7795,3 +7795,29 @@ Full-lookahead check (Strategist 18 months, 1 seed, 8 years; `difficulty-eras-fu
   V2, so the report uses the best of the three players; no era lands in the hard band (scenarios do).
 - Owner flags: Hard is not measurably harder than Normal (1870, 1900, 1930; one seed each); Semmering and
   Transcontinental rate easy (month-1 win on the start-up credit).
+
+## Phase 86: crest app icon and the 3D intro clip
+
+- **Icon:** `tools/icon/generate.mjs` now resizes the masters in `art/icon/` (headless Chromium, no new dependency) into
+  all legacy and round mipmaps, the adaptive foreground, `docs/store/icon-512.png` and `public/intro/crest.png`. The
+  adaptive foreground is scaled so the shield + banner box corners fit the 66/108 safe-zone *circle* (a square fit
+  clipped the banner tips under a circle mask); background `#0F3828` (the crest's field mid tone). `tools/icon/check.mjs`
+  draws the icon under circle / rounded / squircle masks at 48 and 192 px: `docs/screenshots/phase-86-icon-masks.png`
+  (looked at: the adaptive icon fits every mask; the legacy round icon, which is the master as is, clips the banner tips a little).
+- **Intro:** `#intro` is now video layer (`/intro/arrival.webm`, autoplay muted playsinline in the markup, fades in on
+  `playing`) over the crest layer (`/intro/crest.png`, brass bar, status line; the title is kept as hidden text for
+  screen readers). At the end of the clip the video fades out over 600 ms; the overlay leaves clip + about 1 s later,
+  or when the title screen is ready if that is later. Tap = straight to the crest. Error, `play()` rejected, or not
+  started within 1.5 s = crest at once. `prefers-reduced-motion` removes the video. `withIntro` shows the crest only.
+  `?debug=1` still removes the overlay. The old inline SVG engine and its CSS are gone.
+- **Store art:** `tools/store/feature.mjs` now builds the feature graphic from the night still + the crest.
+- **Docs:** SPEC assets row and a Deviations entry; CLAUDE.md hard rule now allows the app icon, the crest picture and
+  the intro clip.
+- **Tests:** `e2e/intro.spec.ts` (6 tests): first paint, mid-clip (waits for `currentTime > 2.3`), crest after the clip,
+  then gone, on 800x360 and 1280x800; tap skips; reduced motion = crest only, no video element; clip request aborted
+  = crest at once; debug has no intro. Headless Chromium plays the VP9 clip reliably, so the real playback path is
+  tested, not only the fallback. Looked at the first, mid and crest PNGs for both sizes and the reduced-motion one.
+- **APK size:** about +0.58 MB for the new files (`arrival.webm` 364 KB, `crest.png` 217 KB) and about +0.16 MB for the
+  larger launcher PNGs (230 KB -> 388 KB), so roughly +0.7 MB.
+- **Checks:** `npm run check` 970 passed; e2e shards run alone, 153 + 153 passed. Not checked: playback on a real
+  Android WebView (no emulator here).

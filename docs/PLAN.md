@@ -3266,4 +3266,4 @@ main. Never loosen a test bound. Look at every PNG.
 5. **Tests:** the Phase 85 intro e2e updated: it shows the clip (a frame mid-way and the crest after it, 800x360 and a 10"
    tablet), skip-on-tap works, reduced motion shows the crest only, and the overlay goes away. Screenshots owned:
    `phase-86-*` and the updated `phase-85-*` intro ones only. PROGRESS; tick ONLY Phase 86.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5

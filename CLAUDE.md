@@ -26,7 +26,7 @@ This repo is **Iron & Steam** (formerly Railroads), a 2D railway tycoon game for
 - All player actions go through `src/sim/commands.ts` and return `{ok}` / `{ok:false, reason}`.
 - Renderers never mutate state. UI never mutates state except via commands.
 - Game balance numbers live in `src/data/` tables, not scattered in logic.
-- All graphics are procedural (canvas drawing, cached to offscreen canvases). No image asset files except the app icon.
+- All graphics are procedural (canvas drawing, cached to offscreen canvases). No image asset files except the app icon, the crest picture and the intro clip (Phase 86; `art/` holds the masters).
 - User-facing strings go in `src/ui/strings.ts`.
 - TypeScript strict; no `any` without a comment explaining why.
 - Keep dependencies minimal; ask the user before adding a runtime dependency beyond those named in SPEC §1.
