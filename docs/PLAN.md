@@ -3204,7 +3204,7 @@ Branch `phase-83-difficulty` (after Phase 82). `npx tsx tools/bench/difficulty.t
 - works on every region, random-map seed, start year, difficulty and scenario (a scenario reports the stars the
   Strategist reaches and the margin).
 `--quick` (minutes: 1 seed, 8 years, no depth-2) gives a coarse rating. Output as markdown for `docs/bench/difficulty-*.md`.
-Tests: the report runs on a tiny map in quick mode and the rating function is monotonic. Status: [ ] done
+Tests: the report runs on a tiny map in quick mode and the rating function is monotonic. Status: [x] done (branch `phase-83-difficulty`; see PROGRESS and `docs/bench/difficulty-calibration.md`)
 
 ## Phase 84 — Canary test and goals from the Strategist
 
