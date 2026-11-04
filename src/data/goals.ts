@@ -65,7 +65,10 @@ export type GoalDefByName =
  */
 export type GoalMetric = "profit" | "revenue";
 
-/** Phase 80: the medians below are re-benched with passenger fares x0.92 (`docs/bench/phase80.md`, same bot, seeds and
+/** Phase 84: the medians below are the STRATEGIST's (full lookahead, `tools/bench/strategist.ts`), Normal, central-eu, seeds 1-3,
+ * medians of three, no bankruptcies: 1840 and 1930 from `docs/bench/phase82.md`, 1870 from `phase82b.md` (the code after
+ * Phase 82b), 1900 and 1950 from `phase84.jsonl`. They replace V2's Phase 80 medians (below). Hard keeps V2's reference.
+ * Phase 80: the medians below are re-benched with passenger fares x0.92 (`docs/bench/phase80.md`, same bot, seeds and
  * method; the Phase 77 figures are in `docs/bench/phase77.md`). Strong player V2 (Phase 77, `tools/bench/strongPlayer.ts`), Normal, medians ($M, completed years 5 / 10 / 16;
  * `docs/bench/phase77.md`, run on the merged branch with Phases 76 and 78, 10 seeds per era, the runs still alive), after the travellers' game scale of 0.8
  * (`TRIPS_GAME_SCALE`). Replaces the Phase 69 medians (the Phase 59-69 bot, kept as `strongPlayerV1.ts`). 1930: 8 of the 10
@@ -76,11 +79,11 @@ export const STRONG_PLAYER_MEDIANS: ReadonlyArray<{
   revenue: readonly [number, number, number];
   profit: readonly [number, number, number];
 }> = [
-  { era: 1840, revenue: [0.69, 1.57, 6.31], profit: [0.29, 0.82, 3.7] },
-  { era: 1870, revenue: [1.63, 5.98, 10.66], profit: [0.96, 3.34, 5.92] },
-  { era: 1900, revenue: [1.68, 3.54, 6.83], profit: [0.85, 1.48, 2.42] },
-  { era: 1930, revenue: [0.78, 0.77, 0.8], profit: [0.23, 0.11, 0.14] },
-  { era: 1950, revenue: [2.63, 2.61, 3.42], profit: [0.88, 0.46, 0.5] },
+  { era: 1840, revenue: [1.07, 3.28, 7.98], profit: [0.56, 1.76, 5.17] },
+  { era: 1870, revenue: [2.26, 9.25, 12.39], profit: [1.39, 5.64, 7.25] },
+  { era: 1900, revenue: [4.67, 8.47, 8.88], profit: [2.8, 3.73, 2.18] },
+  { era: 1930, revenue: [3.15, 6.08, 6.3], profit: [1.87, 2.57, 1.34] },
+  { era: 1950, revenue: [1.24, 1.22, 1.26], profit: [0.32, 0.35, 0.4] },
 ];
 
 const MEDIAN_YEARS = [5, 10, 16] as const;

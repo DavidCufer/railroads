@@ -91,11 +91,11 @@ export interface BenchMedians {
   profit: readonly [number, number, number];
 }
 export const V2_MEDIANS_NORMAL: readonly BenchMedians[] = [
-  { era: 1840, revenue: [0.69, 1.57, 6.31], profit: [0.29, 0.82, 3.7] },
-  { era: 1870, revenue: [1.63, 5.98, 10.66], profit: [0.96, 3.34, 5.92] },
-  { era: 1900, revenue: [1.68, 3.54, 6.83], profit: [0.85, 1.48, 2.42] },
-  { era: 1930, revenue: [0.78, 0.77, 0.8], profit: [0.23, 0.11, 0.14] },
-  { era: 1950, revenue: [2.63, 2.61, 3.42], profit: [0.88, 0.46, 0.5] },
+  { era: 1840, revenue: [1.07, 3.28, 7.98], profit: [0.56, 1.76, 5.17] },
+  { era: 1870, revenue: [2.26, 9.25, 12.39], profit: [1.39, 5.64, 7.25] },
+  { era: 1900, revenue: [4.67, 8.47, 8.88], profit: [2.8, 3.73, 2.18] },
+  { era: 1930, revenue: [3.15, 6.08, 6.3], profit: [1.87, 2.57, 1.34] },
+  { era: 1950, revenue: [1.24, 1.22, 1.26], profit: [0.32, 0.35, 0.4] },
 ];
 /** The same on Hard (5 seeds per era). */
 export const V2_MEDIANS_HARD: readonly BenchMedians[] = [
