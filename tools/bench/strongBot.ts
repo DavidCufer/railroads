@@ -1405,7 +1405,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
             ? goalLabels.includes("chain")
               ? line.cargo === "silverBars" || line.cargo === "enrichedUranium"
                 ? process.env["CHAIN_ONE"] === "1"
-                  ? 4
+                  ? Number(process.env["BAR_CAP"] ?? 1)
                   : 6
                 : process.env["CHAIN_ONE"] === "1"
                   ? 4
