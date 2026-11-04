@@ -7821,3 +7821,11 @@ Full-lookahead check (Strategist 18 months, 1 seed, 8 years; `difficulty-eras-fu
   larger launcher PNGs (230 KB -> 388 KB), so roughly +0.7 MB.
 - **Checks:** `npm run check` 970 passed; e2e shards run alone, 153 + 153 passed. Not checked: playback on a real
   Android WebView (no emulator here).
+
+### Orchestrator: Phase 86 merged (2026-11-04)
+- Reviewed `phase-86-crest-intro` (48c75a6): crest icon in every density (legacy, round, adaptive on #0F3828), store icon
+  512, feature graphic (night still + crest), intro = 3D clip then cross-fade to the crest, tap skips, reduced motion shows
+  the crest only. SPEC and CLAUDE.md record the owner-approved exception (app icon, crest, intro clip).
+- `npm run check` 970 passed; e2e shards run alone 153 + 153 passed; run screenshots reverted (the phase's own kept).
+- Looked at the icon masks (48 and 192 px), the intro mid-clip and the crest frame, and the feature graphic. Note: the legacy
+  round icon (Android 7 and older only) clips the banner tips slightly.
