@@ -51,7 +51,7 @@ The rating is a **trouble score** (0 = nothing in the way). Five parts, each a s
 | 1950 normal | 2.0 | easy | 0.80 / 1.04 / 0.91 | 0, 0, 0 | recessions of 1953 and 1973 (-9 %, -10 %) | quiet |
 | random map seed 5, 1880 normal | 3.2 | fair | 0.83 / 0.53 / 0.03 | 0, 0, 1 of 3 | Panic of 1884 (-7 %) | skill matters: sloppy play earns 4 % of the strong profit and one run goes bankrupt |
 
-Full-lookahead check (Strategist 18 months, 8 years): see `difficulty-eras-full.md` if it exists (long run; the numbers did not change the bands).
+Full-lookahead check (`difficulty-eras-full.md`, Strategist 18 months, 1 seed, 8 years): 1870 normal easy (0.7; Strategist year-5 profit 1.61M against 1.37M quick), 1930 normal brutal (7.2; 0.48M against 0.33M). The bands did not move.
 
 The two anchors hold: **1870 easy** (0.3, edge 2.5) and **1930 brutal** (7.5, edge 6.5). The easy edge sits above the highest "everyday" era (1950 at 2.0) and below the first map with a real problem (1920 at 3.5, random seed 5 at 3.2). The hard / brutal edge (6.5) is below 1930's 7.5 and above everything else measured; **no era lands in the hard band**, so the 4.5 and 6.5 edges are set by reasoning (a map where the strong player is fine but ordinary play fails in most runs, or the strong player itself fails once, reaches 4.5 to 6.5) and not pinned by a measured era. Scenarios fill the gap (Coal for Trieste and Silver Rush rate hard by their margin rule). If a future run puts a known-hard map in that gap, move the edges here and in `BANDS` (rating.ts); `--from docs/bench/difficulty-runs.jsonl` re-rates all saved runs in seconds.
 

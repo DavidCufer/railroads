@@ -7778,7 +7778,7 @@ Medians: net worth 40.6 -> 41.7 (+3 %), year-16 profit 8.08 -> 7.25 (-10 %), no 
 | Semmering / Transcontinental | - | easy | whole line built in month 1 on the start-up credit |
 | Panic of 1873 | - | fair | won with 3 stars but only 1.42x the profit bar |
 | Coal for Trieste / Silver Rush | - | hard | won with 9 % / 23 % of the time left; Silver Rush 2 of the solver's 3 stars |
-Full-lookahead check, 1930 normal (Strategist 18 months, 1 seed, 8 years): brutal (7.2), as quick.
+Full-lookahead check (Strategist 18 months, 1 seed, 8 years; `difficulty-eras-full.md`): 1870 normal easy (0.7), 1930 normal brutal (7.2), as quick.
 
 ### Findings for the owner (not changed)
 - **Hard is not harder here**: 1870 Hard 1.5 vs Normal 0.3, 1900 Hard = Normal, and 1930 Hard is easier than 1930 Normal (year-5 profit 0.95M vs 0.33M) although its crisis is deeper. One seed each; same complaint as Phases 79/80; Phase 84's canary should pin it.
@@ -7786,4 +7786,4 @@ Full-lookahead check, 1930 normal (Strategist 18 months, 1 seed, 8 years): bruta
 - Semmering / Transcontinental stay easy because the first-line start-up credit pays for the whole direct line (the Phase 82b flag).
 
 ### Checks
-`npm run check` 970 passed (the new test adds about 90 s under load). Both e2e shards: see the line below.
+`npm run check` 970 passed (the new test adds about 90 s under load). Both e2e shards run alone: 152 + 151 passed; screenshots reverted.
