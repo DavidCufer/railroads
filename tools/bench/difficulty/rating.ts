@@ -15,7 +15,7 @@ export const BANDS: ReadonlyArray<readonly [Rating, number]> = [
 ];
 
 export interface Metrics {
-  /** Strong player, median over seeds: completed-year operating profit / starting cash. */
+  /** Best player's median completed-year operating profit (reference year, 5 when reached) / starting cash. */
   profitRatio5: number | null;
   strongBankrupt: number;
   cautiousBankrupt: number;
@@ -23,7 +23,7 @@ export interface Metrics {
   /** Months to the first operating profit (median; null = never), and years to pay back the first line (null = never). */
   firstProfitMonth: number | null;
   paybackYears: number | null;
-  /** 1 - sloppy / strong operating profit at the reference year (0 = skill does not matter). */
+  /** 1 - sloppy / best operating profit at the reference year (0 = skill does not matter). */
   skillGap: number;
   /** Depth (0-1) of the deepest downturn that falls inside the horizon (0 = none). */
   panicDepth: number;
@@ -43,7 +43,7 @@ export function ramp(x: number, from: number, to: number, max: number): number {
 
 export function parts(m: Metrics): Part[] {
   const profit = m.profitRatio5 === null ? 3 : ramp(m.profitRatio5, 1.0, 0, 3);
-  const failure = 4 * m.strongBankrupt + 1.5 * m.cautiousBankrupt + 1 * m.sloppyBankrupt;
+  const failure = 4 * m.strongBankrupt + 2 * m.cautiousBankrupt + 2.5 * m.sloppyBankrupt;
   const slow = (ramp(m.firstProfitMonth ?? 48, 6, 36, 2) + ramp(m.paybackYears ?? 10, 2, 8, 2)) / 2;
   return [
     { name: "profit", points: profit, max: 3 },
@@ -92,9 +92,14 @@ export function summarize(runs: readonly Run[], refYear = referenceYear(runs)): 
     rs.length ? rs.filter((r) => r.bankruptYear !== null).length / rs.length : 0;
   const med = (rs: Run[]): number | null =>
     median(rs.map((r) => profitAt(r, refYear)).filter(Number.isFinite));
-  const s = med(strong);
+  // "what a good player earns" is the best median of the three players: the lookahead player is the best in a full run, but in
+  // a `--quick` run its lookahead is so short that a plain policy can beat it, and the rating must not depend on that
+  const meds = [med(strong), med(of("cautious")), med(of("sloppy"))].filter(
+    (x): x is number => x !== null,
+  );
+  const s = meds.length ? Math.max(...meds) : null;
   const l = med(of("sloppy"));
-  const startCash = median(strong.map((r) => r.startCash)) ?? 1;
+  const startCash = median(runs.map((r) => r.startCash)) ?? 1;
   const ratio = s === null ? null : s / startCash;
   const gap =
     s !== null && l !== null && s > 0

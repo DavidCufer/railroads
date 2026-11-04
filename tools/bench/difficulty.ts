@@ -8,7 +8,7 @@
  * rating (easy / fair / hard / brutal) and the reasons. A scenario reports the Strategist's stars and margin.
  */
 import { execFile } from "node:child_process";
-import { appendFileSync } from "node:fs";
+import { appendFileSync, readFileSync } from "node:fs";
 import { promisify } from "node:util";
 import { scenarioById } from "../../src/data/scenarios";
 import {
@@ -31,7 +31,7 @@ import {
 
 const exec = promisify(execFile);
 const argv = process.argv.slice(2);
-const VALUE_FLAGS = ["--seeds", "--years", "--jobs", "--size", "--out"];
+const VALUE_FLAGS = ["--seeds", "--years", "--jobs", "--size", "--out", "--raw", "--from"];
 const flag = (n: string): boolean => argv.includes(n);
 const opt = (n: string, d: string): string => {
   const i = argv.indexOf(n);
@@ -88,12 +88,32 @@ interface Job {
 }
 const jobs: Job[] = [];
 if (spec.kind === "scenario") jobs.push({ variant: "strong", seed: 1 });
-else
-  for (let s = 0; s < seeds; s++)
-    for (const variant of ["strong", "cautious", "sloppy"] as Variant[])
-      jobs.push({ variant, seed: seedBase + s });
+else {
+  // the lookahead player is expensive, so `--quick` plays it on one seed; the two plain-policy players cost about a minute
+  // each and always get at least three seeds (a bankruptcy is a rare event: one seed would hide it)
+  const cheapSeeds = Math.max(seeds, 3);
+  for (let s = 0; s < cheapSeeds; s++) {
+    if (s < seeds) jobs.push({ variant: "strong", seed: seedBase + s });
+    jobs.push(
+      { variant: "cautious", seed: seedBase + s },
+      { variant: "sloppy", seed: seedBase + s },
+    );
+  }
+}
 
 const results: Run[] = [];
+const key = `${target}|${spec.startYear}|${spec.difficulty}|${quick ? "quick" : "full"}`;
+const rawFile = opt("--raw", "");
+const fromFile = opt("--from", "");
+if (fromFile) {
+  // re-rate saved runs without playing (the rating bands can then be refitted in seconds)
+  for (const l of readFileSync(fromFile, "utf8").split("\n")) {
+    if (!l) continue;
+    const row = JSON.parse(l) as { key: string; run: Run };
+    if (row.key === key) results.push(row.run);
+  }
+  jobs.length = 0;
+}
 async function worker(): Promise<void> {
   for (;;) {
     const j = jobs.shift();
@@ -106,12 +126,15 @@ async function worker(): Promise<void> {
     );
     const line = stdout.split("\n").find((l) => l.startsWith("RESULT "));
     if (!line) throw new Error(`worker gave no result for ${j.variant} seed ${j.seed}`);
-    results.push(JSON.parse(line.slice(7)) as Run);
+    const run = JSON.parse(line.slice(7)) as Run;
+    results.push(run);
+    if (rawFile) appendFileSync(rawFile, JSON.stringify({ key, run }) + "\n");
     process.stderr.write(`done ${j.variant} seed ${j.seed}\n`);
   }
 }
 const t0 = Date.now();
 const survey: Survey = surveyMap(spec, seedBase);
+if (results.length === 0 && jobs.length === 0) throw new Error(`no saved runs for ${key}`);
 await Promise.all(Array.from({ length: Math.min(jobsN, jobs.length) }, worker));
 
 const M = (x: number | null | undefined, d = 2): string =>
@@ -177,7 +200,7 @@ if (spec.kind === "scenario") {
     return `| ${v} | ${rs.length} | ${at(5)} | ${at(10)} | ${at(16)} | ${br} of ${rs.length} | ${fp ?? "-"} | ${pb?.toFixed(1) ?? "-"} |`;
   };
   out.push(
-    `Seeds ${seeds}, ${years} years, start cash $${M(median(strong.map((r) => r.startCash)))}M, credit $${M(median(strong.map((r) => r.startCredit)))}M. Operating profit in $M (median of seeds; \`-\` = not reached in this run length).`,
+    `Seeds ${new Set(strong.map((r) => r.seed)).size} (strong) / ${new Set(of("sloppy").map((r) => r.seed)).size} (plain players), ${years} years, start cash $${M(median(strong.map((r) => r.startCash)))}M, credit $${M(median(strong.map((r) => r.startCredit)))}M. Operating profit in $M (median of seeds; \`-\` = not reached in this run length).`,
     "",
     "| player | runs | profit y5 | y10 | y16 | bankrupt | first profit (month) | first line paid back (years) |",
     "|---|---|---|---|---|---|---|---|",
