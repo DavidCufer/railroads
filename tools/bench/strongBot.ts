@@ -838,8 +838,6 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     const pickB = { ...pickB0, id: fast.id, cars: fastCars };
     const tpd = (loco: string): number =>
       (locomotiveById(loco)!.maxSpeedKmh * 0.8 * AVERAGE_SPEED_SHARE) / KMH_PER_TILE_PER_DAY;
-    const trainsFor = (loads: number, cars: number, d: number, loco: string): number =>
-      Math.max(1, Math.min(4, Math.ceil(loads / (cars * (30 / (2 * (d / tpd(loco)) + 6))))));
     const nA = 2; // the solver's plan starts with two ore trains and grows to four
     const nB = 1;
     // plain stations: a terminal at the shared smelter blocks the ore trains while a bar train waits there for its full load
