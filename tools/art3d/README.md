@@ -23,7 +23,7 @@ rendered in headless Chromium. three.js is NOT a project dependency; install it 
     node shoot-crest.mjs "$PWD/crest.html?bg=1" ../../art/icon/crest-1024.png
     node shoot-crest.mjs "$PWD/crest.html?bg=0" ../../art/icon/crest-foreground-1024.png
     for w in 0 1 2; do ./render-frames.sh $w 3 144 & done; wait
-    ffmpeg -framerate 30 -i frames/f%04d.png -c:v libvpx-vp9 -b:v 0 -crf 36 -row-mt 1 -pix_fmt yuv420p -an ../../art/intro/arrival.webm
+    ffmpeg -framerate 30 -i frames/f%04d.png -c:v libvpx-vp9 -b:v 0 -crf 30 -row-mt 1 -pix_fmt yuv420p -an ../../art/intro/arrival.webm
 
 ## Masters (`art/`)
 - `art/icon/crest-1024.png`: the full icon (green square), source for the legacy mipmaps and the 512 store icon.
