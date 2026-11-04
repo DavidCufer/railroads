@@ -125,8 +125,9 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     blocked: number;
     /** Phase 82b: the engine every train of this line uses (the chain: the fastest freight engine, as the solver's plan). */
     locoId?: string;
-    /** Phase 82b: never wait for a full load (the bar train at the shared smelter station would block the ore trains). */
-    noFullLoad?: boolean;
+    /** Phase 82b: wait for a full load at the source, but at most this many days (the solver's plan: 12), so a bar train at
+     * the shared smelter station never blocks the ore trains for long. */
+    maxWaitDays?: number;
     /** Phase 77: feeder lines share the hub's station and have no stops of their own to extend. */
     feeder?: boolean;
   }
@@ -330,11 +331,13 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       // freight: wait for a full load at the source of a long train; everything else loads what is there
       rule:
         line.kind === "freight" &&
-        !line.noFullLoad &&
         i === 0 &&
-        (line.stops[0]!.type === "terminal" || line.carloadsPerMonth >= 4)
+        (line.stops[0]!.type === "terminal" ||
+          line.carloadsPerMonth >= 4 ||
+          line.maxWaitDays !== undefined)
           ? ("fullLoad" as const)
           : ("auto" as const),
+      ...(line.maxWaitDays !== undefined && i === 0 ? { maxWaitDays: line.maxWaitDays } : {}),
     }));
     commands.setOrders(state, trainId, orders);
   }
@@ -855,7 +858,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
           carloadsPerMonth: barLoads,
           cars: pickB.cars,
           locoId: fast.id,
-          noFullLoad: true,
+          maxWaitDays: 12,
           chain: true,
         };
         lines.push(barLine);
