@@ -7787,3 +7787,11 @@ Full-lookahead check (Strategist 18 months, 1 seed, 8 years; `difficulty-eras-fu
 
 ### Checks
 `npm run check` 970 passed (the new test adds about 90 s under load). Both e2e shards run alone: 152 + 151 passed; screenshots reverted.
+
+### Orchestrator: Phase 83 merged (2026-11-04)
+- Reviewed `phase-83-difficulty` (78bc10a): tools, one bench test and docs; no `src/` changes; the two new bot options
+  default to the old behaviour. `npm run check` 970 passed; e2e shards run alone 152 + 151 passed; screenshots reverted.
+- Calibration met (1870 easy, 1930 brutal, also with full lookahead). Caveat: in quick mode the Strategist can trail plain
+  V2, so the report uses the best of the three players; no era lands in the hard band (scenarios do).
+- Owner flags: Hard is not measurably harder than Normal (1870, 1900, 1930; one seed each); Semmering and
+  Transcontinental rate easy (month-1 win on the start-up credit).
