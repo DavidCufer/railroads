@@ -128,6 +128,8 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     /** Phase 82b: wait for a full load at the source, but at most this many days (the solver's plan: 12), so a bar train at
      * the shared smelter station never blocks the ore trains for long. */
     maxWaitDays?: number;
+    /** Phase 82b: tick of the last train added to a goal-chain line (one a month, as the solver's monthly loop). */
+    lastAddTick?: number;
     /** Phase 82b: never wait at the source (a bar train that waits inside the shared smelter station while an ore train waits
      * for the platform deadlocks the single line). */
     noWait?: boolean;
@@ -1440,7 +1442,19 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
         state.cash < reserve() + 500_000
       )
         continue;
-      if (addTrain(line)) did = true;
+      // one chain train per leg per month (the solver adds trains in its monthly loop), so a leg's trains are spread out
+      if (
+        goalChain &&
+        process.env["CHAIN_ONE"] === "1" &&
+        line.chain &&
+        !needFirst &&
+        state.ticks - (line.lastAddTick ?? -1e9) < 30 * 24
+      )
+        continue;
+      if (addTrain(line)) {
+        did = true;
+        line.lastAddTick = state.ticks;
+      }
     }
     return did;
   }
