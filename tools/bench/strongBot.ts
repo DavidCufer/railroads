@@ -128,6 +128,9 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     /** Phase 82b: wait for a full load at the source, but at most this many days (the solver's plan: 12), so a bar train at
      * the shared smelter station never blocks the ore trains for long. */
     maxWaitDays?: number;
+    /** Phase 82b: never wait at the source (a bar train that waits inside the shared smelter station while an ore train waits
+     * for the platform deadlocks the single line). */
+    noWait?: boolean;
     /** Phase 77: feeder lines share the hub's station and have no stops of their own to extend. */
     feeder?: boolean;
   }
@@ -331,6 +334,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       // freight: wait for a full load at the source of a long train; everything else loads what is there
       rule:
         line.kind === "freight" &&
+        !line.noWait &&
         i === 0 &&
         (line.stops[0]!.type === "terminal" ||
           line.carloadsPerMonth >= 4 ||
@@ -769,9 +773,12 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     );
     const joins = (leg: Leg): number[] =>
       [4, 6, 8, 12, 16, 24, 32].map((k) => leg.path[k]).filter((t): t is number => t !== undefined);
-    const legA = legB
-      ? planLeg(freeAround(indTile(mine), indTile(plant), 2), joins(legB), 8)
-      : null;
+    // the ore line has its own track and its own station at the smelter: no shared line, no shared platform, so no deadlock
+    // (a single line shared by ore and bar trains jammed for years). The smelter's bars are split between the two stations
+    // that cover it, and half of them are lost; the other half is plenty (the smelter makes 40 t a month).
+    const oreEnd = (): number[] =>
+      freeAround(indTile(plant), indTile(mine), 2).filter((t) => dist(t, legB!.ta) > 2.5);
+    const legA = legB ? planLeg(freeAround(indTile(mine), indTile(plant), 2), oreEnd(), 8) : null;
     if (process.env["CHAINDBG"]) console.log("CHAIN1", year(), "legB", !!legB, "legA", !!legA);
     if (!legB || !legA) {
       chainRetryAt = state.ticks + 90 * DAY;
@@ -809,7 +816,10 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     const costA = commands.computeBuyTrainPlan(state, pickA.id, Array(carsA).fill(ore)).cost;
     const costB = commands.computeBuyTrainPlan(state, pickB.id, Array(carsB).fill(bars)).cost;
     const stations =
-      stationCost(legB.ta, big) + stationCost(legB.tb, "station") + stationCost(legA.ta, big);
+      stationCost(legB.ta, big) +
+      stationCost(legB.tb, "station") +
+      stationCost(legA.ta, big) +
+      stationCost(legA.tb, big);
     const track = legA.trackCost + legB.trackCost;
     // the ore and bar trains are bought inside the build; leave room for two more of each
     const total = track + stations + nA * costA + nB * costB;
@@ -858,22 +868,27 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
           carloadsPerMonth: barLoads,
           cars: pickB.cars,
           locoId: fast.id,
-          maxWaitDays: 12,
+          maxWaitDays: 120,
           chain: true,
         };
         lines.push(barLine);
         // the ore line is planned again now that the bars line's track is on the map
-        const again = planLeg(freeAround(indTile(mine), indTile(plant), 2), joins(legB), 8);
+        const again = planLeg(freeAround(indTile(mine), indTile(plant), 2), oreEnd(), 8);
         if (!again || !ok(commands.buildTrack(state, again.path))) {
           for (let i = 0; i < Math.min(nB, 2); i++) addTrain(barLine);
           return true;
         }
-        if (!ok(commands.buildStation(state, again.ta, big))) return true;
+        if (
+          !ok(commands.buildStation(state, again.ta, big)) ||
+          !ok(commands.buildStation(state, again.tb, big))
+        )
+          return true;
         const m = state.stations.find((x) => x.tile === again.ta)!;
+        const oreAtSmelter = state.stations.find((x) => x.tile === again.tb)!;
         shed(m);
         const oreLine: Line = {
           kind: "freight",
-          stops: [m, smelter],
+          stops: [m, oreAtSmelter],
           cities: [],
           cargo: ore,
           trains: [],
@@ -1358,8 +1373,8 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
           : line.chain
             ? goalLabels.includes("chain")
               ? line.cargo === "silverBars" || line.cargo === "enrichedUranium"
-                ? 1
-                : 2
+                ? 5
+                : 3
               : 8
             : 6;
       // the goal chain grows to its cap whenever cash allows (the solver's "grow 4"): a 99-tile leg cannot pile cargo up
