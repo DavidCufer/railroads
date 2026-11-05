@@ -5,3 +5,6 @@ BEST semmering: {"id":"semmering","label":"stage 10 via Graz | stage 36 grow 4",
 
 ## sol-transcontinental-min0.txt
 BEST transcontinental: {"id":"transcontinental","label":"pre San Francisco link 36 | fast 4c x1 FL","status":"won","stars":2,"finishMonth":35,"finish":"1862-12","profit":42910,"spent":931575,"netWorth":380147,"note":" progress 0","strategy":{"engine":"fast","cars":4,"trains":[1],"fullLoad":true,"smelterPick":0,"label":"pre San Francisco link 36 | fast 4c x1 FL","pre":"San Francisco","stageMonth":36}}
+
+## transcontinental, no start-up credit, deadline 1864 instead of 1866
+BEST transcontinental: {"id":"transcontinental","label":"pre San Francisco link 36 | fast 4c x1 FL","status":"won","stars":2,"finishMonth":35,"finish":"1862-12","profit":42910,"spent":931575,"netWorth":380147,"note":" progress 0","strategy":{"engine":"fast","cars":4,"trains":[1],"fullLoad":true,"smelterPick":0,"label":"pre San Francisco link 36 | fast 4c x1 FL","pre":"San Francisco","stageMonth":36}}
