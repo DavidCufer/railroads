@@ -13,7 +13,6 @@
  * seven years, so star 2 is the year-5 median and star 3 the year-7 median (interpolated between years 5 and 10).
  */
 import type { CargoType } from "./cargo";
-import { strongPlayerAmount } from "./goals";
 import type { Difficulty } from "./finance";
 import type { RegionId } from "../sim/regions/types";
 
@@ -52,7 +51,10 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     difficulty: "normal",
     startCash: 450_000,
     goal: { type: "connect", cities: ["Vienna", "Trieste"], byYear: 1855 },
-    stars: [1851, strongPlayerAmount("profit", 5, 1857, 1850)],
+    stars: [
+      1851,
+      320_000 /* Phase 80 figure, pinned: owner 2026-11-05 kept the scenario profit stars when the goal medians moved (Phase 84) */,
+    ],
   },
   {
     id: "coalTrieste",
@@ -68,7 +70,7 @@ export const SCENARIOS: readonly ScenarioDef[] = [
       byYear: 1865,
       nearCity: { name: "Trieste", withinTiles: 8 },
     },
-    stars: [1864, strongPlayerAmount("profit", 5, 1866, 1858)],
+    stars: [1864, 350_000 /* pinned, as above */],
   },
   {
     id: "transcontinental",
@@ -78,7 +80,7 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     difficulty: "normal",
     startCash: 650_000,
     goal: { type: "connect", cities: ["Sacramento", "Salt Lake City"], byYear: 1866 },
-    stars: [1862, strongPlayerAmount("profit", 5, 1869, 1860)],
+    stars: [1862, 360_000 /* pinned, as above */],
   },
   {
     id: "silverRush",

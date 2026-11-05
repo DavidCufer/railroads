@@ -7819,3 +7819,21 @@ Method = Phase 77: `STRONG_PLAYER_MEDIANS` (src/data/goals.ts) and the reference
 | Silver Rush ($1.0M), Panic of 1873 ($650k / $850k) | - | unchanged | hand-set |
 
 Flags for the owner: (1) 1930 goals jump about 9x (random profit gold $0.16M -> $1.5M): V2 lost half its 1930 runs, the Strategist survives all three and earns 1.9M in year 5. (2) **1950 goes down** (0.88 -> 0.32 year-5 profit; revenue 2.6M -> 1.2M): the Strategist trails V2 in 1950 (it also trailed in the quick report), so the 1950 goal is lower than before; a Strategist weakness, not an easier era. (3) Only 3 seeds per era; 1840 and 1930 rows predate Phase 82b. (4) The scenario profit stars nearly double; the solver does not reach them either (profit star was already a stretch).
+
+### Phase 84 (b), owner-approved 2026-11-05 with two changes (supersedes the table above)
+1. **No drops: better of Strategist and V2 per cell** (profit and revenue, y5 / y10 / y16, each era). Result: 1840, 1870, 1930 = Strategist; 1900 = Strategist except year-16 profit 2.42 (V2); 1950 = V2 in every cell (Strategist trailed). Written in `goals.ts` and `referenceOperator.ts`. Final rows ($M y5 / y10 / y16): profit 1840 0.56/1.76/5.17, 1870 1.39/5.64/7.25, 1900 2.80/3.73/2.42, 1930 1.87/2.57/1.34, 1950 0.88/0.46/0.50; revenue 1840 1.07/3.28/7.98, 1870 2.26/9.25/12.39, 1900 4.67/8.47/8.88, 1930 3.15/6.08/6.30, 1950 2.63/2.61/3.42.
+2. **Scenario profit stars unchanged** ($320k / $350k / $360k): pinned as literals in `scenarios.ts` (they no longer follow the table); tests and the e2e literal back to `$350k`.
+`goalCalibration` bounds untouched; the two formula literals there follow the formula (1900 revenue y5 in 1920 money 5.1M; 1870 profit y16 in 1870 money 6.4M). `npm run check` 971 passed; e2e shards 152 + 151 passed, run one at a time; screenshots reverted.
+
+**Final table (old -> new):**
+| goal | old | **new** |
+|---|---|---|
+| gb gold (profit by 1865) | $4.0M | **$5.6M** |
+| central-eu gold (profit by 1875) | $4.3M | **$6.1M** |
+| us-east / us-west silver (revenue by 1880) | $4.0M / $4.0M | **$6.1M / $6.1M** |
+| us-west gold (revenue by 1900) | $8.9M | **$11M** |
+| random profit gold, start 1830 / 1840 / 1870 / 1900 / 1930 / 1950 | $4.5M / 4.8M / 7.4M / 2.9M / 0.16M / 0.58M | **$6.3M / 6.8M / 9.0M / 2.9M / 1.5M / 0.58M** (1900 and 1950 unchanged) |
+| random revenue gold, same starts | $7.7M / 8.3M / 13M / 8.2M / 0.94M / 3.9M | **$9.8M / 10M / 15M / 10M / 7.4M / 3.9M** (1950 unchanged) |
+| achievement rungs | $0.25M / $2.5M / $6M | **$0.25M / $2.5M / $7.5M** (only the top rung; id `profit6M` -> `profit7500k`) |
+| Semmering / Coal / Transcontinental profit star | $320k / $350k / $360k | unchanged |
+| Silver Rush, Panic of 1873 | - | unchanged |

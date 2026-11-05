@@ -108,7 +108,7 @@ export const ACHIEVEMENT_CHECKS: Record<AchievementId, (s: HistoryStats) => bool
   electrified: (s) => s.electrifiedTiles > 0,
   metropolisServed: (s) => s.metropolisServed,
   profit250k: (s) => s.yearlyProfit >= T.profit250k,
-  profit2200k: (s) => s.yearlyProfit >= T.profit2200k,
+  profit2500k: (s) => s.yearlyProfit >= T.profit2500k,
   profit7500k: (s) => s.yearlyProfit >= T.profit7500k,
   passengers100k: (s) => s.passengers >= T.passengers100k,
   freight10k: (s) => s.freight >= T.freight10k,

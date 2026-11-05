@@ -90,12 +90,13 @@ export interface BenchMedians {
   revenue: readonly [number, number, number];
   profit: readonly [number, number, number];
 }
+/** Phase 84, owner 2026-11-05: better of Strategist and V2 per era (each cell, profit and revenue, y5 / y10 / y16, is the higher of the Strategist's median and V2's Phase 80 median; so 1950 and the 1900 year-16 profit keep V2's figures, no goal drops). Strategist rows: docs/bench/phase82.md, phase82b.md, phase84.jsonl; V2 rows: Phase 80 (docs/bench/phase80.md). */
 export const V2_MEDIANS_NORMAL: readonly BenchMedians[] = [
   { era: 1840, revenue: [1.07, 3.28, 7.98], profit: [0.56, 1.76, 5.17] },
   { era: 1870, revenue: [2.26, 9.25, 12.39], profit: [1.39, 5.64, 7.25] },
-  { era: 1900, revenue: [4.67, 8.47, 8.88], profit: [2.8, 3.73, 2.18] },
+  { era: 1900, revenue: [4.67, 8.47, 8.88], profit: [2.8, 3.73, 2.42] },
   { era: 1930, revenue: [3.15, 6.08, 6.3], profit: [1.87, 2.57, 1.34] },
-  { era: 1950, revenue: [1.24, 1.22, 1.26], profit: [0.32, 0.35, 0.4] },
+  { era: 1950, revenue: [2.63, 2.61, 3.42], profit: [0.88, 0.46, 0.5] },
 ];
 /** The same on Hard (5 seeds per era). */
 export const V2_MEDIANS_HARD: readonly BenchMedians[] = [

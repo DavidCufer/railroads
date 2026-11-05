@@ -65,7 +65,8 @@ export type GoalDefByName =
  */
 export type GoalMetric = "profit" | "revenue";
 
-/** Phase 84: the medians below are the STRATEGIST's (full lookahead, `tools/bench/strategist.ts`), Normal, central-eu, seeds 1-3,
+/** Phase 84 rule, owner 2026-11-05: better of Strategist and V2 per era (each cell, profit and revenue, y5 / y10 / y16, is the higher of the Strategist's median and V2's Phase 80 median; so 1950 and the 1900 year-16 profit keep V2's figures, no goal drops).
+ * Strategist figures: the medians below are the STRATEGIST's (full lookahead, `tools/bench/strategist.ts`), Normal, central-eu, seeds 1-3,
  * medians of three, no bankruptcies: 1840 and 1930 from `docs/bench/phase82.md`, 1870 from `phase82b.md` (the code after
  * Phase 82b), 1900 and 1950 from `phase84.jsonl`. They replace V2's Phase 80 medians (below). Hard keeps V2's reference.
  * Phase 80: the medians below are re-benched with passenger fares x0.92 (`docs/bench/phase80.md`, same bot, seeds and
@@ -81,9 +82,9 @@ export const STRONG_PLAYER_MEDIANS: ReadonlyArray<{
 }> = [
   { era: 1840, revenue: [1.07, 3.28, 7.98], profit: [0.56, 1.76, 5.17] },
   { era: 1870, revenue: [2.26, 9.25, 12.39], profit: [1.39, 5.64, 7.25] },
-  { era: 1900, revenue: [4.67, 8.47, 8.88], profit: [2.8, 3.73, 2.18] },
+  { era: 1900, revenue: [4.67, 8.47, 8.88], profit: [2.8, 3.73, 2.42] },
   { era: 1930, revenue: [3.15, 6.08, 6.3], profit: [1.87, 2.57, 1.34] },
-  { era: 1950, revenue: [1.24, 1.22, 1.26], profit: [0.32, 0.35, 0.4] },
+  { era: 1950, revenue: [2.63, 2.61, 3.42], profit: [0.88, 0.46, 0.5] },
 ];
 
 const MEDIAN_YEARS = [5, 10, 16] as const;

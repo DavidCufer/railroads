@@ -72,7 +72,7 @@ test.describe("Phase 46 - scenarios", () => {
     await expect(page.locator(".speed-group button.active")).toHaveAttribute("aria-label", "Pause");
     await expect(page.locator(".speed-group button.active")).toHaveCount(1);
     // The card names what the next star needs (short: it has a word limit); the full ladder is in Goals.
-    await expect(page.getByTestId("scenario-end")).toContainText("★★★ profit $680k");
+    await expect(page.getByTestId("scenario-end")).toContainText("★★★ profit $350k");
     await page.screenshot({ path: shot("scenario-won-ladder") });
     await page.getByRole("button", { name: "Keep playing" }).click();
     await expect(page.getByTestId("scenario-end")).toHaveCount(0);

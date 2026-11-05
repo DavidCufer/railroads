@@ -3213,7 +3213,7 @@ fixed seed per era (Normal and Hard) must stay inside wide bands around recorded
 a balance change moves an era far (the Phase 79/80 problem: 1870 too rich, Hard not harder) and says which. (b) Goals
 re-derived from the Strategist's medians (Phase 77 method: reference operator = its medians, gold year 16, silver 12,
 achievements, scenario stars via the solver); `goalCalibration` bounds unchanged. STOP with an old -> new table for the
-owner. Status: [x] a (canary, ~50 s) [ ] b (waiting for 1900 / 1950 Strategist medians, see PROGRESS)
+owner. Status: [x] a (canary, ~50 s) [x] b (owner approved 2026-11-05; better of Strategist and V2 per era)
 
 ## Phase 85 — Intro screen while the game loads
 
