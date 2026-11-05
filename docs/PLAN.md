@@ -3267,3 +3267,28 @@ main. Never loosen a test bound. Look at every PNG.
    tablet), skip-on-tap works, reduced motion shows the crest only, and the overlay goes away. Screenshots owned:
    `phase-86-*` and the updated `phase-85-*` intro ones only. PROGRESS; tick ONLY Phase 86.
 Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5
+
+## Phase 87 — Hard that is harder; connect scenarios that need staging
+
+Owner (2026-11-05): "Yes and yes" to (1) Hard is not harder than Normal (Phases 79, 80, 83, 84: 1870 Hard ends at the
+same net worth per dollar of start cash as Normal; 1930 Hard earned more than 1930 Normal in year 5), and (2) Semmering
+and Transcontinental are won in month 1 because the start-up credit pays for the whole direct line. Branch
+`phase-87-hard`; never push to main. Real mechanisms only, no fudge factors; balance numbers in `src/data/`. Never loosen
+a test bound.
+
+1. **Investigate Hard (no game change yet).** Bench Normal vs Hard on 1840, 1870, 1900 and 1930 with at least 3 seeds
+   (V2 for speed, plus the Strategist on 1870 and 1930), 16 years, and the Phase 83 difficulty report. Then switch the Hard
+   levers on one at a time from Normal (start cash, build cost, land, breakdowns, interest, leverage premium, credit,
+   tax, panics, risk calls) to see what each one costs. Find the root cause in plain words: which levers bite, which
+   don't, and why (for example, the bots adapt by borrowing less, or a lever only touches costs a good player avoids).
+2. **Propose, then STOP.** Give a table of real mechanisms (lever -> new value or new rule -> expected effect, with
+   bench numbers) that makes Hard clearly harder for a good player: say Hard year-16 net worth per start dollar at most
+   ~0.75x Normal, more bankruptcies for sloppy play, and still winnable by the Strategist. Leave Easy alone. Also give the
+   same kind of table for the connect scenarios: what makes them need staging (for example no start-up credit in
+   scenarios that set their own cash, a credit cap, or a deadline/route that only staged building meets), with
+   Strategist and solver results showing they still win, by staging. The owner approves before step 3.
+3. **Apply the approved changes.** Update the canary to assert "Hard < Normal" (the Phase 84 known issue), and update
+   the difficulty report rows and goals if Hard references move. Rerun the scenario solver and the Strategist on all five
+   scenarios: each is still won, and Semmering / Transcontinental are no longer won in month 1. PROGRESS; tick ONLY
+   Phase 87.
+Status: [ ] 1 [ ] 2 [ ] 3
