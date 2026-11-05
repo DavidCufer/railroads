@@ -83,10 +83,10 @@ function checkMoneyGoal(
 
 describe("goal amounts follow the Phase 65 strong-player formula", () => {
   it("restates the bench median in the goal year's money and rounds down to two figures", () => {
-    // Phase 80 medians (fares x0.92). 1900 row, revenue year 5: $1.68M earned in 1904 (x1.07 to 1920 money = 1.80M), asked in 1920 money, rounded down.
-    expect(strongPlayerAmount("revenue", 5, 1920)).toBe(1_800_000);
-    // 1870 row, year 16: $5.92M earned in 1885 (price index 1.67), asked in 1870 money (1.48): 5.2M.
-    expect(strongPlayerAmount("profit", 16, 1870)).toBe(5_200_000);
+    // Phase 84 medians (the Strategist's). 1900 row, revenue year 5: $4.67M earned in 1904, restated to 1920 money (price index ratio about 1.09 = 5.1M), rounded down.
+    expect(strongPlayerAmount("revenue", 5, 1920)).toBe(5_100_000);
+    // 1870 row, year 16: $7.25M earned in 1885 (price index 1.67), asked in 1870 money (1.48): 6.4M.
+    expect(strongPlayerAmount("profit", 16, 1870)).toBe(6_400_000);
   });
 
   it("no region goal counts cash or net worth", () => {

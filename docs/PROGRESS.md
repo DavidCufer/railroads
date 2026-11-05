@@ -7829,3 +7829,45 @@ Full-lookahead check (Strategist 18 months, 1 seed, 8 years; `difficulty-eras-fu
 - `npm run check` 970 passed; e2e shards run alone 153 + 153 passed; run screenshots reverted (the phase's own kept).
 - Looked at the icon masks (48 and 192 px), the intro mid-clip and the crest frame, and the feature graphic. Note: the legacy
   round icon (Android 7 and older only) clips the banner tips slightly.
+
+## 2026-11-04 - Phase 84: (a) canary done; (b) goals NOT done, blocked on bench time (branch `phase-84-canary`, from main 11e9996; NOT merged)
+**(a) Done.** `tests/sim/canary.test.ts` (runner `tools/bench/canary.ts`): Phase 83's "cautious" V2 on a fixed small random map (seed 3), 2 years, six starts (1840 / 1870 / 1900 / 1930 Normal, 1870 / 1930 Hard) run in parallel child processes; 48 s alone. The quick Strategist is too slow for a test (70 s for 2 years of one era; plain V2 on central-eu is about 30 s a year), hence the cut-down. Bands (wide): net worth 0.6x-1.6x of the record, two-year profit within 0.15 x start cash, bankruptcy year must match. The failure message names the era, the figure and whether the era got richer or poorer (checked by changing one record). Recorded values and date 2026-11-04 are in the test comments.
+**Known issue (not encoded):** Hard is not harder than Normal (Phase 83): per dollar of start cash the 1870 Hard company ends at the same net worth as Normal (0.71 vs 0.71). Written in the test comments; add "Hard < Normal" when Hard is fixed. 1900 Hard on the small map goes bankrupt in its first year, so it is left out of the canary.
+**(b) Not done.** The Strategist's 16-year Normal medians exist only for 1840 / 1870 / 1930 (`phase82.md`, `phase82b.md`, seeds 1-3). 1900 and 1950 are missing, and a goal table needs all five eras. Driver `tools/bench/phase84.ts` (1900 and 1950, seeds 1-3, rows to `docs/bench/phase84.md`) was started twice; the container restarted both times (about every hour) and killed the runs, and a full-lookahead 16-year run takes hours. No goal value was changed; `goalCalibration` untouched; PLAN (b) not ticked.
+Options for the orchestrator: (1) run `npx tsx tools/bench/phase84.ts 100` somewhere that lives for several hours, then derive; (2) use the Strategist rows for 1840 / 1870 / 1930 and keep V2's Phase 80 rows for 1900 / 1950 (mixed sources, owner to accept); (3) bench 1900 / 1950 with `--quick` (not the same bot setting as the other rows). Hard has no Strategist bench either: its reference stays V2's.
+
+### Phase 84 (b): goals from the Strategist's medians (orchestrator chose option 1; same bot for every era). Committed, **NOT ticked in PLAN until the owner approves**
+Method = Phase 77: `STRONG_PLAYER_MEDIANS` (src/data/goals.ts) and the reference operator's Normal table (`tests/sim/referenceOperator.ts`) now hold the Strategist's medians; the formula (gold year 16, silver year 12, rounded down to 2 figures, price index) and every `goalCalibration` bound are unchanged; no test bound loosened (two formula literals in `goalCalibration.test.ts` follow the formula, as in Phases 77/80; one e2e literal `$350k` -> `$680k`). Rows: 1840 and 1930 from `phase82.md`, 1870 from `phase82b.md` (post-82b code), 1900 / 1950 from `docs/bench/phase84.jsonl` (new, resumable driver `tools/bench/phase84.ts`); central-eu, Normal, **3 seeds each (not 10)**, no bankruptcies. Medians $M y5 / y10 / y16, profit: 1840 0.56/1.76/5.17, 1870 1.39/5.64/7.25, 1900 2.80/3.73/2.18, 1930 1.87/2.57/1.34, 1950 0.32/0.35/0.40; revenue: 1840 1.07/3.28/7.98, 1870 2.26/9.25/12.39, 1900 4.67/8.47/8.88, 1930 3.15/6.08/6.30, 1950 1.24/1.22/1.26. Hard has no Strategist bench: its reference stays V2's.
+`npm run check` 971 passed; e2e shards 152 + 150 (then the one failing spec fixed and rerun: 7 passed). Solver, Normal: Semmering 2 stars (Oct 1850), Transcontinental 2 (Dec 1860), Coal 2 (Jul 1864), as before (the profit star is a stretch in both old and new tables: solver profit at the finish is 0 / 0 / 141k).
+
+| goal | old | **new** | reason |
+|---|---|---|---|
+| gb gold (profit by 1865) | $4.0M | **$5.6M** | 1840-row y16: V2 3.70 -> Strategist 5.17 |
+| central-eu gold (profit by 1875) | $4.3M | **$6.1M** | same row |
+| us-east silver / us-west silver (revenue by 1880) | $4.0M / $4.0M | **$6.1M / $6.1M** | 1840/1860 row y12 revenue up with the Strategist |
+| us-west gold (revenue by 1900) | $8.9M | **$11M** | same row, y16 7.98 vs 6.31 |
+| random-map profit gold, start 1830 / 1840 / 1870 / 1900 / 1930 / 1950 | $4.5M / 4.8M / 7.4M / 2.9M / 0.16M / 0.58M | **$6.3M / 6.8M / 9.0M / 2.6M / 1.5M / 0.46M** | each era's own y16 median |
+| random-map revenue gold (same starts) | $7.7M / 8.3M / 13M / 8.2M / 0.94M / 3.9M | **$9.8M / 10M / 15M / 10M / 7.4M / 1.4M** | same |
+| achievement rungs (profit a year) | $0.25M / $2.5M / $6M (`profit250k`, `profit2500k`, `profit6M`) | **$0.25M / $2.2M / $7.5M** (`profit250k`, `profit2200k`, `profit7500k`) | lowest y5 median 0.32, middle y16 median 2.18, best y16 7.25; two ids renamed (strings, test, e2e) |
+| Semmering / Coal / Transcontinental profit star | $320k / $350k / $360k | **$630k / $680k / $700k** | year-5 medians of 1850/1858/1860 starts (1840 row y5 0.29 -> 0.56) |
+| Silver Rush ($1.0M), Panic of 1873 ($650k / $850k) | - | unchanged | hand-set |
+
+Flags for the owner: (1) 1930 goals jump about 9x (random profit gold $0.16M -> $1.5M): V2 lost half its 1930 runs, the Strategist survives all three and earns 1.9M in year 5. (2) **1950 goes down** (0.88 -> 0.32 year-5 profit; revenue 2.6M -> 1.2M): the Strategist trails V2 in 1950 (it also trailed in the quick report), so the 1950 goal is lower than before; a Strategist weakness, not an easier era. (3) Only 3 seeds per era; 1840 and 1930 rows predate Phase 82b. (4) The scenario profit stars nearly double; the solver does not reach them either (profit star was already a stretch).
+
+### Phase 84 (b), owner-approved 2026-11-05 with two changes (supersedes the table above)
+1. **No drops: better of Strategist and V2 per cell** (profit and revenue, y5 / y10 / y16, each era). Result: 1840, 1870, 1930 = Strategist; 1900 = Strategist except year-16 profit 2.42 (V2); 1950 = V2 in every cell (Strategist trailed). Written in `goals.ts` and `referenceOperator.ts`. Final rows ($M y5 / y10 / y16): profit 1840 0.56/1.76/5.17, 1870 1.39/5.64/7.25, 1900 2.80/3.73/2.42, 1930 1.87/2.57/1.34, 1950 0.88/0.46/0.50; revenue 1840 1.07/3.28/7.98, 1870 2.26/9.25/12.39, 1900 4.67/8.47/8.88, 1930 3.15/6.08/6.30, 1950 2.63/2.61/3.42.
+2. **Scenario profit stars unchanged** ($320k / $350k / $360k): pinned as literals in `scenarios.ts` (they no longer follow the table); tests and the e2e literal back to `$350k`.
+`goalCalibration` bounds untouched; the two formula literals there follow the formula (1900 revenue y5 in 1920 money 5.1M; 1870 profit y16 in 1870 money 6.4M). `npm run check` 971 passed; e2e shards 152 + 151 passed, run one at a time; screenshots reverted.
+
+**Final table (old -> new):**
+| goal | old | **new** |
+|---|---|---|
+| gb gold (profit by 1865) | $4.0M | **$5.6M** |
+| central-eu gold (profit by 1875) | $4.3M | **$6.1M** |
+| us-east / us-west silver (revenue by 1880) | $4.0M / $4.0M | **$6.1M / $6.1M** |
+| us-west gold (revenue by 1900) | $8.9M | **$11M** |
+| random profit gold, start 1830 / 1840 / 1870 / 1900 / 1930 / 1950 | $4.5M / 4.8M / 7.4M / 2.9M / 0.16M / 0.58M | **$6.3M / 6.8M / 9.0M / 2.9M / 1.5M / 0.58M** (1900 and 1950 unchanged) |
+| random revenue gold, same starts | $7.7M / 8.3M / 13M / 8.2M / 0.94M / 3.9M | **$9.8M / 10M / 15M / 10M / 7.4M / 3.9M** (1950 unchanged) |
+| achievement rungs | $0.25M / $2.5M / $6M | **$0.25M / $2.5M / $7.5M** (only the top rung; id `profit6M` -> `profit7500k`) |
+| Semmering / Coal / Transcontinental profit star | $320k / $350k / $360k | unchanged |
+| Silver Rush, Panic of 1873 | - | unchanged |
