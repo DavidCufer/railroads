@@ -7871,3 +7871,10 @@ Flags for the owner: (1) 1930 goals jump about 9x (random profit gold $0.16M -> 
 | achievement rungs | $0.25M / $2.5M / $6M | **$0.25M / $2.5M / $7.5M** (only the top rung; id `profit6M` -> `profit7500k`) |
 | Semmering / Coal / Transcontinental profit star | $320k / $350k / $360k | unchanged |
 | Silver Rush, Panic of 1873 | - | unchanged |
+
+### Orchestrator: Phase 84 merged (2026-11-05)
+- Reviewed `phase-84-canary` (194a21f): (a) balance canary (6 era starts, 2 years, about 50 s; Hard = Normal recorded as a
+  known issue, not asserted); (b) goals from the better of the Strategist's and V2's medians per era and column (owner
+  2026-11-05 "new, but no drops"), scenario profit stars unchanged. No goal went down. `goalCalibration` bounds unchanged;
+  the two changed literals follow the formula. Top achievement rung $6M -> $7.5M (id `profit6M` -> `profit7500k`).
+- `npm run check` 971 passed; e2e shards run alone 153 + 153 passed; screenshots reverted.
