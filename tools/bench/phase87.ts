@@ -43,7 +43,14 @@ export function jobsFor(b: string): Job[] {
     for (const seed of [1, 2, 3])
       for (const start of [1870, 1930, 1840, 1900])
         for (const diff of ["normal", "hard"] as const)
-          jobs.push({ id: `base/${start}/${diff}/${seed}`, bot: "strong", start, diff, seed, end: start + 16 });
+          jobs.push({
+            id: `base/${start}/${diff}/${seed}`,
+            bot: "strong",
+            start,
+            diff,
+            seed,
+            end: start + 16,
+          });
   } else if (b === "abl") {
     for (const seed of [1, 2, 3])
       for (const start of [1870, 1930])
@@ -55,12 +62,44 @@ export function jobsFor(b: string): Job[] {
             diff: "normal",
             seed,
             end: start + 12,
-            env: { P79_DIFF: `normal:${keys.split(",").map((k) => `${k}=hard`).join(",")}` },
+            env: {
+              P79_DIFF: `normal:${keys
+                .split(",")
+                .map((k) => `${k}=hard`)
+                .join(",")}`,
+            },
+          });
+  } else if (b === "prop") {
+    // Hard with a candidate mechanism (V2, 12 y; compare with base Hard and Normal at year 12).
+    const VARIANTS: Record<string, string> = {
+      rev90: "hard:revenueMult=0.9",
+      rev80: "hard:revenueMult=0.8",
+      rev85_int: "hard:revenueMult=0.85,interestRate=0.1",
+      rev85_cash: "hard:revenueMult=0.85,startingCash=400000",
+    };
+    for (const seed of [1, 2, 3])
+      for (const start of [1870, 1930])
+        for (const [name, env] of Object.entries(VARIANTS))
+          jobs.push({
+            id: `prop/${name}/${start}/${seed}`,
+            bot: "strong",
+            start,
+            diff: "hard",
+            seed,
+            end: start + 12,
+            env: { P79_DIFF: env },
           });
   } else if (b === "strat") {
     for (const seed of [1, 2])
       for (const start of [1870, 1930])
-        jobs.push({ id: `strat/${start}/hard/${seed}`, bot: "strategist", start, diff: "hard", seed, end: start + 16 });
+        jobs.push({
+          id: `strat/${start}/hard/${seed}`,
+          bot: "strategist",
+          start,
+          diff: "hard",
+          seed,
+          end: start + 16,
+        });
   }
   return jobs;
 }
@@ -71,16 +110,38 @@ async function run(j: Job): Promise<object> {
   const out = (
     await execFileAsync(
       "npx",
-      ["tsx", `tools/bench/${script}`, "central-eu", String(j.start), j.diff, String(j.end), String(j.seed)],
+      [
+        "tsx",
+        `tools/bench/${script}`,
+        "central-eu",
+        String(j.start),
+        j.diff,
+        String(j.end),
+        String(j.seed),
+      ],
       { encoding: "utf8", maxBuffer: 1 << 26, env: { ...process.env, ...(j.env ?? {}) } },
     )
   ).stdout;
-  const years: Array<{ y: number; nw: number; rev: number; profit: number; loans: number; trains: number }> = [];
+  const years: Array<{
+    y: number;
+    nw: number;
+    rev: number;
+    profit: number;
+    loans: number;
+    trains: number;
+  }> = [];
   for (const l of out.split("\n")) {
     const m = /^YEAR (\d+) (.*)$/.exec(l);
     if (!m) continue;
     const f = (k: string): number => num(new RegExp(`${k} (-?[\\d.]+)`).exec(m[2]!)?.[1]);
-    years.push({ y: Number(m[1]) - j.start, nw: f("NW"), rev: f("rev"), profit: f("opprofit"), loans: f("loans"), trains: f("trains") });
+    years.push({
+      y: Number(m[1]) - j.start,
+      nw: f("NW"),
+      rev: f("rev"),
+      profit: f("opprofit"),
+      loans: f("loans"),
+      trains: f("trains"),
+    });
   }
   return {
     ...j,
@@ -93,7 +154,8 @@ async function run(j: Job): Promise<object> {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const done = new Set<string>();
   if (existsSync(FILE))
-    for (const l of readFileSync(FILE, "utf8").split("\n")) if (l.trim()) done.add((JSON.parse(l) as Job).id);
+    for (const l of readFileSync(FILE, "utf8").split("\n"))
+      if (l.trim()) done.add((JSON.parse(l) as Job).id);
   const pending = jobsFor(batch).filter((j) => !done.has(j.id));
   if (pending.length === 0) {
     console.log("DONE");
