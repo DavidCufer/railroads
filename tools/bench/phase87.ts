@@ -74,6 +74,8 @@ export function jobsFor(b: string): Job[] {
     const VARIANTS: Record<string, string> = {
       rev90: "hard:revenueMult=0.9",
       rev80: "hard:revenueMult=0.8",
+      rev70: "hard:revenueMult=0.7",
+      rev75: "hard:revenueMult=0.75",
       rev85_int: "hard:revenueMult=0.85,interestRate=0.1",
       rev85_cash: "hard:revenueMult=0.85,startingCash=400000",
     };
