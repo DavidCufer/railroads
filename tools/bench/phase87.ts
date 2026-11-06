@@ -91,6 +91,19 @@ export function jobsFor(b: string): Job[] {
             end: start + 12,
             env: { P79_DIFF: env },
           });
+  } else if (b === "hard80") {
+    // The Hard reference of the goal calibration (tests/sim/referenceOperator.ts V2_MEDIANS_HARD), re-benched with the game's
+    // own Hard figures after Phase 87 step 3: V2, 5 seeds per era, 16 years.
+    for (const seed of [1, 2, 3, 4, 5])
+      for (const start of [1870, 1930, 1840, 1900, 1950])
+        jobs.push({
+          id: `hard80/${start}/hard/${seed}`,
+          bot: "strong",
+          start,
+          diff: "hard",
+          seed,
+          end: start + 16,
+        });
   } else if (b === "strat80") {
     // After Phase 87 step 3 (Hard revenueMult 0.8 is the game's own value now): Strategist on Hard.
     for (const seed of [1, 2])
