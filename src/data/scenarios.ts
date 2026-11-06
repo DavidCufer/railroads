@@ -53,7 +53,7 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     startYear: 1850,
     difficulty: "normal",
     startCash: 450_000,
-    startupCredit: 250_000,
+    startupCredit: 400_000,
     goal: { type: "connect", cities: ["Vienna", "Trieste"], byYear: 1855 },
     stars: [
       1851,

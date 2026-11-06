@@ -91,6 +91,18 @@ export function jobsFor(b: string): Job[] {
             end: start + 12,
             env: { P79_DIFF: env },
           });
+  } else if (b === "strat80") {
+    // After Phase 87 step 3 (Hard revenueMult 0.8 is the game's own value now): Strategist on Hard.
+    for (const seed of [1, 2])
+      for (const start of [1870, 1930])
+        jobs.push({
+          id: `strat80/${start}/hard/${seed}`,
+          bot: "strategist",
+          start,
+          diff: "hard",
+          seed,
+          end: start + 16,
+        });
   } else if (b === "strat") {
     for (const seed of [1, 2])
       for (const start of [1870, 1930])
