@@ -6,7 +6,7 @@ import { strings } from "../../src/ui/strings";
 describe("difficulty note (Phase 47)", () => {
   it("is built from the difficulty data", () => {
     expect(difficultyNote("hard")).toBe(
-      `Hard: ${DIFFICULTY.hard.graceMonths} months to fix negative cash; lenders charge more when debt exceeds ${DIFFICULTY.hard.riskDebtRatio * 100}% of net worth.`,
+      `Hard: ${DIFFICULTY.hard.graceMonths} months to fix negative cash; lenders charge more when debt exceeds ${DIFFICULTY.hard.riskDebtRatio * 100}% of net worth; revenue -20% (rival lines, tighter rates).`,
     );
     expect(difficultyNote("normal")).toContain(`${DIFFICULTY.normal.graceMonths} months`);
     expect(difficultyNote("easy")).toContain("no bankruptcy");

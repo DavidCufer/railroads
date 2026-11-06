@@ -36,6 +36,9 @@ export interface ScenarioDef {
   difficulty: Difficulty;
   /** Cash at the start; the default is the difficulty's (with the era multiple). */
   startCash?: number;
+  /** Phase 87: the start-up credit floor for this scenario (the default is `CREDIT_LIMIT_MIN`); 0 means no start-up credit, so
+   * the line has to be built in stages from earnings. */
+  startupCredit?: number;
   /** Opening debt on top of `startCash` (the loans are paid out as cash, so net worth is unchanged). */
   startLoans?: number;
   goal: ScenarioGoal;
@@ -50,6 +53,7 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     startYear: 1850,
     difficulty: "normal",
     startCash: 450_000,
+    startupCredit: 250_000,
     goal: { type: "connect", cities: ["Vienna", "Trieste"], byYear: 1855 },
     stars: [
       1851,
@@ -79,6 +83,7 @@ export const SCENARIOS: readonly ScenarioDef[] = [
     startYear: 1860,
     difficulty: "normal",
     startCash: 650_000,
+    startupCredit: 0,
     goal: { type: "connect", cities: ["Sacramento", "Salt Lake City"], byYear: 1866 },
     stars: [1862, 360_000 /* pinned, as above */],
   },

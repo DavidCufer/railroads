@@ -11,16 +11,15 @@
  *   1870 normal  NW   707,788  profit  +136,693  ($1.0M)
  *   1900 normal  NW   728,680  profit  +137,853  ($1.0M)
  *   1930 normal  NW 1,034,770  profit  -159,636  ($1.5M)      the banking crisis of 1931 hits
- *   1870 hard    NW   424,947  profit   +75,209  ($0.6M)
- *   1930 hard    NW   371,692  profit  -165,844  ($0.9M)  bankrupt 1931
+ *   1870 hard    NW   361,284  profit   +26,242  ($0.6M)      re-recorded 2026-11-06 (Phase 87, revenueMult 0.8)
+ *   1930 hard    NW   371,029  profit  -166,381  ($0.9M)  bankrupt 1931   (was 424,947 / +75,209 and 371,692 / -165,844)
  * Bands are wide on purpose: net worth within 0.6x..1.6x of the record, profit within 0.15 x start cash of the record,
  * bankruptcy year must match. A band is never to be widened to make a test pass: a failure means an era moved, and the
  * owner decides whether that is wanted (then re-record here, with the date).
  *
- * KNOWN ISSUE (Phase 83, owner flag): Hard is NOT harder than Normal today. Per dollar of start cash the 1870 Hard company
- * ends with the same net worth as the Normal one (0.71 vs 0.71 x start cash), and the Strategist's 1870 / 1900 / 1930
- * Hard runs in Phase 83 beat Normal's. It is NOT encoded as a requirement (it would fail now). The Hard rows below only pin
- * today's numbers. When Hard is fixed, add "hard NW / start cash < normal NW / start cash" and re-record.
+ * Phase 87: Hard is harder than Normal (it pays 20 % less, `DIFFICULTY.hard.revenueMult` 0.8). The test below asserts, for
+ * 1870 and 1930, that the Hard company ends the two years with less net worth than the Normal one, and with less net
+ * worth per dollar of start cash.
  */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -75,16 +74,16 @@ const RECORD: Row[] = [
     start: 1870,
     difficulty: "hard",
     era: "1870 Hard",
-    netWorth: 424_947,
-    profit: 75_209,
+    netWorth: 361_284,
+    profit: 26_242,
     bankruptYear: null,
   },
   {
     start: 1930,
     difficulty: "hard",
     era: "1930 Hard (crisis)",
-    netWorth: 371_692,
-    profit: -165_844,
+    netWorth: 371_029,
+    profit: -166_381,
     bankruptYear: 1931,
   },
 ];
@@ -135,4 +134,32 @@ describe("balance canary (Phase 84)", () => {
       "an era moved far, a balance change did this:\n" + problems.join("\n"),
     ).toEqual([]);
   });
+
+  it(
+    "Hard is harder than Normal (Phase 87): less net worth, also per dollar of start cash",
+    { timeout: 180_000 },
+    async () => {
+      const hardRows = RECORD.filter((r) => r.difficulty === "hard");
+      const results = await Promise.all(
+        hardRows
+          .flatMap((h) => [
+            h,
+            RECORD.find((r) => r.difficulty === "normal" && r.start === h.start)!,
+          ])
+          .map(play),
+      );
+      const problems: string[] = [];
+      hardRows.forEach((h, i) => {
+        const hard = results[2 * i]!;
+        const normal = results[2 * i + 1]!;
+        if (hard.netWorth >= normal.netWorth)
+          problems.push(
+            `${h.start}: Hard ends with ${money(hard.netWorth)}, not less than Normal's ${money(normal.netWorth)}`,
+          );
+        if (hard.netWorth / hard.startCash >= normal.netWorth / normal.startCash)
+          problems.push(`${h.start}: Hard is not poorer than Normal per dollar of start cash`);
+      });
+      expect(problems, "Hard is not harder than Normal:\n" + problems.join("\n")).toEqual([]);
+    },
+  );
 });

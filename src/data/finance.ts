@@ -76,7 +76,7 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
   },
   hard: {
     startingCash: 600_000,
-    revenueMult: 1.0,
+    revenueMult: 0.8,
     buildCostMult: 1.2,
     landMult: 1.5,
     breakdownMult: 1.5,

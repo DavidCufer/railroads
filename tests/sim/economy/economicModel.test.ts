@@ -204,7 +204,7 @@ describe("5. taxes", () => {
     };
     expect(tax("hard")).toBeGreaterThan(tax("normal"));
     expect(tax("normal")).toBeGreaterThan(tax("easy"));
-    expect(DIFFICULTY.hard.revenueMult).toBe(1); // harder through tax and interest, not lower fares
+    expect(DIFFICULTY.hard.revenueMult).toBe(0.8); // Phase 87 (owner-approved): Hard also pays 20 % less, the only lever the bots cannot adapt away
   });
 
   it("Hard's schedule runs a decade ahead: a 1905 profit is already taxed, on Normal it is not", () => {

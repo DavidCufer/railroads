@@ -11,8 +11,8 @@ export function difficultyNote(difficulty: Difficulty): string {
   // The lender rule is the point of Hard; the plain rate says it for the others.
   if (Number.isFinite(d.riskDebtRatio)) parts.push(n.riskDebt(pct(d.riskDebtRatio)));
   else parts.push(n.loans(pct(d.interestRate)));
-  if (d.revenueMult !== 1)
-    parts.push(n.revenue(`${d.revenueMult > 1 ? "+" : "-"}${pct(Math.abs(d.revenueMult - 1))}`));
+  if (d.revenueMult > 1) parts.push(n.revenue(`+${pct(d.revenueMult - 1)}`));
+  else if (d.revenueMult < 1) parts.push(n.revenueLess(`-${pct(1 - d.revenueMult)}`));
   const text = parts.join("; ");
   return `${strings.newGame.difficultyNames[difficulty]}: ${text}.`;
 }

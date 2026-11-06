@@ -14,6 +14,7 @@ import {
   loanTermMonths,
   ledgerTradeProfit,
 } from "../../data/finance";
+import { scenarioById } from "../../data/scenarios";
 import { panicCreditMult } from "./panics";
 import { calendarFromTicks, DAYS_PER_MONTH, HOURS_PER_DAY } from "../time";
 import type { GameState } from "../state";
@@ -96,11 +97,17 @@ export function earningsBeforeInterest(state: GameState): number {
   return total;
 }
 
+/** Phase 87: the start-up credit floor: the scenario's own figure when it sets one, else `CREDIT_LIMIT_MIN`. */
+export function startupCreditFloor(state: GameState): number {
+  const own = state.scenario ? scenarioById(state.scenario.id)?.startupCredit : undefined;
+  return own ?? CREDIT_LIMIT_MIN;
+}
+
 /** How much the company may owe in all: the lower of half its net worth and 5× its yearly earnings, at least $500k. */
 export function creditLimitFor(state: GameState, netWorth: number): number {
   const startup = state.ticks < CREDIT_STARTUP_MONTHS * DAYS_PER_MONTH * HOURS_PER_DAY;
   return (
-    Math.max(startup ? CREDIT_LIMIT_MIN : 0, earnedCreditLimit(state, netWorth)) *
+    Math.max(startup ? startupCreditFloor(state) : 0, earnedCreditLimit(state, netWorth)) *
     panicCreditMult(state)
   );
 }
