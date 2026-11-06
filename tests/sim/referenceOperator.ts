@@ -98,12 +98,14 @@ export const V2_MEDIANS_NORMAL: readonly BenchMedians[] = [
   { era: 1930, revenue: [3.15, 6.08, 6.3], profit: [1.87, 2.57, 1.34] },
   { era: 1950, revenue: [2.63, 2.61, 3.42], profit: [0.88, 0.46, 0.5] },
 ];
-/** The same on Hard (5 seeds per era). */
+/** The same on Hard (5 seeds per era), re-benched 2026-11-06 for Phase 87 (Hard revenueMult 0.8; docs/bench/phase87.jsonl, ids
+ * `hard80/...`, survivors only). 1950: all 5 V2 runs go bankrupt now, so there is no survivor median; the row keeps the Phase 80
+ * figures (Hard 1950 was already the poorest era) and is flagged in PROGRESS. */
 export const V2_MEDIANS_HARD: readonly BenchMedians[] = [
-  { era: 1840, revenue: [0.88, 1.74, 6.39], profit: [0.55, 0.98, 3.78] },
-  { era: 1870, revenue: [1.81, 4.95, 10.55], profit: [1.19, 2.96, 6.31] },
-  { era: 1900, revenue: [1.85, 2.61, 2.85], profit: [1.24, 1.1, 0.86] },
-  { era: 1930, revenue: [1.14, 1.63, 2.06], profit: [0.75, 0.79, 0.97] },
+  { era: 1840, revenue: [0.56, 0.71, 3.0], profit: [0.32, 0.31, 1.8] },
+  { era: 1870, revenue: [1.17, 2.82, 7.96], profit: [0.77, 1.55, 4.19] },
+  { era: 1900, revenue: [0.65, 1.91, 2.18], profit: [0.34, 0.93, 0.63] },
+  { era: 1930, revenue: [0.34, 0.41, 0.42], profit: [0.14, 0.14, 0.15] },
   { era: 1950, revenue: [0.45, 0.65, 0.68], profit: [0.09, 0.16, 0.17] },
 ];
 
