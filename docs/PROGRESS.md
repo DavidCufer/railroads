@@ -7899,3 +7899,12 @@ Flags for the owner: (1) 1930 goals jump about 9x (random profit gold $0.16M -> 
 - Plain V2 byte-identical on a 5-year run (1900 Normal seed 1, `strongPlayer.ts`, identical output apart from the TIME line). The other three scenarios do not touch the connect code. `npm run check` 972 passed.
 - **Update (second time-box, same day): Transcontinental is now WON by the Strategist too.** Three more bench-only pieces: `setExtendReach` (a staged line may be extended up to 200 tiles toward the goal's far city: one track and one station, as the solver's link; the line's own trains run the longer route), `setLeanFirstLeg` (when the direct link is out of reach at the start, i.e. cash + credit room < its cost, the first leg is built with one train, as the solver does) and the first-leg lookahead picking the leg that pays. Result (Strategist, `tools/bench/difficulty.ts`): Semmering won, 2 stars, 56 of 72 months to spare (May 1851); Transcontinental won, 2 stars, 72 of 84 months to spare (January 1861, month ~12, not month 1); Coal for Trieste 2 stars 9 of 96 months, Silver Rush 2 stars 30 of 132, Panic of 1873 3 stars 1.42x: the last three unchanged. Plain V2 5-year output (1900 Normal seed 1) byte-identical to main. `npm run check` 972 passed; e2e shards 153 + 153 passed, run one at a time; screenshots reverted. Phase 87 ticked.
 - Known issue for the owner: V2 on Hard 1950 goes bankrupt in all 5 seeds with revenue x0.8 (reference row kept at the Phase 80 figures).
+
+### Orchestrator: Phase 87 merged (2026-11-06)
+- Reviewed `phase-87-hard` (60267c7). Owner decisions 2026-11-06: Hard `revenueMult` 0.8; per-scenario start-up credit
+  (Semmering $400k, the smallest that keeps 2 stars; Transcontinental $0); economicModel Hard 1920 bound -$10k -> -$40k
+  (owner OK, the only bound changed); the Strategist taught to stage connect goals (tools only).
+- Results: the Strategist wins all five scenarios, none of the connect ones in month 1 (Semmering 2 stars May 1851,
+  Transcontinental 2 stars Jan 1861); Hard is far poorer than Normal for the Strategist (1870 net worth y16 $6-14M vs
+  $40-48M); the canary asserts Hard < Normal. Known issue: V2 goes bankrupt on Hard 1950 in all 5 seeds.
+- `npm run check` 972 passed; e2e shards run alone 153 + 153 passed; screenshots reverted.
