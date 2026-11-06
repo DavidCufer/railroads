@@ -458,7 +458,9 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     // two trains to start; a poor start (Hard) that cannot pay for two buys one and the second when cash allows
     const nTrains =
       (lines.length === 0 && state.cash + borrowRoom() < fixed + 2 * trainCost + reserve()) ||
-      (leanGoalLegs && lines.length > 0 && isGoalMove(`pax ${city.name}-${hub.name}`))
+      (leanGoalLegs &&
+        (lines.length > 0 || leanFirstLeg) &&
+        isGoalMove(`pax ${city.name}-${hub.name}`))
         ? 1
         : 2;
     const total = fixed + nTrains * trainCost;
@@ -514,13 +516,13 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       if (line.kind !== "pax" || line.feeder) continue;
       const end = line.cities[line.cities.length - 1]!;
       const d = dist(cityCentre(end), cityCentre(city));
-      if (d <= 45 && line.stops.length < 5 && (!best || d < best.d))
+      if (d <= extendReach && line.stops.length < 5 && (!best || d < best.d))
         best = { line, d, front: false };
       // Phase 87 (connect goals, off by default): a line can also grow from its first stop
       if (extendFront) {
         const first = line.cities[0]!;
         const d0 = dist(cityCentre(first), cityCentre(city));
-        if (d0 <= 45 && line.stops.length < 5 && (!best || d0 < best.d))
+        if (d0 <= extendReach && line.stops.length < 5 && (!best || d0 < best.d))
           best = { line, d: d0, front: true };
       }
     }
@@ -1325,9 +1327,24 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
   };
   /** Phase 87: a connect goal built in stages holds each line to this many trains until the goal is met (null = V2). */
   /** Phase 87 (connect goals, off by default): a leg that serves the goal starts with one train, as the solver's plans do. */
+  let leanFirstLeg = false;
+  const setLeanFirstLeg = (b: boolean): void => {
+    if (b !== leanFirstLeg) candidateCache = null; // the projects are sized when generated
+    leanFirstLeg = b;
+  };
+  /** Phase 87: what the direct link between a connect goal's two cities would cost, and what the company can pay now. */
+  const goalDirectTotal = (): number | null =>
+    candidates().find((p) => goalRank(p.label) === 0)?.total ?? null;
+  const cashAndRoom = (): number => state.cash + borrowRoom(true);
   let leanGoalLegs = false;
   const setLeanGoalLegs = (b: boolean): void => {
     leanGoalLegs = b;
+  };
+  /** Phase 87 (connect goals): how far a line may be extended to a new town, in tiles (45 = V2). The solver's link from an
+   * existing station to the far goal city is one track and one station, no new line. */
+  let extendReach = 45;
+  const setExtendReach = (n: number): void => {
+    extendReach = n;
   };
   let extendFront = false;
   const setExtendFront = (b: boolean): void => {
@@ -1747,6 +1764,10 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     goalRank,
     touchesGoalCity,
     setTrainCap,
+    setLeanFirstLeg,
+    goalDirectTotal,
+    cashAndRoom,
+    setExtendReach,
     setLeanGoalLegs,
     setExtendFront,
     corridorProgress,

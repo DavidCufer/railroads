@@ -3291,4 +3291,4 @@ a test bound.
    the difficulty report rows and goals if Hard references move. Rerun the scenario solver and the Strategist on all five
    scenarios: each is still won, and Semmering / Transcontinental are no longer won in month 1. PROGRESS; tick ONLY
    Phase 87.
-Status: [x] 1 [x] 2 [ ] 3 (step 3 coded and benched on `phase-87-hard`, not ticked: two open owner decisions, see PROGRESS)
+Status: [x] 1 [x] 2 [x] 3

@@ -35,6 +35,8 @@ export interface StrategistOptions {
   connectStageMonths: number;
   /** Phase 87: while a connect goal is staged each line keeps at most this many trains, so the cash goes to the next leg. */
   connectTrainCap: number;
+  /** Phase 87: how far (tiles) a staged line may be extended toward the goal's far city. */
+  connectExtendReach: number;
 }
 
 export const DEFAULT_OPTIONS: StrategistOptions = {
@@ -46,6 +48,7 @@ export const DEFAULT_OPTIONS: StrategistOptions = {
   decideEveryDays: 0,
   connectStageMonths: 6,
   connectTrainCap: 2,
+  connectExtendReach: 200,
 };
 
 export interface StrategistStats {
@@ -153,6 +156,10 @@ export function attachStrategist(
     bot.setTrainCap(Number(process.env["STAGE_CAP"] ?? opt.connectTrainCap));
     bot.setExtendFront(true);
     bot.setLeanGoalLegs(true);
+    bot.setExtendReach(opt.connectExtendReach);
+    // when the direct link is out of reach at the start, the first leg is built lean (one train), as the solver does
+    const direct = bot.goalDirectTotal();
+    bot.setLeanFirstLeg(direct !== null && bot.cashAndRoom() < direct);
   }
   const survive = sc?.goal.type === "survive";
   const connect = sc?.goal.type === "connect";
