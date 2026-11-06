@@ -328,6 +328,7 @@ describe("balance targets (BALANCE.md)", () => {
     expect(DIFFICULTY.hard.interestRate).toBeGreaterThan(DIFFICULTY.normal.interestRate);
     // Phase 80 (owner OK 2026-11-02): was > 0, measured -5,024 with passenger fares x0.92: Hard may lose a little on
     // this marginal route (Hard is meant to be harder), but not more than $10k a year.
-    expect(hard.profit).toBeGreaterThan(-10_000);
+    // owner 2026-11-06: allowed with the Hard revenue x0.8 (Phase 87): now -$40k (measured -$34.7k).
+    expect(hard.profit).toBeGreaterThan(-40_000);
   });
 });
