@@ -29,6 +29,12 @@ export interface StrategistOptions {
   /** Phase 83 (quick difficulty report): between two lookahead decisions at least this many days apart the bot builds its
    * default best project instead (0 = a decision at every step). */
   decideEveryDays: number;
+  /** Phase 87: a connect goal is built in stages, as the solver does. The leg that pays (a line to one of the goal's end
+   * cities, or between corridor towns) comes first; the direct link between the two cities is built only once a line has
+   * run this many months (0 = the Phase 82b rule: the direct link as soon as it is affordable). */
+  connectStageMonths: number;
+  /** Phase 87: while a connect goal is staged each line keeps at most this many trains, so the cash goes to the next leg. */
+  connectTrainCap: number;
 }
 
 export const DEFAULT_OPTIONS: StrategistOptions = {
@@ -38,6 +44,8 @@ export const DEFAULT_OPTIONS: StrategistOptions = {
   waitMonths: 3,
   goalFirst: true,
   decideEveryDays: 0,
+  connectStageMonths: 6,
+  connectTrainCap: 2,
 };
 
 export interface StrategistStats {
@@ -141,6 +149,11 @@ export function attachStrategist(
   // small cash cushion (the solver's good plan: MAXPAIRS 2, KEEP 300k)
   if (sc?.goal.type === "deliver" && sc.goal.nearCity)
     bot.setDeliverGoal(sc.goal.cargo, sc.goal.nearCity.name, sc.goal.nearCity.withinTiles);
+  if (sc?.goal.type === "connect" && opt.connectStageMonths > 0) {
+    bot.setTrainCap(Number(process.env["STAGE_CAP"] ?? opt.connectTrainCap));
+    bot.setExtendFront(true);
+    bot.setLeanGoalLegs(true);
+  }
   const survive = sc?.goal.type === "survive";
   const connect = sc?.goal.type === "connect";
   const deliverFirst = sc?.goal.type === "deliver" && !goalLabels(bot).includes("chain");
@@ -153,6 +166,7 @@ export function attachStrategist(
   let lastTick = -1;
   let lastDecision = -1;
   let lastChoice: string | null = null;
+  let firstLineTick = -1; // connect goals: when the first line was seen built
 
   const rollout = (move: string): number => {
     const fork = forkBot(bot);
@@ -204,10 +218,65 @@ export function attachStrategist(
     // a connect goal: build toward it, in order of how directly a project connects the two cities; wait (save) when none
     // of the projects that serve the goal is affordable
     if (connect) {
+      if (firstLineTick < 0 && bot.lines.length > 0) firstLineTick = t;
+      // staged: until a line has run for `connectStageMonths`, the direct link (rank 0) is not built; the earning legs are
+      const staged =
+        opt.connectStageMonths > 0 &&
+        (firstLineTick < 0 || t - firstLineTick < opt.connectStageMonths * MONTH_HOURS);
+      // the first leg: the lookahead picks the earning leg (a line to a goal city or between corridor towns) that leaves the
+      // company best off, as the solver's staged plans do ("via Graz", "pre San Francisco")
+      if (staged && bot.lines.length === 0) {
+        const eligible = options
+          .filter((o) => bot.goalRank(o.label) === 1 || bot.goalRank(o.label) === 2)
+          .slice(0, opt.maxMoves);
+        if (eligible.length > 0) {
+          let pick = eligible[0]!.label;
+          let pickScore = -Infinity;
+          for (const o of eligible) {
+            const v = rollout(o.label);
+            if (v > pickScore) {
+              pickScore = v;
+              pick = o.label;
+            }
+          }
+          stats.decisions++;
+          stats.picks["goal"] = (stats.picks["goal"] ?? 0) + 1;
+          return pick;
+        }
+      }
       const ranked = options
         .map((o) => ({ o, r: bot.goalRank(o.label) }))
-        .filter((x) => x.r < 3)
-        .sort((p, q) => p.r - q.r || p.o.payback - q.o.payback);
+        // a link is paid from the company's own cash: a loan refused half way leaves debt and no track
+        .filter((x) => x.r !== 0 || bot.state.cash >= x.o.total + 100_000)
+        .filter((x) =>
+          staged
+            ? // after the first leg only extensions of the line (they share its track); the first leg is a pax line
+              x.r === 1 &&
+              (bot.lines.length === 0
+                ? !x.o.label.startsWith("feeder")
+                : x.o.label.startsWith("extend"))
+            : x.r < 2 || (x.r === 2 && opt.connectStageMonths <= 0),
+        )
+        .sort(
+          (p, q) =>
+            p.r - q.r ||
+            (staged && bot.lines.length > 0
+              ? Number(q.o.label.startsWith("extend")) - Number(p.o.label.startsWith("extend"))
+              : 0) ||
+            p.o.payback - q.o.payback,
+        );
+      if (process.env["STDEBUG"] === "3")
+        console.log(
+          bot.year(),
+          `m${Math.round(t / MONTH_HOURS)} cash ${Math.round(bot.state.cash / 1000)}k lines ${bot.lines.length} staged ${staged}`,
+          options
+            .map((o) => `${o.label}[r${bot.goalRank(o.label)} pb${o.payback.toFixed(1)}]`)
+            .join(" | "),
+        );
+      if (process.env["STAGE_FIRST"] && bot.lines.length === 0) {
+        const f = options.find((o) => o.label.startsWith(process.env["STAGE_FIRST"]!));
+        if (f) return f.label;
+      }
       if (ranked[0]) {
         stats.picks["goal"] = (stats.picks["goal"] ?? 0) + 1;
         return ranked[0].o.label;

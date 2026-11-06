@@ -94,7 +94,11 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
   };
   const cityCentre = (c: City): number => c.anchorY * W + c.anchorX;
   const indTile = (i: Industry): number => i.y * W + i.x;
-  const ok = (r: unknown): boolean => !!r && (r as { ok: boolean }).ok;
+  const ok = (r: unknown): boolean => {
+    if (process.env["OKDEBUG"] && r && !(r as { ok: boolean }).ok)
+      console.log("FAIL", JSON.stringify(r).slice(0, 300));
+    return !!r && (r as { ok: boolean }).ok;
+  };
   const sum = (a: LedgerPeriod, b: LedgerPeriod): number => ledgerRevenue(a) + ledgerRevenue(b);
   void sum;
 
@@ -453,7 +457,10 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     const fixed = leg.trackCost + stationCost(leg.ta, ta) + stationCost(leg.tb, tb);
     // two trains to start; a poor start (Hard) that cannot pay for two buys one and the second when cash allows
     const nTrains =
-      lines.length === 0 && state.cash + borrowRoom() < fixed + 2 * trainCost + reserve() ? 1 : 2;
+      (lines.length === 0 && state.cash + borrowRoom() < fixed + 2 * trainCost + reserve()) ||
+      (leanGoalLegs && lines.length > 0 && isGoalMove(`pax ${city.name}-${hub.name}`))
+        ? 1
+        : 2;
     const total = fixed + nTrains * trainCost;
     const profit =
       nTrains * loco.profit -
@@ -502,18 +509,27 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
 
   /** A new town on the way: extend the line whose far end is nearest (the owner's multi-stop lines). */
   function extendProject(city: City): Project | null {
-    let best: { line: Line; d: number } | undefined;
+    let best: { line: Line; d: number; front: boolean } | undefined;
     for (const line of lines) {
       if (line.kind !== "pax" || line.feeder) continue;
       const end = line.cities[line.cities.length - 1]!;
       const d = dist(cityCentre(end), cityCentre(city));
-      if (d <= 45 && line.stops.length < 5 && (!best || d < best.d)) best = { line, d };
+      if (d <= 45 && line.stops.length < 5 && (!best || d < best.d))
+        best = { line, d, front: false };
+      // Phase 87 (connect goals, off by default): a line can also grow from its first stop
+      if (extendFront) {
+        const first = line.cities[0]!;
+        const d0 = dist(cityCentre(first), cityCentre(city));
+        if (d0 <= 45 && line.stops.length < 5 && (!best || d0 < best.d))
+          best = { line, d: d0, front: true };
+      }
     }
     if (!best) return null;
-    const key = `ext${city.id}-${best.line.stops[0]!.id}`;
+    const key = `ext${city.id}-${best.line.stops[0]!.id}${best.front ? "f" : ""}`;
     if (failed.has(key)) return null;
     const line = best.line;
-    const endStation = line.stops[line.stops.length - 1]!;
+    const front = best.front;
+    const endStation = front ? line.stops[0]! : line.stops[line.stops.length - 1]!;
     const leg = planLeg([endStation.tile], cityTilesToward(city, endStation.tile));
     if (!leg) {
       failed.add(key);
@@ -522,7 +538,10 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     const type: StationType = "station";
     const total = leg.trackCost + stationCost(leg.tb, type);
     // the extension adds the new town's traffic to every train of the line: judge it as a line of its own length
-    const loco = bestPaxLoco([city, line.cities[line.cities.length - 1]!], dist(leg.ta, leg.tb));
+    const loco = bestPaxLoco(
+      [city, line.cities[front ? 0 : line.cities.length - 1]!],
+      dist(leg.ta, leg.tb),
+    );
     const profit =
       loco.profit * Math.max(1, line.trains.length) - lineUpkeepPerYear(leg.edges, [type], total);
     const payback = profit > 0 ? total / profit : Infinity;
@@ -535,8 +554,14 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
         if (!ensureCash(total + reserve())) return false;
         if (!ok(commands.buildTrack(state, leg.path))) return false;
         if (!ok(commands.buildStation(state, leg.tb, type))) return false;
-        line.stops.push(state.stations.find((s) => s.tile === leg.tb)!);
-        line.cities.push(city);
+        const st = state.stations.find((s) => s.tile === leg.tb)!;
+        if (front) {
+          line.stops.unshift(st);
+          line.cities.unshift(city);
+        } else {
+          line.stops.push(st);
+          line.cities.push(city);
+        }
         connected.add(city.id);
         line.trains.forEach((id, i) => setLineOrders(line, id, i));
         return true;
@@ -544,8 +569,6 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     };
   }
 
-  /** Phase 77: a small town into the nearest big station: one new station at the town, track to the hub's station, a short
-   * line of its own that fills the trunk (the owner's feeders). Judged by the town's own supply (pop / 8000 of a full train). */
   function feederProject(city: City): Project | null {
     let best: { line: Line; st: Station; hubCity: City; d: number } | undefined;
     for (const line of lines) {
@@ -1300,6 +1323,25 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     const e = /^extend (.+)$/.exec(label);
     return e && corridor.some((c) => c.name === e[1]) ? 1 : 3;
   };
+  /** Phase 87: a connect goal built in stages holds each line to this many trains until the goal is met (null = V2). */
+  /** Phase 87 (connect goals, off by default): a leg that serves the goal starts with one train, as the solver's plans do. */
+  let leanGoalLegs = false;
+  const setLeanGoalLegs = (b: boolean): void => {
+    leanGoalLegs = b;
+  };
+  let extendFront = false;
+  const setExtendFront = (b: boolean): void => {
+    extendFront = b;
+  };
+  let trainCap: number | null = null;
+  const setTrainCap = (n: number | null): void => {
+    trainCap = n;
+  };
+  /** Phase 87: true for a project that has one of the connect goal's two cities as an end (a leg of the final route). */
+  const touchesGoalCity = (label: string): boolean => {
+    const m = /^(pax|feeder) (.+)-(.+)$/.exec(label);
+    return !!goalPair && !!m && (goalPair.includes(m[2]!) || goalPair.includes(m[3]!));
+  };
   /** Share of the corridor's towns the company's lines already reach. */
   const corridorProgress = (): number =>
     corridor.length === 0
@@ -1402,7 +1444,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       const cars = lineCarCount(line);
       const load =
         line.kind === "pax" ? (40 / PARTY_SIZE) * cars : CARGO[line.cargo].capacity * cars;
-      const cap =
+      const cap0 =
         line.kind === "pax"
           ? line.feeder
             ? 3
@@ -1418,6 +1460,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
                   : 5
               : 8
             : 6;
+      const cap = trainCap === null ? cap0 : Math.min(cap0, trainCap);
       // the goal chain grows to its cap whenever cash allows (the solver's "grow 4"): a 99-tile leg cannot pile cargo up
       const goalChain =
         (line.chain && goalLabels.includes("chain")) ||
@@ -1702,6 +1745,10 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
       ),
     setDeliverGoal,
     goalRank,
+    touchesGoalCity,
+    setTrainCap,
+    setLeanGoalLegs,
+    setExtendFront,
     corridorProgress,
     setRepayKeep,
     setWideMoves,
