@@ -1239,6 +1239,8 @@ export const strings = {
       loans: (pct: string) => `${pct} loans`,
       riskDebt: (pct: string) => `lenders charge more when debt exceeds ${pct} of net worth`,
       revenue: (pct: string) => `revenue ${pct}`,
+      /** Phase 87: a difficulty that pays less says why (Hard: rival lines undercut the rates). */
+      revenueLess: (pct: string) => `revenue ${pct} (rival lines, tighter rates)`,
     },
     startingCash: "Starting cash",
     expertStart: "Expert: few, expensive first lines",
