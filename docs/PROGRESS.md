@@ -7916,3 +7916,10 @@ Flags for the owner: (1) 1930 goals jump about 9x (random profit gold $0.16M -> 
 - **Skip / fallbacks:** tap, reduced motion, a clip that errors or doesn't start in 1.5 s, and `withIntro` show the end state at once (still behind the frame, no animation). The Phase 86 cross-fade and `public/intro/crest.png` (and its generate.mjs line) are gone. `?introFreeze=<p>` (tests only) holds the close at progress p. `#intro` carries `data-intro-phase` / `data-intro-p`.
 - **Tests:** `e2e/intro.spec.ts` (12): first paint, mid-clip, live mid-close, end state, gone (phone 800x360 + tablet 1280x800); frozen half-closed shot; tap; reduced motion; clip blocked (both sizes). Looked at every phase-88 PNG; also a series at p = 0.03 / 0.15 / 0.3 / 0.7 on both sizes: shield centred on the engine, no gap or seam at the edges. End state: engine about as in the icon, banner clear of its face. Fallback still shows the same picture as the clip's end. Old phase-85/86 intro PNGs removed.
 - **Checks:** `npm run check` 972 passed. Not checked: real Android WebView.
+
+### Orchestrator: Phase 88 merged (2026-11-07)
+- Reviewed `phase-88-intro-shield` (1b7ec57): the clip plays, then the dark green closes in from the edges as a
+  shield-shaped window onto the engine (with a gentle zoom), then the rim + banner frame settles; skip, reduced motion and
+  the fallback show the end state over the clip's last frame. `public/intro/crest.png` removed.
+- `npm run check` 972 passed; e2e shards run alone 155 + 154 passed; run screenshots reverted (the phase's own kept).
+  Looked at mid-close and end state on phone and tablet.
