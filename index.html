@@ -10,7 +10,9 @@
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/src/ui/theme.css" />
     <style>
-      /* Phase 85/86: intro overlay, painted before any JS runs (the crest; the clip starts on its own). Colours match the crest and the Android splash. */
+      /* Phase 85-88: intro overlay, painted before any JS runs (black; the clip starts on its own). Phase 88: the clip
+         plays, the green closes in as a shield around the engine (SVG, drawn by src/ui/intro.ts), then the crest frame
+         settles on the shield. Colours match the crest and the Android splash. */
       #intro {
         position: fixed;
         inset: 0;
@@ -20,10 +22,11 @@
         align-items: center;
         justify-content: center;
         gap: 2.2vh;
-        background: radial-gradient(ellipse at 50% 42%, #1c4a38 0%, #0e2c20 70%);
+        background: #000;
         color: #f5ebd0;
         font-family: "Playfair Display", "Iowan Old Style", Palatino, Georgia, serif;
         transition: opacity 300ms ease-out;
+        overflow: hidden;
         padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
           env(safe-area-inset-left);
       }
@@ -41,41 +44,110 @@
       #intro.intro-late {
         animation: intro-in 200ms ease-out 250ms both;
       }
-      /* Phase 86: the clip layer sits over the crest layer; it fades in when the video really plays and out at the
-         end of the clip (or on tap, or when the video can't play), revealing the crest. */
-      #intro-video {
+      /* The stage (clip + its last frame) is moved and scaled by JS around the engine. */
+      #intro-stage {
         position: absolute;
-        z-index: 1;
+        inset: 0;
+        background: #000;
+        pointer-events: none;
+      }
+      #intro-video,
+      #intro-still {
+        position: absolute;
         inset: 0;
         width: 100%;
         height: 100%;
         object-fit: cover;
-        background: #000;
+      }
+      #intro-still {
+        opacity: 0;
+      }
+      #intro-video {
         opacity: 0;
         transition: opacity 150ms linear;
-        pointer-events: none;
       }
       #intro-video.intro-playing {
         opacity: 1;
       }
-      #intro.intro-crest #intro-video {
-        opacity: 0;
-        transition: opacity 600ms ease-in-out;
+      #intro.intro-still #intro-still {
+        opacity: 1;
       }
-      .intro-crest-img {
-        height: clamp(120px, 56vh, 440px);
-        width: auto;
+      #intro.intro-still #intro-video {
+        opacity: 0;
+        transition: none;
+      }
+      #intro-green {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+      .intro-frame {
+        position: relative;
+        z-index: 1;
+        width: clamp(120px, 64vh, 520px);
         aspect-ratio: 1;
+        flex: none;
+      }
+      .intro-frame-img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        transform: scale(1.06);
+        transition:
+          opacity 400ms ease-out,
+          transform 400ms cubic-bezier(0.2, 0.8, 0.3, 1);
         filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.45));
       }
-      /* The crest's banner shows the name; this stays for assistive tech (and is not text, so the title screen's own
-         "Iron & Steam" stays the only text match). */
+      /* A small brass glint across the frame (masked by the frame's own shape). */
+      .intro-glint {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        -webkit-mask: url(/intro/crest-frame.png) center / 100% 100% no-repeat;
+        mask: url(/intro/crest-frame.png) center / 100% 100% no-repeat;
+        background: linear-gradient(
+            105deg,
+            transparent 40%,
+            rgba(255, 246, 200, 0.9) 50%,
+            transparent 60%
+          )
+          100% 0 / 250% 100% no-repeat;
+      }
+      #intro.intro-crest .intro-frame-img {
+        opacity: 1;
+        transform: none;
+      }
+      #intro.intro-crest .intro-glint {
+        animation: intro-glint 700ms ease-out 250ms both;
+      }
+      #intro.intro-instant .intro-frame-img,
+      #intro.intro-instant .intro-bar,
+      #intro.intro-instant .intro-line {
+        transition: none;
+      }
+      #intro.intro-instant .intro-glint {
+        animation: none;
+      }
       .intro-title {
         position: absolute;
         width: 1px;
         height: 1px;
         overflow: hidden;
         clip-path: inset(50%);
+      }
+      .intro-bar,
+      .intro-line {
+        position: relative;
+        z-index: 1;
+        opacity: 0;
+        transition: opacity 300ms ease-out 250ms;
+      }
+      #intro.intro-crest .intro-bar,
+      #intro.intro-crest .intro-line {
+        opacity: 1;
       }
       .intro-bar {
         width: clamp(160px, 38vw, 320px);
@@ -111,6 +183,16 @@
           transform: translateX(250%);
         }
       }
+      @keyframes intro-glint {
+        0% {
+          opacity: 1;
+          background-position: 100% 0;
+        }
+        100% {
+          opacity: 0;
+          background-position: 0 0;
+        }
+      }
       @keyframes intro-in {
         from {
           opacity: 0;
@@ -136,17 +218,39 @@
       <div id="ui"></div>
     </div>
     <div id="intro" role="status" aria-live="polite">
-      <video
-        id="intro-video"
-        src="/intro/arrival.webm"
-        autoplay
-        muted
-        playsinline
-        preload="auto"
-        aria-hidden="true"
-        onplaying="this.classList.add('intro-playing')"
-      ></video>
-      <img class="intro-crest-img" src="/intro/crest.png" alt="" width="512" height="512" />
+      <div id="intro-stage">
+        <img id="intro-still" src="/intro/arrival-last.jpg" alt="" width="1280" height="720" />
+        <video
+          id="intro-video"
+          src="/intro/arrival.webm"
+          autoplay
+          muted
+          playsinline
+          preload="auto"
+          aria-hidden="true"
+          onplaying="this.classList.add('intro-playing')"
+        ></video>
+      </div>
+      <svg id="intro-green" aria-hidden="true">
+        <defs>
+          <radialGradient id="intro-grad" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="1">
+            <stop offset="0" stop-color="#1f5a43" />
+            <stop offset="0.55" stop-color="#0c3324" />
+            <stop offset="1" stop-color="#051a12" />
+          </radialGradient>
+        </defs>
+        <path id="intro-shade" fill="url(#intro-grad)" fill-rule="evenodd" d="" />
+      </svg>
+      <div class="intro-frame" id="intro-frame">
+        <img
+          class="intro-frame-img"
+          src="/intro/crest-frame.png"
+          alt=""
+          width="1024"
+          height="1024"
+        />
+        <div class="intro-glint"></div>
+      </div>
       <div
         class="intro-title"
         role="img"
