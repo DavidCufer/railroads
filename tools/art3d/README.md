@@ -22,6 +22,7 @@ rendered in headless Chromium. three.js is NOT a project dependency; install it 
     node shoot.mjs "size=2048&exp=1.05&cam=0.4,0.65,9.6&fov=31&look=0,2.4,-3" night.png           # the night still
     node shoot-crest.mjs "$PWD/crest.html?bg=1" ../../art/icon/crest-1024.png
     node shoot-crest.mjs "$PWD/crest.html?bg=0" ../../art/icon/crest-foreground-1024.png
+    node shoot-crest.mjs "$PWD/crest.html?bg=frame" ../../art/icon/crest-frame-1024.png
     for w in 0 1 2; do ./render-frames.sh $w 3 144 & done; wait
     ffmpeg -framerate 30 -i frames/f%04d.png -c:v libvpx-vp9 -b:v 0 -crf 30 -row-mt 1 -pix_fmt yuv420p -an ../../art/intro/arrival.webm
 
@@ -32,3 +33,7 @@ rendered in headless Chromium. three.js is NOT a project dependency; install it 
 - `art/icon/crest-engine-1024.png`: the 3D engine alone (transparent), used inside the crest.
 - `art/intro/night-still-1024.png`: the night arrival still (for the store feature graphic).
 - `art/intro/arrival.webm`: the intro clip, 1280x720, 30 fps, VP9, no sound.
+- `art/intro/arrival-last.jpg`: the clip's last frame (frame 143), for the intro's still fallback (Phase 88).
+- `art/icon/crest-frame-1024.png`: the brass rim + banner with the shield's field cut out (`crest.html?bg=frame`): the
+  intro's frame that settles on the shield-shaped window (Phase 88). The field's outline in the 512 box is
+  `M256 62 L410 112 Q416 292 256 414 Q96 292 102 112z`.

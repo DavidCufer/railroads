@@ -3292,3 +3292,28 @@ a test bound.
    scenarios: each is still won, and Semmering / Transcontinental are no longer won in month 1. PROGRESS; tick ONLY
    Phase 87.
 Status: [x] 1 [x] 2 [x] 3
+
+## Phase 88 — Intro: the train arrives, then the green closes in as a shield
+
+Owner (2026-11-07): "The intro should be different, start with train animation and when train arrives the green comes
+from outside shaping a shield." Replaces Phase 86's clip-then-cross-fade. Branch `phase-88-intro-shield`; never push to main.
+Never loosen a test bound. Look at every PNG. Art is ready (see `tools/art3d/README.md`): `art/intro/arrival.webm`,
+`art/intro/arrival-last.jpg` (its last frame) and `art/icon/crest-frame-1024.png` (brass rim + banner, field cut out).
+
+1. **Train first:** the clip plays full screen as now (object-fit cover on black); when it ends, hold its last frame.
+2. **The green closes in:** over ~1.2 s (ease-in-out) the crest's dark green (the icon background's radial gradient,
+   `#1f5a43` -> `#0c3324` -> `#051a12`) comes in from all screen edges as a shield-shaped window shrinking onto the
+   engine: an SVG mask whose hole is the shield field outline (path in the README), scaled from bigger than the screen down
+   to its final size, centred on the engine (compute where the engine is from the clip's 1280x720 frame and the cover
+   crop). At the same time the clip/still zooms in gently (~1.3x, towards the engine) so the engine fills the shield
+   about as in the app icon. The night scene stays visible inside the shield.
+3. **The crest settles:** the rim + banner frame (`public/intro/crest-frame.png`) fades and scales in exactly on the hole
+   (~400 ms, a small brass glint is welcome), then the progress line and status line appear under it. End state = the
+   crest with the night engine inside. Hold rules as Phase 86 (title screen after the end state + ~1 s, or when ready).
+4. **Skip / fallbacks:** a tap jumps to the end state. Reduced motion, a clip that fails or doesn't start within ~1.5 s,
+   and `withIntro` (slow steps later) show the end state directly, using `arrival-last.jpg` behind the frame. Remove the
+   Phase 86 cross-fade-to-`crest.png` path (drop `public/intro/crest.png` if nothing else uses it). `?debug=1` unchanged.
+5. **Tests:** intro e2e updated: frames mid-clip, mid-close (shield half closed) and the end state at 800x360 and on a 10"
+   tablet; skip, reduced motion and the fallback each show the end state; the overlay goes away. Screenshots owned:
+   `phase-88-*` and the intro ones the spec rewrites. PROGRESS; tick ONLY Phase 88.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5

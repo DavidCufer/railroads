@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <!-- Iron & Steam crest (app icon). Open with ?bg=1 (green square, the full icon) or ?bg=0 (transparent: shield + banner only). See README.md. -->
+    <!-- Iron & Steam crest (app icon). Open with ?bg=1 (green square, the full icon) or ?bg=0 (transparent: shield + banner only), or ?bg=frame (rim + banner, the field cut out: the intro frame). See README.md. -->
     <link
       href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap"
       rel="stylesheet"
@@ -208,6 +208,24 @@ ${[0, 1]
       const bg = new URLSearchParams(location.search).get("bg") !== "0";
       let body = icons[1][2](1);
       if (!bg) body = body.replace(/<rect width="512" height="512" fill="url\(#gb1\)"\/>/, "");
+      // ?bg=frame: the intro's shield frame (Phase 88): brass rim + banner only, the shield's field cut out (transparent),
+      // so the intro's night scene shows through the hole the green closes down to.
+      if (new URLSearchParams(location.search).get("bg") === "frame") {
+        const field = "M256 62 L410 112 Q416 292 256 414 Q96 292 102 112z";
+        body = body
+          .replace(/<rect width="512" height="512" fill="url\(#gb1\)"\/>/, "")
+          .replace(`<path d="${field}" fill="#0b2a1e"/>`, "")
+          .replace(`<path d="${field}" fill="url(#vig1)"/>`, "")
+          .replace(/<g clip-path="url\(#shc1\)">[\s\S]*?<\/g>/, "")
+          .replace(
+            '<path d="M256 30 L440 92',
+            `<mask id="hole1"><rect width="512" height="512" fill="#fff"/><path d="${field}" fill="#000"/></mask><g mask="url(#hole1)"><path d="M256 30 L440 92`,
+          )
+          .replace(
+            'stroke="#5a3a0d" stroke-width="3"/>',
+            'stroke="#5a3a0d" stroke-width="3"/></g>',
+          );
+      }
       document.body.innerHTML = `<div id="c" style="width:1024px;height:1024px"><svg viewBox="0 0 512 512" width="1024" height="1024" xmlns="http://www.w3.org/2000/svg"><defs>${F(1)}</defs>${body}</svg></div>`;
     </script>
   </body>
