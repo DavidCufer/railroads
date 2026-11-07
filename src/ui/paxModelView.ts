@@ -105,7 +105,7 @@ export function renderPaxStation(view: PaxStationView): HTMLElement {
   return h(
     "div",
     { className: "pax-model-block", "data-testid": "pax-model" },
-    h("div", { className: "panel-row hint" }, `${t.names[view.model]} · ${title}`),
+    h("div", { className: "panel-row hint" }, title),
     ...rows,
     h(
       "div",
@@ -133,7 +133,10 @@ export function renderPaxTrain(state: GameState, train: Train): HTMLElement | nu
   const stops = [...new Set(train.orders.map((o) => o.stationId))];
   if (stops.length < 2) return null;
   const t = strings.paxModel;
-  const name = (id: number): string => state.stations.find((s) => s.id === id)?.name ?? "?";
+  const name = (id: number): string => {
+    const town = state.stationEconomy.get(id)?.passengerTownId;
+    return state.cities.find((c) => c.id === town)?.name ?? "?";
+  };
   const rows: HTMLElement[] = [];
   for (let i = 0; i + 1 < stops.length && rows.length < 2; i++) {
     const a = stops[i] as number;
@@ -173,7 +176,7 @@ export function renderPaxTrain(state: GameState, train: Train): HTMLElement | nu
   return h(
     "div",
     { className: "pax-model-block", "data-testid": "pax-train" },
-    h("div", { className: "panel-row hint" }, `${t.names[PAX.model]} · ${t.pairTitle}`),
+    h("div", { className: "panel-row hint" }, `${t.pairTitle} (${t.names[PAX.model]})`),
     ...rows,
   );
 }

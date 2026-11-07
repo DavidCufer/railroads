@@ -8,10 +8,10 @@ export const strings = {
       ticket: "Ticket office",
     },
     /** Route demand: one line per town the trains here call at. */
-    routeTitle: "Routes from here · a month",
+    routeTitle: "Route demand · a month",
     routeRow: (carried: number, demand: number) => `carried ${carried} of ${demand}`,
     /** Service-driven: demand reached so far and the ceiling. */
-    serviceTitle: "Traffic grows with service · a month",
+    serviceTitle: "Service-driven demand · a month",
     serviceRow: (demand: number, ceiling: number) => `${demand} now · ceiling ${ceiling}`,
     serviceLevel: (perWeek: string) => `${perWeek} trains a week`,
     serviceHint: (more: number) => `One more train adds about ${more} a month`,

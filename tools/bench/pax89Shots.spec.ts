@@ -75,7 +75,13 @@ async function scene(page: Page, model: string): Promise<{ ids: number[]; trains
     state.cities.length = 0;
     towns.forEach((t, i) => {
       const tile = 35 * map.width + t.x;
-      map.cityId[tile] = i;
+      const tiles: number[] = [];
+      for (let dy = -3; dy <= 3; dy++)
+        for (let dx = -3; dx <= 3; dx++) {
+          const tl = (35 + dy) * map.width + t.x + dx;
+          map.cityId[tl] = i;
+          tiles.push(tl);
+        }
       state.cities.push({
         id: i,
         name: t.name,
@@ -84,7 +90,7 @@ async function scene(page: Page, model: string): Promise<{ ids: number[]; trains
         anchorX: t.x,
         anchorY: 35,
         coastal: false,
-        tiles: [tile],
+        tiles,
       });
     });
     state.mapContentVersion++;
@@ -116,10 +122,17 @@ async function scene(page: Page, model: string): Promise<{ ids: number[]; trains
     { a: ids[0]!, b: ids[1]!, c: ids[2]! },
   );
   await page.evaluate(() => window.__game!.runDays(120));
+  console.log(
+    JSON.stringify(
+      await page.evaluate(() =>
+        window.__game!.getTrains().map((t) => [t.id, t.status, t.tile, t.currentOrderIndex]),
+      ),
+    ),
+  );
   return { ids, trains };
 }
 
-for (const model of ["route", "service", "ticket"]) {
+for (const model of (process.env.MODELS ?? "route,service,ticket").split(",")) {
   test(`mock-ups: ${model}`, async ({ page }) => {
     const { ids, trains } = await scene(page, model);
     await page.evaluate((id) => window.__game!.debugOpenStation(id), ids[1]!); // the hub: two destinations
