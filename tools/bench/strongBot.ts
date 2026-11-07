@@ -1014,10 +1014,32 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     return out.filter((s) => s.d >= 12 && s.d <= MAX_LINE_TILES).sort((p, q) => p.d - q.d);
   }
 
+  /** Phase 90: FREIGHT_SINK=best makes the bot weigh several buyers for a producer's cargo (spread over the distances in range)
+   * and take the one with the best payback; the default is the nearest buyer, as before (a short haul pays little: the fare
+   * grows with distance while the loading and the train's fixed costs do not). */
   function freightProject(prod: Industry, cargo: CargoType, output: number): Project | null {
-    const key = `fr${prod.id}-${cargo}`;
+    if (process.env["FREIGHT_SINK"] !== "best") return freightProjectTo(prod, cargo, output, 0);
+    const n = sinksFor(cargo, prod).length;
+    const picks = [...new Set([0, Math.floor(n / 3), Math.floor((2 * n) / 3), n - 1])].filter(
+      (i) => i >= 0 && i < n,
+    );
+    let best: Project | null = null;
+    for (const i of picks) {
+      const p = freightProjectTo(prod, cargo, output, i);
+      if (p && (!best || p.payback < best.payback)) best = p;
+    }
+    return best;
+  }
+
+  function freightProjectTo(
+    prod: Industry,
+    cargo: CargoType,
+    output: number,
+    sinkIndex: number,
+  ): Project | null {
+    const key = sinkIndex === 0 ? `fr${prod.id}-${cargo}` : `fr${prod.id}-${cargo}-${sinkIndex}`;
     if (failed.has(key)) return null;
-    const sink = sinksFor(cargo, prod)[0];
+    const sink = sinksFor(cargo, prod)[sinkIndex];
     if (!sink) return null;
     const carloadsPerMonth = output / CARGO[cargo].capacity;
     if (carloadsPerMonth < 1.5) return null;

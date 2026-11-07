@@ -25,15 +25,20 @@ const P90: Record<string, Record<string, string>> = {
   r50f15: { PAX_PAIRSHARE: "0.5", FREIGHT_RATE: "1.5" },
   r50o3f15: { PAX_PAIRSHARE: "0.5", FREIGHT_OUT: "3", FREIGHT_RATE: "1.5" },
   r50o2f125: { PAX_PAIRSHARE: "0.5", FREIGHT_OUT: "2", FREIGHT_RATE: "1.25" },
+  // the bot weighs several buyers instead of the nearest (bot-side only: no game change)
+  r50s: { PAX_PAIRSHARE: "0.5", FREIGHT_SINK: "best" },
+  r50so3: { PAX_PAIRSHARE: "0.5", FREIGHT_SINK: "best", FREIGHT_OUT: "3" },
+  r50sf15: { PAX_PAIRSHARE: "0.5", FREIGHT_SINK: "best", FREIGHT_RATE: "1.5" },
 };
 function jobs(): Job[] {
   const out: Job[] = [];
   if (P90[batch]) {
+    // Phase 90: short runs (10 game years), decisive eras first, one seed first, so a run fits in one container life.
     for (const seed of [1, 2])
       for (const start of [1870, 1900, 1840])
         out.push({
           id: `strong/route+${batch}/${start}/${seed}`,
-          args: [String(start), String(seed), "16", "route", "strong"],
+          args: [String(start), String(seed), "10", "route", "strong"],
           env: { ...P90[batch], P90_TAG: batch },
         });
     return out;
@@ -74,6 +79,13 @@ async function worker(): Promise<void> {
       if (line) {
         appendFileSync(FILE, line.slice(4) + "\n");
         console.log("done " + j.id);
+        try {
+          await run("git", ["add", FILE]);
+          await run("git", ["commit", "-q", "-m", `Phase 90: bench row ${j.id}`]);
+          await run("git", ["push", "-q", "origin", "HEAD"]);
+        } catch (e) {
+          console.log("push failed " + String(e).slice(0, 120));
+        }
       } else console.log("no RUN line " + j.id);
     } catch (e) {
       console.log("FAILED " + j.id + " " + String(e).slice(0, 200));
