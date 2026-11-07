@@ -122,13 +122,6 @@ async function scene(page: Page, model: string): Promise<{ ids: number[]; trains
     { a: ids[0]!, b: ids[1]!, c: ids[2]! },
   );
   await page.evaluate(() => window.__game!.runDays(120));
-  console.log(
-    JSON.stringify(
-      await page.evaluate(() =>
-        window.__game!.getTrains().map((t) => [t.id, t.status, t.tile, t.currentOrderIndex]),
-      ),
-    ),
-  );
   return { ids, trains };
 }
 

@@ -3348,4 +3348,4 @@ behind a dev flag on the branch or in `tools/bench/`, no change to the shipped g
    - The game stays winnable (V2 still beats the early eras).
 3. **STOP** with a short comparison table and the mock-ups. The owner picks before anything is built. After the choice, a
    build phase replaces the model, re-benches the bots and re-derives the goals (Phases 77/84 method).
-Status: [ ] 1 [ ] 2 [ ] 3
+Status: [x] 1 [x] 2 [x] 3 (stopped; write-up `docs/explore/passengers-2.md`, branch `phase-89-pax-explore`)
