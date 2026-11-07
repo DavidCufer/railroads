@@ -7,6 +7,7 @@
  */
 import "./p79Env";
 import "./pairEnv";
+import "./p90Env";
 import { createStrongBot } from "./strongBot";
 import { attachStrategist } from "./strategist/strategist";
 import { createGameState } from "../../src/sim/state";
@@ -172,7 +173,7 @@ const mean = (k: string): number =>
 console.log(
   "RUN " +
     JSON.stringify({
-      id: `${botName}/${model}/${startYear}/${seed}`,
+      id: `${botName}/${model}${process.env["P90_TAG"] ? "+" + process.env["P90_TAG"] : ""}/${startYear}/${seed}`,
       model,
       bot: botName,
       startYear,

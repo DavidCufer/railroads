@@ -16,9 +16,28 @@ const PARALLEL = Number(process.argv[3] ?? 3);
 interface Job {
   id: string;
   args: string[];
+  env?: Record<string, string>;
 }
+/** Phase 90 configurations: route demand (model "route") with a pair share and freight levers. */
+const P90: Record<string, Record<string, string>> = {
+  r50: { PAX_PAIRSHARE: "0.5" },
+  r50o3: { PAX_PAIRSHARE: "0.5", FREIGHT_OUT: "3" },
+  r50f15: { PAX_PAIRSHARE: "0.5", FREIGHT_RATE: "1.5" },
+  r50o3f15: { PAX_PAIRSHARE: "0.5", FREIGHT_OUT: "3", FREIGHT_RATE: "1.5" },
+  r50o2f125: { PAX_PAIRSHARE: "0.5", FREIGHT_OUT: "2", FREIGHT_RATE: "1.25" },
+};
 function jobs(): Job[] {
   const out: Job[] = [];
+  if (P90[batch]) {
+    for (const seed of [1, 2])
+      for (const start of [1870, 1900, 1840])
+        out.push({
+          id: `strong/route+${batch}/${start}/${seed}`,
+          args: [String(start), String(seed), "16", "route", "strong"],
+          env: { ...P90[batch], P90_TAG: batch },
+        });
+    return out;
+  }
   const model = batch === "base" ? "today" : batch;
   for (const seed of model === "today" ? [1, 2, 3] : [1, 2])
     for (const start of [1870, 1900, 1840])
@@ -47,6 +66,7 @@ async function worker(): Promise<void> {
     if (!j) return;
     try {
       const { stdout } = await run("npx", ["tsx", "tools/bench/pax89.ts", ...j.args], {
+        env: { ...process.env, ...(j.env ?? {}) },
         maxBuffer: 64 * 1024 * 1024,
         timeout: 3 * 3600 * 1000,
       });
