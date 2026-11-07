@@ -3317,3 +3317,35 @@ Never loosen a test bound. Look at every PNG. Art is ready (see `tools/art3d/REA
    tablet; skip, reduced motion and the fallback each show the end state; the overlay goes away. Screenshots owned:
    `phase-88-*` and the intro ones the spec rewrites. PROGRESS; tick ONLY Phase 88.
 Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5
+
+## Phase 89 — New passenger model: explore, then the owner picks
+
+Owner (2026-11-07): "I really really dont like the passenger mechanics. The stations are always full, need to do lots of
+trains between few cities to serve all the demand, way too much money, not transparent." Then: "Explore first, but not
+the same model, because i dont like it." So: no variant of today's model (§9.5d gravity split over every town in range,
+30-day piles, direct-trains-only shares). Branch `phase-89-pax-explore`; never push to main. Exploration only: prototypes
+behind a dev flag on the branch or in `tools/bench/`, no change to the shipped game. Write it up in
+`docs/explore/passengers-2.md`. Real mechanisms, numbers in `src/data/` tables.
+
+1. **Today, in numbers** (the baseline the owner disliked): on central-eu 1840, 1870 and 1900, for the strong bot
+   (V2 and the Strategist): passenger share of revenue, trains per busy town pair, the typical waiting pile against
+   train capacity, and money per train against a freight train.
+2. **Two or three new models**, each a real mechanism a player can see and plan with. For example:
+   - **Route demand:** each pair of towns your trains connect has one monthly number each way (from both
+     populations and the distance), shown as "carried 60 of 90".
+   - **Service-driven:** demand on a line grows with what you offer (speed, trains a week) up to a visible
+     ceiling, the way railways grew their own traffic.
+   - **Ticket office:** destination lists per station, each with a small, capped pile (a week or two).
+   For each model:
+   - Explain it in five plain lines.
+   - Show a mock-up of the station panel and the line or train panel (screenshots).
+   - Give the bench numbers from step 1.
+   - Rate it on transparency, and on how few trains fill a pair.
+   Targets for every model:
+   - A busy pair is served by 1–3 trains; more add little.
+   - Platforms are not always full.
+   - For a good player, passengers are at most about half of revenue, with freight a real alternative.
+   - The game stays winnable (V2 still beats the early eras).
+3. **STOP** with a short comparison table and the mock-ups. The owner picks before anything is built. After the choice, a
+   build phase replaces the model, re-benches the bots and re-derives the goals (Phases 77/84 method).
+Status: [ ] 1 [ ] 2 [ ] 3
