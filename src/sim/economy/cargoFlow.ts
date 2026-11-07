@@ -18,7 +18,7 @@ import { DAYS_PER_MONTH } from "../time";
 import type { GameState, StationCargoPile } from "../state";
 import type { PassengerRoute } from "../stations/passengerFlows";
 import { waitedDays } from "../stations/waiting";
-import { MAX_WAIT_DAYS } from "../../data/economy";
+import { maxWaitDays } from "../../data/passengerModels";
 
 const DECAY_FLOOR = 0.05;
 
@@ -46,9 +46,9 @@ function accruePool(
   let ceiling = 0;
   for (const route of routes) {
     const rate = route.perMonth / DAYS_PER_MONTH;
-    ceiling += rate * MAX_WAIT_DAYS;
+    ceiling += rate * maxWaitDays();
     const room =
-      Math.max(0, MAX_WAIT_DAYS - waitedDays(state, stationId, route.destination)) * rate;
+      Math.max(0, maxWaitDays() - waitedDays(state, stationId, route.destination)) * rate;
     const add = Math.min(rate * demand, room);
     entry.amount += add;
     overflow += rate * demand - add;

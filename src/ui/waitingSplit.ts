@@ -4,6 +4,7 @@ import { HOURS_PER_DAY } from "../sim/time";
 import type { GameState } from "../sim/state";
 import { serviceKey, serviceRates, observedIntervalDays } from "../sim/stations/waiting";
 import { strings } from "./strings";
+import { paxStationView, type PaxStationView } from "./paxModelView";
 
 const SHOWN = 4;
 
@@ -14,6 +15,8 @@ export interface WaitingInfo {
   nextDays?: number;
   /** Towns the trains here call at directly, biggest share first (at most `SHOWN`, then "+N more"). */
   reach: string[];
+  /** Phase 89 (dev flag): the prototype model's numbers for this station. */
+  paxView?: PaxStationView;
 }
 
 /** Days until the next passenger train leaves `stationId`: the shortest, over its next stops, of the observed gap between
@@ -45,5 +48,11 @@ export function waitingInfo(state: GameState, stationId: number): WaitingInfo | 
   const reach = names.slice(0, SHOWN);
   if (names.length > SHOWN) reach.push(strings.station.reachMore(names.length - SHOWN));
   const nextDays = nextTrainDays(state, stationId);
-  return { waiting: Math.round(pile?.amount ?? 0), reach, ...(nextDays ? { nextDays } : {}) };
+  const paxView = paxStationView(state, stationId);
+  return {
+    waiting: Math.round(pile?.amount ?? 0),
+    reach,
+    ...(nextDays ? { nextDays } : {}),
+    ...(paxView ? { paxView } : {}),
+  };
 }

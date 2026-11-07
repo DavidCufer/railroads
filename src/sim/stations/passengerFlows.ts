@@ -18,6 +18,10 @@ export interface PassengerRoute {
   cityId: number;
   /** People a month, of the station's final (reachable) supply. */
   perMonth: number;
+  /** Phase 89 prototypes only: the pair's ceiling (people a month), the level of service 0..1 and departures a week. */
+  ceiling?: number;
+  level?: number;
+  perWeek?: number;
 }
 
 export interface PassengerFlows {

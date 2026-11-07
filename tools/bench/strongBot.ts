@@ -56,6 +56,8 @@ import { createLayUpPolicy } from "./layUp";
 import { booksProfit } from "../../src/sim/trains/profit";
 import { fixWeightBridges } from "./fixBridges";
 import { estimateFreightPayback, estimatePayback } from "./paybackEstimate";
+import { PAX } from "../../src/data/passengerModels";
+import { lineDemandPerMonth } from "../../src/sim/stations/paxModels";
 import type { City, Industry } from "../../src/sim/economy/types";
 import type { Station } from "../../src/sim/stations/types";
 import type { StationType } from "../../src/data/stations";
@@ -220,9 +222,14 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
   ): { id: string; payback: number; profit: number; revenue: number; costs: number } {
     let best:
       { id: string; payback: number; profit: number; revenue: number; costs: number } | undefined;
+    // Phase 89: under a prototype passenger model the line's visible demand caps its estimated earnings
+    const demand =
+      PAX.model !== "today" && cities.length >= 2
+        ? lineDemandPerMonth(cities, year(), state.map.width)
+        : undefined;
     for (const l of paxLocos()) {
       const n = paxConsist(l.id, cars).length;
-      const e = estimatePayback(state, l, n, d);
+      const e = estimatePayback(state, l, n, d, demand);
       if (!best || e.payback < best.payback)
         best = {
           id: l.id,

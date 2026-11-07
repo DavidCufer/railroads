@@ -1,5 +1,34 @@
 /** All user-facing strings live here (CLAUDE.md hard rule), including dev-only debug UI. */
 export const strings = {
+  /** Phase 89 (dev flag `?paxModel=`, exploration only): the passenger-model prototypes' panels. */
+  paxModel: {
+    names: {
+      route: "Route demand",
+      service: "Service-driven",
+      ticket: "Ticket office",
+    },
+    /** Route demand: one line per town the trains here call at. */
+    routeTitle: "Routes from here · a month",
+    routeRow: (carried: number, demand: number) => `carried ${carried} of ${demand}`,
+    /** Service-driven: demand reached so far and the ceiling. */
+    serviceTitle: "Traffic grows with service · a month",
+    serviceRow: (demand: number, ceiling: number) => `${demand} now · ceiling ${ceiling}`,
+    serviceLevel: (perWeek: string) => `${perWeek} trains a week`,
+    serviceHint: (more: number) => `One more train adds about ${more} a month`,
+    /** Ticket office: the town's fixed budget of tickets, split by the destinations served. */
+    ticketTitle: (budget: number) => `Ticket office · ${budget} tickets a month`,
+    ticketRow: (tickets: number, share: number, carried: number) =>
+      `${tickets} (${share} %) · sold ${carried}`,
+    ticketHint: "More destinations share these tickets; they do not add to them",
+    holds: (days: number) => `Platform holds ${days} days of arrivals`,
+    full: "Pair is full: another train adds nothing",
+    /** Train panel */
+    pairTitle: "Pair demand a month",
+    pairRow: (a: string, b: string, carried: number, demand: number) =>
+      `${a} ⇄ ${b}: carried ${carried} of ${demand}`,
+    pairTrains: (n: number) => (n === 1 ? "1 train on this pair" : `${n} trains on this pair`),
+    pairMore: (n: number) => `Another train: about +${n} a month`,
+  },
   app: {
     exitGameConfirm: "Exit game?",
   },

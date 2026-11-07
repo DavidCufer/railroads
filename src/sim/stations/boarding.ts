@@ -5,7 +5,7 @@
  * town capped), so an express that skips the small towns does not carry the people who wanted them. Those who board
  * split over the train's later stops in the same proportions and pay per distance on arrival.
  */
-import { MAX_WAIT_DAYS } from "../../data/economy";
+import { maxWaitDays } from "../../data/passengerModels";
 import type { GameState, PassengerLot, StationCargoPile } from "../state";
 import { DAYS_PER_MONTH, HOURS_PER_DAY } from "../time";
 import { octileTileDistance } from "../trains/geometry";
@@ -153,7 +153,7 @@ export class Boarding {
       const days =
         leftBehind <= 1e-9 || w.perMonth <= 0
           ? 0
-          : Math.min(MAX_WAIT_DAYS, leftBehind / (w.perMonth / DAYS_PER_MONTH));
+          : Math.min(maxWaitDays(), leftBehind / (w.perMonth / DAYS_PER_MONTH));
       state.waitingSince.set(waitKey(stationId, w.destination), state.ticks - days * HOURS_PER_DAY);
     }
   }

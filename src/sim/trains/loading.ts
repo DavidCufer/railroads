@@ -39,6 +39,7 @@ import {
 } from "../../data/trains";
 import { handlingCost } from "../finance/costs";
 import { addExpense, addRevenue } from "../finance/ledger";
+import { recordCarried } from "../stations/paxModels";
 import { addLot, Boarding, lotFate, takePassengers, upcomingStops } from "../stations/boarding";
 import { stampDeparture } from "../stations/waiting";
 import { recordDelivered, recordLoadedRevenue, recordSent } from "../stations/flow";
@@ -673,6 +674,7 @@ function applyLoad(
     const taken = takePassengers(entry, boarding, station, room, state.ticks);
     if (taken.length === 0) return;
     const lots = (car.lots ??= []);
+    recordCarried(state, station.id, taken);
     for (const lot of taken) addLot(lots, lot);
     if (car.loadedUnits === 0) {
       car.loadedTile = taken[0]?.originTile as number;

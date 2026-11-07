@@ -6,6 +6,7 @@
  *   upgrade, supplies/accepts, a waiting-cargo placeholder (Phase 7 does real cargo flow).
  */
 import { waitingInfo, type WaitingInfo } from "./waitingSplit";
+import { renderPaxStation } from "./paxModelView";
 import { CARGO, CARGO_TYPES, type CargoType } from "../data/cargo";
 import {
   STATION_IMPROVEMENT_TYPES,
@@ -176,6 +177,7 @@ function supplyChipStack(
           : null,
       ),
     );
+  if (split && split.paxView) children.push(renderPaxStation(split.paxView));
   if (trend) children.push(h("span", { className: "cargo-waiting-label supply-trend" }, trend));
   if (pileFull)
     children.push(
