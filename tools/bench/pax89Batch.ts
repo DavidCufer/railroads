@@ -30,6 +30,18 @@ const P90: Record<string, Record<string, string>> = {
   r50o3f15: { PAX_PAIRSHARE: "0.5", FREIGHT_OUT: "3", FREIGHT_RATE: "1.5" },
   r50o2f125: { PAX_PAIRSHARE: "0.5", FREIGHT_OUT: "2", FREIGHT_RATE: "1.25" },
   // the bot weighs several buyers instead of the nearest (bot-side only: no game change)
+  // freight levers at the calibrated pair share (0.3 = about half of today's passenger income)
+  r30s: { PAX_PAIRSHARE: "0.3", FREIGHT_SINK: "best" },
+  r30o3f15: { PAX_PAIRSHARE: "0.3", FREIGHT_OUT: "3", FREIGHT_RATE: "1.5" },
+  r30so3f15: { PAX_PAIRSHARE: "0.3", FREIGHT_SINK: "best", FREIGHT_OUT: "3", FREIGHT_RATE: "1.5" },
+  r30o3: { PAX_PAIRSHARE: "0.3", FREIGHT_OUT: "3" },
+  r30f15: { PAX_PAIRSHARE: "0.3", FREIGHT_RATE: "1.5" },
+  r30so2f125: {
+    PAX_PAIRSHARE: "0.3",
+    FREIGHT_SINK: "best",
+    FREIGHT_OUT: "2",
+    FREIGHT_RATE: "1.25",
+  },
   r50s: { PAX_PAIRSHARE: "0.5", FREIGHT_SINK: "best" },
   r50so3: { PAX_PAIRSHARE: "0.5", FREIGHT_SINK: "best", FREIGHT_OUT: "3" },
   r50sf15: { PAX_PAIRSHARE: "0.5", FREIGHT_SINK: "best", FREIGHT_RATE: "1.5" },
