@@ -21,6 +21,10 @@ interface Job {
 /** Phase 90 configurations: route demand (model "route") with a pair share and freight levers. */
 const P90: Record<string, Record<string, string>> = {
   r50: { PAX_PAIRSHARE: "0.5" },
+  // calibration of the pair share (route demand alone): what share gives about half of today's passenger income
+  r30: { PAX_PAIRSHARE: "0.3" },
+  r35: { PAX_PAIRSHARE: "0.35" },
+  r40: { PAX_PAIRSHARE: "0.4" },
   r50o3: { PAX_PAIRSHARE: "0.5", FREIGHT_OUT: "3" },
   r50f15: { PAX_PAIRSHARE: "0.5", FREIGHT_RATE: "1.5" },
   r50o3f15: { PAX_PAIRSHARE: "0.5", FREIGHT_OUT: "3", FREIGHT_RATE: "1.5" },
@@ -32,6 +36,17 @@ const P90: Record<string, Record<string, string>> = {
 };
 function jobs(): Job[] {
   const out: Job[] = [];
+  if (batch === "t10") {
+    // today's model at the same 10-year horizon as the Phase 90 runs
+    for (const seed of [1, 2])
+      for (const start of [1870, 1900, 1840])
+        out.push({
+          id: `strong/today+t10/${start}/${seed}`,
+          args: [String(start), String(seed), "10", "today", "strong"],
+          env: { P90_TAG: "t10" },
+        });
+    return out;
+  }
   if (P90[batch]) {
     // Phase 90: short runs (10 game years), decisive eras first, one seed first, so a run fits in one container life.
     for (const seed of [1, 2])

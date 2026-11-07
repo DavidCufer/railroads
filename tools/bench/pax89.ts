@@ -182,6 +182,15 @@ console.log(
       secs: Math.round((Date.now() - T0) / 1000),
       bankrupt: state.finance.bankrupt,
       final: rows.at(-1),
+      byYear: rows.map((r) => [
+        r["year"],
+        r["profit"],
+        r["rev"],
+        r["paxRev"],
+        r["freightRev"],
+        r["paxTrains"],
+        r["freightTrains"],
+      ]),
       mean: Object.fromEntries(
         [
           "paxShare",
