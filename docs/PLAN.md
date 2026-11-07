@@ -3316,4 +3316,4 @@ Never loosen a test bound. Look at every PNG. Art is ready (see `tools/art3d/REA
 5. **Tests:** intro e2e updated: frames mid-clip, mid-close (shield half closed) and the end state at 800x360 and on a 10"
    tablet; skip, reduced motion and the fallback each show the end state; the overlay goes away. Screenshots owned:
    `phase-88-*` and the intro ones the spec rewrites. PROGRESS; tick ONLY Phase 88.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5

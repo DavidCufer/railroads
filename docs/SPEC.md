@@ -23,7 +23,7 @@ bottom of this file with a one-line reason.
 | Unit tests | Vitest (simulation code must be testable without a DOM) |
 | E2E / visual checks | Playwright against the Vite dev/preview server, using Chromium at `/opt/pw-browsers` |
 | Persistence | IndexedDB (via a tiny wrapper) for saves; `localStorage` only for settings |
-| Assets | **All graphics drawn procedurally in code** and cached into offscreen canvases. No sprite sheets or external images except the app icon (the crest), the crest picture and the intro clip (Phase 86: `public/intro/crest.png`, `public/intro/arrival.webm`). One bundled OFL display font (Playfair Display, `src/assets/fonts/`, licence alongside; Phase 49 deviation, at most two bundled families allowed); UI text uses the system sans-serif. |
+| Assets | **All graphics drawn procedurally in code** and cached into offscreen canvases. No sprite sheets or external images except the app icon (the crest), the crest picture and the intro clip (Phase 86/88: `public/intro/arrival.webm`, `arrival-last.jpg`, `crest-frame.png`). One bundled OFL display font (Playfair Display, `src/assets/fonts/`, licence alongside; Phase 49 deviation, at most two bundled families allowed); UI text uses the system sans-serif. |
 | Sound | Optional, Phase 11 only, generated with WebAudio (no audio files) |
 | Randomness | One seeded PRNG (e.g. mulberry32/sfc32) stored in the game state. Never `Math.random()` in simulation code. |
 

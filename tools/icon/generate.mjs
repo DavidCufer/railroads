@@ -4,7 +4,7 @@
  *   - legacy `ic_launcher` (square) and `ic_launcher_round` (circle mask) from `crest-1024.png`
  *   - adaptive foreground from `crest-foreground-1024.png`, scaled so the whole shield + banner (its box corners) fits
  *     the 66/108 safe-zone circle; the adaptive background is the crest's green
- *   - `docs/store/icon-512.png`, `public/intro/crest.png` (512 px, from the foreground master)
+ *   - `docs/store/icon-512.png`
  * Run: node tools/icon/generate.mjs
  */
 import { chromium } from "@playwright/test";
@@ -86,6 +86,5 @@ write(
 fs.mkdirSync(path.join(root, "docs/store"), { recursive: true });
 write("docs/store/icon-512.png", await render(full, 512, "square"));
 fs.mkdirSync(path.join(root, "public/intro"), { recursive: true });
-write("public/intro/crest.png", await render(fg, 512, "crest"));
-console.log("wrote the crest icons, docs/store/icon-512.png, public/intro/crest.png");
+console.log("wrote the crest icons, docs/store/icon-512.png");
 await browser.close();
