@@ -3348,4 +3348,31 @@ behind a dev flag on the branch or in `tools/bench/`, no change to the shipped g
    - The game stays winnable (V2 still beats the early eras).
 3. **STOP** with a short comparison table and the mock-ups. The owner picks before anything is built. After the choice, a
    build phase replaces the model, re-benches the bots and re-derives the goals (Phases 77/84 method).
-Status: [x] 1 [x] 2 [x] 3 (stopped; write-up `docs/explore/passengers-2.md`, branch `phase-89-pax-explore`)
+Status: [x] 1 [x] 2 [x] 3 (owner chose A, route demand; write-up `docs/explore/passengers-2.md`, branch `phase-89-pax-explore`)
+
+## Phase 90 — Route demand for passengers, and freight that pays
+
+Owner (2026-11-07), after Phase 89's exploration (`docs/explore/passengers-2.md`, branch `phase-89-pax-explore`): "A:
+Route demand" and fix freight in the same phase. Branch `phase-90-route-demand` from `phase-89-pax-explore` (its
+prototypes are the starting point); never push to main. Real mechanisms, numbers in `src/data/`, never loosen a test bound
+without the owner's OK, look at every PNG.
+
+1. **Freight, why it pays 1/20 (investigate, then STOP).** Phase 89 measured a freight train at about $4k a year against
+   $89k for a passenger train. Find the root cause in plain words (rates, loads per car, how much industries produce and
+   how it is split, distances, waiting, the bots' choices) and propose real mechanisms with bench numbers so that, with
+   route demand, a good player's income is roughly half passengers and half freight. STOP for the owner's OK on the
+   freight table (lever -> new value -> effect).
+2. **Route demand becomes the passenger model** (replaces SPEC §9.5d): every pair of towns your trains connect has one
+   monthly number each way (from both populations and the distance), shown as "carried X of Y" on the station and the
+   train, with "another train adds about +N"; the platform holds about 20 days; calibrated so a good player's passenger
+   income is about half of today's (pair share about 0.5, as Phase 89 suggested). Remove the old model's code and texts
+   (the "Where to" sheet becomes the route list); fix the prototype glitches (no "Platform full - run more trains" when
+   it is not, no "36 of 34"); saves from the old model load cleanly.
+3. **Apply the approved freight changes.**
+4. **Re-bench and goals:** V2 and the Strategist on the usual eras and all five scenarios (each still won), the canary
+   re-recorded, the goals re-derived (Phases 77/84 method, better of the two bots, no drops unless the owner agrees since
+   the whole economy changes). STOP with the old -> new goals table and a short before/after table (passenger share,
+   trains per busy pair, money) for the owner before merging.
+5. Tests, e2e (both shards, one at a time), screenshots of the new station and train panels at 800x360 and on a tablet.
+   SPEC rewritten for §9.5d and the freight changes. PROGRESS; tick ONLY Phase 90 (and Phase 89).
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
