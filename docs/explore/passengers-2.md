@@ -4,15 +4,15 @@ Branch `phase-89-pax-explore` (never on main). Owner: "stations are always full,
 
 ## 1. Today, in numbers (central-eu, Normal, V2 = strong bot; Strategist 10 years; means over years 3..N)
 
-| | V2 (9 runs: 3 eras x 3 seeds, 16 y) | Strategist (2 runs, 10 y; 1870 missing, still running) |
+| | V2 (9 runs: 3 eras x 3 seeds, 16 y) | Strategist (3 runs, 10 y) |
 |---|---|---|
 | passenger share of delivered revenue | **97-99 %** (every run) | 98 % |
-| revenue per passenger train / freight train | **$89k / $4k** a year | $119k / $4k |
-| profit per train (passenger / freight) | $62k / $2k | $86k / $3k |
-| passenger trains / freight trains | 45 / 3 | 34 / 0.4 |
+| revenue per passenger train / freight train | **$89k / $4k** a year | $113k / $2k |
+| profit per train (passenger / freight) | $62k / $2k | $84k / $2k |
+| passenger trains / freight trains | 45 / 3 | 38 / 0.25 |
 | trains on the busiest line | 8 (the bot's cap, always reached) | 8 |
-| platform pile in whole trains at month end | 0.79 (1840 0.69, 1870 0.89, 1900 0.80); a full train waits in 29 % of station-months | 1.19; 30 % |
-| people turned away | 23 % (1840 37 %) | 40 % |
+| platform pile in whole trains at month end | 0.79 (1840 0.69, 1870 0.89, 1900 0.80); a full train waits in 29 % of station-months | 1.37; 40 % |
+| people turned away | 23 % (1840 37 %) | 38 % |
 | V2 year-16 profit / net worth, $M | 1840 3.4 / 11.6, 1870 5.5 / 25.4, 1900 2.9 / 12.5 | |
 
 One busy pair (the two biggest towns 25-45 tiles apart, Milan-Turin, 4 cars, trains spaced evenly, double track), revenue k$/yr for 1..6 trains: 1840 186 212 226 237 234 262; 1870 269 531 665 774 784 783; 1900 525 807 785 803 789 812. It takes 2-4 trains to reach 90 % of the best, and a full train waits on 12-97 % of days.
@@ -39,7 +39,7 @@ All three: platform holds 20 days (today 30), pay per distance as now. Same sing
 | pair revenue at 1 / 3 trains, 1870, k$ | 269 / 665 | 269 / 593 | 237 / 611 | 269 / 602 |
 | platform: pile in trains (V2) / full-train station-months | 0.79 / 29 % | 0.57 / 17 % | 0.55 / 19 % | 0.52 / 16 % |
 | full train waiting on a pair, days, 1870 at 3+ trains | 12-50 % | 4-28 % | 7-23 % | 7-25 % |
-| Strategist profit / net worth, $M (10 y) | 1.9 / 8.7 | 0.52 / 3.0 | 0.92 / 4.2 | 0.43 / 2.9 |
+| Strategist profit / net worth, $M (10 y) | 3.1 / 11.2 | 0.52 / 3.0 | 0.92 / 4.2 | 0.43 / 2.9 |
 
 Notes and limits. Platforms are never at the 30-day ceiling, but a bot that adds a train when the pile exceeds a train load keeps piles near one train by construction. "Trains on the busiest line" is 7-8 under all models: that is the bot's cap (8) and its rule (sum of the piles of all stops), so the pair test above is the honest measure. Pair numbers above 3 trains are noisy (about +-10 %: arrivals bunch). Constants are first guesses (`pairShare` 0.28, hold 20 days, budget 0.22, service scale 0.4/week): V2's profit falls 63-90 % for every model, and the goals (Phases 77/84) would be re-derived in the build phase anyway. The bot's payback estimate is capped by the line's visible demand under the prototypes (`paybackEstimate.ts`, `strongBot.ts` `bestPaxLoco`); today's runs are unchanged (byte-identical on the 1870 check). Freight was not touched.
 

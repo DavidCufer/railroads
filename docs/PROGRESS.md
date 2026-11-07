@@ -7925,4 +7925,4 @@ Flags for the owner: (1) 1930 goals jump about 9x (random profit gold $0.16M -> 
   Looked at mid-close and end state on phone and tablet.
 
 ## 2026-11-07 - Phase 89 exploration: new passenger models (branch `phase-89-pax-explore`, NOT merged; owner picks)
-Three prototypes behind a dev flag (route demand, service-driven, ticket office), baseline and benches in `docs/explore/passengers-2.md`, rows in `docs/explore/data/pax89.jsonl`, mock-ups in `docs/explore/mockups/`. Shipped game unchanged. Finding: passengers are 97-99 % of revenue under every model, freight trains earn ~1/20 of a passenger train. Baseline Strategist 1870 row was still running when written.
+Three prototypes behind a dev flag (route demand, service-driven, ticket office), baseline and benches in `docs/explore/passengers-2.md`, rows in `docs/explore/data/pax89.jsonl`, mock-ups in `docs/explore/mockups/`. Shipped game unchanged. Finding: passengers are 97-99 % of revenue under every model, freight trains earn ~1/20 of a passenger train.
