@@ -97,6 +97,18 @@ function jobs(): Job[] {
         });
     return out;
   }
+  const share = /^g90p(\d+)$/.exec(batch);
+  if (share) {
+    // Phase 90 calibration at the 16-year horizon: g90p45 = pair share 0.45 (the same eras, seeds 1-2, Normal)
+    for (const seed of [1, 2])
+      for (const start of [1870, 1900, 1840])
+        out.push({
+          id: `strong/route+${batch}/${start}/${seed}`,
+          args: [String(start), String(seed), "16", "route", "strong"],
+          env: { P90_TAG: batch, PAX_PAIRSHARE: String(Number(share[1]) / 100) },
+        });
+    return out;
+  }
   if (batch === "s90") {
     // the Strategist on the new economy, 10 years (a 16-year run does not fit a container's life)
     for (const start of [1870, 1900, 1840])
