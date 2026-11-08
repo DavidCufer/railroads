@@ -14,6 +14,8 @@ names = {
     "route+r33bf15": "+ freight rates x1.5",
     "route+r33bo3f15": "+ output x3 and rates x1.5",
     "route+r33bo2f125": "+ output x2 and rates x1.25",
+    "route+r33bf2": "+ freight rates x2",
+    "route+r33bo2f15": "+ output x2 and rates x1.5",
 }
 print("| configuration | runs | passenger $M | freight $M | freight share | profit $M | pax / freight trains |")
 print("|---|---|---|---|---|---|---|")
