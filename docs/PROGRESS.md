@@ -7990,3 +7990,10 @@ Strategist (10 y, one seed, 0.33): year-10 profit 1840 $0.73M, 1870 $1.27M, 1900
 - **UI length:** the word ceilings are back at station 37 and train 24 (the "changed e2e word ceilings" note above is withdrawn). Trimmed: no title or "Platform holds" line on the station panel, the link reads "Routes >", a route reads "carried 43/43", the train's first leg "55/57 +2" ("full" when another train adds nothing), the full sentences are in the row's tooltip. Station 37, train 24 measured.
 - Other limits in table 3 approved as listed; no other bound changed.
 
+
+### Orchestrator: Phase 90 merged (2026-11-08)
+- Reviewed `phase-90-route-demand` (43997bd): route demand replaces the §9.5d passenger model (pair share 0.33, platform
+  20 days); freight base rates x2 (chain long-haul legs excluded); goals re-derived (owner 2026-11-08: lean balance, drops
+  approved); yearly-profit achievements $0.15M / $1.0M / $3.0M with renamed ids (old saves mapped, tested); Silver Rush
+  3rd star $0.94M. Changed limits = exactly the owner-approved list; e2e word ceilings unchanged (text trimmed).
+- `npm run check` 970 passed; e2e shards run alone 155 + 154 passed; run screenshots reverted (the phase's own kept).
