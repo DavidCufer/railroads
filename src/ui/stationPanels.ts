@@ -168,11 +168,7 @@ function supplyChipStack(
     // The block is the way into the route list ("Where to"): all routes, and the towns no train from here calls at.
     if (onTap)
       block.append(
-        h(
-          "button",
-          { className: "dest-link", onClick: onTap },
-          strings.station.destinations.tapHint,
-        ),
+        h("button", { className: "dest-link", onClick: onTap }, strings.routes.listLink),
       );
     children.push(block);
   }

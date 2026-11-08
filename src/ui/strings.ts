@@ -2,13 +2,19 @@
 export const strings = {
   /** Phase 90: route demand on the station and train panels (SPEC 9.5d). */
   routes: {
-    /** "carried 43 of 85" */
-    row: (carried: number, demand: number) => `carried ${carried} of ${demand}`,
-    /** Train panel, one line for the first leg: "carried 55 of 57 · another train +2", or "route full" when one more adds nothing. */
+    /** The link under the station's routes that opens the route list. */
+    listLink: "Routes \u25b8",
+    /** "carried 43/85": the people who boarded here for that town over about a month / the route's people a month. */
+    row: (carried: number, demand: number) => `carried ${carried}/${demand}`,
+    rowTitle: (name: string, carried: number, demand: number, days: number) =>
+      `${name}: carried ${carried} of ${demand} a month; the platform holds ${days} days of arrivals`,
+    /** Train panel, first leg: "55/57 +2" (carried / the route's people a month, another train adds about 2), "55/57 full" when it adds nothing. */
     trainLine: (carried: number, demand: number, more?: number) =>
+      more === undefined ? `${carried}/${demand} full` : `${carried}/${demand} +${more}`,
+    trainTitle: (carried: number, demand: number, more?: number) =>
       more === undefined
-        ? `carried ${carried} of ${demand} \u00b7 route full`
-        : `carried ${carried} of ${demand} \u00b7 another train +${more}`,
+        ? `Carried ${carried} of ${demand} a month: the route is full, another train adds nothing`
+        : `Carried ${carried} of ${demand} a month: another train adds about ${more} a month`,
   },
   app: {
     exitGameConfirm: "Exit game?",
@@ -1081,9 +1087,9 @@ export const strings = {
       bridges10: { name: "Bridge builder", desc: "Own 10 bridge spans." },
       electrified: { name: "Electrified", desc: "Electrify a stretch of track." },
       metropolisServed: { name: "Metropolis served", desc: "Serve a metropolis with a station." },
-      profit250k: { name: "$0.25M a year", desc: "Earn $0.25M operating profit in a year." },
-      profit2500k: { name: "$2.5M a year", desc: "Earn $2.5M operating profit in a year." },
-      profit7500k: { name: "$7.5M a year", desc: "Earn $7.5M operating profit in a year." },
+      profit150k: { name: "$0.15M a year", desc: "Earn $0.15M operating profit in a year." },
+      profit1m: { name: "$1M a year", desc: "Earn $1M operating profit in a year." },
+      profit3m: { name: "$3M a year", desc: "Earn $3M operating profit in a year." },
       passengers100k: { name: "100,000 passengers", desc: "Carry 100,000 passengers." },
       freight10k: { name: "10,000 t of freight", desc: "Deliver 10,000 t of freight." },
       goalReached: { name: "Goal reached", desc: "Complete a bronze, silver or gold goal." },

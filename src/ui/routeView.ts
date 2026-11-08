@@ -9,6 +9,7 @@ import { carriedLastMonth } from "../sim/stations/routeCarried";
 import { estimateRoundTripDays } from "../sim/trains/headway";
 import { carCapacity } from "../sim/trains/capacity";
 import type { Train } from "../sim/trains/types";
+import { MAX_WAIT_DAYS } from "../data/economy";
 import { h } from "./h";
 import { strings } from "./strings";
 
@@ -60,7 +61,11 @@ export function routeBar(fraction: number): HTMLElement {
 export function routeRow(row: RouteRowView): HTMLElement {
   return h(
     "div",
-    { className: "dest-row", "data-testid": "route-row" },
+    {
+      className: "dest-row",
+      "data-testid": "route-row",
+      title: strings.routes.rowTitle(row.name, r(row.carried), r(row.demand), MAX_WAIT_DAYS),
+    },
     h(
       "div",
       { className: "dest-row-head" },
@@ -108,7 +113,11 @@ export function renderRouteTrain(state: GameState, train: Train): HTMLElement | 
     rows.push(
       h(
         "div",
-        { className: "dest-row", "data-testid": "route-pair" },
+        {
+          className: "dest-row",
+          "data-testid": "route-pair",
+          title: t.trainTitle(r(carried), r(demand), more < 2 ? undefined : r(more)),
+        },
         h(
           "div",
           { className: "dest-row-head" },

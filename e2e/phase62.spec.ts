@@ -81,7 +81,7 @@ test("Ljubljana sends more passengers to Vienna than to Graz", async ({ page }) 
   await expect(rows).toHaveCount(4);
   const share = async (name: string): Promise<number> => {
     const text = await rows.filter({ hasText: name }).locator(".dest-count").innerText();
-    return Number(/of (\d+)/.exec(text)![1]); // the route's people a month ("carried X of Y")
+    return Number(/\/(\d+)/.exec(text)![1]); // the route's people a month ("carried X/Y")
   };
   expect(await share("Vienna")).toBeGreaterThan(await share("Graz"));
   await page.waitForTimeout(300);

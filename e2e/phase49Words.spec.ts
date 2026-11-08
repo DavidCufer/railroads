@@ -21,14 +21,7 @@ const BEFORE: Record<string, number> = {
   history: 47,
 };
 const MEASURED: Record<string, number> = {};
-// Phase 90 (route demand): the station panel shows each route as "carried X of Y" and the train panel its first leg as "carried X of Y
-// · another train +N" (PLAN Phase 90 item 2). Station 37 -> 40, train 24 -> 29: the measured counts, flagged for the owner in PROGRESS.
-const PHASE50_CEILING: Record<string, number> = {
-  "buy-cars": 65,
-  train: 29,
-  consist: 60,
-  station: 40,
-};
+const PHASE50_CEILING: Record<string, number> = { "buy-cars": 65, train: 24, consist: 60 };
 
 async function words(page: Page, selector: string): Promise<number> {
   return page.evaluate((sel) => {

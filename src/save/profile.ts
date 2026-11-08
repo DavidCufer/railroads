@@ -2,6 +2,8 @@
  * The player profile (Phase 46): things that outlive any one game - best scenario stars and unlocked achievements. Kept in
  * localStorage, outside the game save; every access is wrapped because storage can be missing or blocked.
  */
+import { renameAchievements } from "../data/achievements";
+
 const KEY = "railroads.profile";
 
 export interface Profile {
@@ -19,7 +21,7 @@ export function loadProfile(): Profile {
     const parsed = JSON.parse(raw) as Partial<Profile>;
     return {
       scenarioStars: { ...parsed.scenarioStars },
-      achievements: { ...parsed.achievements },
+      achievements: renameAchievements({ ...parsed.achievements }), // Phase 90: renamed ids follow
     };
   } catch {
     return empty;
