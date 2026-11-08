@@ -121,6 +121,8 @@ export interface GameState {
   stationFlow: Map<number, StationFlow>;
   /** Phase 53C: the last passenger departure per (station, next stop); see `DepartureStamp`. Absent = "now" on first sight. */
   departures: Map<string, DepartureStamp>;
+  /** Phase 90: people carried per route (station, next stop) over about the last month, for the panels' "carried X of Y". */
+  routeCarried: Map<string, { value: number; tick: number }>;
   /** Phase 54: per (station, next stop), the tick since which the people bound that way have been waiting: a train
    * that takes them all sets it to now, one that leaves some behind (full) sets it back so they stay counted for the next
    * one. Absent = a full `MAX_WAIT_DAYS` of them. */
@@ -260,6 +262,7 @@ export function createGameState(options: NewGameOptions): GameState {
     stationTransfer: new Map(),
     stationFlow: new Map(),
     departures: new Map(),
+    routeCarried: new Map(),
     waitingSince: new Map(),
     washouts: [],
     nextWashoutId: 0,

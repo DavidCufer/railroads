@@ -12,7 +12,7 @@
  *  6. Road and air competition take short-haul traffic; fast and bulk traffic keeps its share.
  *  7. Freight rates: early bulk freight competes with canals and wagons.
  */
-import type { CargoType } from "./cargo";
+import { CARGO, type CargoType } from "./cargo";
 import { eraInflation } from "./finance";
 import { KMH_PER_TILE_PER_DAY, type LocomotiveDef } from "./trains";
 
@@ -79,6 +79,14 @@ export const PASSENGER_REAL_FARE_ANCHORS: Anchors = [
   [1965, 0.5],
   [2030, 0.5],
 ];
+
+/** Phase 90 (owner's OK, 2026-11-08): freight rates sit this much above the sourced anchors below. With route demand passengers
+ * earn about half of what they did, and a freight line (one source = about one train, the same track bill) paid back in 10-150
+ * years against 1-1.5 for a passenger line; the V2 bench (docs/explore/freight-90.md) found the rate the one lever that moved the
+ * freight share (x1.5 18 %, x2 27 % of passenger + freight income at year 10; industry output hardly moved it). Applies to freight
+ * only (not the long-haul chain's legs, whose rates Phase 40 set against the ordinary lines and the scenarios solve for);
+ * passengers and mail are unchanged. */
+export const FREIGHT_RATE_FACTOR = 2;
 
 /** Real-terms freight rate level: bulk rail freight beat the wagon and (where one existed) the canal, then
  * competition between lines and rate regulation (Interstate Commerce Act 1887, Railway and Canal Traffic Act
@@ -147,7 +155,8 @@ export function fareIndex(year: number, cargo: CargoType): number {
       ? interpolateYear(PASSENGER_REAL_FARE_ANCHORS, year) * PASSENGER_FARE_FACTOR
       : cargo === "mail"
         ? interpolateYear(PASSENGER_REAL_FARE_ANCHORS, year)
-        : interpolateYear(FREIGHT_REAL_RATE_ANCHORS, year);
+        : interpolateYear(FREIGHT_REAL_RATE_ANCHORS, year) *
+          (CARGO[cargo].chainLeg === undefined ? FREIGHT_RATE_FACTOR : 1);
   return priceIndex(year) * real;
 }
 
@@ -617,42 +626,23 @@ export function tripsPerHeadPerMonth(year: number): number {
   return interpolateYear(TRIPS_PER_HEAD_ANCHORS, year) * TRIPS_GAME_SCALE;
 }
 
-/** Where a town's trips go: gravity (Phase 62). The destinations in range split the total by weight = destination
- * population / max(distance, `minDistanceTiles`)^`distanceExponent`, with **no cap on one destination's share**, so a
- * bigger or nearer town draws more (Vienna more than Graz from Ljubljana). How many trips a station generates in all is
- * still the old rule: the total the 20 % cap (`maxShare`) left after water-filling (`cappedVolume`); a station generates
- * that total x the shares of the towns the network *reaches*. `maxShare` therefore sets the volume only; replacing it by a
- * sourced rule (the radiation model's S / (m + S), Simini et al., Nature 2012) is left to a later phase, since it would
- * raise a pair line's passengers 1.7-2.5x (PROGRESS, Phase 62). */
-export const PAIR_DEMAND = {
-  distanceExponent: 1,
-  /** Exponent of the destination's population in the weight that sizes the trip total (`cappedVolume`; 1 = proportional,
-   * the Phase 53 volume, unchanged so passenger volume stays the same on every map). */
-  sizeExponent: 1,
-  /** Phase 68: exponent of the destination's population in the weight that splits the trips. Kept at 1: published gravity
-   * fits give 0.5-0.9, but the Vienna-Graz test (a bigger town 2x as far still draws 1.5x more) needs about 0.9 or more,
-   * and 0.8 left the strong player's 1870/1900 profit unchanged in the sweep (PROGRESS). */
-  splitSizeExponent: 1,
-  /** Phase 68: part of a town's trips split evenly over the destinations in range, the rest by gravity: a floor, so a
-   * small town in range keeps a fair share while the big nearer city still draws most. 0.3 is the most even setting that
-   * keeps the Vienna-Graz test (Vienna 1.56x Graz; 0.4 gives 1.47, below the test's 1.5). The strong player's year-16
-   * profit hardly moves with it (2 seeds, 1870 / 1900, M$: 0.2 7.9 / 8.0, 0.3 7.2 / 9.0, 0.4 6.9 / 5.3, 0.5 6.8 / 5.8). */
-  evenShare: 0.3,
-  /** Towns nearer than this weigh as if at this distance (tiles of 5 km): stops a next-door village dominating. */
-  minDistanceTiles: 15,
-  /** Phase 51: 0.2 (was 0.5). Phase 62: used only to size the trip total (`cappedVolume`), not to split it. */
-  maxShare: 0.2,
+/** Route demand (Phase 90, replaces the Phase 35-62 gravity split; SPEC 9.5d): every pair of towns your trains connect has one
+ * number of people a month each way, `pairShare x sqrt(popA x popB) x trips per head / party size`, bent down by distance beyond
+ * `refTiles` (x (ref / d) ^ exponent). It does not depend on any other route, so another train or another line to the same
+ * town never takes a pair's people, and a pair's number is the most it can ever earn: the station and train panels show it as
+ * "carried X of Y". A town never sends more than `townCap` times its own total (a hub with many pairs). `pairShare` was
+ * calibrated on the V2 bench (docs/explore/freight-90.md): 0.33 gives about half of the passenger income of the old model. */
+export const ROUTE_DEMAND = {
+  pairShare: 0.33,
+  /** Pairs nearer than this many tiles are not penalised; farther ones lose (ref / d) ^ exponent. */
+  refTiles: 20,
+  distExponent: 0.5,
+  townCap: 1.5,
 };
 
-/** Phase 51: people wait only for the next train. A destination's waiting pile holds `demand per day x service
- * interval`, with the interval (days between trains that carry those people) clamped to `MIN_WAIT_DAYS`..`MAX_WAIT_DAYS`.
- * A train less than a day apart still leaves a day of people on the platform: they arrive through the day, and a
- * timetable is read to the day in this game. */
-export const MIN_WAIT_DAYS = 1;
-/** Never more than the old Phase 35D rule, a month of demand: a service rarer than monthly (early trains crawl: a
- * 100 km round trip takes ~25 days) was never fed by a bigger pile, and a lower cap (14) cut the 1840s passenger
- * line to 0.59x coal against a 0.7x bound for no mechanism but the clamp. */
-export const MAX_WAIT_DAYS = 30;
+/** People wait for the next train: a station's pile holds at most this many days of the arrivals of its routes, and the people who
+ * do not fit leave (the "turned away" of the station panel). Phase 90: 20 days (30 under the old gravity model). */
+export const MAX_WAIT_DAYS = 20;
 
 /** The radius of the destinations a town's people know of, in tiles (5 km each), by year: 300 km in 1830, growing
  * with faster trains, cheaper fares, newspapers and timetables. */

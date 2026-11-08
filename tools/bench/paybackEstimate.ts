@@ -56,6 +56,7 @@ export function estimatePayback(
   loco: LocomotiveDef,
   nCars: number,
   distanceTiles: number,
+  demandPerMonth?: number,
 ): Estimate {
   const year = calendarFromTicks(state.startYear, state.ticks).year;
   const cars = Array.from({ length: nCars }, () => {
@@ -81,7 +82,14 @@ export function estimatePayback(
   const legDays = distanceTiles / tilesPerDay;
   const fullCarFare = computeRevenue(state, "passengers", distanceTiles, legDays, loco.maxSpeedKmh);
   const seatsPeople = passengerSeatsIn(year);
-  const revenue = legs * nCars * FILL * fullCarFare * (seatsPeople / CARGO.passengers.capacity);
+  let revenue = legs * nCars * FILL * fullCarFare * (seatsPeople / CARGO.passengers.capacity);
+  // Phase 89: under a prototype model the pair's visible demand caps what a line can earn (people a month, game passengers,
+  // 85 % of them caught): the number a player reads off the route sheet.
+  if (demandPerMonth !== undefined)
+    revenue = Math.min(
+      revenue,
+      0.85 * demandPerMonth * 12 * PARTY_SIZE * (fullCarFare / CARGO.passengers.capacity),
+    );
   const tilesRun = ownLegs * distanceTiles;
   const costs =
     locoRunningCostPerYear(loco, 0, year) +

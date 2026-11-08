@@ -3,17 +3,15 @@
 import { HOURS_PER_DAY } from "../sim/time";
 import type { GameState } from "../sim/state";
 import { serviceKey, serviceRates, observedIntervalDays } from "../sim/stations/waiting";
-import { strings } from "./strings";
-
-const SHOWN = 4;
+import { routeStationView, type RouteStationView } from "./routeView";
 
 export interface WaitingInfo {
   /** Passengers in the pile. */
   waiting: number;
   /** Days until the next train that calls here is expected, when one runs. */
   nextDays?: number;
-  /** Towns the trains here call at directly, biggest share first (at most `SHOWN`, then "+N more"). */
-  reach: string[];
+  /** Phase 90: the station's routes with their demand and what was carried. */
+  routes?: RouteStationView;
 }
 
 /** Days until the next passenger train leaves `stationId`: the shortest, over its next stops, of the observed gap between
@@ -38,12 +36,11 @@ export function waitingInfo(state: GameState, stationId: number): WaitingInfo | 
   const economy = state.stationEconomy.get(stationId);
   if (economy?.passengerPool === undefined) return undefined;
   const pile = state.stationCargo.get(stationId)?.passengers;
-  const routes = [...(economy.passengerRoutes ?? [])].sort(
-    (a, b) => b.perMonth - a.perMonth || a.cityId - b.cityId,
-  );
-  const names = routes.map((r) => state.cities.find((c) => c.id === r.cityId)?.name ?? "?");
-  const reach = names.slice(0, SHOWN);
-  if (names.length > SHOWN) reach.push(strings.station.reachMore(names.length - SHOWN));
   const nextDays = nextTrainDays(state, stationId);
-  return { waiting: Math.round(pile?.amount ?? 0), reach, ...(nextDays ? { nextDays } : {}) };
+  const routeView = routeStationView(state, stationId);
+  return {
+    waiting: Math.round(pile?.amount ?? 0),
+    ...(nextDays ? { nextDays } : {}),
+    ...(routeView ? { routes: routeView } : {}),
+  };
 }

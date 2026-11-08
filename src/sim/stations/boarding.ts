@@ -29,8 +29,8 @@ export function upcomingStops(train: Train): Set<number> {
   return stops;
 }
 
-/** The people a month the station sends to each town it reaches (`StationEconomy.passengerRoutes`: gravity shares, each
- * town capped at `PAIR_DEMAND.maxShare`, the same numbers that generated the pile), summed over the towns of `stops`,
+/** The people a month the station sends to each town it reaches (`StationEconomy.passengerRoutes`: route demand, the
+ * same numbers that generated the pile), summed over the towns of `stops`,
  * with the stop that serves each town (the nearest one). `total` is what the whole station sends to every town it reaches. */
 function routesTo(
   state: GameState,

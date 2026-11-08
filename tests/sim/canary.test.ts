@@ -13,6 +13,17 @@
  *   1930 normal  NW 1,034,770  profit  -159,636  ($1.5M)      the banking crisis of 1931 hits
  *   1870 hard    NW   361,284  profit   +26,242  ($0.6M)      re-recorded 2026-11-06 (Phase 87, revenueMult 0.8)
  *   1930 hard    NW   371,029  profit  -166,381  ($0.9M)  bankrupt 1931   (was 424,947 / +75,209 and 371,692 / -165,844)
+ *
+ * Re-recorded 2026-11-08 (Phase 90: route demand replaces the gravity model, freight rates x2, the bot weighs freight; the owner
+ * chose that whole-economy change, PLAN Phase 90 item 4), same bands, new records (net worth, two-year profit):
+ *   1840 normal  NW   721,229  profit +122,508   (was 583,360 / -9,281)
+ *   1870 normal  NW   839,403  profit +261,125   (was 707,788 / +136,693)
+ *   1900 normal  NW 1,351,072  profit +646,331   (was 728,680 / +137,853)
+ *   1930 normal  NW 1,383,188  profit +255,308   (was 1,034,770 / -159,636)
+ *   1870 hard    NW   357,942  profit  +39,189   (was 361,284 / +26,242)
+ *   1930 hard    NW   551,461  profit +134,471   no bankruptcy in 1931 (was 371,029 / -166,381, bankrupt 1931)
+ * The first two years are richer than before (a route's people are all there from the first train; the old model's 30-day piles
+ * and shares took years to fill); the long run is about half of the old passenger income (docs/explore/freight-90.md).
  * Bands are wide on purpose: net worth within 0.6x..1.6x of the record, profit within 0.15 x start cash of the record,
  * bankruptcy year must match. A band is never to be widened to make a test pass: a failure means an era moved, and the
  * owner decides whether that is wanted (then re-record here, with the date).
@@ -42,49 +53,49 @@ const RECORD: Row[] = [
     start: 1840,
     difficulty: "normal",
     era: "1840 Normal (slow early railways)",
-    netWorth: 583_360,
-    profit: -9_281,
+    netWorth: 721_229,
+    profit: 122_508,
     bankruptYear: null,
   },
   {
     start: 1870,
     difficulty: "normal",
     era: "1870 Normal (boom years)",
-    netWorth: 707_788,
-    profit: 136_693,
+    netWorth: 839_403,
+    profit: 261_125,
     bankruptYear: null,
   },
   {
     start: 1900,
     difficulty: "normal",
     era: "1900 Normal",
-    netWorth: 728_680,
-    profit: 137_853,
+    netWorth: 1_351_072,
+    profit: 646_331,
     bankruptYear: null,
   },
   {
     start: 1930,
     difficulty: "normal",
     era: "1930 Normal (banking crisis)",
-    netWorth: 1_034_770,
-    profit: -159_636,
+    netWorth: 1_383_188,
+    profit: 255_308,
     bankruptYear: null,
   },
   {
     start: 1870,
     difficulty: "hard",
     era: "1870 Hard",
-    netWorth: 361_284,
-    profit: 26_242,
+    netWorth: 357_942,
+    profit: 39_189,
     bankruptYear: null,
   },
   {
     start: 1930,
     difficulty: "hard",
     era: "1930 Hard (crisis)",
-    netWorth: 371_029,
-    profit: -166_381,
-    bankruptYear: 1931,
+    netWorth: 551_461,
+    profit: 134_471,
+    bankruptYear: null,
   },
 ];
 

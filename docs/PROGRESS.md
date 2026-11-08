@@ -7923,3 +7923,70 @@ Flags for the owner: (1) 1930 goals jump about 9x (random profit gold $0.16M -> 
   the fallback show the end state over the clip's last frame. `public/intro/crest.png` removed.
 - `npm run check` 972 passed; e2e shards run alone 155 + 154 passed; run screenshots reverted (the phase's own kept).
   Looked at mid-close and end state on phone and tablet.
+
+## 2026-11-07 - Phase 89 exploration: new passenger models (branch `phase-89-pax-explore`, NOT merged; owner picks)
+Three prototypes behind a dev flag (route demand, service-driven, ticket office), baseline and benches in `docs/explore/passengers-2.md`, rows in `docs/explore/data/pax89.jsonl`, mock-ups in `docs/explore/mockups/`. Shipped game unchanged. Finding: passengers are 97-99 % of revenue under every model, freight trains earn ~1/20 of a passenger train.
+
+## 2026-11-08 - Phase 90 (branch `phase-90-route-demand`, NOT merged; owner approved step 1): route demand, freight rates x2
+
+Step 1 (freight): `docs/explore/freight-90.md` (root cause and the lever table; owner approved rates x2, output unchanged, bots weigh freight).
+
+### What changed so far (items 2-3)
+- **Route demand is the passenger model** (SPEC 9.5d to be rewritten): `ROUTE_DEMAND` in `src/data/economy.ts` (pair share 0.33, 20-tile reference, exponent 0.5, hub cap 1.5x), `computePassengerFlows` returns one route per town a train calls at (`routeDemandPerMonth`), `MAX_WAIT_DAYS` 20 (was 30). The gravity code (`PAIR_DEMAND`, `destinationShares`, `cappedVolume`, `gravityWeight`) and the Phase 89 dev flag are gone. `state.routeCarried` (saved, optional in saves) feeds "carried X of Y" on the station panel, the route list sheet and the train panel (`src/ui/routeView.ts`). Fixed: "carried" never shows above the route's number; "Platform full - run more trains" only when at least 10 % of the people did not fit.
+- **Freight rates x2** for ordinary freight (`FREIGHT_RATE_FACTOR` 2 in `src/data/economy.ts`). Deviation from "all freight cargo": the long-haul chain's legs (silver, uranium) are left out, because Phase 40 set their rates against the ordinary lines and `balanceLongHaul` (a limit that is not passenger-vs-freight) would otherwise move; the chain tests stay unchanged.
+- **Bots (bench only):** V2 and the Strategist now weigh several buyers for a freight source and rank freight at payback x 0.35 by default (`FREIGHT_SINK=nearest`, `FREIGHT_BIAS=1` restore the old rule), and cap a passenger line's estimate by its route demand.
+
+### Changed test limits (old -> new, reason)
+Owner OK 2026-11-08 for passenger-vs-freight limits (and, listed for the owner, the two lines that follow from them):
+| test | old | new | reason |
+|---|---|---|---|
+| balance: coal route profit per train | $40k-$120k | $80k-$250k | freight rates x2 (measured 155k) |
+| balance: passenger/freight profit per train | 1x-2.5x (x induced) | 0.5x-2.5x (x induced) | passengers and freight are meant to be comparable per train (measured 0.75) |
+| balancePassengers 1860s: passengers vs coal | 1.6-3.5x | 1.2-3.5x | coal x2, route demand (measured 1.52) |
+| balancePassengers 1900: Town-Town passengers vs coal | 1.4-2.6x | 1.1-2.6x | coal x2, route demand (measured 1.39) |
+| balancePassengers: mail train vs passenger train | 0.05-0.35x | 0.03-0.35x | a town pair's passenger line earns more under route demand (measured 0.043) |
+Mechanism tests rewritten for route demand (not bounds): `pairDemand.test.ts` (gravity tests replaced by route-demand tests), `phase53.test.ts`, `cargoFlow.test.ts` (20-day ceiling instead of 30).
+Canary re-recorded (the owner chose the economy change; its own rule: re-record with the date): see the table in `tests/sim/canary.test.ts`. Scenario star: **Silver Rush 3rd star $1.0M -> $0.94M profit** (the staged plan now makes $977k; 96 % of the solver's result as in Phase 76/80): a goal drop, listed for the owner in the step 4 table.
+
+### Changed e2e word ceilings (flagged for the owner; not a pax-vs-freight limit)
+`e2e/phase49Words.spec.ts`: station panel 37 -> 40 words, train panel 24 -> 29 words (the measured counts). Reason: PLAN Phase 90 item 2 puts "carried X of Y" per route on the station panel and "carried X of Y - another train +N" on the train panel. The blocks are already cut to the minimum (no title, no explanation line); ask if you would rather drop the train line.
+Also updated in e2e (texts, not bounds): phase35/43/48/52/54/62 follow the route list (rows counted inside the sheet, "carried" instead of "%", the unserved list no longer promised to name one town).
+
+
+### Phase 90 step 4 results (STOP before merge; owner to look at three tables)
+Bench: `docs/explore/data/pax89.jsonl` ids `route+g90/` (V2 Normal, 5 eras x 3 seeds, 16 y, all survive), `g90h/` (Hard, 2 seeds), `s90/` (Strategist, 10 y, one seed, eras 1840 / 1870 / 1900), `g90p45/` (pair share 0.45, 3 eras x 2 seeds); `python3 tools/bench/goals90.py`. Scenarios (solver, new economy): Semmering won, Coal for Trieste **3 stars** (profit $514k), Transcontinental 2 stars (as before), Silver Rush 2 stars at $977k profit (3rd star lowered, below), Panic of 1873 won (2 stars).
+
+**1. Goals, old -> new** (the new medians follow `STRONG_PLAYER_MEDIANS`, better of V2 and Strategist per cell; the Strategist only ran years 5 and 10 on one seed; every line but the last two is a DROP, the owner decides):
+| goal | old | new |
+|---|---|---|
+| gb gold (profit by 1865) | $5.6M | **$1.0M** |
+| central-eu gold (profit by 1875) | $6.1M | **$1.1M** |
+| us-west gold (revenue by 1900) | $11M | **$2.3M** |
+| us-east / us-west silver (revenue by 1880) | $6.1M | **$1.9M** |
+| random map profit gold, start 1830 / 1840 / 1870 / 1900 / 1930 / 1950 | $6.3M / 6.8M / 9.0M / 2.9M / 1.5M / 0.58M | **$1.1M / 1.2M / 1.3M / 1.3M / 0.17M / 3.3M** (1950 rises) |
+| random map revenue gold (same starts) | $9.8M / 10M / 15M / 10M / 7.4M / 3.9M | **$2.0M / 2.1M / 3.6M / 5.3M / 1.5M / 9.7M** (1950 rises) |
+| scenario stars: Semmering / Coal for Trieste / Transcontinental / Panic 1873 | $320k / $350k / $360k / $650k + $850k | unchanged (Coal for Trieste now makes $514k; Transcontinental still 2 stars) |
+| Silver Rush 3rd star (profit, 1885) | $1.0M | **$0.94M** (solver's best now $977k, 96 % as in Phases 76 / 80) |
+| achievements (profit a year) | $0.25M / $2.5M / $7.5M | **left unchanged** (ids carry the amounts); $7.5M is now out of reach (best year-16 median $2.9M, 1950), $2.5M is reached only in 1950: a proposal is $0.15M / $1.0M / $3.0M with renamed ids |
+Medians ($M, V2 Normal, years 5 / 10 / 16, revenue; profit): 1840 0.82 / 1.49 / 1.65; 0.41 / 0.73 / 0.97. 1870 1.44 / 2.70 / 2.88; 0.80 / 1.27 / 1.06. 1900 1.37 / 3.51 / 4.39; 0.65 / 1.54 / 1.11. 1930 1.07 / 1.30 / 1.33; 0.40 / 0.38 / 0.15. 1950 4.85 / 5.73 / 8.43; 2.27 / 1.96 / 2.90.
+**Calibration warning:** pair share 0.33 was set on 10-year runs (about half of the old passenger income); at year 16 V2's passenger income is down 60-90 % in 1840-1930 (profit 1870: $7.3M -> $1.1M) and **up** in 1950. At pair share **0.45** (V2, seeds 1-2, 16 y) year-16 profit is 1840 $3.5M (was $5.2M), 1870 $2.1M (was $7.3M), 1900 $5.7M (was $2.4M), passengers 68-87 % and freight 12-32 % of passenger + freight income. Owner: keep 0.33 (freight about half in 1840 / 1870, goals as above) or take about 0.45 (higher goals, freight a third or less)? Either needs the goal literals and the canary re-derived once more.
+
+**2. Before / after** (V2 Normal, mean of seeds 1-3, completed year 16, $M; old = Phase 89 rows `today`):
+| era | passenger / freight share of revenue | revenue | profit | pax / freight trains | trains to fill one busy pair (pair test, 90 % of best) | platform: full-train station-months |
+|---|---|---|---|---|---|---|
+| 1840 old | 95 % / 3 % | 6.1 | 3.4 | 88 / 21 | 4 | 22 % |
+| 1840 new | 50 % / 50 % | 1.7 | 0.85 | 24 / 22 | 5 | 22 % |
+| 1870 old | 95 % / 2 % | 10.3 | 5.5 | 92 / 14 | 4 | 34 % |
+| 1870 new | 49 % / 50 % | 3.0 | 1.05 | 30 / 40 | 3 | 44 % |
+| 1900 old | 98 % / 0 % | 7.8 | 3.0 | 46 / 4 | 2 | 31 % |
+| 1900 new | 92 % / 7 % | 5.5 | 1.8 | 39 / 16 | 2 | 36 % |
+Strategist (10 y, one seed, 0.33): year-10 profit 1840 $0.73M, 1870 $1.27M, 1900 $1.12M; freight 66 % / 36 % / 10 % of passenger + freight. "Trains on the busiest line" is 8 in every run (the bot's cap), so the pair test is the measure. Honest reading: half-and-half is reached in 1840 and 1870 only; 1900 and later stay passenger-led because the 1900+ passenger trains are rich per train and the bot builds few freight lines; money is down 40-90 % before 1950.
+
+**3. Changed limits** (old -> new, reason; all listed above in "Changed test limits" and "Changed e2e word ceilings"): coal route profit $40-120k -> $80-250k; passenger/freight per train 1x-2.5x -> 0.5x-2.5x; 1860s pax vs coal 1.6-3.5x -> 1.2-3.5x; 1900 pax vs coal 1.4-2.6x -> 1.1-2.6x; mail vs passenger train 0.05-0.35x -> 0.03-0.35x; e2e word ceilings station 37 -> 40 and train 24 -> 29 (flagged: not a pax-vs-freight limit); canary re-recorded (six rows, same bands); Silver Rush 3rd star $1.0M -> $0.94M. Deviation: freight rates x2 exclude the long-haul chain legs (so `balanceLongHaul` is unchanged).
+
+### Owner decisions on Phase 90 (2026-11-08) and what was done
+- **Pair share stays 0.33** ("lean balance, goals scaled down"); the goals table above (drops included, the 1950 rises, Silver Rush 3rd star $0.94M, unchanged scenario stars, re-recorded canary) is approved.
+- **Achievements rescaled** to $0.15M / $1M / $3M a year with new ids `profit150k` / `profit1m` / `profit3m` (`src/data/achievements.ts`, `ACHIEVEMENT_CHECKS`, strings, `tests/sim/history.test.ts`, `e2e/phase46.spec.ts`). Old saves and the profile (localStorage) with `profit250k` / `profit2500k` / `profit7500k` are mapped to the new ids on load (`renameAchievements`; every old amount is above its new one); test `tests/save/renamedAchievements.test.ts`.
+- **UI length:** the word ceilings are back at station 37 and train 24 (the "changed e2e word ceilings" note above is withdrawn). Trimmed: no title or "Platform holds" line on the station panel, the link reads "Routes >", a route reads "carried 43/43", the train's first leg "55/57 +2" ("full" when another train adds nothing), the full sentences are in the row's tooltip. Station 37, train 24 measured.
+- Other limits in table 3 approved as listed; no other bound changed.
+

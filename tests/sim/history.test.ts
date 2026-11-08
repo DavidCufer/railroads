@@ -127,12 +127,12 @@ describe("achievements", () => {
     startHistory(state);
     state.cash = 120_000_000;
     monthlyHistoryStep(state);
-    expect(state.history.achievements["profit250k"]).toBeUndefined();
-    state.finance.lastYear.passengers = 3_500_000;
+    expect(state.history.achievements["profit150k"]).toBeUndefined();
+    state.finance.lastYear.passengers = 2_500_000;
     monthlyHistoryStep(state);
-    expect(state.history.achievements["profit250k"]).toBeDefined();
-    expect(state.history.achievements["profit2500k"]).toBeDefined();
-    expect(state.history.achievements["profit7500k"]).toBeUndefined();
+    expect(state.history.achievements["profit150k"]).toBeDefined();
+    expect(state.history.achievements["profit1m"]).toBeDefined();
+    expect(state.history.achievements["profit3m"]).toBeUndefined();
     const count = kinds(state).filter((k) => k === "achievement").length;
     monthlyHistoryStep(state);
     expect(kinds(state).filter((k) => k === "achievement")).toHaveLength(count);

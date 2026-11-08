@@ -65,7 +65,11 @@ export type GoalDefByName =
  */
 export type GoalMetric = "profit" | "revenue";
 
-/** Phase 84 rule, owner 2026-11-05: better of Strategist and V2 per era (each cell, profit and revenue, y5 / y10 / y16, is the higher of the Strategist's median and V2's Phase 80 median; so 1950 and the 1900 year-16 profit keep V2's figures, no goal drops).
+/** Phase 90 (route demand, freight rates x2, bots weigh freight; docs/explore/data/pax89.jsonl ids `route+g90/...` and `s90/...`,
+ * `python3 tools/bench/goals90.py`): the medians below are re-benched on the new economy. V2, Normal, central-eu, seeds 1-3, 16 years,
+ * all survive; each cell is the higher of V2's median and the Strategist's (one seed, 10 years, years 5 and 10 only: 1840 and 1870 take
+ * its figures, 1900 its year-5 profit and revenue); year 16 is V2's. The old table (Phase 84) was much higher: see PROGRESS "Phase 90".
+ * Phase 84 rule, owner 2026-11-05: better of Strategist and V2 per era (each cell, profit and revenue, y5 / y10 / y16, is the higher of the Strategist's median and V2's Phase 80 median; so 1950 and the 1900 year-16 profit keep V2's figures, no goal drops).
  * Strategist figures: the medians below are the STRATEGIST's (full lookahead, `tools/bench/strategist.ts`), Normal, central-eu, seeds 1-3,
  * medians of three, no bankruptcies: 1840 and 1930 from `docs/bench/phase82.md`, 1870 from `phase82b.md` (the code after
  * Phase 82b), 1900 and 1950 from `phase84.jsonl`. They replace V2's Phase 80 medians (below). Hard keeps V2's reference.
@@ -80,11 +84,11 @@ export const STRONG_PLAYER_MEDIANS: ReadonlyArray<{
   revenue: readonly [number, number, number];
   profit: readonly [number, number, number];
 }> = [
-  { era: 1840, revenue: [1.07, 3.28, 7.98], profit: [0.56, 1.76, 5.17] },
-  { era: 1870, revenue: [2.26, 9.25, 12.39], profit: [1.39, 5.64, 7.25] },
-  { era: 1900, revenue: [4.67, 8.47, 8.88], profit: [2.8, 3.73, 2.42] },
-  { era: 1930, revenue: [3.15, 6.08, 6.3], profit: [1.87, 2.57, 1.34] },
-  { era: 1950, revenue: [2.63, 2.61, 3.42], profit: [0.88, 0.46, 0.5] },
+  { era: 1840, revenue: [0.82, 1.49, 1.65], profit: [0.41, 0.73, 0.97] },
+  { era: 1870, revenue: [1.44, 2.7, 2.88], profit: [0.8, 1.27, 1.06] },
+  { era: 1900, revenue: [1.37, 3.51, 4.39], profit: [0.65, 1.54, 1.11] },
+  { era: 1930, revenue: [1.07, 1.3, 1.33], profit: [0.4, 0.38, 0.15] },
+  { era: 1950, revenue: [4.85, 5.73, 8.43], profit: [2.27, 1.96, 2.9] },
 ];
 
 const MEDIAN_YEARS = [5, 10, 16] as const;

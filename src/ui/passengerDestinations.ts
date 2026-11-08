@@ -6,6 +6,7 @@ import type { Station } from "../sim/stations/types";
 import { h } from "./h";
 import { openSheet, type SheetHandle } from "./sheet";
 import { strings } from "./strings";
+import { routeRow, routeStationView } from "./routeView";
 
 const UNCONNECTED_SHOWN = 3;
 
@@ -23,7 +24,6 @@ export function openDestinationsSheet(
     (x, y) => y.perMonth - x.perMonth || x.cityId - y.cityId,
   );
   const total = rows.reduce((s, r) => s + r.perMonth, 0);
-  const max = Math.max(1, ...rows.map((r) => r.perMonth));
 
   const body = h("div", { className: "dest-sheet" });
   const render = (): void => {
@@ -35,32 +35,8 @@ export function openDestinationsSheet(
         rows.length > 0 ? t.total(round(economy.supply.passengers ?? total)) : t.none,
       ),
     );
-    for (const row of rows) {
-      nodes.push(
-        h(
-          "div",
-          { className: "dest-row" },
-          h(
-            "div",
-            { className: "dest-row-head" },
-            h("span", { className: "dest-name" }, cityName(row.cityId)),
-            h(
-              "span",
-              { className: "dest-count" },
-              t.row(round(row.perMonth), Math.round((row.perMonth / total) * 100)),
-            ),
-          ),
-          h(
-            "span",
-            { className: "dest-bar-track" },
-            h("span", {
-              className: "dest-bar-fill",
-              style: { width: `${(row.perMonth / max) * 100}%` },
-            }),
-          ),
-        ),
-      );
-    }
+    const view = routeStationView(state, station.id);
+    for (const row of view?.rows ?? []) nodes.push(routeRow(row));
     const unconnected = economy.passengerUnconnected ?? [];
     if (unconnected.length > 0) {
       const chips = unconnected

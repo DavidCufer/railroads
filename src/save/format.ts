@@ -129,6 +129,8 @@ interface SerializedGameStateBase<TTrain> {
   stationFlow?: Array<[number, StationFlow]>;
   /** Added in Phase 53C without a version bump: absent in older saves, read as empty (stamps start at "now"). */
   departures?: Array<[string, DepartureStamp]>;
+  /** Added in Phase 90 without a version bump: absent in older saves, read as empty (the counts start again). */
+  routeCarried?: Array<[string, { value: number; tick: number }]>;
   /** Added in Phase 54 without a version bump: absent in older saves, read as empty (a full wait). */
   waitingSince?: Array<[string, number]>;
   /** Added in Phase 54 without a version bump: people per game passenger the save was written with. Absent = 1 (older

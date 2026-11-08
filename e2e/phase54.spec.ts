@@ -59,10 +59,12 @@ test("a Venice station and an express with a local on one line", async ({ page }
   await page.evaluate(() => window.__game!.runDays(40));
   await page.evaluate((id) => window.__game!.debugOpenStation(id), ids.a);
   const split = page.locator('[data-testid="waiting-split"]');
-  await expect(split).toContainText("Trains here reach: Padua, Milan");
+  await expect(split).toContainText(/Waiting \d+/);
+  await expect(page.locator('[data-testid="route-block"]')).toContainText("Padua");
+  await expect(page.locator('[data-testid="route-block"]')).toContainText("Milan");
   await page.screenshot({ path: "docs/screenshots/phase-54-venice.png" });
   await page.locator(".dest-link").click();
-  await expect(page.locator(".dest-row")).toHaveCount(2);
+  await expect(page.locator(".sheet-destinations .dest-row")).toHaveCount(2);
   await page.screenshot({ path: "docs/screenshots/phase-54-where-to.png" });
   await page.keyboard.press("Escape");
   await page.evaluate(() =>

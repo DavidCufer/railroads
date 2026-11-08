@@ -3,6 +3,7 @@
  * IndexedDB or a browser, per CLAUDE.md's "simulation code must be testable without a DOM". */
 import { createContractsState } from "../sim/contracts/types";
 import { createHistory } from "../sim/history";
+import { renameAchievements } from "../data/achievements";
 import { clampInputStocks } from "../sim/economy/processing";
 import { materializeAllJunctions } from "../sim/track/routes";
 import { emptyTrainProfit } from "../sim/trains/profit";
@@ -95,6 +96,7 @@ export function serializeGameState(state: GameState): SerializedGameStateV3 {
     stationTransfer: mapEntries(state.stationTransfer),
     stationFlow: mapEntries(state.stationFlow),
     departures: mapEntries(state.departures),
+    routeCarried: mapEntries(state.routeCarried),
     waitingSince: mapEntries(state.waitingSince),
     passengerParty: PARTY_SIZE,
     washouts: state.washouts,
@@ -184,6 +186,7 @@ export function deserializeGameState(data: SerializedGameStateV3): GameState {
     stationTransfer: entriesMap(data.stationTransfer ?? []),
     stationFlow: entriesMap(data.stationFlow ?? []),
     departures: entriesMap(data.departures ?? []),
+    routeCarried: entriesMap(data.routeCarried ?? []),
     waitingSince: entriesMap(data.waitingSince ?? []),
     washouts: data.washouts ?? [],
     nextWashoutId: data.nextWashoutId ?? (data.washouts ?? []).length,
@@ -205,7 +208,9 @@ export function deserializeGameState(data: SerializedGameStateV3): GameState {
     cargoDeliveredBestYear: data.cargoDeliveredBestYear,
     contracts: data.contracts ?? createContractsState(data.seed),
     ...(data.scenario ? { scenario: data.scenario } : {}),
-    history: data.history ?? createHistory(),
+    history: data.history
+      ? { ...data.history, achievements: renameAchievements(data.history.achievements) }
+      : createHistory(),
   };
 
   const currentYear = calendarFromTicks(state.startYear, state.ticks).year;

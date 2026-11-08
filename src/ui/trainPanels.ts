@@ -3,6 +3,7 @@
  * Route / Stats tabs, action-bar footer), the Edit cars sheet (reuses the consist builder), the
  * Replace-locomotive picker and the train list. The buy wizard lives in `buyTrainWizard.ts`.
  */
+import { renderRouteTrain } from "./routeView";
 import { setPickMarks } from "./pickMarks";
 import { carCapacity } from "../sim/trains/capacity";
 import { repairPhase } from "../sim/trains/repairCrew";
@@ -464,6 +465,7 @@ export function openTrainPanel(container: HTMLElement, state: GameState, trainId
       heroHost.replaceChildren(
         heroStrip(state, t),
         status,
+        ...[renderRouteTrain(state, t)].filter((n): n is HTMLElement => n !== null),
         ...[
           warningsLine(
             [

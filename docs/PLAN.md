@@ -3348,7 +3348,7 @@ behind a dev flag on the branch or in `tools/bench/`, no change to the shipped g
    - The game stays winnable (V2 still beats the early eras).
 3. **STOP** with a short comparison table and the mock-ups. The owner picks before anything is built. After the choice, a
    build phase replaces the model, re-benches the bots and re-derives the goals (Phases 77/84 method).
-Status: [ ] 1 [ ] 2 [ ] 3
+Status: [x] 1 [x] 2 [x] 3 (owner chose A, route demand; write-up `docs/explore/passengers-2.md`, branch `phase-89-pax-explore`)
 
 ## Phase 90 — Route demand for passengers, and freight that pays
 
@@ -3375,4 +3375,4 @@ without the owner's OK, look at every PNG.
    trains per busy pair, money) for the owner before merging.
 5. Tests, e2e (both shards, one at a time), screenshots of the new station and train panels at 800x360 and on a tablet.
    SPEC rewritten for §9.5d and the freight changes. PROGRESS; tick ONLY Phase 90 (and Phase 89).
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 (done on `phase-90-route-demand`, owner decisions of 2026-11-08 applied: pair share 0.33, goals scaled down, achievements $0.15M / $1M / $3M, word ceilings kept; Phase 89 ticked: owner chose A)

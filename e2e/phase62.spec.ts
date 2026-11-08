@@ -77,11 +77,11 @@ test("Ljubljana sends more passengers to Vienna than to Graz", async ({ page }) 
   await page.evaluate(() => window.__game!.runDays(40));
   await page.evaluate((id) => window.__game!.debugOpenStation(id), ids[2]!);
   await page.locator(".dest-link").click();
-  const rows = page.locator(".dest-row");
+  const rows = page.locator(".sheet-destinations .dest-row");
   await expect(rows).toHaveCount(4);
   const share = async (name: string): Promise<number> => {
     const text = await rows.filter({ hasText: name }).locator(".dest-count").innerText();
-    return Number(/(\d+) ?%/.exec(text)![1]);
+    return Number(/\/(\d+)/.exec(text)![1]); // the route's people a month ("carried X/Y")
   };
   expect(await share("Vienna")).toBeGreaterThan(await share("Graz"));
   await page.waitForTimeout(300);

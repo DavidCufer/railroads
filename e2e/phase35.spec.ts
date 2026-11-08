@@ -148,7 +148,7 @@ test.describe("Phase 35 — where passengers go", () => {
     // so it is a town no train from here serves, like Padua.
     await expect(sheet.locator(".dest-row")).toHaveCount(1);
     await expect(sheet.locator(".dest-row")).toContainText("Ljubljana");
-    await expect(sheet.locator(".dest-row")).toContainText("100 %");
+    await expect(sheet.locator(".dest-row")).toContainText("carried");
     await expect(sheet.locator(".dest-unconnected")).toContainText("Padua");
     await expect(sheet.locator(".dest-unconnected")).toContainText("Zagreb");
     await page.waitForTimeout(300);
