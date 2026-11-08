@@ -1018,6 +1018,15 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
    * and take the one with the best payback; the default is the nearest buyer, as before (a short haul pays little: the fare
    * grows with distance while the loading and the train's fixed costs do not). */
   function freightProject(prod: Industry, cargo: CargoType, output: number): Project | null {
+    const bias = Number(process.env["FREIGHT_BIAS"] ?? 1); // Phase 90 bench: <1 ranks freight ahead, as a player who wants it would
+    if (bias !== 1) {
+      const p = freightProjectBest(prod, cargo, output);
+      return p ? { ...p, payback: p.payback * bias } : null;
+    }
+    return freightProjectBest(prod, cargo, output);
+  }
+
+  function freightProjectBest(prod: Industry, cargo: CargoType, output: number): Project | null {
     if (process.env["FREIGHT_SINK"] !== "best") return freightProjectTo(prod, cargo, output, 0);
     const n = sinksFor(cargo, prod).length;
     const picks = [...new Set([0, Math.floor(n / 3), Math.floor((2 * n) / 3), n - 1])].filter(

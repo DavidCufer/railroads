@@ -1,10 +1,13 @@
 /** Phase 90 step 1 probe: what the strong bot sees at the start of a game. `npx tsx tools/bench/freight90.ts <startYear> [seed]`
  * Prints the ranked candidate projects (label, payback years, total cost) and the industries' monthly output. */
 import "./p79Env";
+import "./p90Env";
+import { PAX } from "../../src/data/passengerModels";
 import { createStrongBot } from "./strongBot";
 import { createGameState } from "../../src/sim/state";
 import { INDUSTRIES } from "../../src/data/industries";
 
+PAX.model = (process.env["PAX_MODEL"] ?? "today") as typeof PAX.model;
 const startYear = Number(process.argv[2] ?? 1870);
 const seed = Number(process.argv[3] ?? 1);
 const state = createGameState({ seed, region: "central-eu", startYear, difficulty: "normal" });
