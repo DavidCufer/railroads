@@ -71,7 +71,7 @@ test("an old pile is one number, and the towns reached are named", async ({ page
   await expect(split).toBeVisible();
   const text = (await split.textContent()) ?? "";
   expect(text).toMatch(/Waiting \d+ · next train ~\d+d/);
-  expect(text).toContain("Trains here reach: Padua");
+  await expect(page.locator('[data-testid="route-block"]')).toContainText("Padua");
   expect(text).not.toContain("other towns");
   // cut to a month of demand: nowhere near 2409
   const waiting = Number(/Waiting (\d+)/.exec(text)![1]);

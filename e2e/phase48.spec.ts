@@ -68,16 +68,14 @@ test("the waiting line names the towns the trains reach; the sheet lists them an
 
   await page.evaluate((id) => window.__game!.debugOpenStation(id), ids.a);
   await expect(page.locator('[data-testid="waiting-split"]')).toContainText("Waiting 53");
-  await expect(page.locator('[data-testid="waiting-split"]')).toContainText(
-    "Trains here reach: Padua",
-  );
-  await expect(page.locator('[data-testid="waiting-split"]')).not.toContainText("Milan");
+  await expect(page.locator('[data-testid="route-block"]')).toContainText("Padua");
+  await expect(page.locator('[data-testid="route-block"]')).not.toContainText("Milan");
   await page.screenshot({ path: "docs/screenshots/phase-48-station-split.png" });
 
   await page.locator(".dest-link").click();
   // Only Padua is called at directly; Milan (a change away) is a town no train from here serves.
-  await expect(page.locator(".dest-row")).toHaveCount(1);
-  await expect(page.locator(".dest-row")).toContainText("Padua");
+  await expect(page.locator(".sheet-destinations .dest-row")).toHaveCount(1);
+  await expect(page.locator(".sheet-destinations .dest-row")).toContainText("Padua");
   await expect(page.locator(".dest-unconnected")).toContainText("Milan");
   await page.screenshot({ path: "docs/screenshots/phase-48-destinations.png" });
 });

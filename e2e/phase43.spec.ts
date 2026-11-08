@@ -86,12 +86,10 @@ test("train list shows load, station shows who waits and where trains reach, Lin
 
   await page.evaluate((id) => window.__game!.debugOpenStation(id), ids.a);
   await expect(page.locator('[data-testid="waiting-split"]')).toContainText(/Waiting \d+/);
-  await expect(page.locator('[data-testid="waiting-split"]')).toContainText(
-    "Trains here reach: Milan",
-  );
+  await expect(page.locator('[data-testid="route-block"]')).toContainText("Milan");
   await page.screenshot({ path: "docs/screenshots/phase-43-station-split.png" });
 
   await page.locator(".dest-link").click();
-  await expect(page.locator(".dest-count").first()).toContainText("/mo");
+  await expect(page.locator(".sheet-destinations .dest-count").first()).toContainText("carried");
   await page.screenshot({ path: "docs/screenshots/phase-43-destinations.png" });
 });

@@ -524,6 +524,8 @@ passengers (Phase 53): timeFactor = passengerSpeedFactor = clamp(sqrt(distanceTi
 revenue       = base × (distanceTiles / 10) × timeFactor × stationBonuses × eraInflation × difficultyRevenueMult
                 (passengers: × PARTY_SIZE, below)
 ```
+**Freight rates x2 (Phase 90, owner OK 2026-11-08).** `FREIGHT_RATE_FACTOR` = 2 in `src/data/economy.ts` multiplies the real-terms freight rate (`fareIndex`) of every ordinary freight cargo; the long-haul chain's legs (silver, uranium) keep their own rates (Phase 40). With route demand halving passenger income, a freight line (one source = about one train, the same track bill as a passenger line) paid back in 10-150 years against 1-1.5; the bench (docs/explore/freight-90.md) found the rate the lever that moved the freight share (x2: 27 % of passenger + freight income at year 10; industry output hardly moved it).
+
 **Passenger fares per distance (Phase 53, 54).** Real fares were per mile or per km: Britain's 1844 Act set 1d a mile on the
 "Parliamentary" trains, the continental railways charged per-km tariffs; the old lateness collapse (20 % of the fare once a
 trip was 6 days late) made every long or multi-stop trip nearly worthless. `competitionLoss` stays. **One game passenger
@@ -821,65 +823,46 @@ and the last one keeps the first decades playable. Measured results: docs/PROGRE
     good-player script that grew a 1840 start to $20M by 1870 before Phase 30A stalls at $1.3M (Hard goes bankrupt), 1.7
     restores it (docs/PROGRESS.md). The city panel's passenger figure includes it.
 
-### 9.5d Phase 35, rewritten in Phase 54: where passengers go (gravity split, direct trains, one pile per station)
+### 9.5d Route demand (Phase 90; replaces the Phase 35-62 gravity split)
 
-The number on the platform must be a number the trains calling there can take. Owner decision (2026-10-18, after the
-exploration `docs/explore/passengers.md`): **direct trains only and one pile per station** ("M2"). No destination piles, no
-changes of train, no change wait. Real mechanisms, tables in `src/data/economy.ts` (`PAIR_DEMAND`, `TRAVEL_RANGE_ANCHORS`,
-`PARTY_SIZE`, `MAX_WAIT_DAYS`), no flat multiplier.
+The number on the platform must be a number the trains calling there can take, and a player must be able to read it off the screen.
+Owner decision (2026-11-07, after the exploration `docs/explore/passengers-2.md`): **route demand**. Real mechanisms, tables in
+`src/data/economy.ts` (`ROUTE_DEMAND`, `MAX_WAIT_DAYS`, `PARTY_SIZE`, `TRIPS_PER_HEAD_ANCHORS`), no flat multiplier.
 
-1. **The town total is population x trips per head (Phase 35C).** A town's total travel demand T (passengers a month, in game
-   passengers of `PARTY_SIZE` = 3 travellers, §8.1) who would ride a train *somewhere* if every town were on the network =
-   population x `tripsPerHeadPerMonth(year)` / `PARTY_SIZE` (`tripsPerHeadPerMonth` = the anchors below x `TRIPS_GAME_SCALE` 0.8, Phase 69: an openly stated game scale, the same in every era; `TRIPS_PER_HEAD_ANCHORS`: 0.0113 a month in 1830-50, 0.0338 in
-   1860, 0.0327 from 1900; real journeys per head rose from ~1.5 a year in 1845 to ~5.6 in 1860 and ~28 in 1900, the game
-   table is compressed about 11x, 14x and 70x, because game towns are small and demand-bound and the later, longer, faster
-   trains carry each head further). T is the single passenger number everywhere: the town panel shows it with "Connected: N /
-   month (X %)"; a station draws its catchment's part of T (towns with several stations split it by covered tiles, §8.3).
-   T is split over **every town within the era's known-destination radius** (`travelRangeTiles(year)`: 60 tiles = 300 km
-   in 1830, 70 in 1870, 90 in 1900, 120 in 1930, 200 in 1960; 5 km a tile) by gravity: weight = destination population /
-   max(distance, 15 tiles). **How many trips a town makes** is the Phase 53 volume (`cappedVolume`: the gravity shares
-   water-filled to `PAIR_DEMAND.maxShare` 20 %; what no candidate can take is not generated). **Who gets them** (Phase 62,
-   `destinationShares`) is plain gravity with no cap: that volume is split over every town in range in proportion to
-   population / distance, so a bigger or nearer town draws more (Ljubljana 1900: Venice 26 %, Vienna 24 % > Graz 12 %). The
-   old per-destination 20 % cap made every big destination equal.
-2. **Direct service only.** A town draws trips for a station only if a train of that station **calls at it** (a stop of
-   one of its orders; a "pass through" order is not a stop). A town reached only by changing trains draws nothing: a
-   player who builds A-B and B-C as two lines gets only the neighbours; one train A-B-C makes every one of its stops
-   generate more travellers. The station's supply is the sum of the shares of the towns its trains call at; the rest is the
-   unserved demand the "Where to" sheet lists. A station no passenger train calls at keeps one generic pile at the town's
-   rate. `computeStationEconomies` recomputes this with the orders (`setOrders`, `sellTrain`, removing a station, monthly).
-3. **One pile per station.** The people wait in one pile; the player sees one number. The pile is what is waiting for the
-   towns the station's trains reach: for each town (route) its people arrive at their share of the rate, pile up from the
-   moment a train last took them (`state.waitingSince`) and are held at most `MAX_WAIT_DAYS` (30) of them; what a train
-   cannot take stays, only the part above the ceiling is turned away (the "unserved demand", `recordTurnedAway`).
-4. **A train takes the people heading for the towns it stops at** (`Boarding`, `src/sim/stations/boarding.ts`). A calling
-   train may board at most the pile x (what the station sends to the towns of the train's later stops / what it sends to
-   every town its trains reach), those being the capped gravity shares of 1, and never more than the people who arrived for
-   those towns since a train that carries them last left. The board then splits over its later stops (before it comes back
-   to this station) in the same proportions. They pay per distance on arrival, once, for the whole trip from where they
-   boarded, with the speed factor of §8.1. So an express (orders A, B) cannot carry the people who wanted the small towns, and
-   a local that left the big towns' people behind leaves them counted for the next train: after each loading pass the
-   stamp `waitingSince` of every later stop is set back by the people left behind. Without the second limit a persistent
-   pile would let a frequent express carry the small towns' people to the big town (measured: 1.9x the real demand).
-5. **Express and local trains.** Two big towns with small ones between: an express (orders A, B only: it passes the stations
-   between without stopping, `passThrough` is not needed) is faster (no intermediate stop, dwell or acceleration: the fare
-   speed factor) and earns more per train, but it draws only the big pair's share (capped at 20 % each way) and saturates
-   at two or three trains; locals call at every station, add the small towns' demand and carry what the express may not.
-   `tools/bench/explore.ts S4` and docs/PROGRESS.md "Phase 54" give the numbers.
-6. **Mail** keeps its model: no destinations, the Phase 26A destination bonus (+10 % per extra stop, max +50 %), a pile
-   that fills linearly to one month.
-7. **The station panel and the "Where to" sheet.** "Waiting 41 · next train ~6d" (the shortest, over the next stops, of the
-   observed gap between departures minus the time since the last one) and "Trains here reach: A, C, D ▸" (towns, biggest
-   share first); tapping the line opens "Where passengers go": per town the passengers a month and its share, then "Not
-   served": the biggest towns in range that no train from here calls at (a hint to connect them). No rows per destination,
-   no change texts. The train panel does not list who is aboard (it would exceed its word limit).
-8. **Fares at the station that loaded them.** Fares are paid on arrival and credited to where the passengers boarded, so on a
-   long line a month can show people sent and no fares yet; the panel says "paid on arrival", not "$0".
-9. **Saves.** A save without `passengerParty` (counted in people, with destination piles) loads into this model: every pile
-   collapses into the station's one pile (rescaled to game passengers), cars keep their destination lots (rescaled) and
-   seats count game passengers, people aboard with no destination are put off (`migratePassengers`). `waitingSince` is new
-   and absent = they start to wait now.
-10. **Result.** Numbers in docs/BALANCE.md ("Pair scaling") and docs/PROGRESS.md "Phase 35", "Phase 54".
+1. **Every pair of towns your trains connect is one route with its own number.** People a month each way
+   `routeDemandPerMonth = pairShare x sqrt(popA x popB) x trips per head / PARTY_SIZE x (refTiles / d) ^ exponent` (the last factor
+   only beyond `refTiles` = 20 tiles; d = tiles between the two stations; `pairShare` 0.33, exponent 0.5). Trips per head is the
+   Phase 35C/69 table (`tripsPerHeadPerMonth`, x `TRIPS_GAME_SCALE`). The number is symmetric and **does not depend on any other
+   route**: another train, or another line to the same town, never takes a route's people; and it is the most the route can ever
+   carry. A town with several stations splits its people by covered tiles (§8.3); a station sends its part.
+2. **Direct service only.** A town is a route of a station only if a train of that station **calls at it** (a stop of one of its
+   orders; "pass through" is not a stop). A town reached only by changing trains is not a route. One train A-B-C makes A-B, A-C and
+   B-C routes. `computeStationEconomies` recomputes this with the orders.
+3. **A hub is capped.** A station never sends more than `townCap` = 1.5 times its own town total (its routes are scaled down alike).
+4. **One pile per station, holding `MAX_WAIT_DAYS` = 20 days.** The people of each route arrive at the route's rate, pile up from the
+   moment a train last took them (`state.waitingSince`) and are held at most 20 days of them; what a train cannot take stays, only
+   the part above the ceiling leaves (the "turned away" of the station panel).
+5. **A train takes the people heading for the towns it stops at** (`Boarding`, `src/sim/stations/boarding.ts`): at most the pile x
+   (what the station sends to the towns of the train's later stops / what it sends to every town its trains reach), and never more than
+   the people who arrived for those towns since a train that carries them last left; they split over the train's later stops (before it
+   comes back here) in proportion to the routes. They pay per distance on arrival, once, from where they boarded (§8.1). An express
+   (A, B only) cannot carry the people of the small towns between; a local that leaves people behind keeps them counted.
+6. **What the player sees** (`src/ui/routeView.ts`): the station panel shows "Waiting 41 · next train ~6d" and, per route, "Venice
+   carried 43 of 43" with a bar (people who boarded here for that town over about the last month, never shown above the route's
+   number) and "Platform holds 20 days of arrivals"; tapping it opens the route list ("Routes from here": every route, then the
+   towns in range that no train from here calls at, with what each would send). The train panel shows, for its legs, "A <-> B: carried
+   X of Y", "N trains on this route", and "Another train: about +N a month" (the lesser of the people still missing and one more train's
+   trips) or "Route is full: another train adds nothing". The carried counts (`state.routeCarried`) are saved; nothing in the
+   simulation reads them.
+7. **Mail** keeps its model: no destinations, the Phase 26A destination bonus (+10 % per extra stop, max +50 %), a pile that fills
+   linearly to one month.
+8. **Fares at the station that loaded them.** Fares are paid on arrival and credited to where the passengers boarded; the panel says
+   "paid on arrival", not "$0".
+9. **Saves.** Older saves load as they are: a pile above the new 20-day ceiling is trimmed on the next day, `waitingSince` and
+   `departures` are kept, `routeCarried` is absent in saves before Phase 90 and starts empty.
+10. **Calibration and result.** `pairShare` 0.33 gives a good player (V2 on central-eu, Normal) about half of the passenger income of
+   the gravity model at year 10 (`docs/explore/freight-90.md`; 0.30 gave -45 to -75 %, 0.35 -30 %, 0.5 +55 %); a busy pair is served
+   by 1-3 trains; platforms hold at most 20 days. Numbers in docs/PROGRESS.md "Phase 90".
 
 ### 9.5e Phase 48: through journeys (destination-bound passengers, changes, longer trains)
 
