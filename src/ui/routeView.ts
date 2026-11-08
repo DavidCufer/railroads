@@ -9,7 +9,6 @@ import { carriedLastMonth } from "../sim/stations/routeCarried";
 import { estimateRoundTripDays } from "../sim/trains/headway";
 import { carCapacity } from "../sim/trains/capacity";
 import type { Train } from "../sim/trains/types";
-import { MAX_WAIT_DAYS } from "../data/economy";
 import { h } from "./h";
 import { strings } from "./strings";
 
@@ -74,27 +73,13 @@ export function routeRow(row: RouteRowView): HTMLElement {
 
 /** The station panel's block under the passenger chip. */
 export function renderRouteStation(view: RouteStationView): HTMLElement {
-  const t = strings.routes;
   return h(
     "div",
     { className: "route-block", "data-testid": "route-block" },
-    h("div", { className: "panel-row hint" }, t.title),
     ...view.rows.slice(0, 4).map(routeRow),
     view.rows.length > 4
       ? h("div", { className: "hint" }, strings.station.reachMore(view.rows.length - 4))
       : null,
-    h("div", { className: "hint" }, t.holds(MAX_WAIT_DAYS)),
-  );
-}
-
-/** Passenger trains whose orders call at both stations. */
-function trainsOnPair(state: GameState, a: number, b: number): Train[] {
-  return state.trains.filter(
-    (t) =>
-      !t.laidUp &&
-      t.cars.some((c) => c.cargoType === "passengers") &&
-      t.orders.some((o) => o.stationId === a) &&
-      t.orders.some((o) => o.stationId === b),
   );
 }
 
@@ -104,19 +89,14 @@ export function renderRouteTrain(state: GameState, train: Train): HTMLElement | 
   const stops = [...new Set(train.orders.map((o) => o.stationId))];
   if (stops.length < 2) return null;
   const t = strings.routes;
-  const town = (id: number): string => {
-    const cityId = state.stationEconomy.get(id)?.passengerTownId;
-    return state.cities.find((c) => c.id === cityId)?.name ?? "?";
-  };
   const rows: HTMLElement[] = [];
-  for (let i = 0; i + 1 < stops.length && rows.length < 2; i++) {
+  for (let i = 0; i + 1 < stops.length && rows.length < 1; i++) {
     const a = stops[i] as number;
     const b = stops[i + 1] as number;
     const go = state.stationEconomy.get(a)?.passengerRoutes?.find((x) => x.destination === b);
     const back = state.stationEconomy.get(b)?.passengerRoutes?.find((x) => x.destination === a);
     const demand = (go?.perMonth ?? 0) + (back?.perMonth ?? 0);
     const carried = Math.min(demand, carriedLastMonth(state, a, b) + carriedLastMonth(state, b, a));
-    const n = trainsOnPair(state, a, b).length;
     // one more train: its trips a month x seats, within what is still missing
     const seats = train.cars.reduce(
       (s, c) => s + (c.cargoType === "passengers" ? carCapacity(c) : 0),
@@ -132,22 +112,16 @@ export function renderRouteTrain(state: GameState, train: Train): HTMLElement | 
         h(
           "div",
           { className: "dest-row-head" },
-          h("span", { className: "dest-name" }, t.pairRow(town(a), town(b), r(carried), r(demand))),
+          h(
+            "span",
+            { className: "dest-name" },
+            t.trainLine(r(carried), r(demand), more < 2 ? undefined : r(more)),
+          ),
         ),
         routeBar(carried / Math.max(1, demand)),
-        h(
-          "div",
-          { className: "hint" },
-          `${t.pairTrains(n)} · ${more < 2 ? t.full : t.pairMore(r(more))}`,
-        ),
       ),
     );
   }
   if (rows.length === 0) return null;
-  return h(
-    "div",
-    { className: "route-block", "data-testid": "route-train" },
-    h("div", { className: "panel-row hint" }, t.pairTitle),
-    ...rows,
-  );
+  return h("div", { className: "route-block", "data-testid": "route-train" }, ...rows);
 }

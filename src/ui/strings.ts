@@ -2,16 +2,13 @@
 export const strings = {
   /** Phase 90: route demand on the station and train panels (SPEC 9.5d). */
   routes: {
-    title: "Routes from here \u00b7 a month",
     /** "carried 43 of 85" */
     row: (carried: number, demand: number) => `carried ${carried} of ${demand}`,
-    holds: (days: number) => `Platform holds ${days} days of arrivals`,
-    full: "Route is full: another train adds nothing",
-    pairTitle: "Route demand a month",
-    pairRow: (a: string, b: string, carried: number, demand: number) =>
-      `${a} \u21c4 ${b}: carried ${carried} of ${demand}`,
-    pairTrains: (n: number) => (n === 1 ? "1 train on this route" : `${n} trains on this route`),
-    pairMore: (n: number) => `Another train: about +${n} a month`,
+    /** Train panel, one line for the first leg: "carried 55 of 57 · another train +2", or "route full" when one more adds nothing. */
+    trainLine: (carried: number, demand: number, more?: number) =>
+      more === undefined
+        ? `carried ${carried} of ${demand} \u00b7 route full`
+        : `carried ${carried} of ${demand} \u00b7 another train +${more}`,
   },
   app: {
     exitGameConfirm: "Exit game?",

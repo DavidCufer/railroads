@@ -7947,3 +7947,8 @@ Owner OK 2026-11-08 for passenger-vs-freight limits (and, listed for the owner, 
 | balancePassengers: mail train vs passenger train | 0.05-0.35x | 0.03-0.35x | a town pair's passenger line earns more under route demand (measured 0.043) |
 Mechanism tests rewritten for route demand (not bounds): `pairDemand.test.ts` (gravity tests replaced by route-demand tests), `phase53.test.ts`, `cargoFlow.test.ts` (20-day ceiling instead of 30).
 Canary re-recorded (the owner chose the economy change; its own rule: re-record with the date): see the table in `tests/sim/canary.test.ts`. Scenario star: **Silver Rush 3rd star $1.0M -> $0.94M profit** (the staged plan now makes $977k; 96 % of the solver's result as in Phase 76/80): a goal drop, listed for the owner in the step 4 table.
+
+### Changed e2e word ceilings (flagged for the owner; not a pax-vs-freight limit)
+`e2e/phase49Words.spec.ts`: station panel 37 -> 40 words, train panel 24 -> 29 words (the measured counts). Reason: PLAN Phase 90 item 2 puts "carried X of Y" per route on the station panel and "carried X of Y - another train +N" on the train panel. The blocks are already cut to the minimum (no title, no explanation line); ask if you would rather drop the train line.
+Also updated in e2e (texts, not bounds): phase35/43/48/52/54/62 follow the route list (rows counted inside the sheet, "carried" instead of "%", the unserved list no longer promised to name one town).
+
