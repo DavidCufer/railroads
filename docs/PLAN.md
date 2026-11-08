@@ -3375,4 +3375,4 @@ without the owner's OK, look at every PNG.
    trains per busy pair, money) for the owner before merging.
 5. Tests, e2e (both shards, one at a time), screenshots of the new station and train panels at 800x360 and on a tablet.
    SPEC rewritten for §9.5d and the freight changes. PROGRESS; tick ONLY Phase 90 (and Phase 89).
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [x] 3 [x] 4 (stopped for the owner: three tables in PROGRESS, not merged) [x] 5 (tests, e2e both shards, screenshots, SPEC)

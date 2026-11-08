@@ -7952,3 +7952,34 @@ Canary re-recorded (the owner chose the economy change; its own rule: re-record 
 `e2e/phase49Words.spec.ts`: station panel 37 -> 40 words, train panel 24 -> 29 words (the measured counts). Reason: PLAN Phase 90 item 2 puts "carried X of Y" per route on the station panel and "carried X of Y - another train +N" on the train panel. The blocks are already cut to the minimum (no title, no explanation line); ask if you would rather drop the train line.
 Also updated in e2e (texts, not bounds): phase35/43/48/52/54/62 follow the route list (rows counted inside the sheet, "carried" instead of "%", the unserved list no longer promised to name one town).
 
+
+### Phase 90 step 4 results (STOP before merge; owner to look at three tables)
+Bench: `docs/explore/data/pax89.jsonl` ids `route+g90/` (V2 Normal, 5 eras x 3 seeds, 16 y, all survive), `g90h/` (Hard, 2 seeds), `s90/` (Strategist, 10 y, one seed, eras 1840 / 1870 / 1900), `g90p45/` (pair share 0.45, 3 eras x 2 seeds); `python3 tools/bench/goals90.py`. Scenarios (solver, new economy): Semmering won, Coal for Trieste **3 stars** (profit $514k), Transcontinental 2 stars (as before), Silver Rush 2 stars at $977k profit (3rd star lowered, below), Panic of 1873 won (2 stars).
+
+**1. Goals, old -> new** (the new medians follow `STRONG_PLAYER_MEDIANS`, better of V2 and Strategist per cell; the Strategist only ran years 5 and 10 on one seed; every line but the last two is a DROP, the owner decides):
+| goal | old | new |
+|---|---|---|
+| gb gold (profit by 1865) | $5.6M | **$1.0M** |
+| central-eu gold (profit by 1875) | $6.1M | **$1.1M** |
+| us-west gold (revenue by 1900) | $11M | **$2.3M** |
+| us-east / us-west silver (revenue by 1880) | $6.1M | **$1.9M** |
+| random map profit gold, start 1830 / 1840 / 1870 / 1900 / 1930 / 1950 | $6.3M / 6.8M / 9.0M / 2.9M / 1.5M / 0.58M | **$1.1M / 1.2M / 1.3M / 1.3M / 0.17M / 3.3M** (1950 rises) |
+| random map revenue gold (same starts) | $9.8M / 10M / 15M / 10M / 7.4M / 3.9M | **$2.0M / 2.1M / 3.6M / 5.3M / 1.5M / 9.7M** (1950 rises) |
+| scenario stars: Semmering / Coal for Trieste / Transcontinental / Panic 1873 | $320k / $350k / $360k / $650k + $850k | unchanged (Coal for Trieste now makes $514k; Transcontinental still 2 stars) |
+| Silver Rush 3rd star (profit, 1885) | $1.0M | **$0.94M** (solver's best now $977k, 96 % as in Phases 76 / 80) |
+| achievements (profit a year) | $0.25M / $2.5M / $7.5M | **left unchanged** (ids carry the amounts); $7.5M is now out of reach (best year-16 median $2.9M, 1950), $2.5M is reached only in 1950: a proposal is $0.15M / $1.0M / $3.0M with renamed ids |
+Medians ($M, V2 Normal, years 5 / 10 / 16, revenue; profit): 1840 0.82 / 1.49 / 1.65; 0.41 / 0.73 / 0.97. 1870 1.44 / 2.70 / 2.88; 0.80 / 1.27 / 1.06. 1900 1.37 / 3.51 / 4.39; 0.65 / 1.54 / 1.11. 1930 1.07 / 1.30 / 1.33; 0.40 / 0.38 / 0.15. 1950 4.85 / 5.73 / 8.43; 2.27 / 1.96 / 2.90.
+**Calibration warning:** pair share 0.33 was set on 10-year runs (about half of the old passenger income); at year 16 V2's passenger income is down 60-90 % in 1840-1930 (profit 1870: $7.3M -> $1.1M) and **up** in 1950. At pair share **0.45** (V2, seeds 1-2, 16 y) year-16 profit is 1840 $3.5M (was $5.2M), 1870 $2.1M (was $7.3M), 1900 $5.7M (was $2.4M), passengers 68-87 % and freight 12-32 % of passenger + freight income. Owner: keep 0.33 (freight about half in 1840 / 1870, goals as above) or take about 0.45 (higher goals, freight a third or less)? Either needs the goal literals and the canary re-derived once more.
+
+**2. Before / after** (V2 Normal, mean of seeds 1-3, completed year 16, $M; old = Phase 89 rows `today`):
+| era | passenger / freight share of revenue | revenue | profit | pax / freight trains | trains to fill one busy pair (pair test, 90 % of best) | platform: full-train station-months |
+|---|---|---|---|---|---|---|
+| 1840 old | 95 % / 3 % | 6.1 | 3.4 | 88 / 21 | 4 | 22 % |
+| 1840 new | 50 % / 50 % | 1.7 | 0.85 | 24 / 22 | 5 | 22 % |
+| 1870 old | 95 % / 2 % | 10.3 | 5.5 | 92 / 14 | 4 | 34 % |
+| 1870 new | 49 % / 50 % | 3.0 | 1.05 | 30 / 40 | 3 | 44 % |
+| 1900 old | 98 % / 0 % | 7.8 | 3.0 | 46 / 4 | 2 | 31 % |
+| 1900 new | 92 % / 7 % | 5.5 | 1.8 | 39 / 16 | 2 | 36 % |
+Strategist (10 y, one seed, 0.33): year-10 profit 1840 $0.73M, 1870 $1.27M, 1900 $1.12M; freight 66 % / 36 % / 10 % of passenger + freight. "Trains on the busiest line" is 8 in every run (the bot's cap), so the pair test is the measure. Honest reading: half-and-half is reached in 1840 and 1870 only; 1900 and later stay passenger-led because the 1900+ passenger trains are rich per train and the bot builds few freight lines; money is down 40-90 % before 1950.
+
+**3. Changed limits** (old -> new, reason; all listed above in "Changed test limits" and "Changed e2e word ceilings"): coal route profit $40-120k -> $80-250k; passenger/freight per train 1x-2.5x -> 0.5x-2.5x; 1860s pax vs coal 1.6-3.5x -> 1.2-3.5x; 1900 pax vs coal 1.4-2.6x -> 1.1-2.6x; mail vs passenger train 0.05-0.35x -> 0.03-0.35x; e2e word ceilings station 37 -> 40 and train 24 -> 29 (flagged: not a pax-vs-freight limit); canary re-recorded (six rows, same bands); Silver Rush 3rd star $1.0M -> $0.94M. Deviation: freight rates x2 exclude the long-haul chain legs (so `balanceLongHaul` is unchanged).
