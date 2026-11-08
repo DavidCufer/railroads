@@ -1,13 +1,15 @@
 /**
- * Phase 89 mock-ups: the station panel and the train panel of each prototype passenger model, as real screenshots of a
- * dev-flag build (`?debug=1&paxModel=...`). Three towns in a row (Venice 40k, Ljubljana 30k, Zagreb 25k), two trains Venice-Ljubljana,
+ * Phase 90 panels: the station panel, the route list and the train panel under route demand, as real screenshots (800x360 and a tablet). Three towns in a row (Venice 40k, Ljubljana 30k, Zagreb 25k), two trains Venice-Ljubljana,
  * one Ljubljana-Zagreb, 4 months of play. Output: docs/explore/mockups/<model>-{station,train}.png.
  */
 import { test, type Page } from "@playwright/test";
 import "../../e2e/gameWindow";
 
 test.use({ deviceScaleFactor: 2 });
-const VIEW = { width: 800, height: 760 };
+const VIEWS: Record<string, { width: number; height: number }> = {
+  phone: { width: 800, height: 360 },
+  tablet: { width: 1280, height: 800 },
+};
 type P = { x: number; y: number };
 const range = (n: number, f: (i: number) => P): P[] => Array.from({ length: n }, (_, i) => f(i));
 const TOWNS = [
@@ -16,9 +18,12 @@ const TOWNS = [
   { name: "Zagreb", x: 76, pop: 25000 },
 ];
 
-async function scene(page: Page, model: string): Promise<{ ids: number[]; trains: number[] }> {
-  await page.setViewportSize(VIEW);
-  await page.goto(`/?debug=1&paxModel=${model}`);
+async function scene(
+  page: Page,
+  view: { width: number; height: number },
+): Promise<{ ids: number[]; trains: number[] }> {
+  await page.setViewportSize(view);
+  await page.goto("/?debug=1");
   await page.waitForFunction(() => window.__game !== undefined);
   await page.evaluate(() =>
     window.__game?.regenerate({
@@ -124,14 +129,23 @@ async function scene(page: Page, model: string): Promise<{ ids: number[]; trains
   return { ids, trains };
 }
 
-for (const model of (process.env.MODELS ?? "route,service,ticket").split(",")) {
-  test(`mock-ups: ${model}`, async ({ page }) => {
-    const { ids, trains } = await scene(page, model);
-    await page.evaluate((id) => window.__game!.debugOpenStation(id), ids[1]!); // the hub: two destinations
+for (const [name, view] of Object.entries(VIEWS)) {
+  test(`phase 90 route panels: ${name}`, async ({ page }) => {
+    const { ids, trains } = await scene(page, view);
+    await page.evaluate((id) => window.__game!.debugOpenStation(id), ids[1]!); // the hub: two routes
     await page.waitForTimeout(400);
-    await page.screenshot({ path: `docs/explore/mockups/${model}-station.png` });
+    await page.screenshot({ path: `docs/screenshots/phase-90-station-${name}.png` });
+    await page.locator(".dest-link").first().click();
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `docs/screenshots/phase-90-routes-${name}.png` });
+    await page.keyboard.press("Escape");
+    await page.evaluate(() =>
+      document
+        .querySelectorAll(".sheet-close, .panel-close")
+        .forEach((b) => (b as HTMLElement).click()),
+    );
     await page.evaluate((id) => window.__game!.debugOpenTrain(id), trains[0]!);
     await page.waitForTimeout(400);
-    await page.screenshot({ path: `docs/explore/mockups/${model}-train.png` });
+    await page.screenshot({ path: `docs/screenshots/phase-90-train-${name}.png` });
   });
 }
