@@ -10,23 +10,11 @@
  */
 import "./p79Env";
 import * as commands from "../../src/sim/commands";
-import { PAIR_DEMAND, TRAVEL_RANGE_ANCHORS, TRIPS_PER_HEAD_ANCHORS } from "../../src/data/economy";
+import { ROUTE_DEMAND, TRAVEL_RANGE_ANCHORS, TRIPS_PER_HEAD_ANCHORS } from "../../src/data/economy";
 
-// PAIR="distanceExponent,sizeExponent,minDistanceTiles,maxShare,splitSizeExponent,evenShare" overrides the passenger-destination table for tuning
+// PAIR=<pairShare> overrides the route-demand pair share (Phase 90: the gravity table of Phases 35-62 is gone) for tuning
 // runs; TRIPS=<factor> scales the trips-per-head table; RANGE=<factor> scales the travel range.
-if (process.env["PAIR"]) {
-  const [dist, size, minDist, maxShare, splitSize, even] = process.env["PAIR"]
-    .split(",")
-    .map((v) => (v.trim() === "" ? undefined : Number(v)));
-  Object.assign(PAIR_DEMAND, {
-    distanceExponent: dist ?? PAIR_DEMAND.distanceExponent,
-    sizeExponent: size ?? PAIR_DEMAND.sizeExponent,
-    minDistanceTiles: minDist ?? PAIR_DEMAND.minDistanceTiles,
-    maxShare: maxShare ?? PAIR_DEMAND.maxShare,
-    splitSizeExponent: splitSize ?? PAIR_DEMAND.splitSizeExponent,
-    evenShare: even ?? PAIR_DEMAND.evenShare,
-  });
-}
+if (process.env["PAIR"]) ROUTE_DEMAND.pairShare = Number(process.env["PAIR"]);
 if (process.env["TRIPS"]) {
   const f = Number(process.env["TRIPS"]);
   for (const anchor of TRIPS_PER_HEAD_ANCHORS as unknown as Array<[number, number]>) anchor[1] *= f;
