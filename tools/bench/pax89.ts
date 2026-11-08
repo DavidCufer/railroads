@@ -28,7 +28,7 @@ const state: GameState = createGameState({
   seed,
   region: "central-eu",
   startYear,
-  difficulty: "normal",
+  difficulty: (process.env["DIFF"] ?? "normal") as "normal" | "hard",
 });
 const bot = createStrongBot(state);
 if (botName === "strategist") attachStrategist(bot);

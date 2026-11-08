@@ -85,6 +85,28 @@ const P90: Record<string, Record<string, string>> = {
 };
 function jobs(): Job[] {
   const out: Job[] = [];
+  if (batch === "g90" || batch === "g90h") {
+    // Phase 90 step 4: the new economy (route demand, freight rates x2, bots weigh freight), 16 years, the goal eras
+    const hard = batch === "g90h";
+    for (const seed of hard ? [1, 2] : [1, 2, 3])
+      for (const start of [1870, 1900, 1840, 1930, 1950])
+        out.push({
+          id: `strong/route+${batch}/${start}/${seed}`,
+          args: [String(start), String(seed), "16", "route", "strong"],
+          env: { P90_TAG: batch, DIFF: hard ? "hard" : "normal" },
+        });
+    return out;
+  }
+  if (batch === "s90") {
+    // the Strategist on the new economy, 10 years (a 16-year run does not fit a container's life)
+    for (const start of [1870, 1900, 1840])
+      out.push({
+        id: `strategist/route+s90/${start}/1`,
+        args: [String(start), "1", "10", "route", "strategist"],
+        env: { P90_TAG: "s90" },
+      });
+    return out;
+  }
   if (batch === "t10") {
     // today's model at the same 10-year horizon as the Phase 90 runs
     for (const seed of [1, 2])
