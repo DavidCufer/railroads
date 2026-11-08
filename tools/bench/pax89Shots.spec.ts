@@ -74,7 +74,6 @@ async function scene(page: Page, model: string): Promise<{ ids: number[]; trains
     const map = window.__game!.getMap() as unknown as { width: number; cityId: Int16Array };
     state.cities.length = 0;
     towns.forEach((t, i) => {
-      const tile = 35 * map.width + t.x;
       const tiles: number[] = [];
       for (let dy = -3; dy <= 3; dy++)
         for (let dx = -3; dx <= 3; dx++) {

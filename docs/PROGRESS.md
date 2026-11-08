@@ -7926,3 +7926,24 @@ Flags for the owner: (1) 1930 goals jump about 9x (random profit gold $0.16M -> 
 
 ## 2026-11-07 - Phase 89 exploration: new passenger models (branch `phase-89-pax-explore`, NOT merged; owner picks)
 Three prototypes behind a dev flag (route demand, service-driven, ticket office), baseline and benches in `docs/explore/passengers-2.md`, rows in `docs/explore/data/pax89.jsonl`, mock-ups in `docs/explore/mockups/`. Shipped game unchanged. Finding: passengers are 97-99 % of revenue under every model, freight trains earn ~1/20 of a passenger train.
+
+## 2026-11-08 - Phase 90 (branch `phase-90-route-demand`, NOT merged; owner approved step 1): route demand, freight rates x2
+
+Step 1 (freight): `docs/explore/freight-90.md` (root cause and the lever table; owner approved rates x2, output unchanged, bots weigh freight).
+
+### What changed so far (items 2-3)
+- **Route demand is the passenger model** (SPEC 9.5d to be rewritten): `ROUTE_DEMAND` in `src/data/economy.ts` (pair share 0.33, 20-tile reference, exponent 0.5, hub cap 1.5x), `computePassengerFlows` returns one route per town a train calls at (`routeDemandPerMonth`), `MAX_WAIT_DAYS` 20 (was 30). The gravity code (`PAIR_DEMAND`, `destinationShares`, `cappedVolume`, `gravityWeight`) and the Phase 89 dev flag are gone. `state.routeCarried` (saved, optional in saves) feeds "carried X of Y" on the station panel, the route list sheet and the train panel (`src/ui/routeView.ts`). Fixed: "carried" never shows above the route's number; "Platform full - run more trains" only when at least 10 % of the people did not fit.
+- **Freight rates x2** for ordinary freight (`FREIGHT_RATE_FACTOR` 2 in `src/data/economy.ts`). Deviation from "all freight cargo": the long-haul chain's legs (silver, uranium) are left out, because Phase 40 set their rates against the ordinary lines and `balanceLongHaul` (a limit that is not passenger-vs-freight) would otherwise move; the chain tests stay unchanged.
+- **Bots (bench only):** V2 and the Strategist now weigh several buyers for a freight source and rank freight at payback x 0.35 by default (`FREIGHT_SINK=nearest`, `FREIGHT_BIAS=1` restore the old rule), and cap a passenger line's estimate by its route demand.
+
+### Changed test limits (old -> new, reason)
+Owner OK 2026-11-08 for passenger-vs-freight limits (and, listed for the owner, the two lines that follow from them):
+| test | old | new | reason |
+|---|---|---|---|
+| balance: coal route profit per train | $40k-$120k | $80k-$250k | freight rates x2 (measured 155k) |
+| balance: passenger/freight profit per train | 1x-2.5x (x induced) | 0.5x-2.5x (x induced) | passengers and freight are meant to be comparable per train (measured 0.75) |
+| balancePassengers 1860s: passengers vs coal | 1.6-3.5x | 1.2-3.5x | coal x2, route demand (measured 1.52) |
+| balancePassengers 1900: Town-Town passengers vs coal | 1.4-2.6x | 1.1-2.6x | coal x2, route demand (measured 1.39) |
+| balancePassengers: mail train vs passenger train | 0.05-0.35x | 0.03-0.35x | a town pair's passenger line earns more under route demand (measured 0.043) |
+Mechanism tests rewritten for route demand (not bounds): `pairDemand.test.ts` (gravity tests replaced by route-demand tests), `phase53.test.ts`, `cargoFlow.test.ts` (20-day ceiling instead of 30).
+Canary re-recorded (the owner chose the economy change; its own rule: re-record with the date): see the table in `tests/sim/canary.test.ts`. Scenario star: **Silver Rush 3rd star $1.0M -> $0.94M profit** (the staged plan now makes $977k; 96 % of the solver's result as in Phase 76/80): a goal drop, listed for the owner in the step 4 table.

@@ -3,7 +3,7 @@
  * A station's one pile holds the people who arrive between two trains: it fills from the last departure up to
  * `MAX_WAIT_DAYS` of demand. Service rates (departures a day per station and next stop) are the estimate behind the
  * station panel's "next train" until a gap has been observed. */
-import { maxWaitDays } from "../../data/passengerModels";
+import { MAX_WAIT_DAYS } from "../../data/economy";
 import type { GameState } from "../state";
 import { estimateRoundTripDays } from "../trains/headway";
 import { DAYS_PER_MONTH, HOURS_PER_DAY } from "../time";
@@ -45,7 +45,7 @@ export function serviceIntervalDays(ratePerDay: number | undefined): number | un
  * part above this ceiling is lost. */
 export function waitingCap(perMonth: number, served: boolean): number {
   if (!served || perMonth <= 0) return 0;
-  return (perMonth / DAYS_PER_MONTH) * maxWaitDays();
+  return (perMonth / DAYS_PER_MONTH) * MAX_WAIT_DAYS;
 }
 
 /** A passenger train leaves `stationId` now: stamp every next stop it makes (the first legs of the people it carries),
@@ -85,7 +85,7 @@ export function waitingSince(state: GameState, stationId: number, destination: n
 /** Days the people bound for `destination` have waited, at most `MAX_WAIT_DAYS` (what a pile holds). */
 export function waitedDays(state: GameState, stationId: number, destination: number): number {
   return Math.min(
-    maxWaitDays(),
+    MAX_WAIT_DAYS,
     Math.max(0, (state.ticks - waitingSince(state, stationId, destination)) / HOURS_PER_DAY),
   );
 }

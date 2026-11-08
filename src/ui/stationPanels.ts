@@ -6,7 +6,7 @@
  *   upgrade, supplies/accepts, a waiting-cargo placeholder (Phase 7 does real cargo flow).
  */
 import { waitingInfo, type WaitingInfo } from "./waitingSplit";
-import { renderPaxStation } from "./paxModelView";
+import { renderRouteStation } from "./routeView";
 import { CARGO, CARGO_TYPES, type CargoType } from "../data/cargo";
 import {
   STATION_IMPROVEMENT_TYPES,
@@ -161,23 +161,21 @@ function supplyChipStack(
           { className: "waiting-row waiting-line" },
           strings.station.waitingLine(split.waiting, split.nextDays),
         ),
-        split.reach.length > 0
-          ? onTap
-            ? // The line is the way into the "Where to" sheet (no separate button: fewer words).
-              h(
-                "button",
-                { className: "waiting-row waiting-reach dest-link", onClick: onTap },
-                `${strings.station.reachLine(split.reach.join(", "))} ▸`,
-              )
-            : h(
-                "div",
-                { className: "waiting-row waiting-reach" },
-                strings.station.reachLine(split.reach.join(", ")),
-              )
-          : null,
       ),
     );
-  if (split && split.paxView) children.push(renderPaxStation(split.paxView));
+  if (split?.routes) {
+    const block = renderRouteStation(split.routes);
+    // The block is the way into the route list ("Where to"): all routes, and the towns no train from here calls at.
+    if (onTap)
+      block.append(
+        h(
+          "button",
+          { className: "dest-link", onClick: onTap },
+          strings.station.destinations.tapHint,
+        ),
+      );
+    children.push(block);
+  }
   if (trend) children.push(h("span", { className: "cargo-waiting-label supply-trend" }, trend));
   if (pileFull)
     children.push(
@@ -187,7 +185,7 @@ function supplyChipStack(
         pileFull,
       ),
     );
-  if (onTap && !(split && split.reach.length > 0))
+  if (onTap && !split?.routes)
     children.push(
       h("button", { className: "dest-link", onClick: onTap }, strings.station.destinations.tapHint),
     );
@@ -561,7 +559,10 @@ function resultsSection(state: GameState, station: Station): Node[] {
   }
   return [
     section(t.title, [statRow(...tiles), cardList(...(lines as HTMLElement[]))], note),
-    ...(lostUnits >= 0.5 ? [h("div", { className: "hint" }, t.unservedHint)] : []),
+    // Phase 90: "run more trains" only when a real part of the people did not fit (a stray few are not a full platform)
+    ...(lostUnits >= 0.5 && lostUnits >= 0.1 * (sentTotal + lostUnits)
+      ? [h("div", { className: "hint" }, t.unservedHint)]
+      : []),
   ];
 }
 

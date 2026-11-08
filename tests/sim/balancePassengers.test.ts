@@ -48,19 +48,21 @@ describe("Phase 26A passenger & mail balance", () => {
     expect(ratio).toBeLessThan(1.6);
   });
 
-  it("1860s: with the American and 1840s-60s fares passengers lead coal by 1.6-3.5x", () => {
+  it("1860s: with the American and 1840s-60s fares passengers lead coal by 1.2-3.5x", () => {
     // Measured 2.97x; the era where passengers lead the most.
     const ratio = paxVsCoal(1860, "american-4-4-0");
     // Phase 69 (owner OK 2026-10-24): was > 2, measured 1.78 with travellers at 0.8x (TRIPS_GAME_SCALE); coal is unchanged.
-    expect(ratio).toBeGreaterThan(1.6);
+    // Phase 90 (owner OK 2026-11-08, freight rates x2, route demand): was > 1.6, measured 1.52.
+    expect(ratio).toBeGreaterThan(1.2);
     expect(ratio).toBeLessThan(3.5);
   });
 
-  it("1900: Town↔Town passengers earn 1.4-2.6x a coal train (measured 1.48x at 0.8x travellers, fares x0.92)", () => {
+  it("1900: Town↔Town passengers earn 1.1-2.6x a coal train (measured 1.39x with route demand, coal rates x2)", () => {
     const ratio = paxVsCoal(1900, "atlantic-4-4-2");
     // Phase 69 (owner OK 2026-10-24): was > 1.8, measured 1.61 with travellers at 0.8x (TRIPS_GAME_SCALE).
     // Phase 80 (owner OK 2026-11-02): was > 1.5, measured 1.477 with passenger fares x0.92; coal is unchanged.
-    expect(ratio).toBeGreaterThan(1.4);
+    // Phase 90 (owner OK 2026-11-08, freight rates x2, route demand): was > 1.4, measured 1.39.
+    expect(ratio).toBeGreaterThan(1.1);
     expect(ratio).toBeLessThan(2.6);
   });
 
@@ -95,7 +97,7 @@ describe("Phase 26A passenger & mail balance", () => {
     expect(coal.revenue / pax.revenue).toBeGreaterThanOrEqual(0.9);
   });
 
-  it("a mail car pays about 1.3× a passenger car per trip, and a mail train earns 0.05–0.35× a passenger train", () => {
+  it("a mail car pays about 1.3× a passenger car per trip, and a mail train earns 0.03–0.35× a passenger train", () => {
     expect(CARGO.mail.baseRate / CARGO.passengers.baseRate).toBeGreaterThan(1.2);
     expect(CARGO.mail.baseRate / CARGO.passengers.baseRate).toBeLessThan(1.4);
     const pax = measureRoute({
@@ -113,7 +115,8 @@ describe("Phase 26A passenger & mail balance", () => {
       tier: "town",
     });
     // Measured 0.063 (a mail car is a small load next to a full passenger train); mail is a side line, not 15 % of one.
-    expect(mail.revenue / pax.revenue).toBeGreaterThan(0.05);
+    // Phase 90 (owner OK 2026-11-08, route demand): was > 0.05, measured 0.043 (a town pair's passenger line earns more).
+    expect(mail.revenue / pax.revenue).toBeGreaterThan(0.03);
     expect(mail.revenue / pax.revenue).toBeLessThan(0.35);
   });
 

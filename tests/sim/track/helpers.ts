@@ -71,6 +71,7 @@ export function makeTestState(map: GameMap, overrides: Partial<GameState> = {}):
     stationTransfer: new Map(),
     stationFlow: new Map(),
     departures: new Map(),
+    routeCarried: new Map(),
     waitingSince: new Map(),
     washouts: [],
     nextWashoutId: 0,

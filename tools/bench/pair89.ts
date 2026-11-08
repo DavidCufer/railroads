@@ -10,14 +10,13 @@ import { createGameState } from "../../src/sim/state";
 import { advanceOneHour } from "../../src/sim/tick";
 import { findBuildPath } from "../../src/sim/track/pathfind";
 import { buyableLocomotivesIn } from "../../src/data/trains";
-import { PAX, type PaxModel } from "../../src/data/passengerModels";
 import { getStationFlow } from "../../src/sim/stations/flow";
 import { carCapacity } from "../../src/sim/trains/capacity";
 import { estimateRoundTripDays } from "../../src/sim/trains/headway";
 import { octileTileDistance } from "../../src/sim/trains/geometry";
 
 const startYear = Number(process.argv[2] ?? 1870);
-PAX.model = (process.argv[3] ?? "today") as PaxModel;
+const model = process.argv[3] ?? "route"; // a label only since Phase 90
 const maxN = Number(process.argv[4] ?? 8);
 const years = Number(process.argv[5] ?? 3);
 const nCarsArg = Number(process.argv[6] ?? 4);
@@ -141,7 +140,7 @@ for (let n = 1; n <= maxN; n++) {
   console.log(
     "PAIR " +
       JSON.stringify({
-        model: PAX.model,
+        model,
         year: startYear,
         pair: `${A.name}(${A.population})-${B.name}(${B.population})`,
         dist,

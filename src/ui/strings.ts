@@ -1,32 +1,16 @@
 /** All user-facing strings live here (CLAUDE.md hard rule), including dev-only debug UI. */
 export const strings = {
-  /** Phase 89 (dev flag `?paxModel=`, exploration only): the passenger-model prototypes' panels. */
-  paxModel: {
-    names: {
-      route: "Route demand",
-      service: "Service-driven",
-      ticket: "Ticket office",
-    },
-    /** Route demand: one line per town the trains here call at. */
-    routeTitle: "Route demand · a month",
-    routeRow: (carried: number, demand: number) => `carried ${carried} of ${demand}`,
-    /** Service-driven: demand reached so far and the ceiling. */
-    serviceTitle: "Service-driven demand · a month",
-    serviceRow: (demand: number, ceiling: number) => `${demand} now · ceiling ${ceiling}`,
-    serviceLevel: (perWeek: string) => `${perWeek} trains a week`,
-    serviceHint: (more: number) => `One more train adds about ${more} a month`,
-    /** Ticket office: the town's fixed budget of tickets, split by the destinations served. */
-    ticketTitle: (budget: number) => `Ticket office · ${budget} tickets a month`,
-    ticketRow: (tickets: number, share: number, carried: number) =>
-      `${tickets} (${share} %) · sold ${carried}`,
-    ticketHint: "More destinations share these tickets; they do not add to them",
+  /** Phase 90: route demand on the station and train panels (SPEC 9.5d). */
+  routes: {
+    title: "Routes from here \u00b7 a month",
+    /** "carried 43 of 85" */
+    row: (carried: number, demand: number) => `carried ${carried} of ${demand}`,
     holds: (days: number) => `Platform holds ${days} days of arrivals`,
-    full: "Pair is full: another train adds nothing",
-    /** Train panel */
-    pairTitle: "Pair demand a month",
+    full: "Route is full: another train adds nothing",
+    pairTitle: "Route demand a month",
     pairRow: (a: string, b: string, carried: number, demand: number) =>
-      `${a} ⇄ ${b}: carried ${carried} of ${demand}`,
-    pairTrains: (n: number) => (n === 1 ? "1 train on this pair" : `${n} trains on this pair`),
+      `${a} \u21c4 ${b}: carried ${carried} of ${demand}`,
+    pairTrains: (n: number) => (n === 1 ? "1 train on this route" : `${n} trains on this route`),
     pairMore: (n: number) => `Another train: about +${n} a month`,
   },
   app: {
@@ -256,19 +240,15 @@ export const strings = {
     /** "Waiting 41 · next train ~6d" */
     waitingLine: (n: number, days?: number) =>
       days === undefined ? `Waiting ${n}` : `Waiting ${n} · next train ~${days}d`,
-    /** "Trains here reach: Milan, Padua" */
-    reachLine: (towns: string) => `Trains here reach: ${towns}`,
     reachMore: (n: number) => `+${n} more`,
     supplies: "Supplies",
     perMonthNote: "/mo",
     /** PLAN Phase 35: the "Where passengers go" detail sheet (tap the passenger supply tile). */
     destinations: {
-      title: "Where passengers go",
+      title: "Routes from here",
       subtitle: (station: string) => `${station} · passengers per month`,
       tapHint: "Where to ▸",
-      total: (n: string) => `About ${n} passengers a month travel from here by train.`,
-      /** "Milan 30/mo · 18 %" */
-      row: (perMonth: string, pct: number) => `${perMonth}/mo · ${pct} %`,
+      total: (n: string) => `Your routes from here can send about ${n} passengers a month.`,
       notConnected: "Not served yet",
       notConnectedHint: "Run a train from here to these towns to win their travellers.",
       /** "+12 Trieste": the travellers a town would send here a month. */

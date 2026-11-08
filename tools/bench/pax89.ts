@@ -11,7 +11,6 @@ import "./p90Env";
 import { createStrongBot } from "./strongBot";
 import { attachStrategist } from "./strategist/strategist";
 import { createGameState } from "../../src/sim/state";
-import { PAX } from "../../src/data/passengerModels";
 import { booksProfit } from "../../src/sim/trains/profit";
 import { carCapacity } from "../../src/sim/trains/capacity";
 import { ledgerOperatingProfit, ledgerRevenue } from "../../src/data/finance";
@@ -22,9 +21,8 @@ import type { Train } from "../../src/sim/trains/types";
 const startYear = Number(process.argv[2] ?? 1870);
 const seed = Number(process.argv[3] ?? 1);
 const years = Number(process.argv[4] ?? 12);
-const model = (process.argv[5] ?? process.env["PAX_MODEL"] ?? "today") as typeof PAX.model;
+const model = process.argv[5] ?? "route"; // a label only since Phase 90: route demand is the game
 const botName = process.argv[6] ?? process.env["BOT"] ?? "strong";
-PAX.model = model;
 
 const state: GameState = createGameState({
   seed,

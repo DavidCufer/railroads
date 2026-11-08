@@ -56,8 +56,7 @@ import { createLayUpPolicy } from "./layUp";
 import { booksProfit } from "../../src/sim/trains/profit";
 import { fixWeightBridges } from "./fixBridges";
 import { estimateFreightPayback, estimatePayback } from "./paybackEstimate";
-import { PAX } from "../../src/data/passengerModels";
-import { lineDemandPerMonth } from "../../src/sim/stations/paxModels";
+import { routeDemandPerMonth } from "../../src/sim/stations/passengerFlows";
 import type { City, Industry } from "../../src/sim/economy/types";
 import type { Station } from "../../src/sim/stations/types";
 import type { StationType } from "../../src/data/stations";
@@ -215,6 +214,22 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     return Array.from({ length: n }, (_, i) => (i < n - mail ? "passengers" : "mail"));
   }
 
+  /** People a month both ways between every pair of a line's towns: what a player reads off the route numbers (a hub is capped
+   * like the game does). */
+  function lineDemandPerMonth(cities: readonly City[]): number {
+    let sum = 0;
+    for (const a of cities)
+      for (const b of cities)
+        if (a !== b)
+          sum += routeDemandPerMonth(
+            a.population,
+            b.population,
+            dist(cityCentre(a), cityCentre(b)),
+            year(),
+          );
+    return sum;
+  }
+
   function bestPaxLoco(
     cities: readonly City[],
     d: number,
@@ -222,11 +237,8 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
   ): { id: string; payback: number; profit: number; revenue: number; costs: number } {
     let best:
       { id: string; payback: number; profit: number; revenue: number; costs: number } | undefined;
-    // Phase 89: under a prototype passenger model the line's visible demand caps its estimated earnings
-    const demand =
-      PAX.model !== "today" && cities.length >= 2
-        ? lineDemandPerMonth(cities, year(), state.map.width)
-        : undefined;
+    // Phase 90: the line's visible route demand caps its estimated earnings
+    const demand = cities.length >= 2 ? lineDemandPerMonth(cities) : undefined;
     for (const l of paxLocos()) {
       const n = paxConsist(l.id, cars).length;
       const e = estimatePayback(state, l, n, d, demand);
@@ -1014,11 +1026,11 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
     return out.filter((s) => s.d >= 12 && s.d <= MAX_LINE_TILES).sort((p, q) => p.d - q.d);
   }
 
-  /** Phase 90: FREIGHT_SINK=best makes the bot weigh several buyers for a producer's cargo (spread over the distances in range)
+  /** Phase 90: by default (FREIGHT_SINK=nearest restores the old rule) the bot weighs several buyers for a producer's cargo (spread over the distances in range)
    * and take the one with the best payback; the default is the nearest buyer, as before (a short haul pays little: the fare
    * grows with distance while the loading and the train's fixed costs do not). */
   function freightProject(prod: Industry, cargo: CargoType, output: number): Project | null {
-    const bias = Number(process.env["FREIGHT_BIAS"] ?? 1); // Phase 90 bench: <1 ranks freight ahead, as a player who wants it would
+    const bias = Number(process.env["FREIGHT_BIAS"] ?? 0.35); // Phase 90 bench: <1 ranks freight ahead, as a player who wants it would
     if (bias !== 1) {
       const p = freightProjectBest(prod, cargo, output);
       return p ? { ...p, payback: p.payback * bias } : null;
@@ -1027,7 +1039,7 @@ export function createStrongBot(state: GameState, memory?: BotMemory) {
   }
 
   function freightProjectBest(prod: Industry, cargo: CargoType, output: number): Project | null {
-    if (process.env["FREIGHT_SINK"] !== "best") return freightProjectTo(prod, cargo, output, 0);
+    if (process.env["FREIGHT_SINK"] === "nearest") return freightProjectTo(prod, cargo, output, 0);
     const n = sinksFor(cargo, prod).length;
     const picks = [...new Set([0, Math.floor(n / 3), Math.floor((2 * n) / 3), n - 1])].filter(
       (i) => i >= 0 && i < n,

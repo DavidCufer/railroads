@@ -163,13 +163,16 @@ describe("passengers and mail: linear fill to one month, nobody gives up (Phase 
     eco.passengerRoutes = route(300);
     for (let day = 0; day < 40; day++) accrueDailyCargo(state);
     const p = pile(state, station.id)!.passengers!;
-    // a train takes 80 of the 300 and leaves the other 220 waiting since 22 days ago
+    // 10 a day, the ceiling is MAX_WAIT_DAYS of them (200 at 20 days): a train takes 80 and leaves the other 120 waiting since
+    // 12 days ago; they are joined by 10 a day up to the ceiling again
+    const ceiling = (300 / 30) * MAX_WAIT_DAYS;
+    expect(p.amount).toBeCloseTo(ceiling, 6);
     p.amount -= 80;
-    state.waitingSince.set("0>7", state.ticks - 22 * 24);
+    state.waitingSince.set("0>7", state.ticks - (ceiling - 80) * (30 / 300) * 24);
     for (let day = 0; day < 4; day++) accrueDailyCargo(state);
-    expect(p.amount).toBeCloseTo(220 + 40, 6);
+    expect(p.amount).toBeCloseTo(ceiling - 80 + 40, 6);
     for (let day = 0; day < 10; day++) accrueDailyCargo(state);
-    expect(p.amount).toBeCloseTo(300, 6);
+    expect(p.amount).toBeCloseTo(ceiling, 6);
   });
 
   it("clamps to the new ceiling when the rate falls", () => {

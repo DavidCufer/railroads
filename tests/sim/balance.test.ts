@@ -391,11 +391,12 @@ function addNetworkPassengerRoute(
 }
 
 describe("Phase 7.1 balance acceptance", () => {
-  it("a good coal mine -> steel mill route earns $40k-$120k profit/yr/train (Normal)", () => {
+  it("a good coal mine -> steel mill route earns $80k-$250k profit/yr/train (Normal)", () => {
     const state = buildCoalToSteelRoute(16 * WORLD_SCALE, 4);
     const [, yr2] = yearlyProfits(state, 2);
-    expect(yr2 as number).toBeGreaterThan(40_000);
-    expect(yr2 as number).toBeLessThan(120_000);
+    // Phase 90 (owner OK 2026-11-08, freight rates x2): was $40k-$120k, measured 155k now; the band moves with the rate.
+    expect(yr2 as number).toBeGreaterThan(80_000);
+    expect(yr2 as number).toBeLessThan(250_000);
   });
 
   it("a good two-city passenger route earns $80k-$260k profit/yr/train (Normal, 1848 fares still at the early premium)", () => {
@@ -406,13 +407,14 @@ describe("Phase 7.1 balance acceptance", () => {
     expect(yr2 as number).toBeLessThan(260_000 * 1.3 * inducedTrafficFactor(1848));
   });
 
-  it("passenger/freight profit-per-train ratio for comparable routes is within 1x-2.5x", () => {
+  it("passenger/freight profit-per-train ratio for comparable routes is within 0.5x-2.5x", () => {
     const coal = buildCoalToSteelRoute(16 * WORLD_SCALE, 4);
     const pax = buildPassengerRoute(16 * WORLD_SCALE, 40_000, 4);
     const [, coalYr2] = yearlyProfits(coal, 2);
     const [, paxYr2] = yearlyProfits(pax, 2);
     const ratio = (paxYr2 as number) / (coalYr2 as number);
-    expect(ratio).toBeGreaterThanOrEqual(1);
+    // Phase 90 (owner OK 2026-11-08): was >= 1; passengers and freight are meant to be comparable per train now, measured 0.75.
+    expect(ratio).toBeGreaterThanOrEqual(0.5);
     // Rationale: induced traffic makes early passenger routes richer than freight; the ceiling moves with it.
     expect(ratio).toBeLessThanOrEqual(2.5 * inducedTrafficFactor(1848));
   });

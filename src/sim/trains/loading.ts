@@ -39,7 +39,7 @@ import {
 } from "../../data/trains";
 import { handlingCost } from "../finance/costs";
 import { addExpense, addRevenue } from "../finance/ledger";
-import { recordCarried } from "../stations/paxModels";
+import { recordCarried } from "../stations/routeCarried";
 import { addLot, Boarding, lotFate, takePassengers, upcomingStops } from "../stations/boarding";
 import { stampDeparture } from "../stations/waiting";
 import { recordDelivered, recordLoadedRevenue, recordSent } from "../stations/flow";

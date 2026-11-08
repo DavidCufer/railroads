@@ -40,7 +40,6 @@ import { drawZoomMarkers } from "./render/zoomMarkers";
 import type { ReservedScreenRect } from "./render/reservedRects";
 import { CameraInput, type BuildDragHandlers } from "./ui/cameraInput";
 import { createDebugControls } from "./ui/debugControls";
-import { PAX } from "./data/passengerModels";
 import { createTopBar } from "./ui/topBar";
 import { nextStuck, stuckTrains } from "./ui/stuckTrains";
 import {
@@ -195,11 +194,6 @@ const WATER_ID = terrainId("water");
 const DEBUG = new URLSearchParams(window.location.search).has("debug");
 /** `?debug=1&debugHud=0` keeps `window.__game` but hides the fps line and dev controls (store screenshots). */
 const DEBUG_HUD = DEBUG && new URLSearchParams(window.location.search).get("debugHud") !== "0";
-// Phase 89 (exploration): `?debug=1&paxModel=route|service|ticket` switches the passenger-model prototype; absent = today's rules.
-if (DEBUG) {
-  const model = new URLSearchParams(window.location.search).get("paxModel");
-  if (model === "route" || model === "service" || model === "ticket") PAX.model = model;
-}
 if (DEBUG) setStaleReservationReporter((message) => console.warn(`[stale reservation] ${message}`));
 
 const DEFAULT_NEW_GAME: NewGameOptions = {

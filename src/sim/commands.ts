@@ -62,7 +62,6 @@ import { passingLoopCost, stationCost, stationUpgradeCost } from "./stations/cos
 import { defaultStationName } from "./stations/naming";
 import { collectPickups } from "./stations/pickups";
 import { computeStationEconomies } from "./stations/economy";
-import { applyPaxModel } from "./stations/paxModels";
 import { destinationSets, passengerNetwork } from "./stations/destinations";
 import type { Station } from "./stations/types";
 import { CARGO, type CargoType } from "../data/cargo";
@@ -738,7 +737,6 @@ export function refreshStationEconomy(state: GameState): void {
     passengerNetwork(state),
     collectPickups(state),
   );
-  applyPaxModel(state); // Phase 89 dev flag: a no-op unless PAX.model is a prototype
 }
 
 export interface StationBuildPlan {

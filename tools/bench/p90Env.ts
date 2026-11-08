@@ -4,7 +4,7 @@
  *   FREIGHT_OUT=<x>     monthly output of every raw producer x this (coal, ore, wood, grain, livestock, oil, silver and uranium ore)
  *   FREIGHT_RATE=<x>    base rate of every freight cargo (not passengers or mail) x this
  */
-import { ROUTE_DEMAND } from "../../src/data/passengerModels";
+import { ROUTE_DEMAND } from "../../src/data/economy";
 import { INDUSTRIES } from "../../src/data/industries";
 import { CARGO, type CargoType } from "../../src/data/cargo";
 
