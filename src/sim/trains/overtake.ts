@@ -52,7 +52,11 @@ function hoursUntilThrough(
     }
     if (out !== exit) return undefined;
     const left =
-      f.status === "loading" ? (f.loadTicksLeft >= 0 ? f.loadTicksLeft : stopDwellHours(f)) : 0;
+      f.status === "loading"
+        ? f.loadTicksLeft >= 0
+          ? f.loadTicksLeft
+          : stopDwellHours(state, f)
+        : 0;
     return { hours: left, speed: ctx.tilesPerHour(f, s, exit) };
   }
   if (f.status !== "moving") return undefined;
@@ -72,7 +76,7 @@ function hoursUntilThrough(
   const tiles =
     routeTiles(state, f.route, f.routeIndex, k) -
     (first ? edgeLengthTiles(first) * f.edgeProgress : 0);
-  const stops = last ? (f.loadTicksLeft >= 0 ? f.loadTicksLeft : stopDwellHours(f)) : 0;
+  const stops = last ? (f.loadTicksLeft >= 0 ? f.loadTicksLeft : stopDwellHours(state, f)) : 0;
   return { hours: tiles / speed + stops, speed: ctx.tilesPerHour(f, s, exit) };
 }
 

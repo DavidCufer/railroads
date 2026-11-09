@@ -9,7 +9,9 @@ import {
   spaceTrainsEvenly,
 } from "../../../src/sim/commands";
 import { estimateRoundTripDays, evenGapDays } from "../../../src/sim/trains/headway";
+import { advanceOneHour } from "../../../src/sim/tick";
 import { makeTestMap, makeTestState, tileAt } from "../track/helpers";
+import { lineWithStops } from "./middleStop.test";
 
 function world(trains: number) {
   const row = Array.from({ length: 40 }, () => "p").join("");
@@ -68,4 +70,46 @@ describe("departure spacing (Phase 34)", () => {
     for (const t of state.trains) for (const o of t.orders) expect(o.minGapDays).toBe(gap);
     expect(spaceTrainsEvenly(state, [ids[0]!]).ok).toBe(false);
   });
+});
+
+/** Phase 91: the stop-time estimate follows the real loading rule (cars unloaded + cars loaded), so the round trip it gives
+ * matches a measured one on a five-stop there-and-back line, for a busy and for a thin line. */
+describe("round-trip estimate against a measured run (Phase 91)", () => {
+  const measure = (pop: number, cars: number): { est: number; real: number } => {
+    const { state, stationIds } = lineWithStops(5, 14, 1870, pop);
+    for (const s of state.stations) s.hasEngineShed = true;
+    const cyc = [0, 1, 2, 3, 4, 3, 2, 1];
+    expect(
+      buyTrain(state, stationIds[0]!, "american-4-4-0", Array(cars).fill("passengers")).ok,
+    ).toBe(true);
+    const t = state.trains[0]!;
+    setOrders(
+      state,
+      t.id,
+      cyc.map((i) => ({ stationId: stationIds[i]!, rule: "auto" as const })),
+    );
+    // the day the train sets off from the first station, each time
+    const leaves: number[] = [];
+    let prev = "";
+    for (let h = 0; h < 24 * 260; h++) {
+      advanceOneHour(state);
+      if (prev === "loading" && t.status === "moving" && t.currentOrderIndex === 1)
+        leaves.push(state.ticks);
+      prev = t.status;
+    }
+    const real = leaves.slice(2).reduce((u, x, i) => u + (x - leaves[i + 1]!), 0);
+    return {
+      est: estimateRoundTripDays(state, t),
+      real: real / (leaves.length - 2) / 24,
+    };
+  };
+  for (const [pop, cars] of [
+    [40_000, 6],
+    [3_000, 6],
+    [1_000, 8],
+  ] as const)
+    it(`pop ${pop}, ${cars} cars: within 12 % of the measured round trip`, () => {
+      const { est, real } = measure(pop, cars);
+      expect(Math.abs(est - real) / real).toBeLessThan(0.12);
+    });
 });

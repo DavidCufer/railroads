@@ -7997,3 +7997,12 @@ Strategist (10 y, one seed, 0.33): year-10 profit 1840 $0.73M, 1870 $1.27M, 1900
   approved); yearly-profit achievements $0.15M / $1.0M / $3.0M with renamed ids (old saves mapped, tested); Silver Rush
   3rd star $0.94M. Changed limits = exactly the owner-approved list; e2e word ceilings unchanged (text trimmed).
 - `npm run check` 970 passed; e2e shards run alone 155 + 154 passed; run screenshots reverted (the phase's own kept).
+
+
+## Phase 91: a passenger yardstick, and two wrong estimates (branch `phase-91-pax-yardstick`)
+No game rule and no balance number changed. Details and tables: `docs/explore/yardstick.md`.
+- **Fix 1** `serviceRates` (`src/sim/stations/waiting.ts`) skips `passThrough` orders (display of "who takes the waiting people"); test in `waitingForNextTrain.test.ts` (fails without the fix).
+- **Fix 2** `stopDwellHours(state, train)` / `estimateRoundTripDays` (`src/sim/trains/headway.ts`) now follow the real loading rule: cars with people, unloaded and refilled. A measured five-stop line showed the same dwell at the ends and in the middle, so the saving is by load, not by stop position: `passengerFill` takes the route demand of the train's stops, shared between the trains calling there by seats, per visit, capped by the 20-day pile. Estimate vs measured round trip: 60.9/63.8, 52.9/49.5, 50.9/49.8 days (before 60.9/63.8, 60.9/49.5, 64.9/49.8); tests in `headway.test.ts` (within 12 %). `overtake.ts` passes the state. **The canary did not move:** all six records are exactly as recorded (checked with `tools/bench/canary.ts`); no test bound changed.
+- **Yardstick** `tools/bench/yardstick.ts` (resumable, `docs/explore/data/yardstick.jsonl`, 990 rows: 5 lines x 3 years x train counts 1-8 x mixes x 2 seeds x 3 exponents), `yardstickSummary.ts` (tables, hub-change calculation), `docs/explore/data/yardstick-tables.md`. Matches the orchestrator's S4 numbers (1870 45-47 % with 6 trains, ~$320k a train; 1842 ~60 %; 1900 close). Findings: every ordinary train pays back in 0.3-0.8 years; only the thin branch is slow (1.2-2.7 y); one train leaves the platform at its limit in most station-months; 8 locals do not carry 90 % on a long line before 1900.
+- **Candidates (bench only):** distance exponent 1.0 / 2.0 vs 0.5 in the bench process; src/data untouched. Hub change-of-train size: +21-30 % travellers with the 1.5x hub cap, +51-57 % without.
+- e2e both shards run one at a time; screenshots reverted.

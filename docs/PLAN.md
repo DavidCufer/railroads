@@ -3413,4 +3413,4 @@ game rule and no balance number.** Branch `phase-91-pax-yardstick` from main; ne
 5. `docs/explore/yardstick.md`: one short table per line, a five-line summary in plain words, the candidates side by side.
    `npm run check`; e2e both shards (one at a time) only if step 2 touched the sim; PROGRESS; tick only Phase 91.
    STOP with the summary for the owner. No SPEC change unless step 2 changes behaviour.
-Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
+Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5

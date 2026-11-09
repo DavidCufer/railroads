@@ -23,7 +23,11 @@ export function serviceRates(state: GameState): ServiceRates {
     if (!train.cars.some((c) => c.cargoType === "passengers") || train.orders.length < 2) continue;
     const roundTrip = Math.max(1, estimateRoundTripDays(state, train));
     const visits = new Map<number, number>();
-    for (const o of train.orders) visits.set(o.stationId, (visits.get(o.stationId) ?? 0) + 1);
+    // Passing through is not a stop (SPEC §9.5d-2): such an order gives no service at that station.
+    for (const o of train.orders) {
+      if (o.rule === "passThrough") continue;
+      visits.set(o.stationId, (visits.get(o.stationId) ?? 0) + 1);
+    }
     for (const [from, n] of visits)
       for (const to of visits.keys()) {
         if (to === from) continue;
