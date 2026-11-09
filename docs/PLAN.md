@@ -3376,3 +3376,41 @@ without the owner's OK, look at every PNG.
 5. Tests, e2e (both shards, one at a time), screenshots of the new station and train panels at 800x360 and on a tablet.
    SPEC rewritten for §9.5d and the freight changes. PROGRESS; tick ONLY Phase 90 (and Phase 89).
 Status: [x] 1 [x] 2 [x] 3 [x] 4 [x] 5 (done on `phase-90-route-demand`, owner decisions of 2026-11-08 applied: pair share 0.33, goals scaled down, achievements $0.15M / $1M / $3M, word ceilings kept; Phase 89 ticked: owner chose A)
+
+## Phase 91 — A passenger yardstick, and two wrong estimates
+
+Owner (2026-11-09), after an outside review of the passenger model: "recommend course of action ... so that you can take
+over". The passenger model has been rebuilt five times (Phases 35, 48, 54, 89/90), each time by argument and bot benches;
+none was ever measured against the owner's own complaints ("stations always full, lots of trains between few cities, way
+too much money, not transparent"). This phase builds that measure and fixes two estimates the review found. **It changes no
+game rule and no balance number.** Branch `phase-91-pax-yardstick` from main; never push to main. Never loosen a test bound.
+
+1. **Passing through is not a stop** (`src/sim/stations/waiting.ts`, `serviceRates`): orders with `passThrough` are counted
+   as calls, so the "who takes the waiting people" split (`src/ui/waitingSplit.ts`) credits trains that never stop. Skip
+   them, with a test. Display only.
+2. **Stop time from the cars really handled** (`src/sim/trains/headway.ts`, `stopDwellHours`): the estimate assumes every car
+   is emptied and refilled at every stop (`cars x 2 x TICKS_PER_CAR_HANDLED`); the real rule is in
+   `src/sim/trains/loading.ts` (cars handled at that stop). Make the estimate follow the real rule as far as it can be
+   known ahead (a passenger train at a middle stop handles about its share, not every car twice), with a test comparing the
+   estimate with a measured round trip on a five-stop line. It feeds the route view, `spaceTrainsEvenly` and `overtake.ts`,
+   so the sim can move: if the canary or any test bound moves, **STOP and report the numbers; change no bound.**
+3. **The yardstick** (`tools/bench/yardstick.ts`, results in `docs/explore/yardstick.md`): fixed test lines, hand-built like
+   `explore.ts` S4, in 1842, 1870 and 1900 with the engine a player would own then (not the bench's 1830s default):
+   - P: two large towns, 20 tiles apart, and the same pair 60 tiles apart.
+   - T: the five-town line of S4 (two cities, three small towns, about 70 tiles).
+   - H: a hub city with three branches of two towns each.
+   - B: a thin branch of two small towns off a big one.
+   For each line and year, for 1..8 trains (locals; on T also the best mix with 1 and 2 expresses), print what the owner
+   complained about, measured directly: people carried / turned away (and % of the line's demand); the number of trains
+   that first carries 90%; the share of station-months with the platform at its 20-day limit; net money per train a year
+   against the train's price (years to pay back); and for B, whether the branch train earns its keep. Count only stations
+   the trains call at (express-only runs on S4 report the unserved towns as "lost": do not repeat that). Deterministic,
+   resumable (one JSON line per run), 2 seeds.
+4. **Candidates, in the bench only** (nothing shipped): on the same lines, the same table with the distance exponent of
+   `ROUTE_DEMAND` at 1.0 and at 2.0 (today 0.5; give the real-world basis you can find for the right value), and a plain
+   calculation of how many more travellers H would have if people changed trains once at the hub (pairs across branches,
+   same formula) - as a size, not a model.
+5. `docs/explore/yardstick.md`: one short table per line, a five-line summary in plain words, the candidates side by side.
+   `npm run check`; e2e both shards (one at a time) only if step 2 touched the sim; PROGRESS; tick only Phase 91.
+   STOP with the summary for the owner. No SPEC change unless step 2 changes behaviour.
+Status: [ ] 1 [ ] 2 [ ] 3 [ ] 4 [ ] 5
